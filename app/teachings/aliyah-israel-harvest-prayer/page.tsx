@@ -282,10 +282,10 @@ export default function AliyahTeachingPage() {
         <div className="flex flex-col gap-3 pt-2 sm:flex-row">
           <Link
             href="/"
-            className="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 font-extrabold text-white"
+            className="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 font-extrabold text-white transition hover:text-white"
           >
-            <House aria-hidden="true" size={18} />
-            Return to The Whiteboard
+            <House aria-hidden="true" size={18} className="!text-white" />
+            <span className="!text-white">Return to The Whiteboard</span>
           </Link>
           <Link
             href="/#prayer"

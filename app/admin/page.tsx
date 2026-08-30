@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { signOut } from "./actions";
 import { requireAdmin } from "@/lib/supabase/admin";
 
@@ -64,7 +65,15 @@ export default async function AdminDashboardPage() {
                 className="min-h-44 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-lg shadow-[#4d5f52]/8"
               >
                 <div className="flex items-start justify-between gap-4">
-                  <h2 className="text-2xl font-extrabold text-[#243d31]">{tool.title}</h2>
+                  <h2 className="text-2xl font-extrabold text-[#243d31]">
+                    {tool.title === "Teachings" ? (
+                      <Link href="/admin/teachings" className="transition hover:text-[#a85e32]">
+                        {tool.title}
+                      </Link>
+                    ) : (
+                      tool.title
+                    )}
+                  </h2>
                   <span className="shrink-0 rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">
                     {tool.status}
                   </span>

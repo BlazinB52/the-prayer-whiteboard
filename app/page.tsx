@@ -97,9 +97,9 @@ export default function PrayerGroupPage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href={teachingPath}
-                className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30]"
+                className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:text-white"
               >
-                Read the full teaching <ArrowRight aria-hidden="true" size={19} />
+                Read the full teaching <ArrowRight aria-hidden="true" size={19} className="text-white transition group-hover:text-white" />
               </Link>
               <a
                 href="#prayer"

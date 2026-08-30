@@ -47,6 +47,55 @@ body {
   box-shadow: 0 0 0 2px rgb(168 94 50 / 20%);
 }
 
+.admin-primary-button,
+.admin-secondary-button,
+.admin-danger-button {
+  min-height: 2.75rem;
+  border-radius: 0.75rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+  transition: background-color 150ms, border-color 150ms, color 150ms;
+}
+
+.admin-primary-button {
+  background: #244a3a;
+  color: white;
+}
+
+.admin-primary-button:hover {
+  background: #1d3d30;
+  color: white;
+}
+
+.admin-primary-button:disabled,
+.admin-secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-secondary-button {
+  border: 1px solid rgb(40 74 59 / 15%);
+  background: white;
+  color: #385245;
+}
+
+.admin-secondary-button:hover {
+  border-color: rgb(168 94 50 / 40%);
+  color: #a85e32;
+}
+
+.admin-danger-button {
+  border: 1px solid rgb(162 71 44 / 20%);
+  background: #fff8f4;
+  color: #a2472c;
+}
+
+.admin-danger-button:hover {
+  border-color: rgb(162 71 44 / 40%);
+  background: #fce9df;
+}
+
 @media (min-width: 640px) {
   .admin-shell {
     padding: 3rem 2rem;

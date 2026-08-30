@@ -3,6 +3,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { updateTeaching } from "../../actions";
 import { TeachingForm } from "../../teaching-form";
+import { ContentWorkspace } from "../../content-workspace";
+import {
+  createCategory,
+  createSection,
+  deleteCategory,
+  deleteSection,
+  moveCategory,
+  moveSection,
+  renameCategory,
+  updateSection,
+} from "../../content-actions";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -28,6 +39,71 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
     notFound();
   }
 
+  const { data: categories } = await supabase
+    .from("teaching_categories")
+    .select("id, title, sort_order")
+    .eq("teaching_id", id)
+    .eq("status", "draft")
+    .order("sort_order", { ascending: true });
+
+  const { data: sections } = await supabase
+    .from("teaching_sections")
+    .select("id, category_id, title, content, sort_order")
+    .eq("teaching_id", id)
+    .eq("status", "draft")
+    .order("sort_order", { ascending: true });
+
+  const categoryItems = (categories ?? []).map((category) => ({
+    ...category,
+    sections: (sections ?? []).filter((section) => section.category_id === category.id),
+  }));
+
+  const renameCategoryActions = Object.fromEntries(
+    categoryItems.map((category) => [category.id, renameCategory.bind(null, id, category.id)]),
+  );
+  const createSectionActions = Object.fromEntries(
+    categoryItems.map((category) => [category.id, createSection.bind(null, id, category.id)]),
+  );
+  const moveCategoryActions = Object.fromEntries(
+    categoryItems.map((category) => [
+      category.id,
+      {
+        up: moveCategory.bind(null, id, category.id, "up"),
+        down: moveCategory.bind(null, id, category.id, "down"),
+      },
+    ]),
+  );
+  const deleteCategoryActions = Object.fromEntries(
+    categoryItems.map((category) => [category.id, deleteCategory.bind(null, id, category.id)]),
+  );
+  const updateSectionActions = Object.fromEntries(
+    categoryItems.flatMap((category) =>
+      category.sections.map((section) => [
+        section.id,
+        updateSection.bind(null, id, category.id, section.id),
+      ]),
+    ),
+  );
+  const moveSectionActions = Object.fromEntries(
+    categoryItems.flatMap((category) =>
+      category.sections.map((section) => [
+        section.id,
+        {
+          up: moveSection.bind(null, id, category.id, section.id, "up"),
+          down: moveSection.bind(null, id, category.id, section.id, "down"),
+        },
+      ]),
+    ),
+  );
+  const deleteSectionActions = Object.fromEntries(
+    categoryItems.flatMap((category) =>
+      category.sections.map((section) => [
+        section.id,
+        deleteSection.bind(null, id, category.id, section.id),
+      ]),
+    ),
+  );
+
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-3xl">
@@ -46,6 +122,17 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
             introduction: teaching.introduction ?? "",
             summary: teaching.summary ?? "",
           }}
+        />
+        <ContentWorkspace
+          categories={categoryItems}
+          createCategoryAction={createCategory.bind(null, id)}
+          renameCategoryAction={renameCategoryActions}
+          createSectionActions={createSectionActions}
+          updateSectionActions={updateSectionActions}
+          moveCategoryActions={moveCategoryActions}
+          deleteCategoryActions={deleteCategoryActions}
+          moveSectionActions={moveSectionActions}
+          deleteSectionActions={deleteSectionActions}
         />
       </div>
     </main>

@@ -115,3 +115,52 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+@media print {
+  @page {
+    size: Letter portrait;
+    margin: 0.7in;
+  }
+
+  body {
+    background: white;
+    color: #1f2c24;
+  }
+
+  .print-controls,
+  .admin-primary-button,
+  .admin-secondary-button,
+  .admin-danger-button {
+    display: none !important;
+  }
+
+  .print-paper {
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    background: white;
+    box-shadow: none;
+  }
+
+  .print-category,
+  .print-section {
+    break-inside: avoid;
+  }
+
+  .print-category-heading,
+  .print-section-heading {
+    break-after: avoid;
+  }
+
+  .print-section-content,
+  .print-bullet-list,
+  .print-scripture {
+    break-inside: avoid;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}

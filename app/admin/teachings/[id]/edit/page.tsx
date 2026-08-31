@@ -124,6 +124,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
           }}
         />
         <ContentWorkspace
+          teachingId={id}
           categories={categoryItems}
           createCategoryAction={createCategory.bind(null, id)}
           renameCategoryAction={renameCategoryActions}

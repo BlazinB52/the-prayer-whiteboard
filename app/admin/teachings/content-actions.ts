@@ -16,7 +16,13 @@ export type SectionFormat = "paragraph" | "bullets" | "scripture" | "takeaway";
 /** Version 1 is importer-friendly: one typed block with plain text fields only. */
 type SectionContent =
   | { version: 1; format: "paragraph" | "takeaway"; text: string }
-  | { version: 1; format: "bullets"; bullets: string[] }
+  | {
+      version: 1;
+      format: "bullets";
+      introduction?: string;
+      bullets: string[];
+      conclusion?: string;
+    }
   | {
       version: 1;
       format: "scripture";
@@ -50,11 +56,12 @@ function validateSection(formData: FormData) {
   const format = readFormat(formData);
   const mainText = readText(formData, "mainText", "Main text", SECTION_TEXT_MAX);
   const introduction = readText(formData, "introduction", "Introductory note", SECTION_TEXT_MAX);
+  const conclusion = readText(formData, "conclusion", "Concluding text", SECTION_TEXT_MAX);
   const reference = readText(formData, "reference", "Scripture reference", SCRIPTURE_REFERENCE_MAX);
   const translation = readText(formData, "translation", "Translation", SCRIPTURE_TRANSLATION_MAX);
   const quotation = readText(formData, "quotation", "Scripture quotation", SECTION_TEXT_MAX);
 
-  const error = [title, format, mainText, introduction, reference, translation, quotation].find((field) => field.error)?.error;
+  const error = [title, format, mainText, introduction, conclusion, reference, translation, quotation].find((field) => field.error)?.error;
   if (error) return { error };
   const selectedFormat = format.value!;
 
@@ -68,7 +75,14 @@ function validateSection(formData: FormData) {
     if (bullets.some((bullet) => bullet.length > SECTION_TEXT_MAX)) {
       return { error: `Each bullet must be ${SECTION_TEXT_MAX} characters or fewer.` };
     }
-    return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: "bullets", bullets } satisfies SectionContent } };
+    const content: SectionContent = {
+      version: 1,
+      format: "bullets",
+      ...(introduction.value ? { introduction: introduction.value } : {}),
+      bullets,
+      ...(conclusion.value ? { conclusion: conclusion.value } : {}),
+    };
+    return { value: { title: title.value!, format: selectedFormat, content } };
   }
 
   if (selectedFormat === "scripture") {
@@ -106,6 +120,26 @@ async function requireDraftSection(teachingId: string, categoryId: string, secti
   if (!context || !validId(sectionId)) return null;
   const { data: section } = await context.supabase.from("teaching_sections").select("id, sort_order").eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", "draft").maybeSingle();
   return section ? { ...context, section } : null;
+}
+
+async function renumberSections(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  teachingId: string,
+  categoryId: string,
+  sections: { id: string }[],
+) {
+  for (const [index, section] of sections.entries()) {
+    const { error } = await supabase
+      .from("teaching_sections")
+      .update({ sort_order: -(index + 1) })
+      .eq("id", section.id)
+      .eq("teaching_id", teachingId)
+      .eq("category_id", categoryId);
+
+    if (error) return error;
+  }
+
+  return null;
 }
 
 function contentPath(teachingId: string) {
@@ -183,6 +217,64 @@ export async function updateSection(teachingId: string, categoryId: string, sect
   if (!context) return { error: "This section could not be found." };
   const result = validateSection(formData);
   if (result.error) return result;
+  const destinationCategoryId = String(formData.get("destinationCategoryId") ?? "").trim();
+  if (!validId(destinationCategoryId)) return { error: "The destination category could not be found." };
+
+  const { data: destinationCategory } = await context.supabase
+    .from("teaching_categories")
+    .select("id")
+    .eq("id", destinationCategoryId)
+    .eq("teaching_id", teachingId)
+    .eq("status", "draft")
+    .maybeSingle();
+
+  if (!destinationCategory) return { error: "The destination category could not be found." };
+
+  if (destinationCategoryId !== categoryId) {
+    const { data: sourceSections } = await context.supabase
+      .from("teaching_sections")
+      .select("id, sort_order")
+      .eq("teaching_id", teachingId)
+      .eq("category_id", categoryId)
+      .eq("status", "draft")
+      .order("sort_order", { ascending: true });
+    const { data: destinationSections } = await context.supabase
+      .from("teaching_sections")
+      .select("id, sort_order")
+      .eq("teaching_id", teachingId)
+      .eq("category_id", destinationCategoryId)
+      .eq("status", "draft")
+      .order("sort_order", { ascending: true });
+
+    const remainingSource = (sourceSections ?? []).filter((section) => section.id !== sectionId);
+    const existingDestination = destinationSections ?? [];
+    const sourceTempError = await renumberSections(context.supabase, teachingId, categoryId, sourceSections ?? []);
+    const destinationTempError = await renumberSections(context.supabase, teachingId, destinationCategoryId, existingDestination);
+    if (sourceTempError || destinationTempError) return { error: "The section could not be moved." };
+
+    const { error: moveError } = await context.supabase
+      .from("teaching_sections")
+      .update({ category_id: destinationCategoryId, sort_order: 0 })
+      .eq("id", sectionId)
+      .eq("teaching_id", teachingId)
+      .eq("category_id", categoryId)
+      .eq("status", "draft");
+    if (moveError) return { error: "The section could not be moved." };
+
+    for (const [index, section] of remainingSource.entries()) {
+      const { error } = await context.supabase.from("teaching_sections").update({ sort_order: index + 1 }).eq("id", section.id).eq("teaching_id", teachingId).eq("category_id", categoryId);
+      if (error) return { error: "The section could not be moved." };
+    }
+    for (const [index, section] of existingDestination.entries()) {
+      const { error } = await context.supabase.from("teaching_sections").update({ sort_order: index + 1 }).eq("id", section.id).eq("teaching_id", teachingId).eq("category_id", destinationCategoryId);
+      if (error) return { error: "The section could not be moved." };
+    }
+    const { error: finalOrderError } = await context.supabase.from("teaching_sections").update({ sort_order: existingDestination.length + 1 }).eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", destinationCategoryId).eq("status", "draft");
+    if (finalOrderError) return { error: "The section could not be moved." };
+    revalidatePath(contentPath(teachingId));
+    return { saved: true };
+  }
+
   const { error } = await context.supabase.from("teaching_sections").update({ title: result.value!.title, content: result.value!.content }).eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", "draft");
   if (error) return { error: "The section could not be saved." };
   revalidatePath(contentPath(teachingId));

@@ -47,6 +47,15 @@ body {
   box-shadow: 0 0 0 2px rgb(168 94 50 / 20%);
 }
 
+label:has(> textarea[name="mainText"]):not(:has(> span))::after {
+  display: block;
+  margin-top: 0.25rem;
+  color: #607066;
+  content: "Press Enter to begin a new paragraph.";
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
 .admin-primary-button,
 .admin-secondary-button,
 .admin-danger-button {

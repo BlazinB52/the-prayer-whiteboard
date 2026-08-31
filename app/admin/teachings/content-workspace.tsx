@@ -21,7 +21,9 @@ type SectionValues = {
   title: string;
   format: SectionFormat;
   mainText: string;
+  introduction: string;
   reference: string;
+  translation: string;
   quotation: string;
 };
 
@@ -119,7 +121,7 @@ function CategoryRenameForm({ action, title }: { action: Action; title: string }
 }
 
 function SectionAddForm({ action }: { action: Action }) {
-  return <div className="mt-6"><h5 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#946332]">Add section</h5><SectionForm action={action} values={{ title: "", format: "paragraph", mainText: "", reference: "", quotation: "" }} submitLabel="Add section" /></div>;
+  return <div className="mt-6"><h5 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#946332]">Add section</h5><SectionForm action={action} values={{ title: "", format: "paragraph", mainText: "", introduction: "", reference: "", translation: "", quotation: "" }} submitLabel="Add section" /></div>;
 }
 
 function SectionPanel({ section, isFirst, isLast, action, moveActions, deleteAction }: { section: Section; isFirst: boolean; isLast: boolean; action: Action; moveActions: { up: () => Promise<ContentActionState>; down: () => Promise<ContentActionState> }; deleteAction: () => Promise<ContentActionState> }) {
@@ -135,19 +137,23 @@ function OperationForm({ action, label, disabled = false, confirmMessage, danger
 function SectionForm({ action, values, submitLabel }: { action: Action; values: SectionValues; submitLabel: string }) {
   const [selectedFormat, setSelectedFormat] = useState<SectionFormat>(values.format);
   const [state, formAction, pending] = useActionState(action, {});
-  return <form action={formAction} className="mt-4 space-y-4"><label className="block text-sm font-bold text-[#385245]">Section title<input name="title" defaultValue={values.title} required maxLength={160} className="admin-input" /></label><label className="block text-sm font-bold text-[#385245]">Format<select name="format" value={selectedFormat} onChange={(event) => setSelectedFormat(event.target.value as SectionFormat)} className="admin-input"><option value="paragraph">Paragraph</option><option value="bullets">Bullet list</option><option value="scripture">Scripture</option><option value="takeaway">Takeaway or confession</option></select></label>{selectedFormat === "scripture" ? <><label className="block text-sm font-bold text-[#385245]">Scripture reference<input name="reference" defaultValue={values.reference} maxLength={240} className="admin-input" /></label><label className="block text-sm font-bold text-[#385245]">Scripture quotation<textarea name="quotation" defaultValue={values.quotation} rows={4} maxLength={12000} className="admin-input resize-y py-3" /></label></> : <label className="block text-sm font-bold text-[#385245]">Main text{selectedFormat === "bullets" ? <span className="mt-1 block text-xs font-normal text-[#607066]">Enter one item per line. Bullet symbols are added automatically.</span> : null}<textarea name="mainText" defaultValue={values.mainText} rows={5} maxLength={12000} className="admin-input resize-y py-3" /></label>}{state.error ? <p className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}{state.saved ? <p className="text-sm font-bold text-[#326048]">Section saved.</p> : null}<button type="submit" disabled={pending} className="admin-primary-button"><span>{pending ? "Saving..." : submitLabel}</span></button></form>;
+  return <form action={formAction} className="mt-4 space-y-4"><input type="hidden" name="format" value={selectedFormat} /><label className="block text-sm font-bold text-[#385245]">Section title<input name="title" defaultValue={values.title} required maxLength={160} className="admin-input" /></label><label className="block text-sm font-bold text-[#385245]">Format<select value={selectedFormat} onChange={(event) => setSelectedFormat(event.target.value as SectionFormat)} className="admin-input"><option value="paragraph">Paragraph</option><option value="bullets">Bullet list</option><option value="scripture">Scripture</option><option value="takeaway">Takeaway or confession</option></select></label>{selectedFormat === "scripture" ? <><label className="block text-sm font-bold text-[#385245]">Introductory note<span className="mt-1 block text-xs font-normal text-[#607066]">A brief statement that appears before the Scripture.</span><textarea name="introduction" defaultValue={values.introduction} rows={3} maxLength={12000} className="admin-input resize-y py-3" /></label><label className="block text-sm font-bold text-[#385245]">Scripture reference<input name="reference" defaultValue={values.reference} maxLength={240} className="admin-input" /></label><label className="block text-sm font-bold text-[#385245]">Translation<span className="mt-1 block text-xs font-normal text-[#607066]">Optionalâ€”for example, NKJV, ESV, or AMPC.</span><input name="translation" defaultValue={values.translation} maxLength={80} className="admin-input" /></label><label className="block text-sm font-bold text-[#385245]">Scripture quotation<span className="mt-1 block text-xs font-normal text-[#607066]">Enter the Scripture text. Each Enter begins a new displayed paragraph; line and paragraph formatting will be preserved.</span><textarea name="quotation" defaultValue={values.quotation} rows={6} maxLength={12000} className="admin-input resize-y py-3" /></label></> : <label className="block text-sm font-bold text-[#385245]">Main text{selectedFormat === "bullets" ? <span className="mt-1 block text-xs font-normal text-[#607066]">Enter one item per line. Bullet symbols are added automatically.</span> : null}<textarea name="mainText" defaultValue={values.mainText} rows={5} maxLength={12000} className="admin-input resize-y py-3" /></label>}{state.error ? <p className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}{state.saved ? <p className="text-sm font-bold text-[#326048]">Section saved.</p> : null}<button type="submit" disabled={pending} className="admin-primary-button"><span>{pending ? "Saving..." : submitLabel}</span></button></form>;
 }
 
 function sectionValues(content: unknown, title: string): SectionValues {
   const value = content && typeof content === "object" ? content as Record<string, unknown> : {};
   const format = ["paragraph", "bullets", "scripture", "takeaway"].includes(String(value.format)) ? String(value.format) as SectionFormat : "paragraph";
-  return { title, format, mainText: format === "bullets" && Array.isArray(value.bullets) ? value.bullets.join("\n") : typeof value.text === "string" ? value.text : "", reference: typeof value.reference === "string" ? value.reference : "", quotation: typeof value.quotation === "string" ? value.quotation : "" };
+  return { title, format, mainText: format === "bullets" && Array.isArray(value.bullets) ? value.bullets.join("\n") : typeof value.text === "string" ? value.text : "", introduction: typeof value.introduction === "string" ? value.introduction : "", reference: typeof value.reference === "string" ? value.reference : "", translation: typeof value.translation === "string" ? value.translation : "", quotation: typeof value.quotation === "string" ? value.quotation : "" };
 }
 
 function SectionPreview({ content }: { content: unknown }) {
   const value = content && typeof content === "object" ? content as Record<string, unknown> : {};
   if (value.format === "bullets" && Array.isArray(value.bullets)) return <ul className="list-disc space-y-1 pl-5">{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul>;
-  if (value.format === "scripture") return <><p className="font-bold text-[#385245]">{String(value.reference ?? "")}</p><p className="mt-1 italic">{String(value.quotation ?? "")}</p></>;
-  const paragraphs = String(value.text ?? "").split(/(?:\r?\n\s*){2,}/).filter((paragraph) => paragraph.trim());
-  return <div className={value.format === "takeaway" ? "space-y-3 font-bold text-[#385245]" : "space-y-3"}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{paragraph}</p>)}</div>;
+  if (value.format === "scripture") return <><div className="space-y-3"><TextParagraphs text={value.introduction} /></div><p className="font-bold text-[#385245]">{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">({String(value.translation)})</span> : null}</p><div className="mt-2 space-y-3 italic"><TextParagraphs text={value.quotation} /></div></>;
+  return <div className={value.format === "takeaway" ? "space-y-3 font-bold text-[#385245]" : "space-y-3"}><TextParagraphs text={value.text} /></div>;
+}
+
+function TextParagraphs({ text }: { text: unknown }) {
+  const paragraphs = String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean);
+  return <>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{paragraph}</p>)}</>;
 }

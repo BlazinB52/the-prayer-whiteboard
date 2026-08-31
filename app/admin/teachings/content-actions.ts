@@ -8,6 +8,7 @@ const CATEGORY_TITLE_MAX = 160;
 const SECTION_TITLE_MAX = 160;
 const SECTION_TEXT_MAX = 12000;
 const SCRIPTURE_REFERENCE_MAX = 240;
+const SCRIPTURE_TRANSLATION_MAX = 80;
 
 export type ContentActionState = { error?: string; saved?: boolean };
 export type SectionFormat = "paragraph" | "bullets" | "scripture" | "takeaway";
@@ -16,7 +17,14 @@ export type SectionFormat = "paragraph" | "bullets" | "scripture" | "takeaway";
 type SectionContent =
   | { version: 1; format: "paragraph" | "takeaway"; text: string }
   | { version: 1; format: "bullets"; bullets: string[] }
-  | { version: 1; format: "scripture"; reference: string; quotation: string };
+  | {
+      version: 1;
+      format: "scripture";
+      introduction?: string;
+      reference: string;
+      translation?: string;
+      quotation: string;
+    };
 
 function validId(value: string) {
   return UUID_PATTERN.test(value);
@@ -41,10 +49,12 @@ function validateSection(formData: FormData) {
   const title = readText(formData, "title", "Section title", SECTION_TITLE_MAX, true);
   const format = readFormat(formData);
   const mainText = readText(formData, "mainText", "Main text", SECTION_TEXT_MAX);
+  const introduction = readText(formData, "introduction", "Introductory note", SECTION_TEXT_MAX);
   const reference = readText(formData, "reference", "Scripture reference", SCRIPTURE_REFERENCE_MAX);
+  const translation = readText(formData, "translation", "Translation", SCRIPTURE_TRANSLATION_MAX);
   const quotation = readText(formData, "quotation", "Scripture quotation", SECTION_TEXT_MAX);
 
-  const error = [title, format, mainText, reference, quotation].find((field) => field.error)?.error;
+  const error = [title, format, mainText, introduction, reference, translation, quotation].find((field) => field.error)?.error;
   if (error) return { error };
   const selectedFormat = format.value!;
 
@@ -62,7 +72,15 @@ function validateSection(formData: FormData) {
   }
 
   if (selectedFormat === "scripture") {
-    return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: "scripture", reference: reference.value!, quotation: quotation.value! } satisfies SectionContent } };
+    const content: SectionContent = {
+      version: 1,
+      format: "scripture",
+      ...(introduction.value ? { introduction: introduction.value } : {}),
+      reference: reference.value!,
+      ...(translation.value ? { translation: translation.value } : {}),
+      quotation: quotation.value!,
+    };
+    return { value: { title: title.value!, format: selectedFormat, content } };
   }
 
   if (!mainText.value) return { error: "Main text is required for this section format." };

@@ -24,13 +24,14 @@ type SectionCallout = {
 
 /** Version 1 is importer-friendly: one typed block with plain text fields only. */
 type SectionContent =
-  | { version: 1; format: "paragraph" | "takeaway"; text: string; callout?: SectionCallout }
+  | { version: 1; format: "paragraph" | "takeaway"; text: string; showTitle?: boolean; callout?: SectionCallout }
   | {
       version: 1;
       format: "bullets";
       introduction?: string;
       bullets: string[];
       conclusion?: string;
+      showTitle?: boolean;
       callout?: SectionCallout;
     }
   | {
@@ -40,6 +41,7 @@ type SectionContent =
       reference: string;
       translation?: string;
       quotation: string;
+      showTitle?: boolean;
       callout?: SectionCallout;
     };
 
@@ -60,6 +62,12 @@ function readFormat(formData: FormData) {
     return { error: "Choose a valid section format." };
   }
   return { value: value as SectionFormat };
+}
+
+function readShowTitle(formData: FormData) {
+  const values = formData.getAll("showTitle");
+  if (!values.length) return true;
+  return values.at(-1) !== "false";
 }
 
 function getPresetColor(type: string) {
@@ -94,6 +102,7 @@ function readCallout(formData: FormData): SectionCallout | undefined {
 function validateSection(formData: FormData) {
   const title = readText(formData, "title", "Section title", SECTION_TITLE_MAX, true);
   const format = readFormat(formData);
+  const showTitle = readShowTitle(formData);
   const mainText = readText(formData, "mainText", "Main text", SECTION_TEXT_MAX);
   const introduction = readText(formData, "introduction", "Introductory note", SECTION_TEXT_MAX);
   const conclusion = readText(formData, "conclusion", "Concluding text", SECTION_TEXT_MAX);
@@ -125,6 +134,7 @@ function validateSection(formData: FormData) {
       ...(introduction.value ? { introduction: introduction.value } : {}),
       bullets,
       ...(conclusion.value ? { conclusion: conclusion.value } : {}),
+      ...(showTitle === false ? { showTitle: false } : {}),
       ...(callout ? { callout } : {}),
     };
     return { value: { title: title.value!, format: selectedFormat, content } };
@@ -138,13 +148,14 @@ function validateSection(formData: FormData) {
       reference: reference.value!,
       ...(translation.value ? { translation: translation.value } : {}),
       quotation: quotation.value!,
+      ...(showTitle === false ? { showTitle: false } : {}),
       ...(callout ? { callout } : {}),
     };
     return { value: { title: title.value!, format: selectedFormat, content } };
   }
 
   if (!mainText.value) return { error: "Main text is required for this section format." };
-  return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: selectedFormat, text: mainText.value, ...(callout ? { callout } : {}) } satisfies SectionContent } };
+  return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: selectedFormat, text: mainText.value, ...(showTitle === false ? { showTitle: false } : {}), ...(callout ? { callout } : {}) } satisfies SectionContent } };
 }
 
 async function requireDraftTeaching(teachingId: string) {

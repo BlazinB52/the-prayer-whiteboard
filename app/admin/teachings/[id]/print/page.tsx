@@ -82,15 +82,24 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
 function PrintableSection({ title, content }: { title: string; content: unknown }) {
   const value = content && typeof content === "object" ? content as Content : {};
   const callout = normalizeCallout(value.callout);
+  const showTitle = value.showTitle !== false;
   const body = <div className="print-section-content mt-3 text-[#52645a]"><SectionContent value={value} /></div>;
-  if (!callout || !callout.enabled) return <section className="print-section"><h3 className="print-section-heading text-lg font-extrabold text-[#385245]">{title}</h3>{body}</section>;
+
+  if (!callout || !callout.enabled) {
+    return (
+      <section className="print-section">
+        {showTitle ? <h3 className="print-section-heading text-lg font-extrabold text-[#385245]">{title}</h3> : null}
+        {body}
+      </section>
+    );
+  }
 
   const label = getCalloutLabel(callout);
   return (
     <section className="print-section">
       <div className="mt-3 rounded-xl px-4 py-3 text-sm" style={getCalloutStyles(callout.color, callout.style)}>
         {label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}
-        <h3 className="print-section-heading mt-2 text-lg font-extrabold text-[#385245]">{title}</h3>
+        {showTitle ? <h3 className="print-section-heading mt-2 text-lg font-extrabold text-[#385245]">{title}</h3> : null}
         <div className="print-section-content mt-3 text-[#52645a]">{body.props.children}</div>
       </div>
     </section>

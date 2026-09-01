@@ -31,6 +31,7 @@ type SectionValues = {
   reference: string;
   translation: string;
   quotation: string;
+  showTitle: boolean;
   callout?: SectionCallout;
 };
 
@@ -137,14 +138,14 @@ function CategoryRenameForm({ action, title }: { action: Action; title: string }
 }
 
 function SectionAddForm({ categoryId, action }: { categoryId: string; action: Action }) {
-  return <div className="mt-6"><h5 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#946332]">Add section</h5><SectionForm key={`add-section-${categoryId}`} action={action} values={{ title: "", format: "paragraph", mainText: "", introduction: "", conclusion: "", reference: "", translation: "", quotation: "" }} submitLabel="Add section" resetOnSuccess /></div>;
+  return <div className="mt-6"><h5 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#946332]">Add section</h5><SectionForm key={`add-section-${categoryId}`} action={action} values={{ title: "", format: "paragraph", mainText: "", introduction: "", conclusion: "", reference: "", translation: "", quotation: "", showTitle: true }} submitLabel="Add section" resetOnSuccess /></div>;
 }
 
 function SectionPanel({ section, categories, isFirst, isLast, action, moveActions, deleteAction }: { section: Section; categories: Category[]; isFirst: boolean; isLast: boolean; action: Action; moveActions: { up: () => Promise<ContentActionState>; down: () => Promise<ContentActionState> }; deleteAction: () => Promise<ContentActionState> }) {
   const values = sectionValues(section.content, section.title);
   const formKey = `${section.id}-${values.format}-${values.title}-${JSON.stringify(values.callout ?? null)}`;
   const detailsRef = useRef<HTMLDetailsElement>(null);
-  return <div className="rounded-xl border border-[#284a3b]/10 bg-white p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Section {section.sort_order} · {values.format}</p></div><div className="flex flex-wrap gap-2"><OperationForm action={moveActions.up} label="Up" disabled={isFirst} /><OperationForm action={moveActions.down} label="Down" disabled={isLast} /><OperationForm action={deleteAction} label="Delete" confirmMessage="Delete this section?" danger /></div></div><div className="mt-4 border-l-2 border-[#f1c66f] pl-4 text-sm leading-6 text-[#52645a]"><SectionPreview content={section.content} title={section.title} /></div><details ref={detailsRef} className="mt-5"><summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit section</summary><SectionForm key={formKey} action={action} values={values} categories={categories} currentCategoryId={section.category_id} submitLabel="Save section" onSuccess={() => { if (detailsRef.current) detailsRef.current.open = false; }} /></details></div>;
+  return <div className="rounded-xl border border-[#284a3b]/10 bg-white p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Section {section.sort_order} · {values.format}</p>{values.showTitle === false ? <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#946332]">Admin title: {section.title}</p> : null}</div><div className="flex flex-wrap gap-2"><OperationForm action={moveActions.up} label="Up" disabled={isFirst} /><OperationForm action={moveActions.down} label="Down" disabled={isLast} /><OperationForm action={deleteAction} label="Delete" confirmMessage="Delete this section?" danger /></div></div><div className="mt-4 border-l-2 border-[#f1c66f] pl-4 text-sm leading-6 text-[#52645a]"><SectionPreview content={section.content} title={section.title} /></div><details ref={detailsRef} className="mt-5"><summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit section</summary><SectionForm key={formKey} action={action} values={values} categories={categories} currentCategoryId={section.category_id} submitLabel="Save section" onSuccess={() => { if (detailsRef.current) detailsRef.current.open = false; }} /></details></div>;
 }
 
 function OperationForm({ action, label, disabled = false, confirmMessage, danger = false }: { action: () => Promise<ContentActionState>; label: string; disabled?: boolean; confirmMessage?: string; danger?: boolean }) {
@@ -154,6 +155,7 @@ function OperationForm({ action, label, disabled = false, confirmMessage, danger
 
 function SectionForm({ action, values, categories, currentCategoryId, submitLabel, resetOnSuccess = false, onSuccess }: { action: Action; values: SectionValues; categories?: Category[]; currentCategoryId?: string; submitLabel: string; resetOnSuccess?: boolean; onSuccess?: () => void }) {
   const [selectedFormat, setSelectedFormat] = useState<SectionFormat>(values.format);
+  const [showTitle, setShowTitle] = useState(values.showTitle !== false);
   const [calloutEnabled, setCalloutEnabled] = useState(Boolean(values.callout?.enabled));
   const [calloutType, setCalloutType] = useState<SectionCalloutType>(values.callout?.type ?? "custom");
   const [calloutHeading, setCalloutHeading] = useState(values.callout?.heading ?? "");
@@ -169,6 +171,7 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
     if (resetOnSuccess && nextState.saved) {
       formRef.current?.reset();
       setSelectedFormat("paragraph");
+      setShowTitle(true);
       setCalloutEnabled(false);
       setCalloutType("custom");
       setCalloutHeading("");
@@ -235,6 +238,14 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
         </label>
       ) : null}
       <label className="block text-sm font-bold text-[#385245]">Section title<input name="title" defaultValue={values.title} required maxLength={160} className="admin-input" /></label>
+      <div className="flex items-start gap-3 rounded-xl border border-[#284a3b]/10 bg-[#f7f4ee] px-3 py-2">
+        <input type="hidden" name="showTitle" value="false" />
+        <input id={`showTitle-${String(values.title || currentCategoryId || "section")}`} type="checkbox" name="showTitle" value="true" checked={showTitle} onChange={(event) => setShowTitle(event.target.checked)} className="mt-1 h-4 w-4 rounded border-[#385245] text-[#244a3a]" />
+        <div>
+          <label htmlFor={`showTitle-${String(values.title || currentCategoryId || "section")}`} className="block text-sm font-bold text-[#385245]">Display section title</label>
+          <p className="mt-1 text-xs text-[#607066]">Uncheck when the category heading already introduces this section.</p>
+        </div>
+      </div>
       <label className="block text-sm font-bold text-[#385245]">Format<select value={selectedFormat} onChange={(event) => setSelectedFormat(event.target.value as SectionFormat)} className="admin-input"><option value="paragraph">Paragraph</option><option value="bullets">Bullet list</option><option value="scripture">Scripture</option><option value="takeaway">Takeaway or confession</option></select></label>
       {selectedFormat === "scripture" ? (
         <>
@@ -272,6 +283,7 @@ function sectionValues(content: unknown, title: string): SectionValues {
     reference: typeof value.reference === "string" ? value.reference : "",
     translation: typeof value.translation === "string" ? value.translation : "",
     quotation: typeof value.quotation === "string" ? value.quotation : "",
+    showTitle: value.showTitle !== false,
     callout: normalizeCallout(value.callout),
   };
 }
@@ -279,6 +291,7 @@ function sectionValues(content: unknown, title: string): SectionValues {
 function SectionPreview({ content, title }: { content: unknown; title?: string }) {
   const value = content && typeof content === "object" ? (content as Record<string, unknown>) : {};
   const callout = normalizeCallout(value.callout);
+  const showTitle = value.showTitle !== false;
   const body = value.format === "bullets" && Array.isArray(value.bullets) ? (
     <>
       {value.introduction ? <div className="space-y-3"><TextParagraphs text={value.introduction} /></div> : null}
@@ -298,7 +311,7 @@ function SectionPreview({ content, title }: { content: unknown; title?: string }
   if (!callout || !callout.enabled) {
     return (
       <section className="space-y-3">
-        {title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
+        {showTitle && title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
         {body}
       </section>
     );
@@ -308,7 +321,7 @@ function SectionPreview({ content, title }: { content: unknown; title?: string }
   return (
     <div className="rounded-xl px-4 py-3 text-sm" style={getCalloutStyles(callout.color, callout.style)}>
       {label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}
-      {title ? <h3 className="mt-2 text-base font-extrabold text-[#385245]">{title}</h3> : null}
+      {showTitle && title ? <h3 className="mt-2 text-base font-extrabold text-[#385245]">{title}</h3> : null}
       <div className="mt-3 space-y-3 text-[#52645a]">{body}</div>
     </div>
   );

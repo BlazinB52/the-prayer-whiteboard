@@ -20,6 +20,7 @@ export type SectionContentValue = {
   translation?: string;
   quotation?: string;
   bullets?: string[];
+  showTitle?: boolean;
   callout?: SectionCallout;
 };
 
@@ -73,10 +74,12 @@ function TextParagraphs({ text, className }: { text: unknown; className?: string
 }
 
 function renderSectionBody({ value, title }: { value: SectionContentValue; title?: string }) {
+  const shouldShowTitle = value.showTitle !== false;
+
   if (value.format === "bullets") {
     return (
       <>
-        {title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
+        {shouldShowTitle && title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
         {value.introduction ? <TextParagraphs text={value.introduction} className="space-y-3 text-[#52645a]" /> : null}
         {value.bullets && value.bullets.length ? <ul className="mt-3 list-disc space-y-2 pl-6 text-[#52645a]">{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul> : null}
         {value.conclusion ? <TextParagraphs text={value.conclusion} className="mt-3 space-y-3 text-[#52645a]" /> : null}
@@ -87,7 +90,7 @@ function renderSectionBody({ value, title }: { value: SectionContentValue; title
   if (value.format === "scripture") {
     return (
       <>
-        {title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
+        {shouldShowTitle && title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
         {value.introduction ? <TextParagraphs text={value.introduction} className="space-y-3 text-[#52645a]" /> : null}
         <p className="mt-3 font-bold text-[#385245]">{String(value.reference ?? "")} {value.translation ? <span className="font-normal text-[#607066]">({String(value.translation)})</span> : null}</p>
         {value.quotation ? <div className="mt-2 space-y-3 italic text-[#52645a]"><TextParagraphs text={value.quotation} className="space-y-3" /></div> : null}
@@ -99,7 +102,7 @@ function renderSectionBody({ value, title }: { value: SectionContentValue; title
 
   return (
     <>
-      {title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
+      {shouldShowTitle && title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
       {textContent}
     </>
   );
@@ -107,6 +110,7 @@ function renderSectionBody({ value, title }: { value: SectionContentValue; title
 
 export function CalloutSection({ title, value, callout, className = "" }: { title?: string; value: SectionContentValue; callout?: SectionCallout; className?: string }): ReactNode {
   const resolvedCallout = callout && callout.enabled ? callout : undefined;
+  const shouldShowTitle = value.showTitle !== false;
   const body = renderSectionBody({ value, title: resolvedCallout ? title : title });
 
   if (!resolvedCallout) {
@@ -120,7 +124,7 @@ export function CalloutSection({ title, value, callout, className = "" }: { titl
     <section className={className}>
       <div className="rounded-xl px-4 py-3 text-sm" style={styles}>
         <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div>
-        {title ? <h3 className="mt-2 text-base font-extrabold text-[#385245]">{title}</h3> : null}
+        {shouldShowTitle && title ? <h3 className="mt-2 text-base font-extrabold text-[#385245]">{title}</h3> : null}
         <div className="mt-3 space-y-3 text-[#52645a]">
           {value.format === "bullets" ? (
             <>

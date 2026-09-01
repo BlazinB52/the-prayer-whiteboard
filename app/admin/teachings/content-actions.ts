@@ -12,16 +12,26 @@ const SCRIPTURE_TRANSLATION_MAX = 80;
 
 export type ContentActionState = { error?: string; saved?: boolean };
 export type SectionFormat = "paragraph" | "bullets" | "scripture" | "takeaway";
+type SectionCalloutType = "our-prayer" | "application-for-believers" | "custom";
+type SectionCalloutStyle = "filled" | "outline" | "soft";
+type SectionCallout = {
+  enabled: boolean;
+  type: SectionCalloutType;
+  heading?: string;
+  color: string;
+  style: SectionCalloutStyle;
+};
 
 /** Version 1 is importer-friendly: one typed block with plain text fields only. */
 type SectionContent =
-  | { version: 1; format: "paragraph" | "takeaway"; text: string }
+  | { version: 1; format: "paragraph" | "takeaway"; text: string; callout?: SectionCallout }
   | {
       version: 1;
       format: "bullets";
       introduction?: string;
       bullets: string[];
       conclusion?: string;
+      callout?: SectionCallout;
     }
   | {
       version: 1;
@@ -30,6 +40,7 @@ type SectionContent =
       reference: string;
       translation?: string;
       quotation: string;
+      callout?: SectionCallout;
     };
 
 function validId(value: string) {
@@ -51,6 +62,35 @@ function readFormat(formData: FormData) {
   return { value: value as SectionFormat };
 }
 
+function getPresetColor(type: string) {
+  if (type === "our-prayer") return "#d9b24d";
+  if (type === "application-for-believers") return "#7a9b7d";
+  return "#d9b24d";
+}
+
+function readCallout(formData: FormData): SectionCallout | undefined {
+  const hiddenEnabled = String(formData.get("calloutEnabled") ?? "false");
+  const visibleEnabled = String(formData.get("calloutEnabledInput") ?? "false");
+  const enabled = hiddenEnabled === "true" || visibleEnabled === "true" || formData.get("calloutEnabled") === "on" || formData.get("calloutEnabledInput") === "on";
+  if (!enabled) return undefined;
+
+  const typeRaw = String(formData.get("calloutType") ?? formData.get("calloutTypeInput") ?? "custom");
+  const type = ["our-prayer", "application-for-believers", "custom"].includes(typeRaw) ? typeRaw as SectionCalloutType : "custom";
+  const heading = String(formData.get("calloutHeading") ?? formData.get("calloutHeadingInput") ?? "").trim();
+  const rawColor = String(formData.get("calloutColor") ?? formData.get("calloutColorInput") ?? "").trim();
+  const styleRaw = String(formData.get("calloutStyle") ?? formData.get("calloutStyleInput") ?? "filled");
+  const style = ["filled", "outline", "soft"].includes(styleRaw) ? styleRaw as SectionCalloutStyle : "filled";
+  const color = /^#[0-9a-fA-F]{6}$/.test(rawColor) ? rawColor : getPresetColor(type);
+
+  return {
+    enabled: true,
+    type,
+    ...(heading ? { heading } : {}),
+    color,
+    style,
+  };
+}
+
 function validateSection(formData: FormData) {
   const title = readText(formData, "title", "Section title", SECTION_TITLE_MAX, true);
   const format = readFormat(formData);
@@ -60,9 +100,13 @@ function validateSection(formData: FormData) {
   const reference = readText(formData, "reference", "Scripture reference", SCRIPTURE_REFERENCE_MAX);
   const translation = readText(formData, "translation", "Translation", SCRIPTURE_TRANSLATION_MAX);
   const quotation = readText(formData, "quotation", "Scripture quotation", SECTION_TEXT_MAX);
+  const callout = readCallout(formData);
 
   const error = [title, format, mainText, introduction, conclusion, reference, translation, quotation].find((field) => field.error)?.error;
   if (error) return { error };
+  if (callout && callout.heading && callout.heading.length > SECTION_TEXT_MAX) return { error: `Callout heading must be ${SECTION_TEXT_MAX} characters or fewer.` };
+  if (callout && !/^#[0-9a-fA-F]{6}$/.test(callout.color)) return { error: "Choose a valid callout color." };
+
   const selectedFormat = format.value!;
 
   if (selectedFormat === "scripture" && (!reference.value || !quotation.value)) {
@@ -81,6 +125,7 @@ function validateSection(formData: FormData) {
       ...(introduction.value ? { introduction: introduction.value } : {}),
       bullets,
       ...(conclusion.value ? { conclusion: conclusion.value } : {}),
+      ...(callout ? { callout } : {}),
     };
     return { value: { title: title.value!, format: selectedFormat, content } };
   }
@@ -93,12 +138,13 @@ function validateSection(formData: FormData) {
       reference: reference.value!,
       ...(translation.value ? { translation: translation.value } : {}),
       quotation: quotation.value!,
+      ...(callout ? { callout } : {}),
     };
     return { value: { title: title.value!, format: selectedFormat, content } };
   }
 
   if (!mainText.value) return { error: "Main text is required for this section format." };
-  return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: selectedFormat, text: mainText.value } satisfies SectionContent } };
+  return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: selectedFormat, text: mainText.value, ...(callout ? { callout } : {}) } satisfies SectionContent } };
 }
 
 async function requireDraftTeaching(teachingId: string) {

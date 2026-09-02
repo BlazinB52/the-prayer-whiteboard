@@ -12,7 +12,7 @@ const tools = [
   {
     title: "Teachings",
     description: "Create and organize published teachings.",
-    status: "Coming next",
+    status: "Available",
   },
   {
     title: "Chalkboards",

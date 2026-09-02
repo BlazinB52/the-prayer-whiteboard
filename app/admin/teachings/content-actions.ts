@@ -24,7 +24,7 @@ type SectionCallout = {
 
 /** Version 1 is importer-friendly: one typed block with plain text fields only. */
 type SectionContent =
-  | { version: 1; format: "paragraph" | "takeaway"; text: string; showTitle?: boolean; callout?: SectionCallout }
+  | { version: 1; format: "paragraph" | "takeaway"; text: string; showTitle?: boolean; homepageHighlight?: boolean; callout?: SectionCallout }
   | {
       version: 1;
       format: "bullets";
@@ -32,6 +32,7 @@ type SectionContent =
       bullets: string[];
       conclusion?: string;
       showTitle?: boolean;
+      homepageHighlight?: boolean;
       callout?: SectionCallout;
     }
   | {
@@ -42,6 +43,7 @@ type SectionContent =
       translation?: string;
       quotation: string;
       showTitle?: boolean;
+      homepageHighlight?: boolean;
       callout?: SectionCallout;
     };
 
@@ -68,6 +70,17 @@ function readShowTitle(formData: FormData) {
   const values = formData.getAll("showTitle");
   if (!values.length) return true;
   return values.at(-1) !== "false";
+}
+
+function isHomepageHighlightedContent(content: unknown): boolean {
+  const value = content && typeof content === "object" ? (content as Record<string, unknown>) : {};
+  return value.homepageHighlight === true;
+}
+
+function readHomepageHighlight(formData: FormData) {
+  const values = formData.getAll("homepageHighlight");
+  if (!values.length) return false;
+  return values.some((value) => value === "true" || value === "on");
 }
 
 function getPresetColor(type: string) {
@@ -103,6 +116,7 @@ function validateSection(formData: FormData) {
   const title = readText(formData, "title", "Section title", SECTION_TITLE_MAX, true);
   const format = readFormat(formData);
   const showTitle = readShowTitle(formData);
+  const homepageHighlight = readHomepageHighlight(formData);
   const mainText = readText(formData, "mainText", "Main text", SECTION_TEXT_MAX);
   const introduction = readText(formData, "introduction", "Introductory note", SECTION_TEXT_MAX);
   const conclusion = readText(formData, "conclusion", "Concluding text", SECTION_TEXT_MAX);
@@ -135,6 +149,7 @@ function validateSection(formData: FormData) {
       bullets,
       ...(conclusion.value ? { conclusion: conclusion.value } : {}),
       ...(showTitle === false ? { showTitle: false } : {}),
+      ...(homepageHighlight ? { homepageHighlight: true } : {}),
       ...(callout ? { callout } : {}),
     };
     return { value: { title: title.value!, format: selectedFormat, content } };
@@ -149,13 +164,14 @@ function validateSection(formData: FormData) {
       ...(translation.value ? { translation: translation.value } : {}),
       quotation: quotation.value!,
       ...(showTitle === false ? { showTitle: false } : {}),
+      ...(homepageHighlight ? { homepageHighlight: true } : {}),
       ...(callout ? { callout } : {}),
     };
     return { value: { title: title.value!, format: selectedFormat, content } };
   }
 
   if (!mainText.value) return { error: "Main text is required for this section format." };
-  return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: selectedFormat, text: mainText.value, ...(showTitle === false ? { showTitle: false } : {}), ...(callout ? { callout } : {}) } satisfies SectionContent } };
+  return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: selectedFormat, text: mainText.value, ...(showTitle === false ? { showTitle: false } : {}), ...(homepageHighlight ? { homepageHighlight: true } : {}), ...(callout ? { callout } : {}) } satisfies SectionContent } };
 }
 
 async function requireDraftTeaching(teachingId: string) {
@@ -177,6 +193,28 @@ async function requireDraftSection(teachingId: string, categoryId: string, secti
   if (!context || !validId(sectionId)) return null;
   const { data: section } = await context.supabase.from("teaching_sections").select("id, sort_order").eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", "draft").maybeSingle();
   return section ? { ...context, section } : null;
+}
+
+async function validateHomepageHighlightLimit(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  teachingId: string,
+  sectionId: string | undefined,
+  homepageHighlight: boolean,
+) {
+  if (!homepageHighlight) return null;
+
+  const { data: sections, error } = await supabase
+    .from("teaching_sections")
+    .select("id, content")
+    .eq("teaching_id", teachingId)
+    .eq("status", "draft");
+
+  if (error) return "A teaching can have no more than four homepage highlights.";
+
+  const selectedCount = (sections ?? []).filter((section) => section.id !== sectionId && isHomepageHighlightedContent(section.content)).length;
+  if (selectedCount >= 4) return "A teaching can have no more than four homepage highlights.";
+
+  return null;
 }
 
 async function renumberSections(
@@ -261,6 +299,11 @@ export async function createSection(teachingId: string, categoryId: string, _: C
   if (!context) return { error: "This category could not be found." };
   const result = validateSection(formData);
   if (result.error) return result;
+
+  const homepageHighlight = readHomepageHighlight(formData);
+  const limitError = await validateHomepageHighlightLimit(context.supabase, teachingId, undefined, homepageHighlight);
+  if (limitError) return { error: limitError };
+
   const { data: last } = await context.supabase.from("teaching_sections").select("sort_order").eq("teaching_id", teachingId).eq("category_id", categoryId).order("sort_order", { ascending: false }).limit(1).maybeSingle();
   const id = crypto.randomUUID();
   const { error } = await context.supabase.from("teaching_sections").insert({ id, teaching_id: teachingId, category_id: categoryId, slug: `${slugify(result.value!.title)}-${id.slice(0, 8)}`, title: result.value!.title, content: result.value!.content, sort_order: (last?.sort_order ?? 0) + 1, status: "draft" });
@@ -274,6 +317,11 @@ export async function updateSection(teachingId: string, categoryId: string, sect
   if (!context) return { error: "This section could not be found." };
   const result = validateSection(formData);
   if (result.error) return result;
+
+  const homepageHighlight = readHomepageHighlight(formData);
+  const limitError = await validateHomepageHighlightLimit(context.supabase, teachingId, sectionId, homepageHighlight);
+  if (limitError) return { error: limitError };
+
   const destinationCategoryId = String(formData.get("destinationCategoryId") ?? "").trim();
   if (!validId(destinationCategoryId)) return { error: "The destination category could not be found." };
 

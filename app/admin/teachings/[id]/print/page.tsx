@@ -1,7 +1,9 @@
+/* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { getChalkboardPreviewUrl } from "../../../chalkboards/actions";
 import { getCalloutLabel, getCalloutStyles, normalizeCallout } from "../../callout-utils";
 import { PrintButton } from "./print-button";
 
@@ -13,6 +15,18 @@ export const metadata: Metadata = {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type Content = Record<string, unknown>;
+type ChalkboardAsset = {
+  id: string;
+  teaching_id: string;
+  category_id: string | null;
+  section_id: string | null;
+  title: string;
+  alt_text: string;
+  caption: string | null;
+  website_storage_path: string | null;
+  storage_path: string;
+  display_order: number;
+};
 
 export default async function PrintableTeachingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -40,14 +54,27 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
     .eq("teaching_id", id)
     .eq("status", "draft")
     .order("sort_order", { ascending: true });
+  const { data: chalkboardAssets, error: chalkboardError } = await supabase
+    .from("chalkboard_assets")
+    .select("id, teaching_id, category_id, section_id, title, alt_text, caption, website_storage_path, storage_path, display_order")
+    .eq("teaching_id", id)
+    .eq("is_current_version", true)
+    .eq("status", "active")
+    .eq("include_in_print", true)
+    .order("display_order", { ascending: true });
 
-  if (categoriesError || sectionsError) notFound();
+  if (categoriesError || sectionsError || chalkboardError) notFound();
   if ((categories ?? []).some((category) => category.teaching_id !== teaching.id) || (sections ?? []).some((section) => section.teaching_id !== teaching.id)) notFound();
 
   const orderedCategories = (categories ?? []).map((category) => ({
     ...category,
     sections: (sections ?? []).filter((section) => section.category_id === category.id),
   }));
+  const printableAssets = (chalkboardAssets ?? []).filter((asset) => asset.teaching_id === teaching.id) as ChalkboardAsset[];
+  const assetsWithUrls = await Promise.all(printableAssets.map(async (asset) => ({ asset, url: await getChalkboardPreviewUrl(asset.website_storage_path || asset.storage_path) })));
+  const assetsForTeaching = assetsWithUrls.filter(({ asset }) => !asset.category_id && !asset.section_id);
+  const assetsForCategory = (categoryId: string) => assetsWithUrls.filter(({ asset }) => asset.category_id === categoryId && !asset.section_id);
+  const assetsForSection = (sectionId: string) => assetsWithUrls.filter(({ asset }) => asset.section_id === sectionId);
 
   return (
     <main className="min-h-screen bg-[#eee7da] px-4 py-6 text-[#243126] sm:px-8 sm:py-10">
@@ -64,12 +91,18 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
           {teaching.introduction ? <TextParagraphs text={teaching.introduction} className="mt-5 text-[#52645a]" /> : null}
           {teaching.summary ? <TextParagraphs text={teaching.summary} className="mt-5 text-[#52645a]" /> : null}
         </header>
+        <div className="mt-8 space-y-6">
+          {assetsForTeaching.map(({ asset, url }) => <PrintableChalkboard key={asset.id} asset={asset} url={url} />)}
+        </div>
         <div className="mt-10 space-y-10">
           {orderedCategories.map((category) => (
             <section key={category.id} className="print-category">
               <h2 className="print-category-heading border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2>
               <div className="mt-6 space-y-7">
-                {category.sections.map((section) => <PrintableSection key={section.id} title={section.title} content={section.content} />)}
+                {assetsForCategory(category.id).map(({ asset, url }) => <PrintableChalkboard key={asset.id} asset={asset} url={url} />)}
+              </div>
+              <div className="mt-6 space-y-7">
+                {category.sections.map((section) => <div key={section.id}><PrintableChalkboards assets={assetsForSection(section.id)} /><PrintableSection title={section.title} content={section.content} /></div>)}
               </div>
             </section>
           ))}
@@ -119,4 +152,18 @@ function TextParagraphs({ text, className }: { text: unknown; className?: string
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
+}
+
+function PrintableChalkboards({ assets }: { assets: { asset: ChalkboardAsset; url: string | null }[] }) {
+  return <>{assets.map(({ asset, url }) => <PrintableChalkboard key={asset.id} asset={asset} url={url} />)}</>;
+}
+
+function PrintableChalkboard({ asset, url }: { asset: ChalkboardAsset; url: string | null }) {
+  if (!url) return null;
+  return (
+    <figure className="print-chalkboard">
+      <img src={url} alt={asset.alt_text} className="mx-auto block h-auto max-h-[850px] w-full max-w-[540px] object-contain" />
+      {asset.caption?.trim() ? <figcaption className="mt-3 text-center text-sm text-[#607066]">{asset.caption.trim()}</figcaption> : null}
+    </figure>
+  );
 }

@@ -148,6 +148,16 @@ a {
     break-inside: avoid;
   }
 
+  .print-chalkboard {
+    break-inside: avoid;
+    break-before: auto;
+    page-break-inside: avoid;
+  }
+
+  .print-chalkboard + .print-chalkboard {
+    break-before: auto;
+  }
+
   .print-category-heading,
   .print-section-heading {
     break-after: avoid;

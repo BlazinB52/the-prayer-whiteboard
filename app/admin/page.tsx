@@ -17,7 +17,7 @@ const tools = [
   {
     title: "Chalkboards",
     description: "Manage the visual teaching assets.",
-    status: "Coming next",
+    status: "Available",
   },
   {
     title: "Homepage Settings",
@@ -68,6 +68,10 @@ export default async function AdminDashboardPage() {
                   <h2 className="text-2xl font-extrabold text-[#243d31]">
                     {tool.title === "Teachings" ? (
                       <Link href="/admin/teachings" className="transition hover:text-[#a85e32]">
+                        {tool.title}
+                      </Link>
+                    ) : tool.title === "Chalkboards" ? (
+                      <Link href="/admin/chalkboards" className="transition hover:text-[#a85e32]">
                         {tool.title}
                       </Link>
                     ) : (

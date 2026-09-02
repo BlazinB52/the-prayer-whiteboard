@@ -12,6 +12,9 @@ const MAX_LENGTHS = {
 };
 
 type FormState = { error?: string; saved?: boolean };
+export type PublishTeachingState = { error?: string };
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function readText(formData: FormData, name: string, maxLength: number, required = false) {
   const value = String(formData.get(name) ?? "").trim();
@@ -133,7 +136,7 @@ export async function updateTeaching(
 ): Promise<FormState> {
   const { supabase } = await requireAdmin();
 
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+  if (!UUID_PATTERN.test(id)) {
     return { error: "This teaching could not be found." };
   }
 
@@ -166,4 +169,38 @@ export async function updateTeaching(
   }
 
   return { saved: true };
+}
+
+export async function publishAndFeatureTeaching(
+  id: string,
+  previousState: PublishTeachingState,
+): Promise<PublishTeachingState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+
+  if (!UUID_PATTERN.test(id)) {
+    return { error: "This teaching could not be found." };
+  }
+
+  const { data: teaching } = await supabase
+    .from("teachings")
+    .select("slug")
+    .eq("id", id)
+    .eq("status", "draft")
+    .maybeSingle();
+
+  if (!teaching) {
+    return { error: "Only draft teachings can be published and featured." };
+  }
+
+  const { error } = await supabase.rpc("publish_and_feature_teaching", { p_teaching_id: id });
+
+  if (error) {
+    return { error: error.message || "This teaching could not be published." };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/teachings");
+  revalidatePath(`/teachings/${teaching.slug}`);
+  redirect("/admin/teachings?published=1");
 }

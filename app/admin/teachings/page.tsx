@@ -12,11 +12,12 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-export default async function TeachingsPage({ searchParams }: { searchParams: Promise<{ saved?: string }> }) {
+export default async function TeachingsPage({ searchParams }: { searchParams: Promise<{ published?: string; saved?: string }> }) {
+  const params = await searchParams;
   const { supabase } = await requireAdmin();
   const { data: teachings, error } = await supabase
     .from("teachings")
-    .select("id, title, gathering_date, status, is_featured, updated_at")
+    .select("id, slug, title, gathering_date, status, is_featured, updated_at")
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -35,7 +36,8 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
           <Link href="/admin/teachings/new" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#244a3a] px-5 font-extrabold text-white transition hover:bg-[#1d3d30] hover:text-white"><span className="!text-white">New Teaching</span></Link>
         </header>
 
-        {(await searchParams).saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Draft saved successfully.</p> : null}
+        {params.saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Draft saved successfully.</p> : null}
+        {params.published === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching published and featured on the homepage.</p> : null}
 
         {teachings?.length ? (
           <section className="grid gap-5 py-10 sm:grid-cols-2">
@@ -51,6 +53,7 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
                   <div className="flex justify-between gap-4"><dt>Last updated</dt><dd className="font-bold text-[#385245]">{new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(teaching.updated_at))}</dd></div>
                 </dl>
                 {teaching.status === "draft" ? <Link href={`/admin/teachings/${teaching.id}/edit`} className="mt-6 inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Edit draft</Link> : null}
+                {teaching.status === "published" ? <Link href={`/teachings/${teaching.slug}`} className="mt-6 inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">View public teaching</Link> : null}
               </article>
             ))}
           </section>

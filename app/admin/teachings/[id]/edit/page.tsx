@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { updateTeaching } from "../../actions";
+import { publishAndFeatureTeaching, updateTeaching } from "../../actions";
 import { TeachingForm } from "../../teaching-form";
 import { ContentWorkspace } from "../../content-workspace";
+import { PublishFeatureButton } from "../../publish-feature-button";
 import {
   createCategory,
   createSection,
@@ -112,7 +113,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
           <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Edit Teaching</h1>
           <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">Draft</span>
         </div>
-        <p className="mt-3 text-sm text-[#607066]">Update metadata only. Publishing, featuring, archiving, and deleting are unavailable in this phase.</p>
+        <p className="mt-3 text-sm text-[#607066]">Update the draft metadata and teaching content before publishing.</p>
         <TeachingForm
           action={updateTeaching.bind(null, id)}
           values={{
@@ -123,6 +124,12 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
             summary: teaching.summary ?? "",
           }}
         />
+        <section className="mt-8 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-5">
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
+          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Feature this teaching on the homepage</h2>
+          <p className="mt-3 text-sm leading-6 text-[#607066]">Publishing makes this teaching public, moves the current homepage feature into Previous Gatherings, and keeps the stored gathering date unchanged.</p>
+          <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} />
+        </section>
         <ContentWorkspace
           teachingId={id}
           categories={categoryItems}

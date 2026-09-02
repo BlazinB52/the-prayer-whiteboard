@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cleanupChalkboardUpload, createChalkboardUploadTarget, finalizeChalkboardUpload } from "./actions";
 
@@ -9,12 +10,17 @@ type Category = { id: string; title: string; sections: Section[] };
 type Section = { id: string; category_id: string; title: string };
 
 export function ChalkboardForm({ teachings }: { teachings: Teaching[] }) {
+  const router = useRouter();
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [teachingId, setTeachingId] = useState(teachings[0]?.id ?? "");
   const [categoryId, setCategoryId] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [placement, setPlacement] = useState("teaching");
   const [includeInPrint, setIncludeInPrint] = useState(true);
   const [allowDownload, setAllowDownload] = useState(true);
+  const [title, setTitle] = useState("");
+  const [altText, setAltText] = useState("");
+  const [caption, setCaption] = useState("");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ error?: string; saved?: boolean }>({});
 
@@ -36,8 +42,7 @@ export function ChalkboardForm({ teachings }: { teachings: Teaching[] }) {
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
+    const form = new FormData(event.currentTarget);
     const file = form.get("image");
     if (!(file instanceof File) || !file.size) {
       setMessage({ error: "Choose a portrait JPEG, PNG, or WebP image." });
@@ -78,13 +83,17 @@ export function ChalkboardForm({ teachings }: { teachings: Teaching[] }) {
         return;
       }
 
-      formElement.reset();
       setPlacement("teaching");
       setCategoryId("");
       setSectionId("");
       setIncludeInPrint(true);
       setAllowDownload(true);
+      setTitle("");
+      setAltText("");
+      setCaption("");
+      if (imageInputRef.current) imageInputRef.current.value = "";
       setMessage({ saved: true });
+      router.refresh();
     });
   };
 
@@ -98,11 +107,11 @@ export function ChalkboardForm({ teachings }: { teachings: Teaching[] }) {
       {placement !== "teaching" ? <label className="mt-4 block text-sm font-bold text-[#385245]">Category<select value={categoryId} onChange={(event) => { setCategoryId(event.target.value); setSectionId(""); }} className="admin-input" required>{<option value="">Choose a category</option>}{categories.map((category) => <option key={category.id} value={category.id}>{category.title}</option>)}</select></label> : null}
       {placement === "section" ? <label className="mt-4 block text-sm font-bold text-[#385245]">Section<select value={sectionId} onChange={(event) => setSectionId(event.target.value)} className="admin-input" required><option value="">Choose a section</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.title}</option>)}</select></label> : null}
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <label className="block text-sm font-bold text-[#385245]">Chalkboard title<input name="title" required maxLength={160} className="admin-input" /></label>
-        <label className="block text-sm font-bold text-[#385245]">Alternative text<input name="altText" required maxLength={500} className="admin-input" /><span className="mt-1 block text-xs font-normal text-[#607066]">Describe the visible board for people who cannot see the image.</span></label>
+        <label className="block text-sm font-bold text-[#385245]">Chalkboard title<input name="title" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={160} className="admin-input" /></label>
+        <label className="block text-sm font-bold text-[#385245]">Alternative text<input name="altText" value={altText} onChange={(event) => setAltText(event.target.value)} required maxLength={500} className="admin-input" /><span className="mt-1 block text-xs font-normal text-[#607066]">Describe the visible board for people who cannot see the image.</span></label>
       </div>
-      <label className="mt-4 block text-sm font-bold text-[#385245]">Caption <span className="font-normal text-[#607066]">(optional)</span><textarea name="caption" maxLength={500} rows={2} className="admin-input resize-y py-3" /></label>
-      <label className="mt-4 block text-sm font-bold text-[#385245]">Image file<input name="image" type="file" accept="image/jpeg,image/png,image/webp" required className="admin-input py-2" /><span className="mt-1 block text-xs font-normal text-[#607066]">Portrait 3:4 image, at least 1080 × 1440, maximum 15 MiB. The complete image is preserved.</span></label>
+      <label className="mt-4 block text-sm font-bold text-[#385245]">Caption <span className="font-normal text-[#607066]">(optional)</span><textarea name="caption" value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={500} rows={2} className="admin-input resize-y py-3" /></label>
+      <label className="mt-4 block text-sm font-bold text-[#385245]">Image file<input ref={imageInputRef} name="image" type="file" accept="image/jpeg,image/png,image/webp" required className="admin-input py-2" /><span className="mt-1 block text-xs font-normal text-[#607066]">Portrait 3:4 image, at least 1080 × 1440, maximum 15 MiB. The complete image is preserved.</span></label>
       <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="flex items-center gap-3 text-sm font-bold text-[#385245]"><input type="checkbox" checked={includeInPrint} onChange={(event) => setIncludeInPrint(event.target.checked)} />Include in Print Preview</label><label className="flex items-center gap-3 text-sm font-bold text-[#385245]"><input type="checkbox" checked={allowDownload} onChange={(event) => setAllowDownload(event.target.checked)} />Allow public download when published</label></div>
       {message.error ? <p role="alert" className="mt-4 text-sm font-bold text-[#a2472c]">{message.error}</p> : null}
       {message.saved ? <p role="status" className="mt-4 text-sm font-bold text-[#326048]">Chalkboard uploaded successfully.</p> : null}

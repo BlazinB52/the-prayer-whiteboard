@@ -12,7 +12,8 @@ type Section = { id: string; category_id: string; title: string };
 export function ChalkboardForm({ teachings }: { teachings: Teaching[] }) {
   const router = useRouter();
   const imageInputRef = useRef<HTMLInputElement>(null);
-  const [teachingId, setTeachingId] = useState(teachings[0]?.id ?? "");
+  const initialTeachingId = teachings[0]?.id ?? "";
+  const [teachingId, setTeachingId] = useState(initialTeachingId);
   const [categoryId, setCategoryId] = useState("");
   const [sectionId, setSectionId] = useState("");
   const [placement, setPlacement] = useState("teaching");
@@ -83,6 +84,7 @@ export function ChalkboardForm({ teachings }: { teachings: Teaching[] }) {
         return;
       }
 
+      setTeachingId(initialTeachingId);
       setPlacement("teaching");
       setCategoryId("");
       setSectionId("");

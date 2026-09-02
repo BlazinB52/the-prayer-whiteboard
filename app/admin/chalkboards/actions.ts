@@ -15,7 +15,8 @@ const DOWNLOAD_HEIGHT = 2880;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const INCOMING_PATH_PATTERN = new RegExp(`^teachings/([0-9a-f-]{36})/chalkboards/([0-9a-f-]{36})/v1/incoming\\.(jpg|jpeg|png|webp)$`, "i");
 
-type UploadActionState = { error?: string; saved?: boolean; path?: string; token?: string; assetGroupId?: string };
+export type ChalkboardActionState = { error?: string; saved?: boolean; path?: string; token?: string; assetGroupId?: string };
+type UploadActionState = ChalkboardActionState;
 
 type FinalizeInput = {
   teachingId: string;
@@ -191,4 +192,27 @@ export async function getChalkboardPreviewUrl(path: string) {
   const { supabase } = await requireAdmin();
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 300);
   return error ? null : data.signedUrl;
+}
+
+export async function updateChalkboardDetails(assetId: string, _: ChalkboardActionState, formData: FormData): Promise<ChalkboardActionState> {
+  if (!validId(assetId)) return { error: "This chalkboard could not be found." };
+  const title = cleanText(String(formData.get("title") ?? ""), 160);
+  const altText = cleanText(String(formData.get("altText") ?? ""), 500);
+  const caption = String(formData.get("caption") ?? "").trim();
+  if (!title) return { error: "Chalkboard title is required and must be 160 characters or fewer." };
+  if (!altText) return { error: "Alternative text is required and must be 500 characters or fewer." };
+  if (caption.length > 500) return { error: "Caption must be 500 characters or fewer." };
+
+  const { supabase } = await requireAdmin();
+  const { data: asset } = await supabase.from("chalkboard_assets").select("id, teaching_id, download_storage_path").eq("id", assetId).maybeSingle();
+  if (!asset) return { error: "This chalkboard could not be found." };
+  const { data: teaching } = await supabase.from("teachings").select("id").eq("id", asset.teaching_id).maybeSingle();
+  if (!teaching) return { error: "This chalkboard is not attached to a valid teaching." };
+  const allowDownload = formData.get("allowDownload") === "on" || formData.get("allowDownload") === "true";
+  if (allowDownload && !asset.download_storage_path) return { error: "Public download cannot be enabled because this chalkboard has no download file." };
+
+  const { data, error } = await supabase.from("chalkboard_assets").update({ title, alt_text: altText, caption: caption || null, include_in_print: formData.get("includeInPrint") === "on" || formData.get("includeInPrint") === "true", allow_download: allowDownload }).eq("id", assetId).eq("teaching_id", teaching.id).select("id").maybeSingle();
+  if (error || !data) return { error: "The chalkboard details could not be saved." };
+  revalidatePath("/admin/chalkboards");
+  return { saved: true };
 }

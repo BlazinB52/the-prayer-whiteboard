@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
 
@@ -156,6 +157,9 @@ export async function updateTeaching(
   if (error || !data) {
     return { error: "This teaching could not be found or saved." };
   }
+
+  revalidatePath(`/admin/teachings/${id}/edit`);
+  revalidatePath("/admin/teachings");
 
   if (formData.get("saveAction") === "return") {
     redirect("/admin/teachings?saved=1");

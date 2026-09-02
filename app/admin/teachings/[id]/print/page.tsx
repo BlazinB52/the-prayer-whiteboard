@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
@@ -116,38 +117,149 @@ function PrintableSection({ title, content }: { title: string; content: unknown 
   const value = content && typeof content === "object" ? content as Content : {};
   const callout = normalizeCallout(value.callout);
   const showTitle = value.showTitle !== false;
-  const body = <div className="print-section-content mt-3 text-[#52645a]"><SectionContent value={value} /></div>;
+  const contentParts = getSectionContentParts(value);
+  const heading = showTitle ? <h3 className="print-section-heading text-lg font-extrabold text-[#385245]">{title}</h3> : null;
+  const body = (
+    <>
+      {heading && contentParts.first ? (
+        <div className="print-heading-with-first">
+          {heading}
+          <div className="print-section-content mt-3 text-[#52645a]">{contentParts.first}</div>
+        </div>
+      ) : (
+        <>
+          {heading}
+          {contentParts.first ? <div className="print-section-content mt-3 text-[#52645a]">{contentParts.first}</div> : null}
+        </>
+      )}
+      {contentParts.rest ? <div className="print-section-content mt-3 text-[#52645a]">{contentParts.rest}</div> : null}
+    </>
+  );
 
   if (!callout || !callout.enabled) {
     return (
       <section className="print-section">
-        {showTitle ? <h3 className="print-section-heading text-lg font-extrabold text-[#385245]">{title}</h3> : null}
         {body}
       </section>
     );
   }
 
   const label = getCalloutLabel(callout);
+  const calloutSizeClass = isLargePrintCallout(value) ? "print-callout-large" : "print-callout-small";
   return (
     <section className="print-section">
-      <div className="mt-3 rounded-xl px-4 py-3 text-sm" style={getCalloutStyles(callout.color, callout.style)}>
+      <div className={`print-callout ${calloutSizeClass} mt-3 rounded-xl px-4 py-3 text-sm`} style={getCalloutStyles(callout.color, callout.style)}>
         {label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}
-        {showTitle ? <h3 className="print-section-heading mt-2 text-lg font-extrabold text-[#385245]">{title}</h3> : null}
-        <div className="print-section-content mt-3 text-[#52645a]">{body.props.children}</div>
+        {body}
       </div>
     </section>
   );
 }
 
-function SectionContent({ value }: { value: Content }) {
-  if (value.format === "bullets" && Array.isArray(value.bullets)) return <><TextParagraphs text={value.introduction} /><ul className="print-bullet-list mt-3 list-disc space-y-2 pl-6">{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul><TextParagraphs text={value.conclusion} className="mt-3" /></>;
-  if (value.format === "scripture") return <div className="print-scripture"><TextParagraphs text={value.introduction} /><p className="mt-3 font-bold text-[#385245]">{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">({String(value.translation)})</span> : null}</p><div className="mt-2 italic"><TextParagraphs text={value.quotation} /></div></div>;
-  return <TextParagraphs text={value.text} className={value.format === "takeaway" ? "font-bold text-[#385245]" : undefined} />;
+function isLargePrintCallout(value: Content) {
+  const textLength = [value.introduction, value.conclusion, value.quotation, value.text]
+    .map((part) => String(part ?? ""))
+    .join("\n")
+    .trim().length;
+  const bulletCount = Array.isArray(value.bullets) ? value.bullets.length : 0;
+
+  return textLength > 900 || bulletCount > 6;
+}
+
+function getSectionContentParts(value: Content): { first: ReactNode | null; rest: ReactNode | null } {
+  if (value.format === "bullets" && Array.isArray(value.bullets)) {
+    const introduction = getParagraphs(value.introduction);
+    const conclusion = getParagraphs(value.conclusion);
+    const bullets = value.bullets.map((bullet) => String(bullet)).filter(Boolean);
+
+    if (introduction.length > 0) {
+      const remainingIntroduction = introduction.slice(1);
+      const hasRest = remainingIntroduction.length > 0 || bullets.length > 0 || conclusion.length > 0;
+
+      return {
+        first: <Paragraphs paragraphs={introduction.slice(0, 1)} />,
+        rest: hasRest ? (
+          <>
+            <Paragraphs paragraphs={remainingIntroduction} />
+            {bullets.length > 0 ? <ul className="print-bullet-list mt-3 list-disc space-y-2 pl-6">{bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul> : null}
+            <Paragraphs paragraphs={conclusion} className="mt-3" />
+          </>
+        ) : null,
+      };
+    }
+
+    const remainingBullets = bullets.slice(1);
+    const firstConclusion = conclusion.slice(0, 1);
+    const hasFirst = bullets.length > 0 || firstConclusion.length > 0;
+    const hasRest = remainingBullets.length > 0 || (bullets.length > 0 ? conclusion.length > 0 : conclusion.length > 1);
+
+    return {
+      first: hasFirst ? (bullets.length > 0 ? <ul className="print-bullet-list list-disc space-y-2 pl-6"><li>{bullets[0]}</li></ul> : <Paragraphs paragraphs={firstConclusion} />) : null,
+      rest: hasRest ? (
+        <>
+          {remainingBullets.length > 0 ? <ul className="print-bullet-list list-disc space-y-2 pl-6">{remainingBullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul> : null}
+          <Paragraphs paragraphs={bullets.length > 0 ? conclusion : conclusion.slice(1)} className="mt-3" />
+        </>
+      ) : null,
+    };
+  }
+
+  if (value.format === "scripture") {
+    const introduction = getParagraphs(value.introduction);
+    const quotation = getParagraphs(value.quotation);
+
+    if (introduction.length > 0) {
+      const remainingIntroduction = introduction.slice(1);
+      const hasRest = remainingIntroduction.length > 0 || String(value.reference ?? "").trim() || quotation.length > 0;
+
+      return {
+        first: <Paragraphs paragraphs={introduction.slice(0, 1)} />,
+        rest: hasRest ? (
+          <div className="print-scripture">
+            <Paragraphs paragraphs={remainingIntroduction} />
+            <ScriptureReference value={value} />
+            <div className="mt-2 italic"><Paragraphs paragraphs={quotation} /></div>
+          </div>
+        ) : null,
+      };
+    }
+
+    return {
+      first: (
+        <div className="print-scripture">
+          <ScriptureReference value={value} className="font-bold text-[#385245]" />
+          <div className="mt-2 italic"><Paragraphs paragraphs={quotation.slice(0, 1)} /></div>
+        </div>
+      ),
+      rest: quotation.length > 1 ? <div className="print-scripture italic"><Paragraphs paragraphs={quotation.slice(1)} /></div> : null,
+    };
+  }
+
+  const paragraphs = getParagraphs(value.text);
+  const className = value.format === "takeaway" ? "font-bold text-[#385245]" : undefined;
+
+  return {
+    first: paragraphs.length > 0 ? <Paragraphs paragraphs={paragraphs.slice(0, 1)} className={className} /> : null,
+    rest: paragraphs.length > 1 ? <Paragraphs paragraphs={paragraphs.slice(1)} className={className} /> : null,
+  };
 }
 
 function TextParagraphs({ text, className }: { text: unknown; className?: string }) {
-  const paragraphs = String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean);
+  const paragraphs = getParagraphs(text);
+  return <Paragraphs paragraphs={paragraphs} className={className} />;
+}
+
+function Paragraphs({ paragraphs, className }: { paragraphs: string[]; className?: string }) {
+  if (paragraphs.length === 0) return null;
   return <div className={`space-y-3 ${className ?? ""}`}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{paragraph}</p>)}</div>;
+}
+
+function getParagraphs(text: unknown) {
+  return String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean);
+}
+
+function ScriptureReference({ value, className = "mt-3 font-bold text-[#385245]" }: { value: Content; className?: string }) {
+  return <p className={className}>{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">({String(value.translation)})</span> : null}</p>;
 }
 
 function formatDate(value: string) {

@@ -9,6 +9,25 @@ import { createClient } from "@/lib/supabase/server";
 type Content = Record<string, unknown>;
 type Asset = { id: string; teaching_id: string; category_id: string | null; section_id: string | null; alt_text: string; caption: string | null; website_storage_path: string | null; storage_path: string; download_storage_path: string | null; allow_download: boolean };
 
+const TEACHING_RESOURCES = [
+  {
+    title: "Printable Teaching PDF",
+    description: "The complete teaching formatted for printing.",
+  },
+  {
+    title: "Foldable Teaching Guide",
+    description: "A condensed teaching guide designed for printing and folding.",
+  },
+  {
+    title: "Presentation Slides",
+    description: "Slides for teaching groups or displaying on a screen.",
+  },
+  {
+    title: "TV/Roku Backdrop",
+    description: "A landscape chalkboard image for televisions and digital displays.",
+  },
+];
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const supabase = await createClient();
@@ -45,6 +64,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
         <header className="border-b border-[#284a3b]/15 pb-8"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">The Prayer Whiteboard</p><h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{teaching.title}</h1>{teaching.gathering_date ? <p className="mt-4 text-sm font-bold text-[#607066]">{formatDate(teaching.gathering_date)}</p> : null}{teaching.central_theme ? <p className="mt-5 text-lg font-bold text-[#385245]">{teaching.central_theme}</p> : null}{teaching.introduction ? <TextParagraphs text={teaching.introduction} className="mt-5 text-[#52645a]" /> : null}{teaching.summary ? <TextParagraphs text={teaching.summary} className="mt-5 text-[#52645a]" /> : null}</header>
         <div className="mt-8 space-y-8">{byTeaching.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}</div>
         <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2>{byCategory(category.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}>{bySection(section.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<PublicSection sectionId={section.id} title={section.title} content={section.content} /></div>)}</div></section>)}</div>
+        <TeachingResources />
       </article>
     </main>
   );
@@ -63,6 +83,30 @@ async function getWebsiteUrl(signer: ReturnType<typeof createServiceRoleClient>,
 function PublicChalkboard({ asset, url, slug }: { asset: Asset; url: string | null; slug: string }) {
   if (!url) return null;
   return <figure className="my-8"><a href={url} target="_blank" rel="noreferrer" aria-label="View chalkboard larger"><img src={url} alt={asset.alt_text} className="mx-auto block h-auto w-full max-w-[680px] object-contain" /></a>{asset.caption?.trim() ? <figcaption className="mt-3 text-center text-sm text-[#607066]">{asset.caption.trim()}</figcaption> : null}{asset.allow_download && asset.download_storage_path ? <a href={`/api/teachings/${encodeURIComponent(slug)}/chalkboards/${asset.id}/download`} className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl bg-[#244a3a] px-4 text-sm font-extrabold text-white">Download chalkboard</a> : null}</figure>;
+}
+
+function TeachingResources() {
+  return (
+    <section className="mt-14 border-t border-[#284a3b]/15 pt-9">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Resources</p>
+          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Teaching Resources</h2>
+        </div>
+      </div>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        {TEACHING_RESOURCES.map((resource) => (
+          <div key={resource.title} className="rounded-xl border border-[#284a3b]/12 bg-[#fffdf8] p-5 shadow-sm shadow-[#4d5f52]/5" aria-disabled="true">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-base font-extrabold text-[#385245]">{resource.title}</h3>
+              <span className="shrink-0 rounded-full bg-[#f1c66f]/35 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-[#946332]">Coming Soon</span>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-[#607066]">{resource.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function PublicSection({ sectionId, title, content }: { sectionId: string; title: string; content: unknown }) {

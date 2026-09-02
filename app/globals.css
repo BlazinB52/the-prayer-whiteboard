@@ -144,8 +144,12 @@ a {
   }
 
   .print-category,
-  .print-section {
-    break-inside: avoid;
+  .print-section,
+  .print-section-content,
+  .print-bullet-list,
+  .print-scripture {
+    break-inside: auto;
+    page-break-inside: auto;
   }
 
   .print-chalkboard {
@@ -161,12 +165,43 @@ a {
   .print-category-heading,
   .print-section-heading {
     break-after: avoid;
+    page-break-after: avoid;
   }
 
-  .print-section-content,
-  .print-bullet-list,
-  .print-scripture {
+  .print-category-heading {
     break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-heading-with-first {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-section-heading {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .print-callout-small {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-callout-large {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .print-section-content p,
+  .print-bullet-list li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  .print-bullet-list li {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   a {

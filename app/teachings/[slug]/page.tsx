@@ -44,7 +44,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
         <header className="border-b border-[#284a3b]/15 pb-8"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">The Prayer Whiteboard</p><h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{teaching.title}</h1>{teaching.gathering_date ? <p className="mt-4 text-sm font-bold text-[#607066]">{formatDate(teaching.gathering_date)}</p> : null}{teaching.central_theme ? <p className="mt-5 text-lg font-bold text-[#385245]">{teaching.central_theme}</p> : null}{teaching.introduction ? <TextParagraphs text={teaching.introduction} className="mt-5 text-[#52645a]" /> : null}{teaching.summary ? <TextParagraphs text={teaching.summary} className="mt-5 text-[#52645a]" /> : null}</header>
         <div className="mt-8 space-y-8">{byTeaching.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}</div>
-        <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2>{byCategory(category.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}>{bySection(section.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<PublicSection title={section.title} content={section.content} /></div>)}</div></section>)}</div>
+        <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2>{byCategory(category.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}>{bySection(section.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<PublicSection sectionId={section.id} title={section.title} content={section.content} /></div>)}</div></section>)}</div>
       </article>
     </main>
   );
@@ -65,13 +65,13 @@ function PublicChalkboard({ asset, url, slug }: { asset: Asset; url: string | nu
   return <figure className="my-8"><a href={url} target="_blank" rel="noreferrer" aria-label="View chalkboard larger"><img src={url} alt={asset.alt_text} className="mx-auto block h-auto w-full max-w-[680px] object-contain" /></a>{asset.caption?.trim() ? <figcaption className="mt-3 text-center text-sm text-[#607066]">{asset.caption.trim()}</figcaption> : null}{asset.allow_download && asset.download_storage_path ? <a href={`/api/teachings/${encodeURIComponent(slug)}/chalkboards/${asset.id}/download`} className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl bg-[#244a3a] px-4 text-sm font-extrabold text-white">Download chalkboard</a> : null}</figure>;
 }
 
-function PublicSection({ title, content }: { title: string; content: unknown }) {
+function PublicSection({ sectionId, title, content }: { sectionId: string; title: string; content: unknown }) {
   const value = content && typeof content === "object" ? content as Content : {};
   const callout = normalizeCallout(value.callout);
   const body = <SectionContent value={value} />;
-  if (!callout) return <section className="public-section">{value.showTitle !== false ? <h3 className="text-lg font-extrabold text-[#385245]">{title}</h3> : null}<div className="mt-3 text-[#52645a]">{body}</div></section>;
+  if (!callout) return <section id={`section-${sectionId}`} className="public-section">{value.showTitle !== false ? <h3 className="text-lg font-extrabold text-[#385245]">{title}</h3> : null}<div className="mt-3 text-[#52645a]">{body}</div></section>;
   const label = getCalloutLabel(callout);
-  return <section className="public-section"><div className="rounded-xl px-4 py-3 text-sm" style={getCalloutStyles(callout.color, callout.style)}>{label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}{value.showTitle !== false ? <h3 className="mt-2 text-lg font-extrabold text-[#385245]">{title}</h3> : null}<div className="mt-3 text-[#52645a]">{body}</div></div></section>;
+  return <section id={`section-${sectionId}`} className="public-section"><div className="rounded-xl px-4 py-3 text-sm" style={getCalloutStyles(callout.color, callout.style)}>{label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}{value.showTitle !== false ? <h3 className="mt-2 text-lg font-extrabold text-[#385245]">{title}</h3> : null}<div className="mt-3 text-[#52645a]">{body}</div></div></section>;
 }
 
 function SectionContent({ value }: { value: Content }) {

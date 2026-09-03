@@ -14,6 +14,7 @@ const DOWNLOAD_WIDTH = 2160;
 const DOWNLOAD_HEIGHT = 2880;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const INCOMING_PATH_PATTERN = new RegExp(`^teachings/([0-9a-f-]{36})/chalkboards/([0-9a-f-]{36})/v1/incoming\\.(jpg|jpeg|png|webp)$`, "i");
+const CHALKBOARD_TEACHING_STATUSES = ["draft", "published"];
 
 export type ChalkboardActionState = { error?: string; saved?: boolean; path?: string; token?: string; assetGroupId?: string };
 type UploadActionState = ChalkboardActionState;
@@ -70,8 +71,8 @@ export async function createChalkboardUploadTarget(teachingId: string, fileName:
   if (!extension) return { error: "Choose a JPEG, PNG, or WebP image." };
 
   const { supabase } = await requireAdmin();
-  const { data: teaching } = await supabase.from("teachings").select("id").eq("id", teachingId).eq("status", "draft").maybeSingle();
-  if (!teaching) return { error: "Only draft teachings can receive new chalkboards." };
+  const { data: teaching } = await supabase.from("teachings").select("id").eq("id", teachingId).in("status", CHALKBOARD_TEACHING_STATUSES).maybeSingle();
+  if (!teaching) return { error: "Only draft or published teachings can receive new chalkboards." };
 
   const assetGroupId = crypto.randomUUID();
   const path = `${safePaths(teachingId, assetGroupId).incoming}.${extension}`;
@@ -105,15 +106,15 @@ export async function finalizeChalkboardUpload(input: FinalizeInput): Promise<Up
   }
 
   const { supabase } = await requireAdmin();
-  const { data: teaching } = await supabase.from("teachings").select("id").eq("id", input.teachingId).eq("status", "draft").maybeSingle();
-  if (!teaching) return { error: "Only draft teachings can receive new chalkboards." };
+  const { data: teaching } = await supabase.from("teachings").select("id").eq("id", input.teachingId).in("status", CHALKBOARD_TEACHING_STATUSES).maybeSingle();
+  if (!teaching) return { error: "Only draft or published teachings can receive new chalkboards." };
 
   if (input.sectionId) {
-    const { data: section } = await supabase.from("teaching_sections").select("id, category_id").eq("id", input.sectionId).eq("category_id", input.categoryId).eq("teaching_id", input.teachingId).eq("status", "draft").maybeSingle();
-    if (!section) return { error: "The selected section does not belong to the selected draft teaching and category." };
+    const { data: section } = await supabase.from("teaching_sections").select("id, category_id").eq("id", input.sectionId).eq("category_id", input.categoryId).eq("teaching_id", input.teachingId).in("status", CHALKBOARD_TEACHING_STATUSES).maybeSingle();
+    if (!section) return { error: "The selected section does not belong to the selected teaching and category." };
   } else if (input.categoryId) {
-    const { data: category } = await supabase.from("teaching_categories").select("id").eq("id", input.categoryId).eq("teaching_id", input.teachingId).eq("status", "draft").maybeSingle();
-    if (!category) return { error: "The selected category does not belong to the selected draft teaching." };
+    const { data: category } = await supabase.from("teaching_categories").select("id").eq("id", input.categoryId).eq("teaching_id", input.teachingId).in("status", CHALKBOARD_TEACHING_STATUSES).maybeSingle();
+    if (!category) return { error: "The selected category does not belong to the selected teaching." };
   }
 
   const paths = safePaths(input.teachingId, input.assetGroupId);

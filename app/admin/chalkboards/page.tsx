@@ -7,10 +7,12 @@ import { ChalkboardCard } from "./chalkboard-card";
 
 export const metadata: Metadata = { title: "Chalkboards", robots: { index: false, follow: false } };
 
+const CHALKBOARD_TEACHING_STATUSES = ["draft", "published"];
+
 export default async function ChalkboardsPage() {
   const { supabase } = await requireAdmin();
-  const [{ data: draftTeachings }, { data: allTeachings }, { data: assets, error }] = await Promise.all([
-    supabase.from("teachings").select("id, title").eq("status", "draft").order("title"),
+  const [{ data: chalkboardTeachings }, { data: allTeachings }, { data: assets, error }] = await Promise.all([
+    supabase.from("teachings").select("id, title").in("status", CHALKBOARD_TEACHING_STATUSES).order("title"),
     supabase.from("teachings").select("id, title").order("title"),
     supabase.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, title, alt_text, caption, website_storage_path, width, height, display_order, include_in_print, allow_download, download_storage_path, uploaded_at").order("uploaded_at", { ascending: false }),
   ]);
@@ -19,7 +21,7 @@ export default async function ChalkboardsPage() {
   const teachingMap = new Map((allTeachings ?? []).map((teaching) => [teaching.id, teaching.title]));
   const categoryMap = new Map((categories ?? []).map((category) => [`${category.teaching_id}:${category.id}`, category.title]));
   const sectionMap = new Map((sections ?? []).map((section) => [`${section.teaching_id}:${section.id}`, section.title]));
-  const formTeachings = (draftTeachings ?? []).map((teaching) => ({ ...teaching, categories: (categories ?? []).filter((category) => category.teaching_id === teaching.id).map((category) => ({ ...category, sections: (sections ?? []).filter((section) => section.category_id === category.id && section.teaching_id === teaching.id) })) }));
+  const formTeachings = (chalkboardTeachings ?? []).map((teaching) => ({ ...teaching, categories: (categories ?? []).filter((category) => category.teaching_id === teaching.id).map((category) => ({ ...category, sections: (sections ?? []).filter((section) => section.category_id === category.id && section.teaching_id === teaching.id) })) }));
   const previews = await Promise.all((assets ?? []).map(async (asset) => ({ asset, url: await getChalkboardPreviewUrl(asset.website_storage_path) })));
 
   return (

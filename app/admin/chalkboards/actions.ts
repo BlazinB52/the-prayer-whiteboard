@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import sharp, { type Metadata, type Sharp } from "sharp";
+import type { Metadata, Sharp } from "sharp";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 const BUCKET = "chalkboards";
@@ -52,6 +52,11 @@ function safePaths(teachingId: string, assetGroupId: string) {
     website: `${base}/website.webp`,
     download: `${base}/download.jpg`,
   };
+}
+
+async function loadSharp() {
+  const sharp = (await import("sharp")).default;
+  return sharp;
 }
 
 async function removeObjects(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], paths: string[]) {
@@ -123,6 +128,7 @@ export async function finalizeChalkboardUpload(input: FinalizeInput): Promise<Up
   let image: Sharp;
   let metadata: Metadata;
   try {
+    const sharp = await loadSharp();
     image = sharp(sourceBuffer).rotate();
     metadata = await image.metadata();
   } catch {

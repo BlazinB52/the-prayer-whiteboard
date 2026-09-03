@@ -87,7 +87,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     signer
-      ? signer.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, alt_text, caption, website_storage_path, storage_path, display_order, is_current_version, status").eq("teaching_id", teaching.id).eq("is_current_version", true).eq("status", "active").is("category_id", null).is("section_id", null).order("display_order").limit(1)
+      ? signer.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, alt_text, caption, website_storage_path, storage_path, display_order, is_current_version, status").eq("teaching_id", teaching.id).eq("is_current_version", true).eq("status", "active").is("category_id", null).is("section_id", null).order("display_order")
       : Promise.resolve({ data: [], error: null }),
     supabase.from("teachings").select("id, slug, title, gathering_date, summary").eq("status", "published").neq("id", teaching.id).order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
@@ -98,15 +98,18 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   const highlights = validCategories.flatMap((category) => validSections.filter((section) => section.category_id === category.id).map((section) => ({ id: section.id, title: section.title, categoryTitle: category.title, excerpt: getHomepageSectionExcerpt(section.content), selected: Boolean(section.content && typeof section.content === "object" && (section.content as Record<string, unknown>).homepageHighlight === true) }))).filter((section) => section.excerpt && section.selected).slice(0, 4);
 
   let chalkboard: FeaturedHomepageData["chalkboard"] = null;
-  const asset = assetsError ? undefined : assets?.[0];
-  if (asset && signer) {
-    const paths = [asset.website_storage_path, asset.storage_path].filter((path): path is string => Boolean(path));
-    for (const path of paths) {
-      const { data } = await signer.storage.from("chalkboards").createSignedUrl(path, 300);
-      if (data?.signedUrl) {
-        chalkboard = { url: data.signedUrl, altText: asset.alt_text, caption: asset.caption };
-        break;
+  const signableAssets = assetsError ? [] : assets ?? [];
+  if (signer) {
+    for (const asset of signableAssets) {
+      const paths = [asset.website_storage_path, asset.storage_path].filter((path): path is string => Boolean(path));
+      for (const path of paths) {
+        const { data } = await signer.storage.from("chalkboards").createSignedUrl(path, 300);
+        if (data?.signedUrl) {
+          chalkboard = { url: data.signedUrl, altText: asset.alt_text, caption: asset.caption };
+          break;
+        }
       }
+      if (chalkboard) break;
     }
   }
 

@@ -42,16 +42,18 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
   const { data: teaching, error: teachingError } = await supabase.from("teachings").select("id, title, gathering_date, central_theme, introduction, summary, status, slug").eq("slug", slug).eq("status", "published").maybeSingle();
   if (teachingError || !teaching || teaching.slug !== slug) notFound();
 
+  const signer = createServiceRoleClient();
   const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assets, error: assetsError }] = await Promise.all([
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
-    supabase.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, alt_text, caption, website_storage_path, storage_path, download_storage_path, allow_download, display_order, is_current_version, status").eq("teaching_id", teaching.id).eq("is_current_version", true).eq("status", "active").order("display_order"),
+    signer
+      ? signer.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, alt_text, caption, website_storage_path, storage_path, download_storage_path, allow_download, display_order, is_current_version, status").eq("teaching_id", teaching.id).eq("is_current_version", true).eq("status", "active").order("display_order")
+      : Promise.resolve({ data: [], error: null }),
   ]);
   if (categoriesError || sectionsError || assetsError) notFound();
   const validCategories = (categories ?? []).filter((category) => category.teaching_id === teaching.id);
   const validSections = (sections ?? []).filter((section) => section.teaching_id === teaching.id && validCategories.some((category) => category.id === section.category_id));
   const validAssets = (assets ?? []).filter((asset) => asset.teaching_id === teaching.id && (!asset.category_id || validCategories.some((category) => category.id === asset.category_id)) && (!asset.section_id || validSections.some((section) => section.id === asset.section_id && section.category_id === asset.category_id))) as Asset[];
-  const signer = createServiceRoleClient();
   const assetsWithUrls = await Promise.all(validAssets.map(async (asset) => ({ asset, url: await getWebsiteUrl(signer, asset) })));
   const byTeaching = assetsWithUrls.filter(({ asset }) => !asset.category_id && !asset.section_id);
   const byCategory = (categoryId: string) => assetsWithUrls.filter(({ asset }) => asset.category_id === categoryId && !asset.section_id);
@@ -82,7 +84,7 @@ async function getWebsiteUrl(signer: ReturnType<typeof createServiceRoleClient>,
 
 function PublicChalkboard({ asset, url, slug }: { asset: Asset; url: string | null; slug: string }) {
   if (!url) return null;
-  return <figure className="my-8"><a href={url} target="_blank" rel="noreferrer" aria-label="View chalkboard larger"><img src={url} alt={asset.alt_text} className="mx-auto block h-auto w-full max-w-[680px] object-contain" /></a>{asset.caption?.trim() ? <figcaption className="mt-3 text-center text-sm text-[#607066]">{asset.caption.trim()}</figcaption> : null}{asset.allow_download && asset.download_storage_path ? <a href={`/api/teachings/${encodeURIComponent(slug)}/chalkboards/${asset.id}/download`} className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl bg-[#244a3a] px-4 text-sm font-extrabold text-white">Download chalkboard</a> : null}</figure>;
+  return <figure className="my-8"><a href={url} target="_blank" rel="noreferrer" aria-label="View chalkboard larger"><img src={url} alt={asset.alt_text} className="mx-auto block h-auto w-full max-w-[680px] object-contain" /></a>{asset.caption?.trim() ? <figcaption className="mt-3 text-center text-sm text-[#607066]">{asset.caption.trim()}</figcaption> : null}{asset.allow_download && asset.download_storage_path ? <a href={`/api/teachings/${encodeURIComponent(slug)}/chalkboards/${asset.id}/download`} className="mt-3 inline-flex min-h-10 items-center justify-center rounded-xl bg-[#244a3a] px-4 text-sm font-extrabold !text-white hover:!text-white focus-visible:!text-white visited:!text-white">Download chalkboard</a> : null}</figure>;
 }
 
 function TeachingResources() {

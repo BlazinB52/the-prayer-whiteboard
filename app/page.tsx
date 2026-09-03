@@ -82,22 +82,23 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   if (!selectedTeaching) return null;
 
   const signer = createServiceRoleClient();
-  if (!signer) return null;
 
   const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assets, error: assetsError }, { data: previousGatherings, error: previousError }] = await Promise.all([
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
-    signer.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, alt_text, caption, website_storage_path, storage_path, display_order, is_current_version, status").eq("teaching_id", teaching.id).eq("is_current_version", true).eq("status", "active").is("category_id", null).is("section_id", null).order("display_order").limit(1),
+    signer
+      ? signer.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, alt_text, caption, website_storage_path, storage_path, display_order, is_current_version, status").eq("teaching_id", teaching.id).eq("is_current_version", true).eq("status", "active").is("category_id", null).is("section_id", null).order("display_order").limit(1)
+      : Promise.resolve({ data: [], error: null }),
     supabase.from("teachings").select("id, slug, title, gathering_date, summary").eq("status", "published").neq("id", teaching.id).order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
-  if (categoriesError || sectionsError || assetsError || previousError) return null;
+  if (categoriesError || sectionsError || previousError) return null;
 
   const validCategories = (categories ?? []).filter((category) => category.teaching_id === teaching.id);
   const validSections = (sections ?? []).filter((section) => section.teaching_id === teaching.id && validCategories.some((category) => category.id === section.category_id));
   const highlights = validCategories.flatMap((category) => validSections.filter((section) => section.category_id === category.id).map((section) => ({ id: section.id, title: section.title, categoryTitle: category.title, excerpt: getHomepageSectionExcerpt(section.content), selected: Boolean(section.content && typeof section.content === "object" && (section.content as Record<string, unknown>).homepageHighlight === true) }))).filter((section) => section.excerpt && section.selected).slice(0, 4);
 
   let chalkboard: FeaturedHomepageData["chalkboard"] = null;
-  const asset = assets?.[0];
+  const asset = assetsError ? undefined : assets?.[0];
   if (asset && signer) {
     const paths = [asset.website_storage_path, asset.storage_path].filter((path): path is string => Boolean(path));
     for (const path of paths) {
@@ -108,8 +109,6 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
       }
     }
   }
-
-  if (!chalkboard) return null;
 
   return { teaching: selectedTeaching as FeaturedHomepageData["teaching"], highlights, chalkboard, previousGatherings: (previousGatherings ?? []) as PreviousGathering[] };
 }

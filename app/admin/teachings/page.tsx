@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { unpublishTeaching } from "./actions";
+import { UnpublishButton } from "./unpublish-button";
 
 export const metadata: Metadata = {
   title: "Teachings",
@@ -12,7 +14,7 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-export default async function TeachingsPage({ searchParams }: { searchParams: Promise<{ published?: string; saved?: string }> }) {
+export default async function TeachingsPage({ searchParams }: { searchParams: Promise<{ published?: string; saved?: string; unpublished?: string }> }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
   const { data: teachings, error } = await supabase
@@ -38,6 +40,7 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
 
         {params.saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Draft saved successfully.</p> : null}
         {params.published === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching published and featured on the homepage.</p> : null}
+        {params.unpublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching unpublished and returned to draft.</p> : null}
 
         {teachings?.length ? (
           <section className="grid gap-5 py-10 sm:grid-cols-2">
@@ -52,8 +55,12 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
                   <div className="flex justify-between gap-4"><dt>Featured</dt><dd className="font-bold text-[#385245]">{teaching.is_featured ? "Yes" : "No"}</dd></div>
                   <div className="flex justify-between gap-4"><dt>Last updated</dt><dd className="font-bold text-[#385245]">{new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(teaching.updated_at))}</dd></div>
                 </dl>
-                {teaching.status === "draft" ? <Link href={`/admin/teachings/${teaching.id}/edit`} className="mt-6 inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Edit draft</Link> : null}
-                {teaching.status === "published" ? <Link href={`/teachings/${teaching.slug}`} className="mt-6 inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">View public teaching</Link> : null}
+                <div className="mt-6 flex flex-wrap items-center gap-4">
+                  {teaching.status === "draft" ? <Link href={`/admin/teachings/${teaching.id}/edit`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Edit draft</Link> : null}
+                  {teaching.status === "published" ? <Link href={`/admin/teachings/${teaching.id}/edit`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Edit teaching</Link> : null}
+                  {teaching.status === "published" ? <Link href={`/teachings/${teaching.slug}`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">View public teaching</Link> : null}
+                </div>
+                {teaching.status === "published" ? <UnpublishButton action={unpublishTeaching.bind(null, teaching.id)} /> : null}
               </article>
             ))}
           </section>

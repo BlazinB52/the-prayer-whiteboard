@@ -13,6 +13,7 @@ const MAX_LENGTHS = {
 
 type FormState = { error?: string; saved?: boolean };
 export type PublishTeachingState = { error?: string };
+export type UnpublishTeachingState = { error?: string };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -153,7 +154,7 @@ export async function updateTeaching(
     .from("teachings")
     .update(result.value)
     .eq("id", id)
-    .eq("status", "draft")
+    .in("status", ["draft", "published"])
     .select("id")
     .maybeSingle();
 
@@ -203,4 +204,66 @@ export async function publishAndFeatureTeaching(
   revalidatePath("/admin/teachings");
   revalidatePath(`/teachings/${teaching.slug}`);
   redirect("/admin/teachings?published=1");
+}
+
+export async function unpublishTeaching(
+  id: string,
+  previousState: UnpublishTeachingState,
+): Promise<UnpublishTeachingState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+
+  if (!UUID_PATTERN.test(id)) {
+    return { error: "This teaching could not be found." };
+  }
+
+  const { data: teaching } = await supabase
+    .from("teachings")
+    .select("slug, status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!teaching) {
+    return { error: "This teaching could not be found." };
+  }
+
+  if (teaching.status !== "published") {
+    return { error: "Only published teachings can be unpublished." };
+  }
+
+  const { error } = await supabase
+    .from("teachings")
+    .update({ status: "draft", is_featured: false })
+    .eq("id", id)
+    .eq("status", "published");
+
+  if (error) {
+    return { error: "This teaching could not be unpublished." };
+  }
+
+  const { error: categoryError } = await supabase
+    .from("teaching_categories")
+    .update({ status: "draft" })
+    .eq("teaching_id", id)
+    .eq("status", "published");
+
+  if (categoryError) {
+    return { error: "This teaching's categories could not be unpublished." };
+  }
+
+  const { error: sectionError } = await supabase
+    .from("teaching_sections")
+    .update({ status: "draft" })
+    .eq("teaching_id", id)
+    .eq("status", "published");
+
+  if (sectionError) {
+    return { error: "This teaching's sections could not be unpublished." };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/teachings");
+  revalidatePath(`/admin/teachings/${id}/edit`);
+  revalidatePath(`/teachings/${teaching.slug}`);
+  redirect("/admin/teachings?unpublished=1");
 }

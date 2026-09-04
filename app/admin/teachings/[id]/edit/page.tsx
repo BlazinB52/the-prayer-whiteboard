@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { publishAndFeatureTeaching, updateTeaching } from "../../actions";
+import { publishAndFeatureTeaching, unpublishTeaching, updateTeaching } from "../../actions";
 import { TeachingForm } from "../../teaching-form";
 import { ContentWorkspace } from "../../content-workspace";
 import { PublishFeatureButton } from "../../publish-feature-button";
+import { UnpublishButton } from "../../unpublish-button";
 import {
   createCategory,
   createSection,
@@ -33,7 +34,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
     .from("teachings")
     .select("id, title, gathering_date, central_theme, introduction, summary, status")
     .eq("id", id)
-    .eq("status", "draft")
+    .in("status", ["draft", "published"])
     .maybeSingle();
 
   if (error || !teaching) {
@@ -44,14 +45,14 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
     .from("teaching_categories")
     .select("id, title, sort_order")
     .eq("teaching_id", id)
-    .eq("status", "draft")
+    .eq("status", teaching.status)
     .order("sort_order", { ascending: true });
 
   const { data: sections } = await supabase
     .from("teaching_sections")
     .select("id, category_id, title, content, sort_order")
     .eq("teaching_id", id)
-    .eq("status", "draft")
+    .eq("status", teaching.status)
     .order("sort_order", { ascending: true });
 
   const categoryItems = (categories ?? []).map((category) => ({
@@ -111,9 +112,9 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
         <Link href="/admin/teachings" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Teachings</Link>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Edit Teaching</h1>
-          <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">Draft</span>
+          <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{teaching.status}</span>
         </div>
-        <p className="mt-3 text-sm text-[#607066]">Update the draft metadata and teaching content before publishing.</p>
+        <p className="mt-3 text-sm text-[#607066]">{teaching.status === "published" ? "Unpublish this teaching to return it to draft editing." : "Update the draft metadata and teaching content before publishing."}</p>
         <TeachingForm
           action={updateTeaching.bind(null, id)}
           values={{
@@ -124,24 +125,35 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
             summary: teaching.summary ?? "",
           }}
         />
-        <section className="mt-8 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-5">
-          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
-          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Feature this teaching on the homepage</h2>
-          <p className="mt-3 text-sm leading-6 text-[#607066]">Publishing makes this teaching public, moves the current homepage feature into Previous Gatherings, and keeps the stored gathering date unchanged.</p>
-          <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} />
-        </section>
-        <ContentWorkspace
-          teachingId={id}
-          categories={categoryItems}
-          createCategoryAction={createCategory.bind(null, id)}
-          renameCategoryAction={renameCategoryActions}
-          createSectionActions={createSectionActions}
-          updateSectionActions={updateSectionActions}
-          moveCategoryActions={moveCategoryActions}
-          deleteCategoryActions={deleteCategoryActions}
-          moveSectionActions={moveSectionActions}
-          deleteSectionActions={deleteSectionActions}
-        />
+        {teaching.status === "published" ? (
+          <section className="mt-8 rounded-2xl border border-[#a2472c]/20 bg-[#fff8f1] p-5">
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Unpublish</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Return this teaching to draft</h2>
+            <p className="mt-3 text-sm leading-6 text-[#607066]">Unpublishing removes this teaching from public pages and makes its content editable again.</p>
+            <UnpublishButton action={unpublishTeaching.bind(null, id)} />
+          </section>
+        ) : (
+          <>
+            <section className="mt-8 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-5">
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
+              <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Feature this teaching on the homepage</h2>
+              <p className="mt-3 text-sm leading-6 text-[#607066]">Publishing makes this teaching public, moves the current homepage feature into Previous Gatherings, and keeps the stored gathering date unchanged.</p>
+              <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} />
+            </section>
+            <ContentWorkspace
+              teachingId={id}
+              categories={categoryItems}
+              createCategoryAction={createCategory.bind(null, id)}
+              renameCategoryAction={renameCategoryActions}
+              createSectionActions={createSectionActions}
+              updateSectionActions={updateSectionActions}
+              moveCategoryActions={moveCategoryActions}
+              deleteCategoryActions={deleteCategoryActions}
+              moveSectionActions={moveSectionActions}
+              deleteSectionActions={deleteSectionActions}
+            />
+          </>
+        )}
       </div>
     </main>
   );

@@ -44,7 +44,7 @@ export function TeachingForm({ values, action }: { values: TeachingValues; actio
       </label>
       <label className="block text-sm font-bold text-[#385245]">
         Central theme
-        <input name="centralTheme" value={draftValues.centralTheme} onChange={handleChange} maxLength={240} className="admin-input" />
+        <input name="centralTheme" value={draftValues.centralTheme} onChange={handleChange} maxLength={300} className="admin-input" />
       </label>
       <label className="block text-sm font-bold text-[#385245]">
         Introduction

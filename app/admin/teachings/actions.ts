@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/supabase/admin";
 
 const MAX_LENGTHS = {
   title: 160,
-  centralTheme: 240,
+  centralTheme: 300,
   introduction: 5000,
   summary: 500,
 };

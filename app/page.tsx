@@ -14,7 +14,7 @@ import {
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { selectFeaturedTeaching, type FeaturedTeachingCandidate } from "@/lib/homepage-utils";
-import { getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment } from "./admin/teachings/callout-utils";
+import { getCalloutBulletListClassName, getCalloutLabel, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment } from "./admin/teachings/callout-utils";
 
 const pageUrl = "https://theprayerwhiteboard.com";
 const teachingPath = "/teachings/aliyah-israel-harvest-prayer";
@@ -163,26 +163,13 @@ function HomepageHighlightCard({ highlight, href, index }: { highlight: Homepage
   const alignment = normalizeHighlightHorizontalAlignment(highlight.highlightHorizontalAlignment);
   const numberClassName = alignment === "center" ? "mx-auto grid size-9 place-items-center rounded-full bg-[#f1c66f] text-sm font-black text-[#244a3a]" : "grid size-9 place-items-center rounded-full bg-[#f1c66f] text-sm font-black text-[#244a3a]";
   const readClassName = alignment === "center" ? "mt-4 inline-flex items-center justify-center gap-2 text-sm font-extrabold text-[#f0cb83]" : "mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-[#f0cb83]";
-
-  if (callout) {
-    const label = getCalloutLabel(callout);
-    return (
-      <Link href={href} className="group block transition hover:-translate-y-0.5">
-        <div className={`${getCalloutContainerClassName(alignment, "min-h-56")} border border-white/10 p-5 shadow-sm shadow-black/5 group-hover:brightness-105`} style={getCalloutStyles(callout.color, callout.style)}>
-          <span className={numberClassName}>{index + 1}</span>
-          {label ? <div className="mt-4 text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}
-          {value.showTitle !== false ? <h3 className="mt-2 text-xl font-extrabold text-[#243126]">{highlight.title}</h3> : null}
-          <div className="mt-3 space-y-3 text-sm leading-6 text-[#243126]"><HomepageHighlightContent value={value} alignment={alignment} /></div>
-          <span className={readClassName}>Read this section <ArrowRight aria-hidden="true" size={16} /></span>
-        </div>
-      </Link>
-    );
-  }
+  const label = getCalloutLabel(callout);
 
   return (
-    <Link href={href} className={`group flex min-h-56 flex-col justify-center rounded-3xl border border-white/10 bg-white/[0.07] p-5 transition hover:-translate-y-0.5 hover:bg-white/[0.11] ${alignment === "center" ? "text-center" : "text-left"}`}>
+    <Link href={href} className={`group flex min-h-56 flex-col rounded-3xl border border-white/10 bg-white/[0.07] p-5 text-[#dce8e1] transition hover:-translate-y-0.5 hover:bg-white/[0.11] ${alignment === "center" ? "text-center" : "text-left"}`}>
       <span className={numberClassName}>{index + 1}</span>
-      {value.showTitle !== false ? <h3 className="mt-4 text-xl font-extrabold">{highlight.title}</h3> : null}
+      {label ? <div className="mt-4 text-xs font-extrabold uppercase tracking-[0.14em] text-[#dce8e1]">{label}</div> : null}
+      {value.showTitle !== false ? <h3 className="mt-4 text-xl font-extrabold text-white">{highlight.title}</h3> : null}
       <div className="mt-3 space-y-3 text-sm leading-6 text-[#dce8e1]"><HomepageHighlightContent value={value} alignment={alignment} /></div>
       <span className={readClassName}>Read this section <ArrowRight aria-hidden="true" size={16} /></span>
     </Link>

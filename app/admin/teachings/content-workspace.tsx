@@ -3,7 +3,7 @@
 import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import type { ContentActionState, SectionFormat } from "./content-actions";
-import { getCalloutLabel, getCalloutStyles, getPresetDefaults, normalizeCallout, type SectionCallout, type SectionCalloutStyle, type SectionCalloutType } from "./callout-utils";
+import { CalloutSection, getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, getPresetDefaults, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment, type SectionCallout, type SectionCalloutStyle, type SectionCalloutType, type SectionContentValue } from "./callout-utils";
 
 type Action = (state: ContentActionState, formData: FormData) => Promise<ContentActionState>;
 
@@ -20,6 +20,7 @@ type Section = {
   title: string;
   sort_order: number;
   content: unknown;
+  highlight_horizontal_alignment?: string | null;
 };
 
 type SectionValues = {
@@ -33,6 +34,7 @@ type SectionValues = {
   quotation: string;
   showTitle: boolean;
   homepageHighlight: boolean;
+  highlightHorizontalAlignment: HighlightHorizontalAlignment;
   callout?: SectionCallout;
 };
 
@@ -156,14 +158,14 @@ function CategoryRenameForm({ action, title }: { action: Action; title: string }
 }
 
 function SectionAddForm({ categoryId, action }: { categoryId: string; action: Action }) {
-  return <div className="mt-6"><h5 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#946332]">Add section</h5><SectionForm key={`add-section-${categoryId}`} action={action} values={{ title: "", format: "paragraph", mainText: "", introduction: "", conclusion: "", reference: "", translation: "", quotation: "", showTitle: true, homepageHighlight: false }} submitLabel="Add section" resetOnSuccess /></div>;
+  return <div className="mt-6"><h5 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#946332]">Add section</h5><SectionForm key={`add-section-${categoryId}`} action={action} values={{ title: "", format: "paragraph", mainText: "", introduction: "", conclusion: "", reference: "", translation: "", quotation: "", showTitle: true, homepageHighlight: false, highlightHorizontalAlignment: "left" }} submitLabel="Add section" resetOnSuccess /></div>;
 }
 
 function SectionPanel({ section, categories, isFirst, isLast, action, moveActions, deleteAction }: { section: Section; categories: Category[]; isFirst: boolean; isLast: boolean; action: Action; moveActions: { up: () => Promise<ContentActionState>; down: () => Promise<ContentActionState> }; deleteAction: () => Promise<ContentActionState> }) {
-  const values = sectionValues(section.content, section.title);
-  const formKey = `${section.id}-${values.format}-${values.title}-${values.homepageHighlight}-${JSON.stringify(values.callout ?? null)}`;
+  const values = sectionValues(section);
+  const formKey = `${section.id}-${values.format}-${values.title}-${values.homepageHighlight}-${values.highlightHorizontalAlignment}-${JSON.stringify(values.callout ?? null)}`;
   const detailsRef = useRef<HTMLDetailsElement>(null);
-  return <div className="rounded-xl border border-[#284a3b]/10 bg-white p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Section {section.sort_order} · {values.format}</p>{values.showTitle === false ? <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#946332]">Admin title: {section.title}</p> : null}{values.homepageHighlight ? <span className="mt-2 inline-flex rounded-full bg-[#e4efd3] px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#2f593f]">Homepage highlight</span> : null}</div><div className="flex flex-wrap gap-2"><OperationForm action={moveActions.up} label="Up" disabled={isFirst} /><OperationForm action={moveActions.down} label="Down" disabled={isLast} /><OperationForm action={deleteAction} label="Delete" confirmMessage="Delete this section?" danger /></div></div><div className="mt-4 border-l-2 border-[#f1c66f] pl-4 text-sm leading-6 text-[#52645a]"><SectionPreview content={section.content} title={section.title} /></div><details ref={detailsRef} className="mt-5"><summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit section</summary><SectionForm key={formKey} action={action} values={values} categories={categories} currentCategoryId={section.category_id} submitLabel="Save section" onSuccess={() => { if (detailsRef.current) detailsRef.current.open = false; }} /></details></div>;
+  return <div className="rounded-xl border border-[#284a3b]/10 bg-white p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Section {section.sort_order} · {values.format}</p>{values.showTitle === false ? <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#946332]">Admin title: {section.title}</p> : null}{values.homepageHighlight ? <span className="mt-2 inline-flex rounded-full bg-[#e4efd3] px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#2f593f]">Homepage highlight</span> : null}</div><div className="flex flex-wrap gap-2"><OperationForm action={moveActions.up} label="Up" disabled={isFirst} /><OperationForm action={moveActions.down} label="Down" disabled={isLast} /><OperationForm action={deleteAction} label="Delete" confirmMessage="Delete this section?" danger /></div></div><div className="mt-4 border-l-2 border-[#f1c66f] pl-4 text-sm leading-6 text-[#52645a]"><SectionPreview content={section.content} title={section.title} highlightHorizontalAlignment={values.highlightHorizontalAlignment} /></div><details ref={detailsRef} className="mt-5"><summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit section</summary><SectionForm key={formKey} action={action} values={values} categories={categories} currentCategoryId={section.category_id} submitLabel="Save section" onSuccess={() => { if (detailsRef.current) detailsRef.current.open = false; }} /></details></div>;
 }
 
 function OperationForm({ action, label, disabled = false, confirmMessage, danger = false }: { action: () => Promise<ContentActionState>; label: string; disabled?: boolean; confirmMessage?: string; danger?: boolean }) {
@@ -172,9 +174,17 @@ function OperationForm({ action, label, disabled = false, confirmMessage, danger
 }
 
 function SectionForm({ action, values, categories, currentCategoryId, submitLabel, resetOnSuccess = false, onSuccess }: { action: Action; values: SectionValues; categories?: Category[]; currentCategoryId?: string; submitLabel: string; resetOnSuccess?: boolean; onSuccess?: () => void }) {
+  const [sectionTitle, setSectionTitle] = useState(values.title);
   const [selectedFormat, setSelectedFormat] = useState<SectionFormat>(values.format);
+  const [mainText, setMainText] = useState(values.mainText);
+  const [introduction, setIntroduction] = useState(values.introduction);
+  const [conclusion, setConclusion] = useState(values.conclusion);
+  const [reference, setReference] = useState(values.reference);
+  const [translation, setTranslation] = useState(values.translation);
+  const [quotation, setQuotation] = useState(values.quotation);
   const [showTitle, setShowTitle] = useState(values.showTitle !== false);
   const [homepageHighlight, setHomepageHighlight] = useState(Boolean(values.homepageHighlight));
+  const [highlightHorizontalAlignment, setHighlightHorizontalAlignment] = useState<HighlightHorizontalAlignment>(values.highlightHorizontalAlignment);
   const [calloutEnabled, setCalloutEnabled] = useState(Boolean(values.callout?.enabled));
   const [calloutType, setCalloutType] = useState<SectionCalloutType>(values.callout?.type ?? "custom");
   const [calloutHeading, setCalloutHeading] = useState(values.callout?.heading ?? "");
@@ -189,9 +199,17 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
     }
     if (resetOnSuccess && nextState.saved) {
       formRef.current?.reset();
+      setSectionTitle("");
       setSelectedFormat("paragraph");
+      setMainText("");
+      setIntroduction("");
+      setConclusion("");
+      setReference("");
+      setTranslation("");
+      setQuotation("");
       setShowTitle(true);
       setHomepageHighlight(false);
+      setHighlightHorizontalAlignment("left");
       setCalloutEnabled(false);
       setCalloutType("custom");
       setCalloutHeading("");
@@ -201,18 +219,30 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
     return nextState;
   }, {});
 
-  const calloutStyles = {
-    filled: { border: "1px solid transparent", background: calloutColor, color: "#1a241d", borderColor: calloutColor },
-    outline: { border: `1px solid ${calloutColor}`, background: "transparent", color: "#243126", borderColor: calloutColor },
-    soft: { border: `1px solid ${calloutColor}`, background: `${calloutColor}22`, color: "#243126", borderColor: calloutColor },
-  } as const;
-
   const applyPreset = (nextType: SectionCalloutType) => {
     const preset = getPresetDefaults(nextType);
     setCalloutType(nextType);
     setCalloutHeading(calloutHeading);
     setCalloutColor(preset.color);
     setCalloutStyle(preset.style);
+  };
+
+  const livePreviewValue = buildLivePreviewContent({
+    format: selectedFormat,
+    mainText,
+    introduction,
+    conclusion,
+    reference,
+    translation,
+    quotation,
+    showTitle,
+  });
+  const livePreviewCallout: SectionCallout = {
+    enabled: true,
+    type: calloutType,
+    ...(calloutHeading.trim() ? { heading: calloutHeading.trim() } : {}),
+    color: calloutColor,
+    style: calloutStyle,
   };
 
   const calloutEditor = (
@@ -234,12 +264,15 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
             <input type="hidden" name="calloutStyle" value={calloutStyle} />
             <label className="block text-sm font-bold text-[#385245]">Style<select name="calloutStyleInput" value={calloutStyle} onChange={(event) => setCalloutStyle(event.target.value as SectionCalloutStyle)} className="admin-input"><option value="filled">Filled</option><option value="outline">Outline</option><option value="soft">Soft</option></select></label>
           </div>
-          <div className="rounded-xl border border-[#284a3b]/10 p-4" style={calloutStyles[calloutStyle]}>
-            {(() => {
-              const label = getCalloutLabel({ enabled: true, type: calloutType, heading: calloutHeading || undefined, color: calloutColor, style: calloutStyle });
-              return label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null;
-            })()}
-            <div className="mt-2 text-sm leading-6 text-[#243126]">{values.title || "Section preview"}</div>
+          <div className="flex items-start gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-3 py-2">
+            <input id={`highlightHorizontalAlignment-${String(values.title || currentCategoryId || "section")}`} type="checkbox" checked={highlightHorizontalAlignment === "center"} onChange={(event) => setHighlightHorizontalAlignment(event.target.checked ? "center" : "left")} className="mt-1 h-4 w-4 rounded border-[#385245] text-[#244a3a]" />
+            <div>
+              <label htmlFor={`highlightHorizontalAlignment-${String(values.title || currentCategoryId || "section")}`} className="block text-sm font-bold text-[#385245]">Center content horizontally</label>
+              <p className="mt-1 text-xs text-[#607066]">Unchecked keeps highlighted callout content left-aligned.</p>
+            </div>
+          </div>
+          <div className="text-[#243126]">
+            <CalloutSection title={sectionTitle} value={livePreviewValue} callout={livePreviewCallout} alignment={highlightHorizontalAlignment} minHeightClassName="min-h-28" />
           </div>
         </div>
       ) : null}
@@ -249,6 +282,7 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
   return (
     <form ref={formRef} action={formAction} className="mt-4 space-y-4">
       <input type="hidden" name="format" value={selectedFormat} />
+      <input type="hidden" name="highlightHorizontalAlignment" value={highlightHorizontalAlignment} />
       {categories && currentCategoryId ? (
         <label className="block text-sm font-bold text-[#385245]">
           Move to Category
@@ -257,7 +291,7 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
           </select>
         </label>
       ) : null}
-      <label className="block text-sm font-bold text-[#385245]">Section title<input name="title" defaultValue={values.title} required maxLength={160} className="admin-input" /></label>
+      <label className="block text-sm font-bold text-[#385245]">Section title<input name="title" value={sectionTitle} onChange={(event) => setSectionTitle(event.target.value)} required maxLength={160} className="admin-input" /></label>
       <div className="flex items-start gap-3 rounded-xl border border-[#284a3b]/10 bg-[#f7f4ee] px-3 py-2">
         <input type="hidden" name="showTitle" value="false" />
         <input id={`showTitle-${String(values.title || currentCategoryId || "section")}`} type="checkbox" name="showTitle" value="true" checked={showTitle} onChange={(event) => setShowTitle(event.target.checked)} className="mt-1 h-4 w-4 rounded border-[#385245] text-[#244a3a]" />
@@ -276,19 +310,19 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
       <label className="block text-sm font-bold text-[#385245]">Format<select value={selectedFormat} onChange={(event) => setSelectedFormat(event.target.value as SectionFormat)} className="admin-input"><option value="paragraph">Paragraph</option><option value="bullets">Bullet list</option><option value="scripture">Scripture</option><option value="takeaway">Takeaway or confession</option></select></label>
       {selectedFormat === "scripture" ? (
         <>
-          <label className="block text-sm font-bold text-[#385245]">Introductory note<span className="mt-1 block text-xs font-normal text-[#607066]">A brief statement that appears before the Scripture.</span><textarea name="introduction" defaultValue={values.introduction} rows={3} maxLength={12000} className="admin-input resize-y py-3" /></label>
-          <label className="block text-sm font-bold text-[#385245]">Scripture reference<input name="reference" defaultValue={values.reference} maxLength={240} className="admin-input" /></label>
-          <label className="block text-sm font-bold text-[#385245]">Translation<span className="mt-1 block text-xs font-normal text-[#607066]">Optional - for example, NKJV, ESV, or AMPC.</span><input name="translation" defaultValue={values.translation} maxLength={80} className="admin-input" /></label>
-          <label className="block text-sm font-bold text-[#385245]">Scripture quotation<span className="mt-1 block text-xs font-normal text-[#607066]">Enter the Scripture text. Each Enter begins a new displayed paragraph; line and paragraph formatting will be preserved.</span><textarea name="quotation" defaultValue={values.quotation} rows={6} maxLength={12000} className="admin-input resize-y py-3" /></label>
+          <label className="block text-sm font-bold text-[#385245]">Introductory note<span className="mt-1 block text-xs font-normal text-[#607066]">A brief statement that appears before the Scripture.</span><textarea name="introduction" value={introduction} onChange={(event) => setIntroduction(event.target.value)} rows={3} maxLength={12000} className="admin-input resize-y py-3" /></label>
+          <label className="block text-sm font-bold text-[#385245]">Scripture reference<input name="reference" value={reference} onChange={(event) => setReference(event.target.value)} maxLength={240} className="admin-input" /></label>
+          <label className="block text-sm font-bold text-[#385245]">Translation<span className="mt-1 block text-xs font-normal text-[#607066]">Optional - for example, NKJV, ESV, or AMPC.</span><input name="translation" value={translation} onChange={(event) => setTranslation(event.target.value)} maxLength={80} className="admin-input" /></label>
+          <label className="block text-sm font-bold text-[#385245]">Scripture quotation<span className="mt-1 block text-xs font-normal text-[#607066]">Enter the Scripture text. Each Enter begins a new displayed paragraph; line and paragraph formatting will be preserved.</span><textarea name="quotation" value={quotation} onChange={(event) => setQuotation(event.target.value)} rows={6} maxLength={12000} className="admin-input resize-y py-3" /></label>
         </>
       ) : selectedFormat === "bullets" ? (
         <>
-          <label className="block text-sm font-bold text-[#385245]">Introductory text<span className="mt-1 block text-xs font-normal text-[#607066]">Optional text displayed before the bullet list.</span><textarea name="introduction" defaultValue={values.introduction} rows={3} maxLength={12000} className="admin-input resize-y py-3" /></label>
-          <label className="block text-sm font-bold text-[#385245]">Bullet items<span className="mt-1 block text-xs font-normal text-[#607066]">Enter one item per line. Bullet symbols are added automatically.</span><textarea name="mainText" defaultValue={values.mainText} rows={5} maxLength={12000} className="admin-input resize-y py-3" /></label>
-          <label className="block text-sm font-bold text-[#385245]">Concluding text<span className="mt-1 block text-xs font-normal text-[#607066]">Optional text displayed after the bullet list.</span><textarea name="conclusion" defaultValue={values.conclusion} rows={3} maxLength={12000} className="admin-input resize-y py-3" /></label>
+          <label className="block text-sm font-bold text-[#385245]">Introductory text<span className="mt-1 block text-xs font-normal text-[#607066]">Optional text displayed before the bullet list.</span><textarea name="introduction" value={introduction} onChange={(event) => setIntroduction(event.target.value)} rows={3} maxLength={12000} className="admin-input resize-y py-3" /></label>
+          <label className="block text-sm font-bold text-[#385245]">Bullet items<span className="mt-1 block text-xs font-normal text-[#607066]">Enter one item per line. Bullet symbols are added automatically.</span><textarea name="mainText" value={mainText} onChange={(event) => setMainText(event.target.value)} rows={5} maxLength={12000} className="admin-input resize-y py-3" /></label>
+          <label className="block text-sm font-bold text-[#385245]">Concluding text<span className="mt-1 block text-xs font-normal text-[#607066]">Optional text displayed after the bullet list.</span><textarea name="conclusion" value={conclusion} onChange={(event) => setConclusion(event.target.value)} rows={3} maxLength={12000} className="admin-input resize-y py-3" /></label>
         </>
       ) : (
-        <label className="block text-sm font-bold text-[#385245]">Main text<textarea name="mainText" defaultValue={values.mainText} rows={5} maxLength={12000} className="admin-input resize-y py-3" /></label>
+        <label className="block text-sm font-bold text-[#385245]">Main text<textarea name="mainText" value={mainText} onChange={(event) => setMainText(event.target.value)} rows={5} maxLength={12000} className="admin-input resize-y py-3" /></label>
       )}
       {state.error ? <p className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
       {calloutEditor}
@@ -297,7 +331,8 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
   );
 }
 
-function sectionValues(content: unknown, title: string): SectionValues {
+function sectionValues(section: Section): SectionValues {
+  const { content, title } = section;
   const value = content && typeof content === "object" ? (content as Record<string, unknown>) : {};
   const format = ["paragraph", "bullets", "scripture", "takeaway"].includes(String(value.format)) ? (String(value.format) as SectionFormat) : "paragraph";
 
@@ -312,18 +347,67 @@ function sectionValues(content: unknown, title: string): SectionValues {
     quotation: typeof value.quotation === "string" ? value.quotation : "",
     showTitle: value.showTitle !== false,
     homepageHighlight: value.homepageHighlight === true,
+    highlightHorizontalAlignment: normalizeHighlightHorizontalAlignment(section.highlight_horizontal_alignment),
     callout: normalizeCallout(value.callout),
   };
 }
 
-function SectionPreview({ content, title }: { content: unknown; title?: string }) {
+function buildLivePreviewContent({
+  format,
+  mainText,
+  introduction,
+  conclusion,
+  reference,
+  translation,
+  quotation,
+  showTitle,
+}: {
+  format: SectionFormat;
+  mainText: string;
+  introduction: string;
+  conclusion: string;
+  reference: string;
+  translation: string;
+  quotation: string;
+  showTitle: boolean;
+}): SectionContentValue {
+  if (format === "bullets") {
+    return {
+      format,
+      introduction,
+      bullets: mainText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
+      conclusion,
+      ...(showTitle === false ? { showTitle: false } : {}),
+    };
+  }
+
+  if (format === "scripture") {
+    return {
+      format,
+      introduction,
+      reference,
+      translation,
+      quotation,
+      ...(showTitle === false ? { showTitle: false } : {}),
+    };
+  }
+
+  return {
+    format,
+    text: mainText,
+    ...(showTitle === false ? { showTitle: false } : {}),
+  };
+}
+
+function SectionPreview({ content, title, highlightHorizontalAlignment }: { content: unknown; title?: string; highlightHorizontalAlignment?: unknown }) {
   const value = content && typeof content === "object" ? (content as Record<string, unknown>) : {};
   const callout = normalizeCallout(value.callout);
   const showTitle = value.showTitle !== false;
+  const alignment = normalizeHighlightHorizontalAlignment(highlightHorizontalAlignment);
   const body = value.format === "bullets" && Array.isArray(value.bullets) ? (
     <>
       {value.introduction ? <div className="space-y-3"><TextParagraphs text={value.introduction} /></div> : null}
-      {value.bullets.length ? <ul className="list-disc space-y-1 pl-5">{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul> : null}
+      {value.bullets.length ? <ul className={callout ? getCalloutBulletListClassName(alignment, "space-y-1") : "list-disc space-y-1 pl-5"}>{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul> : null}
       {value.conclusion ? <div className="mt-3 space-y-3"><TextParagraphs text={value.conclusion} /></div> : null}
     </>
   ) : value.format === "scripture" ? (
@@ -347,7 +431,7 @@ function SectionPreview({ content, title }: { content: unknown; title?: string }
 
   const label = getCalloutLabel(callout);
   return (
-    <div className="rounded-xl px-4 py-3 text-sm" style={getCalloutStyles(callout.color, callout.style)}>
+    <div className={getCalloutContainerClassName(alignment, "min-h-28")} style={getCalloutStyles(callout.color, callout.style)}>
       {label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}
       {showTitle && title ? <h3 className="mt-2 text-base font-extrabold text-[#385245]">{title}</h3> : null}
       <div className="mt-3 space-y-3 text-[#52645a]">{body}</div>

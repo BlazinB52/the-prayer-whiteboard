@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 export type SectionCalloutType = "our-prayer" | "application-for-believers" | "custom";
 export type SectionCalloutStyle = "filled" | "outline" | "soft";
+export type HighlightHorizontalAlignment = "left" | "center";
 
 export type SectionCallout = {
   enabled: boolean;
@@ -68,6 +69,20 @@ export function getCalloutStyles(color: string, style: SectionCalloutStyle) {
   }[style];
 }
 
+export function normalizeHighlightHorizontalAlignment(value: unknown): HighlightHorizontalAlignment {
+  return value === "center" ? "center" : "left";
+}
+
+export function getCalloutContainerClassName(alignment: HighlightHorizontalAlignment, minHeightClassName = "min-h-32") {
+  return `flex ${minHeightClassName} flex-col justify-center rounded-xl px-4 py-3 text-sm ${alignment === "center" ? "text-center" : "text-left"}`;
+}
+
+export function getCalloutBulletListClassName(alignment: HighlightHorizontalAlignment, spacingClassName = "space-y-2") {
+  return alignment === "center"
+    ? `mx-auto inline-block list-disc ${spacingClassName} pl-6 text-left`
+    : `list-disc ${spacingClassName} pl-6 text-left`;
+}
+
 function TextParagraphs({ text, className }: { text: unknown; className?: string }) {
   const paragraphs = String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean);
   return <div className={className ?? "space-y-3"}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{paragraph}</p>)}</div>;
@@ -108,10 +123,11 @@ function renderSectionBody({ value, title }: { value: SectionContentValue; title
   );
 }
 
-export function CalloutSection({ title, value, callout, className = "" }: { title?: string; value: SectionContentValue; callout?: SectionCallout; className?: string }): ReactNode {
+export function CalloutSection({ title, value, callout, alignment = "left", className = "", minHeightClassName = "min-h-32" }: { title?: string; value: SectionContentValue; callout?: SectionCallout; alignment?: HighlightHorizontalAlignment; className?: string; minHeightClassName?: string }): ReactNode {
   const resolvedCallout = callout && callout.enabled ? callout : undefined;
   const shouldShowTitle = value.showTitle !== false;
   const body = renderSectionBody({ value, title: resolvedCallout ? title : title });
+  const normalizedAlignment = normalizeHighlightHorizontalAlignment(alignment);
 
   if (!resolvedCallout) {
     return <section className={className}>{body}</section>;
@@ -122,14 +138,14 @@ export function CalloutSection({ title, value, callout, className = "" }: { titl
 
   return (
     <section className={className}>
-      <div className="rounded-xl px-4 py-3 text-sm" style={styles}>
-        <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div>
+      <div className={getCalloutContainerClassName(normalizedAlignment, minHeightClassName)} style={styles}>
+        {label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}
         {shouldShowTitle && title ? <h3 className="mt-2 text-base font-extrabold text-[#385245]">{title}</h3> : null}
         <div className="mt-3 space-y-3 text-[#52645a]">
           {value.format === "bullets" ? (
             <>
               {value.introduction ? <TextParagraphs text={value.introduction} className="space-y-3" /> : null}
-              {value.bullets && value.bullets.length ? <ul className="list-disc space-y-2 pl-6">{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul> : null}
+              {value.bullets && value.bullets.length ? <ul className={getCalloutBulletListClassName(normalizedAlignment)}>{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul> : null}
               {value.conclusion ? <TextParagraphs text={value.conclusion} className="mt-3 space-y-3" /> : null}
             </>
           ) : value.format === "scripture" ? (

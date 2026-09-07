@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { getChalkboardPreviewUrl } from "../../../chalkboards/actions";
-import { getCalloutLabel, getCalloutStyles, normalizeCallout } from "../../callout-utils";
+import { getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment } from "../../callout-utils";
 import { PrintButton } from "./print-button";
 
 export const metadata: Metadata = {
@@ -38,7 +38,7 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
     .from("teachings")
     .select("id, title, gathering_date, central_theme, introduction, summary, status")
     .eq("id", id)
-    .eq("status", "draft")
+    .in("status", ["draft", "published"])
     .maybeSingle();
 
   if (teachingError || !teaching) notFound();
@@ -47,13 +47,13 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
     .from("teaching_categories")
     .select("id, teaching_id, title, sort_order, status")
     .eq("teaching_id", id)
-    .eq("status", "draft")
+    .eq("status", teaching.status)
     .order("sort_order", { ascending: true });
   const { data: sections, error: sectionsError } = await supabase
     .from("teaching_sections")
-    .select("id, teaching_id, category_id, title, content, sort_order, status")
+    .select("id, teaching_id, category_id, title, content, sort_order, status, highlight_horizontal_alignment")
     .eq("teaching_id", id)
-    .eq("status", "draft")
+    .eq("status", teaching.status)
     .order("sort_order", { ascending: true });
   const { data: chalkboardAssets, error: chalkboardError } = await supabase
     .from("chalkboard_assets")
@@ -103,7 +103,7 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
                 {assetsForCategory(category.id).map(({ asset, url }) => <PrintableChalkboard key={asset.id} asset={asset} url={url} />)}
               </div>
               <div className="mt-6 space-y-7">
-                {category.sections.map((section) => <div key={section.id}><PrintableChalkboards assets={assetsForSection(section.id)} /><PrintableSection title={section.title} content={section.content} /></div>)}
+                {category.sections.map((section) => <div key={section.id}><PrintableChalkboards assets={assetsForSection(section.id)} /><PrintableSection title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}
               </div>
             </section>
           ))}
@@ -113,11 +113,12 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
   );
 }
 
-function PrintableSection({ title, content }: { title: string; content: unknown }) {
+function PrintableSection({ title, content, highlightHorizontalAlignment }: { title: string; content: unknown; highlightHorizontalAlignment?: unknown }) {
   const value = content && typeof content === "object" ? content as Content : {};
   const callout = normalizeCallout(value.callout);
+  const alignment = normalizeHighlightHorizontalAlignment(highlightHorizontalAlignment);
   const showTitle = value.showTitle !== false;
-  const contentParts = getSectionContentParts(value);
+  const contentParts = getSectionContentParts(value, callout ? alignment : "left");
   const heading = showTitle ? <h3 className="print-section-heading text-lg font-extrabold text-[#385245]">{title}</h3> : null;
   const body = (
     <>
@@ -148,7 +149,7 @@ function PrintableSection({ title, content }: { title: string; content: unknown 
   const calloutSizeClass = isLargePrintCallout(value) ? "print-callout-large" : "print-callout-small";
   return (
     <section className="print-section">
-      <div className={`print-callout ${calloutSizeClass} mt-3 rounded-xl px-4 py-3 text-sm`} style={getCalloutStyles(callout.color, callout.style)}>
+      <div className={`print-callout ${calloutSizeClass} mt-3 ${getCalloutContainerClassName(alignment, isLargePrintCallout(value) ? "min-h-40" : "min-h-32")}`} style={getCalloutStyles(callout.color, callout.style)}>
         {label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}
         {body}
       </div>
@@ -166,7 +167,7 @@ function isLargePrintCallout(value: Content) {
   return textLength > 900 || bulletCount > 6;
 }
 
-function getSectionContentParts(value: Content): { first: ReactNode | null; rest: ReactNode | null } {
+function getSectionContentParts(value: Content, alignment: HighlightHorizontalAlignment): { first: ReactNode | null; rest: ReactNode | null } {
   if (value.format === "bullets" && Array.isArray(value.bullets)) {
     const introduction = getParagraphs(value.introduction);
     const conclusion = getParagraphs(value.conclusion);
@@ -181,7 +182,7 @@ function getSectionContentParts(value: Content): { first: ReactNode | null; rest
         rest: hasRest ? (
           <>
             <Paragraphs paragraphs={remainingIntroduction} />
-            {bullets.length > 0 ? <ul className="print-bullet-list mt-3 list-disc space-y-2 pl-6">{bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul> : null}
+            {bullets.length > 0 ? <ul className={`print-bullet-list mt-3 ${getCalloutBulletListClassName(alignment)}`}>{bullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul> : null}
             <Paragraphs paragraphs={conclusion} className="mt-3" />
           </>
         ) : null,
@@ -194,10 +195,10 @@ function getSectionContentParts(value: Content): { first: ReactNode | null; rest
     const hasRest = remainingBullets.length > 0 || (bullets.length > 0 ? conclusion.length > 0 : conclusion.length > 1);
 
     return {
-      first: hasFirst ? (bullets.length > 0 ? <ul className="print-bullet-list list-disc space-y-2 pl-6"><li>{bullets[0]}</li></ul> : <Paragraphs paragraphs={firstConclusion} />) : null,
+      first: hasFirst ? (bullets.length > 0 ? <ul className={`print-bullet-list ${getCalloutBulletListClassName(alignment)}`}><li>{bullets[0]}</li></ul> : <Paragraphs paragraphs={firstConclusion} />) : null,
       rest: hasRest ? (
         <>
-          {remainingBullets.length > 0 ? <ul className="print-bullet-list list-disc space-y-2 pl-6">{remainingBullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul> : null}
+          {remainingBullets.length > 0 ? <ul className={`print-bullet-list ${getCalloutBulletListClassName(alignment)}`}>{remainingBullets.map((bullet) => <li key={bullet}>{bullet}</li>)}</ul> : null}
           <Paragraphs paragraphs={bullets.length > 0 ? conclusion : conclusion.slice(1)} className="mt-3" />
         </>
       ) : null,

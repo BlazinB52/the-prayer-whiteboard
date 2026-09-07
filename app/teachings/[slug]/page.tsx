@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCalloutLabel, getCalloutStyles, normalizeCallout } from "../../admin/teachings/callout-utils";
+import { getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment } from "../../admin/teachings/callout-utils";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,7 +45,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
   const signer = createServiceRoleClient();
   const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assets, error: assetsError }] = await Promise.all([
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
-    supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
+    supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status, highlight_horizontal_alignment").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     signer
       ? signer.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, alt_text, caption, website_storage_path, storage_path, download_storage_path, allow_download, display_order, is_current_version, status").eq("teaching_id", teaching.id).eq("is_current_version", true).eq("status", "active").order("display_order")
       : Promise.resolve({ data: [], error: null }),
@@ -65,7 +65,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
         <header className="border-b border-[#284a3b]/15 pb-8"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">The Prayer Whiteboard</p><h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{teaching.title}</h1>{teaching.gathering_date ? <p className="mt-4 text-sm font-bold text-[#607066]">{formatDate(teaching.gathering_date)}</p> : null}{teaching.central_theme ? <p className="mt-5 text-lg font-bold text-[#385245]">{teaching.central_theme}</p> : null}{teaching.introduction ? <TextParagraphs text={teaching.introduction} className="mt-5 text-[#52645a]" /> : null}{teaching.summary ? <TextParagraphs text={teaching.summary} className="mt-5 text-[#52645a]" /> : null}</header>
         <div className="mt-8 space-y-8">{byTeaching.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}</div>
-        <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2>{byCategory(category.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}>{bySection(section.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<PublicSection sectionId={section.id} title={section.title} content={section.content} /></div>)}</div></section>)}</div>
+        <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2>{byCategory(category.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}>{bySection(section.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<PublicSection sectionId={section.id} title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}</div></section>)}</div>
         <TeachingResources />
       </article>
     </main>
@@ -111,17 +111,18 @@ function TeachingResources() {
   );
 }
 
-function PublicSection({ sectionId, title, content }: { sectionId: string; title: string; content: unknown }) {
+function PublicSection({ sectionId, title, content, highlightHorizontalAlignment }: { sectionId: string; title: string; content: unknown; highlightHorizontalAlignment?: unknown }) {
   const value = content && typeof content === "object" ? content as Content : {};
   const callout = normalizeCallout(value.callout);
-  const body = <SectionContent value={value} isCallout={Boolean(callout)} />;
+  const alignment = normalizeHighlightHorizontalAlignment(highlightHorizontalAlignment);
+  const body = <SectionContent value={value} isCallout={Boolean(callout)} alignment={alignment} />;
   if (!callout) return <section id={`section-${sectionId}`} className="public-section">{value.showTitle !== false ? <h3 className="text-lg font-extrabold text-[#385245]">{title}</h3> : null}<div className="mt-3 text-[#52645a]">{body}</div></section>;
   const label = getCalloutLabel(callout);
-  return <section id={`section-${sectionId}`} className="public-section"><div className="rounded-xl px-4 py-3 text-center text-sm" style={getCalloutStyles(callout.color, callout.style)}>{label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}{value.showTitle !== false ? <h3 className="mt-2 text-lg font-extrabold text-[#385245]">{title}</h3> : null}<div className="mt-3 text-[#52645a]">{body}</div></div></section>;
+  return <section id={`section-${sectionId}`} className="public-section"><div className={getCalloutContainerClassName(alignment)} style={getCalloutStyles(callout.color, callout.style)}>{label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}{value.showTitle !== false ? <h3 className="mt-2 text-lg font-extrabold text-[#385245]">{title}</h3> : null}<div className="mt-3 text-[#52645a]">{body}</div></div></section>;
 }
 
-function SectionContent({ value, isCallout = false }: { value: Content; isCallout?: boolean }) {
-  if (value.format === "bullets" && Array.isArray(value.bullets)) return <><TextParagraphs text={value.introduction} /><ul className={isCallout ? "mx-auto mt-3 inline-block list-disc space-y-2 pl-6 text-left" : "mt-3 list-disc space-y-2 pl-6"}>{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul><TextParagraphs text={value.conclusion} className="mt-3" /></>;
+function SectionContent({ value, isCallout = false, alignment = "left" }: { value: Content; isCallout?: boolean; alignment?: HighlightHorizontalAlignment }) {
+  if (value.format === "bullets" && Array.isArray(value.bullets)) return <><TextParagraphs text={value.introduction} /><ul className={isCallout ? `${getCalloutBulletListClassName(alignment)} mt-3` : "mt-3 list-disc space-y-2 pl-6"}>{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul><TextParagraphs text={value.conclusion} className="mt-3" /></>;
   if (value.format === "scripture") return <div><TextParagraphs text={value.introduction} /><p className="mt-3 font-bold text-[#385245]">{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">({String(value.translation)})</span> : null}</p><div className="mt-2 italic"><TextParagraphs text={value.quotation} /></div></div>;
   return <TextParagraphs text={value.text} className={value.format === "takeaway" ? "font-bold text-[#385245]" : undefined} />;
 }

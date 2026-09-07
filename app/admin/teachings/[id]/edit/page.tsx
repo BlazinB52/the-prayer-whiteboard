@@ -51,7 +51,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
 
   const { data: sections } = await supabase
     .from("teaching_sections")
-    .select("id, category_id, title, content, sort_order")
+    .select("id, category_id, title, content, sort_order, highlight_horizontal_alignment")
     .eq("teaching_id", id)
     .eq("status", teaching.status)
     .order("sort_order", { ascending: true });

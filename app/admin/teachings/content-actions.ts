@@ -10,6 +10,7 @@ const SECTION_TEXT_MAX = 12000;
 const SCRIPTURE_REFERENCE_MAX = 240;
 const SCRIPTURE_TRANSLATION_MAX = 80;
 const EDITABLE_TEACHING_STATUSES = ["draft", "published"];
+type HighlightHorizontalAlignment = "left" | "center";
 
 export type ContentActionState = { error?: string; saved?: boolean };
 export type SectionFormat = "paragraph" | "bullets" | "scripture" | "takeaway";
@@ -84,6 +85,10 @@ function readHomepageHighlight(formData: FormData) {
   return values.some((value) => value === "true" || value === "on");
 }
 
+function readHighlightHorizontalAlignment(formData: FormData): HighlightHorizontalAlignment {
+  return formData.get("highlightHorizontalAlignment") === "center" ? "center" : "left";
+}
+
 function getPresetColor(type: string) {
   if (type === "our-prayer") return "#d9b24d";
   if (type === "application-for-believers") return "#7a9b7d";
@@ -118,6 +123,7 @@ function validateSection(formData: FormData) {
   const format = readFormat(formData);
   const showTitle = readShowTitle(formData);
   const homepageHighlight = readHomepageHighlight(formData);
+  const highlightHorizontalAlignment = readHighlightHorizontalAlignment(formData);
   const mainText = readText(formData, "mainText", "Main text", SECTION_TEXT_MAX);
   const introduction = readText(formData, "introduction", "Introductory note", SECTION_TEXT_MAX);
   const conclusion = readText(formData, "conclusion", "Concluding text", SECTION_TEXT_MAX);
@@ -153,7 +159,7 @@ function validateSection(formData: FormData) {
       ...(homepageHighlight ? { homepageHighlight: true } : {}),
       ...(callout ? { callout } : {}),
     };
-    return { value: { title: title.value!, format: selectedFormat, content } };
+    return { value: { title: title.value!, format: selectedFormat, content, highlightHorizontalAlignment } };
   }
 
   if (selectedFormat === "scripture") {
@@ -168,11 +174,11 @@ function validateSection(formData: FormData) {
       ...(homepageHighlight ? { homepageHighlight: true } : {}),
       ...(callout ? { callout } : {}),
     };
-    return { value: { title: title.value!, format: selectedFormat, content } };
+    return { value: { title: title.value!, format: selectedFormat, content, highlightHorizontalAlignment } };
   }
 
   if (!mainText.value) return { error: "Main text is required for this section format." };
-  return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: selectedFormat, text: mainText.value, ...(showTitle === false ? { showTitle: false } : {}), ...(homepageHighlight ? { homepageHighlight: true } : {}), ...(callout ? { callout } : {}) } satisfies SectionContent } };
+  return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: selectedFormat, text: mainText.value, ...(showTitle === false ? { showTitle: false } : {}), ...(homepageHighlight ? { homepageHighlight: true } : {}), ...(callout ? { callout } : {}) } satisfies SectionContent, highlightHorizontalAlignment } };
 }
 
 async function requireEditableTeaching(teachingId: string) {
@@ -307,7 +313,7 @@ export async function createSection(teachingId: string, categoryId: string, _: C
 
   const { data: last } = await context.supabase.from("teaching_sections").select("sort_order").eq("teaching_id", teachingId).eq("category_id", categoryId).order("sort_order", { ascending: false }).limit(1).maybeSingle();
   const id = crypto.randomUUID();
-  const { error } = await context.supabase.from("teaching_sections").insert({ id, teaching_id: teachingId, category_id: categoryId, slug: `${slugify(result.value!.title)}-${id.slice(0, 8)}`, title: result.value!.title, content: result.value!.content, sort_order: (last?.sort_order ?? 0) + 1, status: context.teaching.status });
+  const { error } = await context.supabase.from("teaching_sections").insert({ id, teaching_id: teachingId, category_id: categoryId, slug: `${slugify(result.value!.title)}-${id.slice(0, 8)}`, title: result.value!.title, content: result.value!.content, highlight_horizontal_alignment: result.value!.highlightHorizontalAlignment, sort_order: (last?.sort_order ?? 0) + 1, status: context.teaching.status });
   if (error) return { error: "The section could not be added." };
   revalidatePath(contentPath(teachingId));
   return { saved: true };
@@ -375,13 +381,13 @@ export async function updateSection(teachingId: string, categoryId: string, sect
       const { error } = await context.supabase.from("teaching_sections").update({ sort_order: index + 1 }).eq("id", section.id).eq("teaching_id", teachingId).eq("category_id", destinationCategoryId);
       if (error) return { error: "The section could not be moved." };
     }
-    const { error: finalOrderError } = await context.supabase.from("teaching_sections").update({ sort_order: existingDestination.length + 1 }).eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", destinationCategoryId).eq("status", context.teaching.status);
+    const { error: finalOrderError } = await context.supabase.from("teaching_sections").update({ title: result.value!.title, content: result.value!.content, highlight_horizontal_alignment: result.value!.highlightHorizontalAlignment, sort_order: existingDestination.length + 1 }).eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", destinationCategoryId).eq("status", context.teaching.status);
     if (finalOrderError) return { error: "The section could not be moved." };
     revalidatePath(contentPath(teachingId));
     return { saved: true };
   }
 
-  const { error } = await context.supabase.from("teaching_sections").update({ title: result.value!.title, content: result.value!.content }).eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", context.teaching.status);
+  const { error } = await context.supabase.from("teaching_sections").update({ title: result.value!.title, content: result.value!.content, highlight_horizontal_alignment: result.value!.highlightHorizontalAlignment }).eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", context.teaching.status);
   if (error) return { error: "The section could not be saved." };
   revalidatePath(contentPath(teachingId));
   return { saved: true };

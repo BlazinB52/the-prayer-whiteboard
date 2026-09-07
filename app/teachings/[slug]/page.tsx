@@ -114,14 +114,14 @@ function TeachingResources() {
 function PublicSection({ sectionId, title, content }: { sectionId: string; title: string; content: unknown }) {
   const value = content && typeof content === "object" ? content as Content : {};
   const callout = normalizeCallout(value.callout);
-  const body = <SectionContent value={value} />;
+  const body = <SectionContent value={value} isCallout={Boolean(callout)} />;
   if (!callout) return <section id={`section-${sectionId}`} className="public-section">{value.showTitle !== false ? <h3 className="text-lg font-extrabold text-[#385245]">{title}</h3> : null}<div className="mt-3 text-[#52645a]">{body}</div></section>;
   const label = getCalloutLabel(callout);
-  return <section id={`section-${sectionId}`} className="public-section"><div className="rounded-xl px-4 py-3 text-sm" style={getCalloutStyles(callout.color, callout.style)}>{label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}{value.showTitle !== false ? <h3 className="mt-2 text-lg font-extrabold text-[#385245]">{title}</h3> : null}<div className="mt-3 text-[#52645a]">{body}</div></div></section>;
+  return <section id={`section-${sectionId}`} className="public-section"><div className="rounded-xl px-4 py-3 text-center text-sm" style={getCalloutStyles(callout.color, callout.style)}>{label ? <div className="text-xs font-extrabold uppercase tracking-[0.14em]">{label}</div> : null}{value.showTitle !== false ? <h3 className="mt-2 text-lg font-extrabold text-[#385245]">{title}</h3> : null}<div className="mt-3 text-[#52645a]">{body}</div></div></section>;
 }
 
-function SectionContent({ value }: { value: Content }) {
-  if (value.format === "bullets" && Array.isArray(value.bullets)) return <><TextParagraphs text={value.introduction} /><ul className="mt-3 list-disc space-y-2 pl-6">{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul><TextParagraphs text={value.conclusion} className="mt-3" /></>;
+function SectionContent({ value, isCallout = false }: { value: Content; isCallout?: boolean }) {
+  if (value.format === "bullets" && Array.isArray(value.bullets)) return <><TextParagraphs text={value.introduction} /><ul className={isCallout ? "mx-auto mt-3 inline-block list-disc space-y-2 pl-6 text-left" : "mt-3 list-disc space-y-2 pl-6"}>{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul><TextParagraphs text={value.conclusion} className="mt-3" /></>;
   if (value.format === "scripture") return <div><TextParagraphs text={value.introduction} /><p className="mt-3 font-bold text-[#385245]">{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">({String(value.translation)})</span> : null}</p><div className="mt-2 italic"><TextParagraphs text={value.quotation} /></div></div>;
   return <TextParagraphs text={value.text} className={value.format === "takeaway" ? "font-bold text-[#385245]" : undefined} />;
 }

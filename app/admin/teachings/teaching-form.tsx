@@ -55,10 +55,10 @@ export function TeachingForm({ values, action }: { values: TeachingValues; actio
         <textarea name="summary" value={draftValues.summary} onChange={handleChange} maxLength={500} rows={4} className="admin-input resize-y py-3" />
       </label>
       {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
-      {state.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Draft saved.</p> : null}
+      {state.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Teaching saved.</p> : null}
       <div className="flex flex-col gap-3 sm:flex-row">
         <button type="submit" disabled={isPending} className="min-h-12 rounded-xl bg-[#244a3a] px-6 font-extrabold text-white transition hover:bg-[#1d3d30] hover:text-white disabled:cursor-not-allowed disabled:opacity-60">
-          <span className="!text-white">{isPending ? "Saving..." : "Save Draft"}</span>
+          <span className="!text-white">{isPending ? "Saving..." : "Save Teaching"}</span>
         </button>
         <button type="submit" name="saveAction" value="return" disabled={isPending} className="min-h-12 rounded-xl bg-[#244a3a] px-6 font-extrabold text-white transition hover:bg-[#1d3d30] hover:text-white disabled:cursor-not-allowed disabled:opacity-60">
           <span className="!text-white">Save &amp; Return to Teachings</span>

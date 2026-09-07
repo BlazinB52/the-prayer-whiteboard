@@ -64,8 +64,20 @@ type PreviousGathering = {
   slug: string;
   title: string;
   gathering_date: string | null;
-  summary: string | null;
 };
+
+async function getPreviousGatherings(): Promise<PreviousGathering[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("teachings")
+    .select("id, slug, title, gathering_date")
+    .eq("status", "published")
+    .eq("is_featured", false)
+    .order("gathering_date", { ascending: false, nullsFirst: false })
+    .order("id", { ascending: false });
+
+  return error ? [] : (data ?? []) as PreviousGathering[];
+}
 
 async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   const supabase = await createClient();
@@ -89,7 +101,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
     signer
       ? signer.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, alt_text, caption, website_storage_path, storage_path, display_order, is_current_version, status").eq("teaching_id", teaching.id).eq("is_current_version", true).eq("status", "active").is("category_id", null).is("section_id", null).order("display_order")
       : Promise.resolve({ data: [], error: null }),
-    supabase.from("teachings").select("id, slug, title, gathering_date, summary").eq("status", "published").neq("id", teaching.id).order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
+    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").eq("is_featured", false).order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
   if (categoriesError || sectionsError || previousError) return null;
 
@@ -118,7 +130,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
 
 export default async function PrayerGroupPage() {
   const featured = await getFeaturedHomepageData();
-  return featured ? <FeaturedHomepage data={featured} /> : <HardCodedHomepage />;
+  return featured ? <FeaturedHomepage data={featured} /> : <HardCodedHomepage previousGatherings={await getPreviousGatherings()} />;
 }
 
 function FeaturedHomepage({ data }: { data: FeaturedHomepageData }) {
@@ -136,7 +148,9 @@ function FeaturedHomepage({ data }: { data: FeaturedHomepageData }) {
   );
 }
 
-function StaticHomepageLowerSections({ previousGatherings }: { previousGatherings: PreviousGathering[] }) {
+function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive = false }: { previousGatherings: PreviousGathering[]; showFallbackArchive?: boolean }) {
+  const fallbackGatherings = showFallbackArchive && !previousGatherings.length ? archiveDates : [];
+
   return (
     <>
       <section className="px-5 py-14 sm:px-8 sm:py-20">
@@ -166,18 +180,35 @@ function StaticHomepageLowerSections({ previousGatherings }: { previousGathering
             </div>
             <p className="max-w-md text-sm leading-6 text-[#607066]">Published teachings are organized by gathering date so they remain easy to find later.</p>
           </div>
+          {previousGatherings.length ? (
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {previousGatherings.map((gathering) => (
-              <Link key={gathering.id} href={`/teachings/${gathering.slug}`} className="group flex min-h-[245px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 transition hover:-translate-y-1 hover:shadow-xl">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[#9b6531]"><CalendarDays aria-hidden="true" size={16} /> {formatGatheringDate(gathering.gathering_date)}</span>
-                </div>
-                <h3 className="mt-5 text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-[#66746c]">{gathering.summary}</p>
-                <span className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-extrabold text-[#9d5a2f]">Read the teaching <ArrowRight aria-hidden="true" size={17} className="transition group-hover:translate-x-1" /></span>
+              <Link key={gathering.id} href={`/teachings/${gathering.slug}`} className="group flex min-h-[150px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 transition hover:-translate-y-1 hover:shadow-xl">
+                <h3 className="text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
+                <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#607066]"><CalendarDays aria-hidden="true" size={16} /> {formatGatheringDate(gathering.gathering_date)}</p>
+                <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-extrabold text-[#9d5a2f]">Read the teaching <ArrowRight aria-hidden="true" size={17} className="transition group-hover:translate-x-1" /></span>
               </Link>
             ))}
           </div>
+          ) : fallbackGatherings.length ? (
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {fallbackGatherings.map((gathering) => (
+              <article key={gathering.date} className="group flex min-h-[245px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 transition hover:-translate-y-1 hover:shadow-xl">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[#9b6531]"><CalendarDays aria-hidden="true" size={16} /> {gathering.date}</span>
+                  {gathering.current ? <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">Latest</span> : null}
+                </div>
+                <h3 className="mt-5 text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-[#66746c]">{gathering.description}</p>
+                {gathering.current ? (
+                  <Link href={teachingPath} className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-extrabold text-[#9d5a2f]">Read the full teaching <ArrowRight aria-hidden="true" size={17} className="transition group-hover:translate-x-1" /></Link>
+                ) : (
+                  <span className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-extrabold text-[#9d5a2f]">Teaching coming soon <ArrowRight aria-hidden="true" size={17} /></span>
+                )}
+              </article>
+            ))}
+          </div>
+          ) : null}
         </div>
       </section>
       <footer className="bg-[#1d352b] px-5 py-10 text-center text-[#d8e5dd] sm:px-8"><BookOpenText aria-hidden="true" className="mx-auto text-[#efc775]" size={28} /><p className="mt-4 text-lg font-extrabold text-white">The Whiteboard</p><p className="mt-2 text-sm">Prayer · The Word · Praise · Growing Together</p></footer>
@@ -190,7 +221,7 @@ function formatGatheringDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function HardCodedHomepage() {
+function HardCodedHomepage({ previousGatherings }: { previousGatherings: PreviousGathering[] }) {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
       <header className="relative z-20 border-b border-[#284a3b]/10 bg-[#fffdf8]/90 backdrop-blur">
@@ -362,11 +393,22 @@ function HardCodedHomepage() {
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Return to the Word</p>
               <h2 className="mt-2 text-4xl font-extrabold tracking-tight text-[#243d31]">Previous Gatherings</h2>
             </div>
-            <p className="max-w-md text-sm leading-6 text-[#607066]">Teachings will be organized by gathering date so they remain easy to find later.</p>
+            <p className="max-w-md text-sm leading-6 text-[#607066]">Published teachings are organized by gathering date so they remain easy to find later.</p>
           </div>
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {archiveDates.map((gathering) => (
+            {previousGatherings.length ? previousGatherings.map((gathering) => (
+              <Link key={gathering.id} href={`/teachings/${gathering.slug}`} className="group flex min-h-[150px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 transition hover:-translate-y-1 hover:shadow-xl">
+                <h3 className="text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
+                <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#607066]">
+                  <CalendarDays aria-hidden="true" size={16} /> {formatGatheringDate(gathering.gathering_date)}
+                </p>
+                <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-extrabold text-[#9d5a2f]">
+                  Read the teaching
+                  <ArrowRight aria-hidden="true" size={17} className="transition group-hover:translate-x-1" />
+                </span>
+              </Link>
+            )) : archiveDates.map((gathering) => (
               <article key={gathering.date} className="group flex min-h-[245px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 transition hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex items-center justify-between gap-3">
                   <span className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[#9b6531]">

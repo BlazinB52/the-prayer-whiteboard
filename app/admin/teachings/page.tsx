@@ -14,7 +14,7 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-export default async function TeachingsPage({ searchParams }: { searchParams: Promise<{ published?: string; saved?: string; unpublished?: string }> }) {
+export default async function TeachingsPage({ searchParams }: { searchParams: Promise<{ published?: string; saved?: string; unpublished?: string; deleted?: string }> }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
   const { data: teachings, error } = await supabase
@@ -33,14 +33,15 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
           <div>
             <Link href="/admin" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to dashboard</Link>
             <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31]">Teachings</h1>
-            <p className="mt-3 text-sm text-[#607066]">Draft metadata for future published teachings.</p>
+            <p className="mt-3 text-sm text-[#607066]">Manage draft and published teachings.</p>
           </div>
           <Link href="/admin/teachings/new" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#244a3a] px-5 font-extrabold text-white transition hover:bg-[#1d3d30] hover:text-white"><span className="!text-white">New Teaching</span></Link>
         </header>
 
-        {params.saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Draft saved successfully.</p> : null}
+        {params.saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching saved successfully.</p> : null}
         {params.published === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching published and featured on the homepage.</p> : null}
         {params.unpublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching unpublished and returned to draft.</p> : null}
+        {params.deleted === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching permanently deleted.</p> : null}
 
         {teachings?.length ? (
           <section className="grid gap-5 py-10 sm:grid-cols-2">
@@ -56,8 +57,7 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
                   <div className="flex justify-between gap-4"><dt>Last updated</dt><dd className="font-bold text-[#385245]">{new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(teaching.updated_at))}</dd></div>
                 </dl>
                 <div className="mt-6 flex flex-wrap items-center gap-4">
-                  {teaching.status === "draft" ? <Link href={`/admin/teachings/${teaching.id}/edit`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Edit draft</Link> : null}
-                  {teaching.status === "published" ? <Link href={`/admin/teachings/${teaching.id}/edit`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Edit teaching</Link> : null}
+                  {["draft", "published"].includes(teaching.status) ? <Link href={`/admin/teachings/${teaching.id}/edit`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Edit teaching</Link> : null}
                   {teaching.status === "published" ? <Link href={`/teachings/${teaching.slug}`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">View public teaching</Link> : null}
                 </div>
                 {teaching.status === "published" ? <UnpublishButton action={unpublishTeaching.bind(null, teaching.id)} /> : null}

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { publishAndFeatureTeaching, unpublishTeaching, updateTeaching } from "../../actions";
+import { deleteTeaching, publishAndFeatureTeaching, unpublishTeaching, updateTeaching } from "../../actions";
 import { TeachingForm } from "../../teaching-form";
 import { ContentWorkspace } from "../../content-workspace";
+import { DeleteTeachingButton } from "../../delete-teaching-button";
 import { PublishFeatureButton } from "../../publish-feature-button";
 import { UnpublishButton } from "../../unpublish-button";
 import {
@@ -114,7 +115,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
           <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Edit Teaching</h1>
           <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{teaching.status}</span>
         </div>
-        <p className="mt-3 text-sm text-[#607066]">{teaching.status === "published" ? "Unpublish this teaching to return it to draft editing." : "Update the draft metadata and teaching content before publishing."}</p>
+        <p className="mt-3 text-sm text-[#607066]">Update metadata and teaching content without changing publication or homepage-feature status.</p>
         <TeachingForm
           action={updateTeaching.bind(null, id)}
           values={{
@@ -125,35 +126,37 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
             summary: teaching.summary ?? "",
           }}
         />
+        <section className="mt-8 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-5">
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
+          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Feature this teaching on the homepage</h2>
+          <p className="mt-3 text-sm leading-6 text-[#607066]">Publishing makes this teaching public, replaces the current homepage feature without unpublishing it, and keeps the stored gathering date unchanged.</p>
+          <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} />
+        </section>
         {teaching.status === "published" ? (
           <section className="mt-8 rounded-2xl border border-[#a2472c]/20 bg-[#fff8f1] p-5">
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Unpublish</p>
             <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Return this teaching to draft</h2>
-            <p className="mt-3 text-sm leading-6 text-[#607066]">Unpublishing removes this teaching from public pages and makes its content editable again.</p>
+            <p className="mt-3 text-sm leading-6 text-[#607066]">Unpublishing removes this teaching from public pages and returns its categories and sections to draft.</p>
             <UnpublishButton action={unpublishTeaching.bind(null, id)} />
           </section>
-        ) : (
-          <>
-            <section className="mt-8 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-5">
-              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
-              <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Feature this teaching on the homepage</h2>
-              <p className="mt-3 text-sm leading-6 text-[#607066]">Publishing makes this teaching public, moves the current homepage feature into Previous Gatherings, and keeps the stored gathering date unchanged.</p>
-              <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} />
-            </section>
-            <ContentWorkspace
-              teachingId={id}
-              categories={categoryItems}
-              createCategoryAction={createCategory.bind(null, id)}
-              renameCategoryAction={renameCategoryActions}
-              createSectionActions={createSectionActions}
-              updateSectionActions={updateSectionActions}
-              moveCategoryActions={moveCategoryActions}
-              deleteCategoryActions={deleteCategoryActions}
-              moveSectionActions={moveSectionActions}
-              deleteSectionActions={deleteSectionActions}
-            />
-          </>
-        )}
+        ) : null}
+        <ContentWorkspace
+          teachingId={id}
+          categories={categoryItems}
+          createCategoryAction={createCategory.bind(null, id)}
+          renameCategoryAction={renameCategoryActions}
+          createSectionActions={createSectionActions}
+          updateSectionActions={updateSectionActions}
+          moveCategoryActions={moveCategoryActions}
+          deleteCategoryActions={deleteCategoryActions}
+          moveSectionActions={moveSectionActions}
+          deleteSectionActions={deleteSectionActions}
+        />
+        <section className="mt-8 rounded-2xl border border-[#a2472c]/30 bg-[#fff3ed] p-5">
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#a2472c]">Danger zone</p>
+          <h2 className="mt-2 text-2xl font-extrabold text-[#5d2b1f]">Delete teaching</h2>
+          <DeleteTeachingButton action={deleteTeaching.bind(null, id)} />
+        </section>
       </div>
     </main>
   );

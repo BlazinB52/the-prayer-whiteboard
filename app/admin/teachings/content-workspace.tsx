@@ -67,9 +67,9 @@ export function ContentWorkspace({
     <section className="mt-12 border-t border-[#284a3b]/10 pt-10">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Draft structure</p>
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Teaching structure</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">Teaching Content</h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">Organize the teaching into ordered categories and sections. Content remains private while this teaching is a draft.</p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">Organize the teaching into ordered categories and sections. Published teachings update publicly when saved.</p>
         </div>
       </div>
 

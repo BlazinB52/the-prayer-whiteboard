@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
 
+const CHALKBOARD_BUCKET = "chalkboards";
 const MAX_LENGTHS = {
   title: 160,
   centralTheme: 300,
@@ -14,6 +15,7 @@ const MAX_LENGTHS = {
 type FormState = { error?: string; saved?: boolean };
 export type PublishTeachingState = { error?: string };
 export type UnpublishTeachingState = { error?: string };
+export type DeleteTeachingState = { error?: string };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -187,11 +189,11 @@ export async function publishAndFeatureTeaching(
     .from("teachings")
     .select("slug")
     .eq("id", id)
-    .eq("status", "draft")
+    .in("status", ["draft", "published"])
     .maybeSingle();
 
   if (!teaching) {
-    return { error: "Only draft teachings can be published and featured." };
+    return { error: "Only draft or published teachings can be published and featured." };
   }
 
   const { error } = await supabase.rpc("publish_and_feature_teaching", { p_teaching_id: id });
@@ -204,6 +206,80 @@ export async function publishAndFeatureTeaching(
   revalidatePath("/admin/teachings");
   revalidatePath(`/teachings/${teaching.slug}`);
   redirect("/admin/teachings?published=1");
+}
+
+export async function deleteTeaching(
+  id: string,
+  previousState: DeleteTeachingState,
+  formData: FormData,
+): Promise<DeleteTeachingState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+
+  if (!UUID_PATTERN.test(id)) {
+    return { error: "This teaching could not be found." };
+  }
+
+  if (String(formData.get("confirmation") ?? "").trim() !== "DELETE") {
+    return { error: "Type DELETE to permanently delete this teaching." };
+  }
+
+  const { data: teaching } = await supabase
+    .from("teachings")
+    .select("id, slug")
+    .eq("id", id)
+    .in("status", ["draft", "published"])
+    .maybeSingle();
+
+  if (!teaching) {
+    return { error: "This teaching could not be found." };
+  }
+
+  const { data: assets, error: assetsError } = await supabase
+    .from("chalkboard_assets")
+    .select("storage_path, website_storage_path, download_storage_path, tv_storage_path")
+    .eq("teaching_id", teaching.id);
+
+  if (assetsError) {
+    return { error: "This teaching's chalkboard files could not be checked." };
+  }
+
+  const storagePaths = Array.from(
+    new Set(
+      (assets ?? []).flatMap((asset) => [
+        asset.storage_path,
+        asset.website_storage_path,
+        asset.download_storage_path,
+        asset.tv_storage_path,
+      ]).filter((path): path is string => Boolean(path)),
+    ),
+  );
+
+  if (storagePaths.length) {
+    const { error: storageError } = await supabase.storage.from(CHALKBOARD_BUCKET).remove(storagePaths);
+    if (storageError) {
+      return { error: "This teaching was not deleted because one or more chalkboard files could not be removed." };
+    }
+  }
+
+  const { data: deleted, error: deleteError } = await supabase
+    .from("teachings")
+    .delete()
+    .eq("id", teaching.id)
+    .in("status", ["draft", "published"])
+    .select("id")
+    .maybeSingle();
+
+  if (deleteError || !deleted) {
+    return { error: "This teaching's files were removed, but the teaching record could not be deleted. Please contact an administrator before retrying." };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/teachings");
+  revalidatePath(`/admin/teachings/${id}/edit`);
+  revalidatePath(`/teachings/${teaching.slug}`);
+  revalidatePath("/admin/chalkboards");
+  redirect("/admin/teachings?deleted=1");
 }
 
 export async function unpublishTeaching(

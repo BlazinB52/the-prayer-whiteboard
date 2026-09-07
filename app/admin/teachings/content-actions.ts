@@ -9,6 +9,7 @@ const SECTION_TITLE_MAX = 160;
 const SECTION_TEXT_MAX = 12000;
 const SCRIPTURE_REFERENCE_MAX = 240;
 const SCRIPTURE_TRANSLATION_MAX = 80;
+const EDITABLE_TEACHING_STATUSES = ["draft", "published"];
 
 export type ContentActionState = { error?: string; saved?: boolean };
 export type SectionFormat = "paragraph" | "bullets" | "scripture" | "takeaway";
@@ -174,24 +175,24 @@ function validateSection(formData: FormData) {
   return { value: { title: title.value!, format: selectedFormat, content: { version: 1, format: selectedFormat, text: mainText.value, ...(showTitle === false ? { showTitle: false } : {}), ...(homepageHighlight ? { homepageHighlight: true } : {}), ...(callout ? { callout } : {}) } satisfies SectionContent } };
 }
 
-async function requireDraftTeaching(teachingId: string) {
+async function requireEditableTeaching(teachingId: string) {
   if (!validId(teachingId)) return null;
   const { supabase } = await requireAdmin();
-  const { data } = await supabase.from("teachings").select("id").eq("id", teachingId).eq("status", "draft").maybeSingle();
-  return data ? { supabase } : null;
+  const { data: teaching } = await supabase.from("teachings").select("id, status").eq("id", teachingId).in("status", EDITABLE_TEACHING_STATUSES).maybeSingle();
+  return teaching ? { supabase, teaching } : null;
 }
 
-async function requireDraftCategory(teachingId: string, categoryId: string) {
-  const context = await requireDraftTeaching(teachingId);
+async function requireEditableCategory(teachingId: string, categoryId: string) {
+  const context = await requireEditableTeaching(teachingId);
   if (!context || !validId(categoryId)) return null;
-  const { data: category } = await context.supabase.from("teaching_categories").select("id, sort_order").eq("id", categoryId).eq("teaching_id", teachingId).eq("status", "draft").maybeSingle();
+  const { data: category } = await context.supabase.from("teaching_categories").select("id, sort_order, status").eq("id", categoryId).eq("teaching_id", teachingId).eq("status", context.teaching.status).maybeSingle();
   return category ? { ...context, category } : null;
 }
 
-async function requireDraftSection(teachingId: string, categoryId: string, sectionId: string) {
-  const context = await requireDraftCategory(teachingId, categoryId);
+async function requireEditableSection(teachingId: string, categoryId: string, sectionId: string) {
+  const context = await requireEditableCategory(teachingId, categoryId);
   if (!context || !validId(sectionId)) return null;
-  const { data: section } = await context.supabase.from("teaching_sections").select("id, sort_order").eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", "draft").maybeSingle();
+  const { data: section } = await context.supabase.from("teaching_sections").select("id, sort_order, status").eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", context.teaching.status).maybeSingle();
   return section ? { ...context, section } : null;
 }
 
@@ -207,7 +208,7 @@ async function validateHomepageHighlightLimit(
     .from("teaching_sections")
     .select("id, content")
     .eq("teaching_id", teachingId)
-    .eq("status", "draft");
+    .in("status", EDITABLE_TEACHING_STATUSES);
 
   if (error) return "A teaching can have no more than four homepage highlights.";
 
@@ -242,44 +243,44 @@ function contentPath(teachingId: string) {
 }
 
 export async function createCategory(teachingId: string, _: ContentActionState, formData: FormData): Promise<ContentActionState> {
-  const context = await requireDraftTeaching(teachingId);
-  if (!context) return { error: "This draft teaching could not be found." };
+  const context = await requireEditableTeaching(teachingId);
+  if (!context) return { error: "This teaching could not be found." };
   const title = readText(formData, "title", "Category title", CATEGORY_TITLE_MAX, true);
   if (title.error) return title;
   const { data: last } = await context.supabase.from("teaching_categories").select("sort_order").eq("teaching_id", teachingId).order("sort_order", { ascending: false }).limit(1).maybeSingle();
   const id = crypto.randomUUID();
-  const { error } = await context.supabase.from("teaching_categories").insert({ id, teaching_id: teachingId, slug: `${slugify(title.value!)}-${id.slice(0, 8)}`, title: title.value, sort_order: (last?.sort_order ?? 0) + 1, status: "draft" });
+  const { error } = await context.supabase.from("teaching_categories").insert({ id, teaching_id: teachingId, slug: `${slugify(title.value!)}-${id.slice(0, 8)}`, title: title.value, sort_order: (last?.sort_order ?? 0) + 1, status: context.teaching.status });
   if (error) return { error: "The category could not be added." };
   revalidatePath(contentPath(teachingId));
   return { saved: true };
 }
 
 export async function renameCategory(teachingId: string, categoryId: string, _: ContentActionState, formData: FormData): Promise<ContentActionState> {
-  const context = await requireDraftCategory(teachingId, categoryId);
+  const context = await requireEditableCategory(teachingId, categoryId);
   if (!context) return { error: "This category could not be found." };
   const title = readText(formData, "title", "Category title", CATEGORY_TITLE_MAX, true);
   if (title.error) return title;
-  const { error } = await context.supabase.from("teaching_categories").update({ title: title.value }).eq("id", categoryId).eq("teaching_id", teachingId).eq("status", "draft");
+  const { error } = await context.supabase.from("teaching_categories").update({ title: title.value }).eq("id", categoryId).eq("teaching_id", teachingId).eq("status", context.teaching.status);
   if (error) return { error: "The category could not be renamed." };
   revalidatePath(contentPath(teachingId));
   return { saved: true };
 }
 
 export async function deleteCategory(teachingId: string, categoryId: string): Promise<ContentActionState> {
-  const context = await requireDraftCategory(teachingId, categoryId);
+  const context = await requireEditableCategory(teachingId, categoryId);
   if (!context) return { error: "This category could not be found." };
   const { count } = await context.supabase.from("teaching_sections").select("id", { count: "exact", head: true }).eq("teaching_id", teachingId).eq("category_id", categoryId);
   if (count) return { error: "This category still contains sections. Remove or move its sections first." };
-  const { error } = await context.supabase.from("teaching_categories").delete().eq("id", categoryId).eq("teaching_id", teachingId).eq("status", "draft");
+  const { error } = await context.supabase.from("teaching_categories").delete().eq("id", categoryId).eq("teaching_id", teachingId).eq("status", context.teaching.status);
   if (error) return { error: "The category could not be deleted." };
   revalidatePath(contentPath(teachingId));
   return { saved: true };
 }
 
 export async function moveCategory(teachingId: string, categoryId: string, direction: "up" | "down"): Promise<ContentActionState> {
-  const context = await requireDraftCategory(teachingId, categoryId);
+  const context = await requireEditableCategory(teachingId, categoryId);
   if (!context || !["up", "down"].includes(direction)) return { error: "This category could not be moved." };
-  const { data: categories } = await context.supabase.from("teaching_categories").select("id, sort_order").eq("teaching_id", teachingId).eq("status", "draft").order("sort_order", { ascending: true });
+  const { data: categories } = await context.supabase.from("teaching_categories").select("id, sort_order").eq("teaching_id", teachingId).eq("status", context.teaching.status).order("sort_order", { ascending: true });
   const index = categories?.findIndex((category) => category.id === categoryId) ?? -1;
   const neighborIndex = direction === "up" ? index - 1 : index + 1;
   if (index < 0 || !categories?.[neighborIndex]) return { error: "This category is already at the edge." };
@@ -295,7 +296,7 @@ export async function moveCategory(teachingId: string, categoryId: string, direc
 }
 
 export async function createSection(teachingId: string, categoryId: string, _: ContentActionState, formData: FormData): Promise<ContentActionState> {
-  const context = await requireDraftCategory(teachingId, categoryId);
+  const context = await requireEditableCategory(teachingId, categoryId);
   if (!context) return { error: "This category could not be found." };
   const result = validateSection(formData);
   if (result.error) return result;
@@ -306,14 +307,14 @@ export async function createSection(teachingId: string, categoryId: string, _: C
 
   const { data: last } = await context.supabase.from("teaching_sections").select("sort_order").eq("teaching_id", teachingId).eq("category_id", categoryId).order("sort_order", { ascending: false }).limit(1).maybeSingle();
   const id = crypto.randomUUID();
-  const { error } = await context.supabase.from("teaching_sections").insert({ id, teaching_id: teachingId, category_id: categoryId, slug: `${slugify(result.value!.title)}-${id.slice(0, 8)}`, title: result.value!.title, content: result.value!.content, sort_order: (last?.sort_order ?? 0) + 1, status: "draft" });
+  const { error } = await context.supabase.from("teaching_sections").insert({ id, teaching_id: teachingId, category_id: categoryId, slug: `${slugify(result.value!.title)}-${id.slice(0, 8)}`, title: result.value!.title, content: result.value!.content, sort_order: (last?.sort_order ?? 0) + 1, status: context.teaching.status });
   if (error) return { error: "The section could not be added." };
   revalidatePath(contentPath(teachingId));
   return { saved: true };
 }
 
 export async function updateSection(teachingId: string, categoryId: string, sectionId: string, _: ContentActionState, formData: FormData): Promise<ContentActionState> {
-  const context = await requireDraftSection(teachingId, categoryId, sectionId);
+  const context = await requireEditableSection(teachingId, categoryId, sectionId);
   if (!context) return { error: "This section could not be found." };
   const result = validateSection(formData);
   if (result.error) return result;
@@ -330,7 +331,7 @@ export async function updateSection(teachingId: string, categoryId: string, sect
     .select("id")
     .eq("id", destinationCategoryId)
     .eq("teaching_id", teachingId)
-    .eq("status", "draft")
+    .eq("status", context.teaching.status)
     .maybeSingle();
 
   if (!destinationCategory) return { error: "The destination category could not be found." };
@@ -341,14 +342,14 @@ export async function updateSection(teachingId: string, categoryId: string, sect
       .select("id, sort_order")
       .eq("teaching_id", teachingId)
       .eq("category_id", categoryId)
-      .eq("status", "draft")
+      .eq("status", context.teaching.status)
       .order("sort_order", { ascending: true });
     const { data: destinationSections } = await context.supabase
       .from("teaching_sections")
       .select("id, sort_order")
       .eq("teaching_id", teachingId)
       .eq("category_id", destinationCategoryId)
-      .eq("status", "draft")
+      .eq("status", context.teaching.status)
       .order("sort_order", { ascending: true });
 
     const remainingSource = (sourceSections ?? []).filter((section) => section.id !== sectionId);
@@ -363,7 +364,7 @@ export async function updateSection(teachingId: string, categoryId: string, sect
       .eq("id", sectionId)
       .eq("teaching_id", teachingId)
       .eq("category_id", categoryId)
-      .eq("status", "draft");
+      .eq("status", context.teaching.status);
     if (moveError) return { error: "The section could not be moved." };
 
     for (const [index, section] of remainingSource.entries()) {
@@ -374,31 +375,31 @@ export async function updateSection(teachingId: string, categoryId: string, sect
       const { error } = await context.supabase.from("teaching_sections").update({ sort_order: index + 1 }).eq("id", section.id).eq("teaching_id", teachingId).eq("category_id", destinationCategoryId);
       if (error) return { error: "The section could not be moved." };
     }
-    const { error: finalOrderError } = await context.supabase.from("teaching_sections").update({ sort_order: existingDestination.length + 1 }).eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", destinationCategoryId).eq("status", "draft");
+    const { error: finalOrderError } = await context.supabase.from("teaching_sections").update({ sort_order: existingDestination.length + 1 }).eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", destinationCategoryId).eq("status", context.teaching.status);
     if (finalOrderError) return { error: "The section could not be moved." };
     revalidatePath(contentPath(teachingId));
     return { saved: true };
   }
 
-  const { error } = await context.supabase.from("teaching_sections").update({ title: result.value!.title, content: result.value!.content }).eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", "draft");
+  const { error } = await context.supabase.from("teaching_sections").update({ title: result.value!.title, content: result.value!.content }).eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", context.teaching.status);
   if (error) return { error: "The section could not be saved." };
   revalidatePath(contentPath(teachingId));
   return { saved: true };
 }
 
 export async function deleteSection(teachingId: string, categoryId: string, sectionId: string): Promise<ContentActionState> {
-  const context = await requireDraftSection(teachingId, categoryId, sectionId);
+  const context = await requireEditableSection(teachingId, categoryId, sectionId);
   if (!context) return { error: "This section could not be found." };
-  const { error } = await context.supabase.from("teaching_sections").delete().eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", "draft");
+  const { error } = await context.supabase.from("teaching_sections").delete().eq("id", sectionId).eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", context.teaching.status);
   if (error) return { error: "The section could not be deleted." };
   revalidatePath(contentPath(teachingId));
   return { saved: true };
 }
 
 export async function moveSection(teachingId: string, categoryId: string, sectionId: string, direction: "up" | "down"): Promise<ContentActionState> {
-  const context = await requireDraftSection(teachingId, categoryId, sectionId);
+  const context = await requireEditableSection(teachingId, categoryId, sectionId);
   if (!context || !["up", "down"].includes(direction)) return { error: "This section could not be moved." };
-  const { data: sections } = await context.supabase.from("teaching_sections").select("id, sort_order").eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", "draft").order("sort_order", { ascending: true });
+  const { data: sections } = await context.supabase.from("teaching_sections").select("id, sort_order").eq("teaching_id", teachingId).eq("category_id", categoryId).eq("status", context.teaching.status).order("sort_order", { ascending: true });
   const index = sections?.findIndex((section) => section.id === sectionId) ?? -1;
   const neighborIndex = direction === "up" ? index - 1 : index + 1;
   if (index < 0 || !sections?.[neighborIndex]) return { error: "This section is already at the edge." };

@@ -92,6 +92,13 @@ function validateMetadata(formData: FormData) {
   };
 }
 
+function revalidateTeachingDevotionalPaths(slug: string) {
+  revalidatePath(`/teachings/${slug}/devotional`);
+  for (let dayNumber = 1; dayNumber <= 7; dayNumber += 1) {
+    revalidatePath(`/teachings/${slug}/devotional/day/${dayNumber}`);
+  }
+}
+
 export async function createTeaching(_: FormState, formData: FormData): Promise<FormState> {
   const { supabase } = await requireAdmin();
   const result = validateMetadata(formData);
@@ -157,7 +164,7 @@ export async function updateTeaching(
     .update(result.value)
     .eq("id", id)
     .in("status", ["draft", "published"])
-    .select("id")
+    .select("id, slug")
     .maybeSingle();
 
   if (error || !data) {
@@ -165,7 +172,11 @@ export async function updateTeaching(
   }
 
   revalidatePath(`/admin/teachings/${id}/edit`);
+  revalidatePath(`/admin/teachings/${id}/devotional`);
+  revalidatePath(`/admin/teachings/${id}/devotional/preview`);
   revalidatePath("/admin/teachings");
+  revalidatePath(`/teachings/${data.slug}`);
+  revalidateTeachingDevotionalPaths(data.slug);
 
   if (formData.get("saveAction") === "return") {
     redirect("/admin/teachings?saved=1");
@@ -205,6 +216,7 @@ export async function publishAndFeatureTeaching(
   revalidatePath("/");
   revalidatePath("/admin/teachings");
   revalidatePath(`/teachings/${teaching.slug}`);
+  revalidateTeachingDevotionalPaths(teaching.slug);
   redirect("/admin/teachings?published=1");
 }
 
@@ -277,7 +289,10 @@ export async function deleteTeaching(
   revalidatePath("/");
   revalidatePath("/admin/teachings");
   revalidatePath(`/admin/teachings/${id}/edit`);
+  revalidatePath(`/admin/teachings/${id}/devotional`);
+  revalidatePath(`/admin/teachings/${id}/devotional/preview`);
   revalidatePath(`/teachings/${teaching.slug}`);
+  revalidateTeachingDevotionalPaths(teaching.slug);
   revalidatePath("/admin/chalkboards");
   redirect("/admin/teachings?deleted=1");
 }
@@ -341,5 +356,6 @@ export async function unpublishTeaching(
   revalidatePath("/admin/teachings");
   revalidatePath(`/admin/teachings/${id}/edit`);
   revalidatePath(`/teachings/${teaching.slug}`);
+  revalidateTeachingDevotionalPaths(teaching.slug);
   redirect("/admin/teachings?unpublished=1");
 }

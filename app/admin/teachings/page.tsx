@@ -58,6 +58,7 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
                 </dl>
                 <div className="mt-6 flex flex-wrap items-center gap-4">
                   {["draft", "published"].includes(teaching.status) ? <Link href={`/admin/teachings/${teaching.id}/edit`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Edit teaching</Link> : null}
+                  {["draft", "published"].includes(teaching.status) ? <Link href={`/admin/teachings/${teaching.id}/devotional`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Manage 7-Day Devotional</Link> : null}
                   {teaching.status === "published" ? <Link href={`/teachings/${teaching.slug}`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">View public teaching</Link> : null}
                 </div>
                 {teaching.status === "published" ? <UnpublishButton action={unpublishTeaching.bind(null, teaching.id)} /> : null}

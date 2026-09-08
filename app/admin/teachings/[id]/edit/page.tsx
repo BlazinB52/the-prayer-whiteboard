@@ -126,6 +126,12 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
             summary: teaching.summary ?? "",
           }}
         />
+        <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Devotional</p>
+          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">7-Day Devotional</h2>
+          <p className="mt-3 text-sm leading-6 text-[#607066]">Create, edit, preview, publish, or unpublish the devotional without changing this teaching&apos;s publication or homepage-feature status.</p>
+          <Link href={`/admin/teachings/${id}/devotional`} className="admin-secondary-button mt-4 inline-flex items-center justify-center">Manage 7-Day Devotional</Link>
+        </section>
         <section className="mt-8 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-5">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
           <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Feature this teaching on the homepage</h2>

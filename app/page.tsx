@@ -261,7 +261,7 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Return to the Word</p>
-              <h2 className="mt-2 text-4xl font-extrabold tracking-tight text-[#243d31]">Previous Gatherings</h2>
+              <h2 className="mt-2 text-4xl font-extrabold tracking-tight text-[#243d31]">The Storehouse</h2>
             </div>
             <p className="max-w-md text-sm leading-6 text-[#607066]">Published teachings are organized by gathering date so they remain easy to find later.</p>
           </div>
@@ -505,7 +505,7 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Return to the Word</p>
-              <h2 className="mt-2 text-4xl font-extrabold tracking-tight text-[#243d31]">Previous Gatherings</h2>
+              <h2 className="mt-2 text-4xl font-extrabold tracking-tight text-[#243d31]">The Storehouse</h2>
             </div>
             <p className="max-w-md text-sm leading-6 text-[#607066]">Published teachings are organized by gathering date so they remain easy to find later.</p>
           </div>

@@ -243,16 +243,16 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
           <article id="prayer" className="rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
             <span className="grid size-12 place-items-center rounded-2xl bg-[#e8efe9] text-[#244a3a]"><HeartHandshake aria-hidden="true" size={25} /></span>
             <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8e673c]">Stand together</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">Prayer Needs</h2>
-            <p className="mt-4 leading-7 text-[#5b6a61]">Join us in praying for salvation, healing, families, our communities, Israel, and the nations. Prayer needs are shared only in summary form, with names and identifying details withheld to protect privacy.</p>
-            <span className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">Current requests coming soon <ArrowRight aria-hidden="true" size={18} /></span>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">Points of Agreement</h2>
+            <p className="mt-4 leading-7 text-[#5b6a61]">Join in prayer for active needs presented in a privacy-conscious summary form.</p>
+            <Link href="/prayer-and-praise#points-of-agreement" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">View Points of Agreement <ArrowRight aria-hidden="true" size={18} /></Link>
           </article>
           <article id="praise" className="rounded-[2rem] border border-[#d2a34f]/20 bg-[#fff8e8] p-6 shadow-xl shadow-[#8b6531]/8 sm:p-8">
             <span className="grid size-12 place-items-center rounded-2xl bg-[#f5dfaa] text-[#8a5425]"><MessageCircleHeart aria-hidden="true" size={25} /></span>
             <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8e673c]">Remember His goodness</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#503b27]">Praise Reports</h2>
-            <p className="mt-4 leading-7 text-[#6f604f]">Celebrate answered prayer, testimonies of God&apos;s faithfulness, and the ways we see Him working throughout the week.</p>
-            <span className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">Praise reports coming soon <ArrowRight aria-hidden="true" size={18} /></span>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#503b27]">Praise Reports &amp; Answered Prayer</h2>
+            <p className="mt-4 leading-7 text-[#6f604f]">Celebrate answered prayer and testimonies of God&apos;s faithfulness.</p>
+            <Link href="/prayer-and-praise#praise-reports" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">View Praise Reports <ArrowRight aria-hidden="true" size={18} /></Link>
           </article>
         </div>
       </section>
@@ -475,13 +475,13 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
               <HeartHandshake aria-hidden="true" size={25} />
             </span>
             <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8e673c]">Stand together</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">Prayer Needs</h2>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">Points of Agreement</h2>
             <p className="mt-4 leading-7 text-[#5b6a61]">
-              Join us in praying for salvation, healing, families, our communities, Israel, and the nations. Prayer needs are shared only in summary form, with names and identifying details withheld to protect privacy.
+              Join in prayer for active needs presented in a privacy-conscious summary form.
             </p>
-            <span className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
-              Current requests coming soon <ArrowRight aria-hidden="true" size={18} />
-            </span>
+            <Link href="/prayer-and-praise#points-of-agreement" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
+              View Points of Agreement <ArrowRight aria-hidden="true" size={18} />
+            </Link>
           </article>
 
           <article id="praise" className="rounded-[2rem] border border-[#d2a34f]/20 bg-[#fff8e8] p-6 shadow-xl shadow-[#8b6531]/8 sm:p-8">
@@ -489,13 +489,13 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
               <MessageCircleHeart aria-hidden="true" size={25} />
             </span>
             <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8e673c]">Remember His goodness</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#503b27]">Praise Reports</h2>
+            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#503b27]">Praise Reports &amp; Answered Prayer</h2>
             <p className="mt-4 leading-7 text-[#6f604f]">
-              Celebrate answered prayer, testimonies of God&apos;s faithfulness, and the ways we see Him working throughout the week.
+              Celebrate answered prayer and testimonies of God&apos;s faithfulness.
             </p>
-            <span className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
-              Praise reports coming soon <ArrowRight aria-hidden="true" size={18} />
-            </span>
+            <Link href="/prayer-and-praise#praise-reports" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
+              View Praise Reports <ArrowRight aria-hidden="true" size={18} />
+            </Link>
           </article>
         </div>
       </section>

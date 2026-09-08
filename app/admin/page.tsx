@@ -20,6 +20,11 @@ const tools = [
     status: "Available",
   },
   {
+    title: "Prayer and Praise",
+    description: "Curate Points of Agreement and Praise Reports.",
+    status: "Available",
+  },
+  {
     title: "Homepage Settings",
     description: "Shape the public Whiteboard experience.",
     status: "Coming next",
@@ -72,6 +77,10 @@ export default async function AdminDashboardPage() {
                       </Link>
                     ) : tool.title === "Chalkboards" ? (
                       <Link href="/admin/chalkboards" className="transition hover:text-[#a85e32]">
+                        {tool.title}
+                      </Link>
+                    ) : tool.title === "Prayer and Praise" ? (
+                      <Link href="/admin/prayer-and-praise" className="transition hover:text-[#a85e32]">
                         {tool.title}
                       </Link>
                     ) : (

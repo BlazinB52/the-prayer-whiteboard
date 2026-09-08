@@ -242,11 +242,20 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
           {previousGatherings.length ? (
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {previousGatherings.map((gathering) => (
-              <Link key={gathering.id} href={`/teachings/${gathering.slug}`} className="group flex min-h-[150px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 transition hover:-translate-y-1 hover:shadow-xl">
+              <article key={gathering.id} className="flex min-h-[250px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
                 <h3 className="text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
                 <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#607066]"><CalendarDays aria-hidden="true" size={16} /> {formatGatheringDate(gathering.gathering_date)}</p>
-                <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-extrabold text-[#9d5a2f]">Read the teaching <ArrowRight aria-hidden="true" size={17} className="transition group-hover:translate-x-1" /></span>
-              </Link>
+                <div className="mt-5 border-t border-[#284a3b]/10 pt-4">
+                  <Link href={`/teachings/${gathering.slug}`} className="group inline-flex items-center gap-2 text-sm font-extrabold text-[#9d5a2f]">
+                    Read Full Teaching <ArrowRight aria-hidden="true" size={17} className="transition group-hover:translate-x-1" />
+                  </Link>
+                  <ul className="mt-3 space-y-2 text-sm font-bold text-[#607066]">
+                    <li className="flex items-center justify-between gap-3"><span>7-Day Devotional</span><span className="text-xs font-extrabold uppercase tracking-wide text-[#92775a]">Coming Soon</span></li>
+                    <li className="flex items-center justify-between gap-3"><span>Chalkboard</span><span className="text-xs font-extrabold uppercase tracking-wide text-[#92775a]">Coming Soon</span></li>
+                    <li className="flex items-center justify-between gap-3"><span>Shareable Teaching Guide</span><span className="text-xs font-extrabold uppercase tracking-wide text-[#92775a]">Coming Soon</span></li>
+                  </ul>
+                </div>
+              </article>
             ))}
           </div>
           ) : fallbackGatherings.length ? (
@@ -457,16 +466,32 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {previousGatherings.length ? previousGatherings.map((gathering) => (
-              <Link key={gathering.id} href={`/teachings/${gathering.slug}`} className="group flex min-h-[150px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 transition hover:-translate-y-1 hover:shadow-xl">
+              <article key={gathering.id} className="flex min-h-[250px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
                 <h3 className="text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
                 <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#607066]">
                   <CalendarDays aria-hidden="true" size={16} /> {formatGatheringDate(gathering.gathering_date)}
                 </p>
-                <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-extrabold text-[#9d5a2f]">
-                  Read the teaching
-                  <ArrowRight aria-hidden="true" size={17} className="transition group-hover:translate-x-1" />
-                </span>
-              </Link>
+                <div className="mt-5 border-t border-[#284a3b]/10 pt-4">
+                  <Link href={`/teachings/${gathering.slug}`} className="group inline-flex items-center gap-2 text-sm font-extrabold text-[#9d5a2f]">
+                    Read Full Teaching
+                    <ArrowRight aria-hidden="true" size={17} className="transition group-hover:translate-x-1" />
+                  </Link>
+                  <ul className="mt-3 space-y-2 text-sm font-bold text-[#607066]">
+                    <li className="flex items-center justify-between gap-3">
+                      <span>7-Day Devotional</span>
+                      <span className="text-xs font-extrabold uppercase tracking-wide text-[#92775a]">Coming Soon</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3">
+                      <span>Chalkboard</span>
+                      <span className="text-xs font-extrabold uppercase tracking-wide text-[#92775a]">Coming Soon</span>
+                    </li>
+                    <li className="flex items-center justify-between gap-3">
+                      <span>Shareable Teaching Guide</span>
+                      <span className="text-xs font-extrabold uppercase tracking-wide text-[#92775a]">Coming Soon</span>
+                    </li>
+                  </ul>
+                </div>
+              </article>
             )) : archiveDates.map((gathering) => (
               <article key={gathering.date} className="group flex min-h-[245px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 transition hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex items-center justify-between gap-3">

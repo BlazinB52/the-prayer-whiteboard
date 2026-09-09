@@ -1,14 +1,18 @@
 export const PRAYER_AND_PRAISE_CATEGORIES = [
-  "Salvation",
-  "Healing",
-  "Family Restoration",
-  "Provision",
-  "Spiritual Growth",
-  "Israel",
-  "Nations",
   "Community and Region",
+  "Family Restoration",
+  "Healing",
+  "Israel",
+  "Leaders and Authority Figures",
+  "Military",
+  "Nations",
   "Other",
+  "Political Issues",
+  "Provision",
+  "Salvation",
+  "Spiritual Growth",
 ] as const;
+
 
 export const PUBLIC_SUMMARY_MAX_LENGTH = 420;
 export const PRIVACY_SUMMARY_HELPER_TEXT = "Write a brief public prayer summary. Do not include names, locations, contact information, medical-record details, information identifying children, or other details that could identify anyone.";

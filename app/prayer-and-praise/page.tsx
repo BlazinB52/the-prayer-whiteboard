@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { BookOpenText, HeartHandshake, MessageCircleHeart } from "lucide-react";
+import { HeartHandshake, MessageCircleHeart } from "lucide-react";
+import { PublicFooter } from "@/app/public-footer";
+import { PublicHeader } from "@/app/public-header";
+import { ReturnToTop } from "@/app/return-to-top";
 import type { PrayerNeed, PraiseReport } from "@/lib/prayer-and-praise";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,12 +33,7 @@ export default async function PrayerAndPraisePage() {
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">
-      <header className="border-b border-[#284a3b]/10 bg-[#fffdf8]">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-2 font-extrabold text-[#21382e]"><BookOpenText aria-hidden="true" size={20} /> The Whiteboard</Link>
-          <Link href="/" className="text-sm font-extrabold text-[#244a3a]">Back to home</Link>
-        </div>
-      </header>
+      <PublicHeader maxWidthClassName="max-w-5xl" />
 
       <article className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-16">
         <header className="max-w-3xl border-b border-[#284a3b]/15 pb-8">
@@ -64,6 +61,8 @@ export default async function PrayerAndPraisePage() {
           items={(praises ?? []) as Pick<PraiseReport, "id" | "category" | "public_summary">[]}
         />
       </article>
+      <PublicFooter />
+      <ReturnToTop />
     </main>
   );
 }

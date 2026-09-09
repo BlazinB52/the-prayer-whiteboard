@@ -73,8 +73,9 @@ export function normalizeHighlightHorizontalAlignment(value: unknown): Highlight
   return value === "center" ? "center" : "left";
 }
 
-export function getCalloutContainerClassName(alignment: HighlightHorizontalAlignment, minHeightClassName = "min-h-32") {
-  return `flex ${minHeightClassName} flex-col justify-center rounded-xl px-4 py-3 text-sm ${alignment === "center" ? "text-center" : "text-left"}`;
+export function getCalloutContainerClassName(alignment: HighlightHorizontalAlignment, _minHeightClassName = "") {
+  void _minHeightClassName;
+  return `rounded-xl px-5 py-5 text-sm ${alignment === "center" ? "text-center" : "text-left"}`;
 }
 
 export function getCalloutBulletListClassName(alignment: HighlightHorizontalAlignment, spacingClassName = "space-y-2") {

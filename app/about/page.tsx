@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, BookOpenText } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { PublicFooter } from "@/app/public-footer";
+import { PublicHeader } from "@/app/public-header";
+import { ReturnToTop } from "@/app/return-to-top";
 
 const contactEmail = "theprayerwhiteboard@gmail.com";
 
@@ -13,18 +16,12 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">
-      <header className="border-b border-[#284a3b]/10 bg-[#fffdf8]">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-2 font-extrabold text-[#21382e]">
-            <BookOpenText aria-hidden="true" size={20} />
-            The Whiteboard
-          </Link>
-          <Link href="/" className="inline-flex min-h-11 items-center gap-2 text-sm font-extrabold text-[#244a3a]">
+      <PublicHeader maxWidthClassName="max-w-5xl" end={
+          <Link href="/" className="inline-flex min-h-11 shrink-0 items-center gap-2 text-sm font-extrabold text-[#244a3a]">
             <ArrowLeft aria-hidden="true" size={17} />
             Return to Home
           </Link>
-        </div>
-      </header>
+        } />
 
       <article className="mx-auto max-w-5xl px-4 py-8 sm:px-8 sm:py-12">
         <header className="mx-auto max-w-[720px] pb-6 text-center">
@@ -59,6 +56,8 @@ export default function AboutPage() {
           </a>
         </section>
       </article>
+      <PublicFooter />
+      <ReturnToTop />
     </main>
   );
 }

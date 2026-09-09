@@ -4,13 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
-  BookOpenText,
   CalendarDays,
   HeartHandshake,
-  Menu,
   MessageCircleHeart,
   Sparkles,
 } from "lucide-react";
+import { PublicHeader } from "@/app/public-header";
+import { PublicFooter } from "@/app/public-footer";
+import { ReturnToTop } from "@/app/return-to-top";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { selectFeaturedTeaching, type FeaturedTeachingCandidate } from "@/lib/homepage-utils";
@@ -18,7 +19,12 @@ import { getCalloutBulletListClassName, getCalloutLabel, normalizeCallout, norma
 
 const pageUrl = "https://theprayerwhiteboard.com";
 const teachingPath = "/teachings/aliyah-israel-harvest-prayer";
-const contactEmail = "theprayerwhiteboard@gmail.com";
+const homepageNav = [
+  { href: "#latest", label: "Latest Teaching" },
+  { href: "#prayer", label: "Prayer Needs" },
+  { href: "#praise", label: "Praise Reports" },
+  { href: "#gatherings", label: "Gatherings" },
+];
 
 export const metadata: Metadata = {
   title: "The Whiteboard | Prayer, Scripture & Praise",
@@ -176,10 +182,12 @@ function FeaturedHomepage({ data }: { data: FeaturedHomepageData }) {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
-      <header className="relative z-20 border-b border-[#284a3b]/10 bg-[#fffdf8]/90 backdrop-blur"><div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8"><Link href="/" className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-xl bg-[#244a3a] text-[#f4dfaa] shadow-md shadow-[#244a3a]/20"><BookOpenText aria-hidden="true" size={23} /></span><span><span className="block text-lg font-extrabold tracking-tight text-[#21382e]">The Whiteboard</span><span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-[#9a6c32]">Prayer &amp; Bible Study</span></span></Link><nav className="hidden items-center gap-7 text-sm font-bold text-[#385245] md:flex" aria-label="Main navigation"><a href="#latest">Latest Teaching</a><a href="#prayer">Prayer Needs</a><a href="#praise">Praise Reports</a><a href="#gatherings">Gatherings</a></nav><a href="#gatherings" className="grid size-11 place-items-center rounded-xl border border-[#284a3b]/15 bg-white text-[#244a3a] md:hidden" aria-label="Jump to gatherings"><Menu aria-hidden="true" size={22} /></a></div></header>
+      <PublicHeader maxWidthClassName="max-w-6xl" nav={homepageNav} />
       <section className="relative"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" /><div className="relative mx-auto grid max-w-6xl gap-9 px-5 pb-14 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-20"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]"><Sparkles aria-hidden="true" size={15} />Welcome to our gathering place</p><h1 className="mt-6 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.045em] text-[#20382e] sm:text-6xl lg:text-7xl">Prayer changes things. <span className="text-[#a85e32]">The Word changes us.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.</p><div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link href={teachingPath} className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold !text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white visited:!text-white"><span>Read the featured teaching</span><ArrowRight aria-hidden="true" size={19} className="!text-white" /></Link><a href="#prayer" className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-[#284a3b]/15 bg-white px-6 text-base font-extrabold text-[#284a3b]">Pray with us</a></div></div><div className="relative mx-auto w-full max-w-[510px]">{data.chalkboard ? <><div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" /><div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4"><a href={data.chalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger"><img src={data.chalkboard.url} alt={data.chalkboard.altText} className="h-auto w-full rounded-2xl object-contain" /></a>{data.chalkboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{data.chalkboard.caption}</p> : null}<div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p><p className="mt-1 font-extrabold text-[#263f33]">{data.teaching.title}</p></div></div></> : <div className="rounded-[1.75rem] border border-[#284a3b]/10 bg-[#fffdf8] p-8 text-center shadow-xl"><p className="text-sm font-bold text-[#607066]">Chalkboard coming soon</p></div>}</div></div></section>
       <section id="latest" className="bg-[#244a3a] px-5 py-14 text-white sm:px-8 sm:py-20"><div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start"><div><p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">{date}</p><h2 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">{data.teaching.title}</h2><p className="mt-5 text-base leading-7 text-[#dce8e1]">{description}</p><HomepageTeachingActions slug={data.teaching.slug} hasPublishedDevotional={data.teaching.hasPublishedDevotional} variant="dark" className="mt-7" /></div><div className="grid gap-4 sm:grid-cols-2">{data.highlights.map((highlight, index) => <HomepageHighlightCard key={highlight.id} highlight={highlight} href={`${teachingPath}#section-${highlight.id}`} index={index} />)}</div></div></section>
       <StaticHomepageLowerSections previousGatherings={data.previousGatherings} />
+      <PublicFooter />
+      <ReturnToTop />
     </main>
   );
 }
@@ -299,7 +307,6 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
           ) : null}
         </div>
       </section>
-      <footer className="bg-[#1d352b] px-5 py-10 text-center text-[#d8e5dd] sm:px-8"><BookOpenText aria-hidden="true" className="mx-auto text-[#efc775]" size={28} /><p className="mt-4 text-lg font-extrabold text-white">The Whiteboard</p><p className="mt-2 text-sm">Prayer · The Word · Praise · Growing Together</p><HomepageAboutLink /></footer>
     </>
   );
 }
@@ -329,54 +336,10 @@ function HomepageTeachingAction({ href, label, variant }: { href: string; label:
   );
 }
 
-function HomepageAboutLink() {
-  return (
-    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-      <Link href="/about" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/15 px-4 text-sm font-extrabold text-[#f0cb83] transition hover:border-[#f0cb83]/50 hover:text-[#f5d58d]">
-        About The Prayer Whiteboard
-      </Link>
-      <a href={`mailto:${contactEmail}`} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/15 px-4 text-sm font-extrabold text-[#f0cb83] transition hover:border-[#f0cb83]/50 hover:text-[#f5d58d]">
-        Contact
-      </a>
-    </div>
-  );
-}
-
 function HardCodedHomepage({ previousGatherings }: { previousGatherings: PreviousGathering[] }) {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
-      <header className="relative z-20 border-b border-[#284a3b]/10 bg-[#fffdf8]/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-xl bg-[#244a3a] text-[#f4dfaa] shadow-md shadow-[#244a3a]/20">
-              <BookOpenText aria-hidden="true" size={23} />
-            </span>
-            <span>
-              <span className="block text-lg font-extrabold tracking-tight text-[#21382e]">
-                The Whiteboard
-              </span>
-              <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-[#9a6c32]">
-                Prayer &amp; Bible Study
-              </span>
-            </span>
-          </Link>
-
-          <nav className="hidden items-center gap-7 text-sm font-bold text-[#385245] md:flex" aria-label="Main navigation">
-            <a href="#latest" className="transition hover:text-[#a45e2e]">Latest Teaching</a>
-            <a href="#prayer" className="transition hover:text-[#a45e2e]">Prayer Needs</a>
-            <a href="#praise" className="transition hover:text-[#a45e2e]">Praise Reports</a>
-            <a href="#gatherings" className="transition hover:text-[#a45e2e]">Gatherings</a>
-          </nav>
-
-          <a
-            href="#gatherings"
-            className="grid size-11 place-items-center rounded-xl border border-[#284a3b]/15 bg-white text-[#244a3a] md:hidden"
-            aria-label="Jump to gatherings"
-          >
-            <Menu aria-hidden="true" size={22} />
-          </a>
-        </div>
-      </header>
+      <PublicHeader maxWidthClassName="max-w-6xl" nav={homepageNav} />
 
       <section className="relative">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" />
@@ -421,7 +384,7 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
               />
               <div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10">
                 <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p>
-                <p className="mt-1 font-extrabold text-[#263f33]">Aliyah · Israel · The Harvest · Prayer</p>
+                <p className="mt-1 font-extrabold text-[#263f33]">Aliyah &middot; Israel &middot; The Harvest &middot; Prayer</p>
               </div>
             </div>
           </div>
@@ -431,7 +394,7 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
       <section id="latest" className="bg-[#244a3a] px-5 py-14 text-white sm:px-8 sm:py-20">
         <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">Latest gathering · August 30, 2026</p>
+            <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">Latest gathering &middot; August 30, 2026</p>
             <h2 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
               Aliyah: Israel, the Harvest &amp; Prayer
             </h2>
@@ -443,10 +406,10 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
 
           <div className="grid gap-4 sm:grid-cols-2">
             {[
-              ["The Meaning of Aliyah", "To go up or to ascend—and God's call to His people: ‘Come home. Return to Israel.’"],
+              ["The Meaning of Aliyah", "To go up or to ascend\u2014and God's call to His people: \u2018Come home. Return to Israel.\u2019"],
               ["Aliyah in Genesis", "Joseph and his family went up from Egypt to return Jacob to the Promised Land."],
               ["Spiritual Elevation", "Prayer, praise, and the Word draw us nearer and renew our thinking."],
-              ["Aliyah to Jesus", "Our prayer for spiritual awakening: ‘Call them up to Jesus.’"],
+              ["Aliyah to Jesus", "Our prayer for spiritual awakening: \u2018Call them up to Jesus.\u2019"],
             ].map(([title, body], index) => {
               const sectionIds = ["meaning", "genesis", "elevation", "jesus"];
 
@@ -547,12 +510,8 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
         </div>
       </section>
 
-      <footer className="bg-[#1d352b] px-5 py-10 text-center text-[#d8e5dd] sm:px-8">
-        <BookOpenText aria-hidden="true" className="mx-auto text-[#efc775]" size={28} />
-        <p className="mt-4 text-lg font-extrabold text-white">The Whiteboard</p>
-        <p className="mt-2 text-sm">Prayer · The Word · Praise · Growing Together</p>
-        <HomepageAboutLink />
-      </footer>
+      <PublicFooter />
+      <ReturnToTop />
     </main>
   );
 }

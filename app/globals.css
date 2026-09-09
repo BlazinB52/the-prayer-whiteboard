@@ -6,6 +6,7 @@
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 5.25rem;
 }
 
 body {
@@ -116,22 +117,117 @@ a {
   text-decoration: none;
 }
 
+[id] {
+  scroll-margin-top: 5.25rem;
+}
+
+.print-only {
+  display: none;
+}
+
+.public-callout > :first-child,
+.public-callout > :first-child > :first-child {
+  margin-top: 0 !important;
+}
+
+.public-callout > :last-child,
+.public-callout > :last-child > :last-child {
+  margin-bottom: 0 !important;
+}
+
 @media print {
   @page {
-    size: Letter portrait;
-    margin: 0.7in;
+    size: auto;
+    margin: 0.75in 0.6in;
   }
 
   body {
     background: white;
     color: #1f2c24;
+    font-size: 11pt;
+    line-height: 1.45;
   }
 
+  html {
+    scroll-behavior: auto;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .public-site-header,
+  .public-site-footer,
+  .teaching-print-toolbar,
+  .print-to-pdf-button,
+  .chalkboard-download-link,
+  .return-to-top,
   .print-controls,
   .admin-primary-button,
   .admin-secondary-button,
   .admin-danger-button {
     display: none !important;
+  }
+
+  main,
+  article,
+  section,
+  div {
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .public-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .public-chalkboard {
+    display: none !important;
+  }
+
+  .public-section h3,
+  .public-teaching-header h1,
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .public-callout {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-top: 0.35in !important;
+    border-color: #677469 !important;
+    background: #f8f8f5 !important;
+    color: #1f2c24 !important;
+    padding: 0.18in !important;
+  }
+
+  .public-callout * {
+    color: #1f2c24 !important;
+  }
+
+  img {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  p,
+  li,
+  figcaption {
+    overflow-wrap: anywhere;
+    orphans: 3;
+    widows: 3;
+  }
+
+  ul,
+  ol {
+    break-inside: auto;
+    page-break-inside: auto;
   }
 
   .print-paper {

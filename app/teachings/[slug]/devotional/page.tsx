@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BookOpenText } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
+import { PublicFooter } from "@/app/public-footer";
+import { PublicHeader } from "@/app/public-header";
+import { ReturnToTop } from "@/app/return-to-top";
 import { DEVOTIONAL_DAY_NUMBERS, splitParagraphs, type DevotionalDay } from "@/lib/devotionals";
 import { createClient } from "@/lib/supabase/server";
 
@@ -63,7 +66,7 @@ export default async function DevotionalOverviewPage({ params }: { params: Promi
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">
-      <PublicHeader />
+      <PublicHeader maxWidthClassName="max-w-4xl" />
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
         <header className="border-b border-[#284a3b]/15 pb-8">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">7-Day Devotional</p>
@@ -86,18 +89,9 @@ export default async function DevotionalOverviewPage({ params }: { params: Promi
         </div>
         <Link href={`/teachings/${slug}`} className="mt-10 inline-flex items-center gap-2 font-extrabold text-[#244a3a]">Return to full teaching <ArrowRight aria-hidden="true" size={18} /></Link>
       </article>
+      <PublicFooter />
+      <ReturnToTop />
     </main>
-  );
-}
-
-function PublicHeader() {
-  return (
-    <header className="border-b border-[#284a3b]/10 bg-[#fffdf8]">
-      <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-        <Link href="/" className="flex items-center gap-2 font-extrabold text-[#21382e]"><BookOpenText aria-hidden="true" size={20} /> The Whiteboard</Link>
-        <Link href="/" className="text-sm font-extrabold text-[#244a3a]">Back to home</Link>
-      </div>
-    </header>
   );
 }
 

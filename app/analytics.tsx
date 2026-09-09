@@ -4,7 +4,11 @@ import { useSyncExternalStore } from "react";
 import { Analytics, type BeforeSendEvent } from "@vercel/analytics/next";
 import { usePathname } from "next/navigation";
 
-export type AnalyticsPreference = "unknown" | "opted-out" | "opted-in";
+export type AnalyticsPreference =
+  | "unknown"
+  | "opted-out"
+  | "opted-in"
+  | "storage-unavailable";
 
 export const ANALYTICS_OPT_OUT_STORAGE_KEY =
   "the-prayer-whiteboard.analytics.opt-out";
@@ -43,13 +47,14 @@ function readAnalyticsPreference(): AnalyticsPreference {
       ? "opted-out"
       : "opted-in";
   } catch {
-    return "opted-out";
+    return "storage-unavailable";
   }
 }
 
-function refreshAnalyticsPreference() {
+export function initializeAnalyticsPreference() {
   analyticsPreference = readAnalyticsPreference();
   hasReadAnalyticsPreference = true;
+  window.dispatchEvent(new Event(ANALYTICS_OPT_OUT_CHANGE_EVENT));
 }
 
 export function setAnalyticsOptOut(isOptedOut: boolean) {
@@ -62,12 +67,17 @@ export function setAnalyticsOptOut(isOptedOut: boolean) {
     analyticsPreference = isOptedOut ? "opted-out" : "opted-in";
     hasReadAnalyticsPreference = true;
     window.dispatchEvent(new Event(ANALYTICS_OPT_OUT_CHANGE_EVENT));
-  } catch {}
+  } catch {
+    analyticsPreference = "storage-unavailable";
+    hasReadAnalyticsPreference = true;
+    window.dispatchEvent(new Event(ANALYTICS_OPT_OUT_CHANGE_EVENT));
+  }
 }
 
 export function subscribeToAnalyticsOptOutChanges(onStoreChange: () => void) {
   function handleStoreChange() {
-    refreshAnalyticsPreference();
+    analyticsPreference = readAnalyticsPreference();
+    hasReadAnalyticsPreference = true;
     onStoreChange();
   }
 
@@ -75,7 +85,7 @@ export function subscribeToAnalyticsOptOutChanges(onStoreChange: () => void) {
   window.addEventListener(ANALYTICS_OPT_OUT_CHANGE_EVENT, handleStoreChange);
 
   if (!hasReadAnalyticsPreference) {
-    queueMicrotask(handleStoreChange);
+    window.setTimeout(handleStoreChange, 0);
   }
 
   return () => {

@@ -1,9 +1,10 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   getAnalyticsPreferenceSnapshot,
   getServerAnalyticsPreferenceSnapshot,
+  initializeAnalyticsPreference,
   setAnalyticsOptOut,
   subscribeToAnalyticsOptOutChanges,
 } from "../analytics";
@@ -15,6 +16,10 @@ export function AnalyticsOptOutControls() {
     getServerAnalyticsPreferenceSnapshot,
   );
 
+  useEffect(() => {
+    initializeAnalyticsPreference();
+  }, []);
+
   function updatePreference(nextValue: boolean) {
     setAnalyticsOptOut(nextValue);
   }
@@ -24,6 +29,8 @@ export function AnalyticsOptOutControls() {
       ? "Checking this browser..."
       : preference === "opted-out"
       ? "Analytics counting is disabled for this browser."
+      : preference === "storage-unavailable"
+      ? "Analytics preference could not be read in this browser. Check browser privacy settings or storage permissions."
       : "Analytics counting is enabled for this browser.";
 
   return (

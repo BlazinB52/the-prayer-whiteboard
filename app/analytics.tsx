@@ -2,6 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 import { Analytics, type BeforeSendEvent } from "@vercel/analytics/next";
+import { usePathname } from "next/navigation";
+
+export type AnalyticsPreference = "unknown" | "opted-out" | "opted-in";
 
 export const ANALYTICS_OPT_OUT_STORAGE_KEY =
   "the-prayer-whiteboard.analytics.opt-out";
@@ -10,6 +13,8 @@ export const ANALYTICS_OPT_OUT_CHANGE_EVENT =
 
 const excludedPathPrefixes = ["/admin"];
 const excludedPaths = ["/analytics-opt-out"];
+let analyticsPreference: AnalyticsPreference = "unknown";
+let hasReadAnalyticsPreference = false;
 
 function isLocalHost(hostname: string) {
   return (
@@ -21,13 +26,30 @@ function isLocalHost(hostname: string) {
 }
 
 export function isAnalyticsOptedOut() {
+  return getAnalyticsPreferenceSnapshot() !== "opted-in";
+}
+
+export function getAnalyticsPreferenceSnapshot(): AnalyticsPreference {
+  return analyticsPreference;
+}
+
+export function getServerAnalyticsPreferenceSnapshot(): AnalyticsPreference {
+  return "unknown";
+}
+
+function readAnalyticsPreference(): AnalyticsPreference {
   try {
-    return (
-      window.localStorage.getItem(ANALYTICS_OPT_OUT_STORAGE_KEY) === "true"
-    );
+    return window.localStorage.getItem(ANALYTICS_OPT_OUT_STORAGE_KEY) === "true"
+      ? "opted-out"
+      : "opted-in";
   } catch {
-    return true;
+    return "opted-out";
   }
+}
+
+function refreshAnalyticsPreference() {
+  analyticsPreference = readAnalyticsPreference();
+  hasReadAnalyticsPreference = true;
 }
 
 export function setAnalyticsOptOut(isOptedOut: boolean) {
@@ -37,17 +59,31 @@ export function setAnalyticsOptOut(isOptedOut: boolean) {
     } else {
       window.localStorage.removeItem(ANALYTICS_OPT_OUT_STORAGE_KEY);
     }
+    analyticsPreference = isOptedOut ? "opted-out" : "opted-in";
+    hasReadAnalyticsPreference = true;
     window.dispatchEvent(new Event(ANALYTICS_OPT_OUT_CHANGE_EVENT));
   } catch {}
 }
 
 export function subscribeToAnalyticsOptOutChanges(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(ANALYTICS_OPT_OUT_CHANGE_EVENT, onStoreChange);
+  function handleStoreChange() {
+    refreshAnalyticsPreference();
+    onStoreChange();
+  }
+
+  window.addEventListener("storage", handleStoreChange);
+  window.addEventListener(ANALYTICS_OPT_OUT_CHANGE_EVENT, handleStoreChange);
+
+  if (!hasReadAnalyticsPreference) {
+    queueMicrotask(handleStoreChange);
+  }
 
   return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(ANALYTICS_OPT_OUT_CHANGE_EVENT, onStoreChange);
+    window.removeEventListener("storage", handleStoreChange);
+    window.removeEventListener(
+      ANALYTICS_OPT_OUT_CHANGE_EVENT,
+      handleStoreChange,
+    );
   };
 }
 
@@ -77,16 +113,27 @@ function shouldSkipAnalyticsEvent(event: BeforeSendEvent) {
   return isAnalyticsOptedOut();
 }
 
+function isExcludedPath(pathname: string | null) {
+  if (!pathname) return true;
+  if (excludedPaths.includes(pathname)) return true;
+
+  return excludedPathPrefixes.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 export function PrayerWhiteboardAnalytics() {
-  const isOptedOut = useSyncExternalStore(
+  const pathname = usePathname();
+  const preference = useSyncExternalStore(
     subscribeToAnalyticsOptOutChanges,
-    isAnalyticsOptedOut,
-    () => true,
+    getAnalyticsPreferenceSnapshot,
+    getServerAnalyticsPreferenceSnapshot,
   );
 
   if (process.env.NODE_ENV !== "production") return null;
   if (process.env.NEXT_PUBLIC_VERCEL_ENV !== "production") return null;
-  if (isOptedOut) return null;
+  if (isExcludedPath(pathname)) return null;
+  if (preference !== "opted-in") return null;
 
   return (
     <Analytics

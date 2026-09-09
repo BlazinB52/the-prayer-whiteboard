@@ -2,16 +2,17 @@
 
 import { useSyncExternalStore } from "react";
 import {
-  isAnalyticsOptedOut,
+  getAnalyticsPreferenceSnapshot,
+  getServerAnalyticsPreferenceSnapshot,
   setAnalyticsOptOut,
   subscribeToAnalyticsOptOutChanges,
 } from "../analytics";
 
 export function AnalyticsOptOutControls() {
-  const isOptedOut = useSyncExternalStore(
+  const preference = useSyncExternalStore(
     subscribeToAnalyticsOptOutChanges,
-    isAnalyticsOptedOut,
-    () => false,
+    getAnalyticsPreferenceSnapshot,
+    getServerAnalyticsPreferenceSnapshot,
   );
 
   function updatePreference(nextValue: boolean) {
@@ -19,7 +20,9 @@ export function AnalyticsOptOutControls() {
   }
 
   const statusText =
-    isOptedOut
+    preference === "unknown"
+      ? "Checking this browser..."
+      : preference === "opted-out"
       ? "Analytics counting is disabled for this browser."
       : "Analytics counting is enabled for this browser.";
 
@@ -38,20 +41,24 @@ export function AnalyticsOptOutControls() {
         localStorage, or site data will remove the exclusion.
       </p>
       <div className="mt-7 flex flex-wrap gap-3">
-        <button
-          type="button"
-          onClick={() => updatePreference(true)}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#244a3a] px-5 text-sm font-extrabold text-white transition hover:bg-[#1d3d30]"
-        >
-          Exclude this browser
-        </button>
-        <button
-          type="button"
-          onClick={() => updatePreference(false)}
-          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#284a3b]/15 bg-white px-5 text-sm font-extrabold text-[#244a3a] transition hover:border-[#a45e2e]/40 hover:text-[#a45e2e]"
-        >
-          Count this browser again
-        </button>
+        {preference === "opted-in" ? (
+          <button
+            type="button"
+            onClick={() => updatePreference(true)}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#244a3a] px-5 text-sm font-extrabold text-white transition hover:bg-[#1d3d30]"
+          >
+            Exclude this browser
+          </button>
+        ) : null}
+        {preference === "opted-out" ? (
+          <button
+            type="button"
+            onClick={() => updatePreference(false)}
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#284a3b]/15 bg-white px-5 text-sm font-extrabold text-[#244a3a] transition hover:border-[#a45e2e]/40 hover:text-[#a45e2e]"
+          >
+            Count this browser again
+          </button>
+        ) : null}
       </div>
     </section>
   );

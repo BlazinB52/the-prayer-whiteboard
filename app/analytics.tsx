@@ -1,5 +1,6 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { Analytics, type BeforeSendEvent } from "@vercel/analytics/next";
 
 export const ANALYTICS_OPT_OUT_STORAGE_KEY =
@@ -40,6 +41,16 @@ export function setAnalyticsOptOut(isOptedOut: boolean) {
   } catch {}
 }
 
+export function subscribeToAnalyticsOptOutChanges(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(ANALYTICS_OPT_OUT_CHANGE_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(ANALYTICS_OPT_OUT_CHANGE_EVENT, onStoreChange);
+  };
+}
+
 function shouldSkipAnalyticsEvent(event: BeforeSendEvent) {
   if (process.env.NODE_ENV !== "production") return true;
   if (process.env.NEXT_PUBLIC_VERCEL_ENV !== "production") return true;
@@ -67,8 +78,15 @@ function shouldSkipAnalyticsEvent(event: BeforeSendEvent) {
 }
 
 export function PrayerWhiteboardAnalytics() {
+  const isOptedOut = useSyncExternalStore(
+    subscribeToAnalyticsOptOutChanges,
+    isAnalyticsOptedOut,
+    () => true,
+  );
+
   if (process.env.NODE_ENV !== "production") return null;
   if (process.env.NEXT_PUBLIC_VERCEL_ENV !== "production") return null;
+  if (isOptedOut) return null;
 
   return (
     <Analytics

@@ -2,14 +2,14 @@
 
 import { useSyncExternalStore } from "react";
 import {
-  ANALYTICS_OPT_OUT_CHANGE_EVENT,
   isAnalyticsOptedOut,
   setAnalyticsOptOut,
+  subscribeToAnalyticsOptOutChanges,
 } from "../analytics";
 
 export function AnalyticsOptOutControls() {
   const isOptedOut = useSyncExternalStore(
-    subscribeToOptOutChanges,
+    subscribeToAnalyticsOptOutChanges,
     isAnalyticsOptedOut,
     () => false,
   );
@@ -55,14 +55,4 @@ export function AnalyticsOptOutControls() {
       </div>
     </section>
   );
-}
-
-function subscribeToOptOutChanges(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(ANALYTICS_OPT_OUT_CHANGE_EVENT, onStoreChange);
-
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(ANALYTICS_OPT_OUT_CHANGE_EVENT, onStoreChange);
-  };
 }

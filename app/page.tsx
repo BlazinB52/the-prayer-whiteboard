@@ -18,6 +18,7 @@ import { getCalloutBulletListClassName, getCalloutLabel, normalizeCallout, norma
 
 const pageUrl = "https://theprayerwhiteboard.com";
 const teachingPath = "/teachings/aliyah-israel-harvest-prayer";
+const contactEmail = "theprayerwhiteboard@gmail.com";
 
 export const metadata: Metadata = {
   title: "The Whiteboard | Prayer, Scripture & Praise",
@@ -301,7 +302,7 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
           ) : null}
         </div>
       </section>
-      <footer className="bg-[#1d352b] px-5 py-10 text-center text-[#d8e5dd] sm:px-8"><BookOpenText aria-hidden="true" className="mx-auto text-[#efc775]" size={28} /><p className="mt-4 text-lg font-extrabold text-white">The Whiteboard</p><p className="mt-2 text-sm">Prayer · The Word · Praise · Growing Together</p></footer>
+      <footer className="bg-[#1d352b] px-5 py-10 text-center text-[#d8e5dd] sm:px-8"><BookOpenText aria-hidden="true" className="mx-auto text-[#efc775]" size={28} /><p className="mt-4 text-lg font-extrabold text-white">The Whiteboard</p><p className="mt-2 text-sm">Prayer · The Word · Praise · Growing Together</p><HomepageAboutLink /></footer>
     </>
   );
 }
@@ -331,6 +332,19 @@ function HomepageResourceLinks({ slug, hasPublishedDevotional, variant }: { slug
       <li className="flex items-center justify-between gap-3"><span>Chalkboard</span><span className={`text-xs font-extrabold uppercase tracking-wide ${soonClassName}`}>Coming Soon</span></li>
       <li className="flex items-center justify-between gap-3"><span>Pocket Whiteboard</span><span className={`text-xs font-extrabold uppercase tracking-wide ${soonClassName}`}>Coming Soon</span></li>
     </ul>
+  );
+}
+
+function HomepageAboutLink() {
+  return (
+    <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+      <Link href="/about" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/15 px-4 text-sm font-extrabold text-[#f0cb83] transition hover:border-[#f0cb83]/50 hover:text-[#f5d58d]">
+        About The Prayer Whiteboard
+      </Link>
+      <a href={`mailto:${contactEmail}`} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-white/15 px-4 text-sm font-extrabold text-[#f0cb83] transition hover:border-[#f0cb83]/50 hover:text-[#f5d58d]">
+        Contact
+      </a>
+    </div>
   );
 }
 
@@ -559,6 +573,7 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
         <BookOpenText aria-hidden="true" className="mx-auto text-[#efc775]" size={28} />
         <p className="mt-4 text-lg font-extrabold text-white">The Whiteboard</p>
         <p className="mt-2 text-sm">Prayer · The Word · Praise · Growing Together</p>
+        <HomepageAboutLink />
       </footer>
     </main>
   );

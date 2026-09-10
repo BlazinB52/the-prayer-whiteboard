@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PrayerWhiteboardAnalytics } from "./analytics";
 import "./globals.css";
+import { SenderUniversalScript } from "./sender-universal-script";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://theprayerwhiteboard.com"),
@@ -19,6 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
+        <SenderUniversalScript />
         <PrayerWhiteboardAnalytics />
       </body>
     </html>

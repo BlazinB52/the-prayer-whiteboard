@@ -21,6 +21,7 @@ const pageUrl = "https://theprayerwhiteboard.com";
 const teachingPath = "/teachings/aliyah-israel-harvest-prayer";
 const homepageNav = [
   { href: "#latest", label: "Latest Teaching" },
+  { href: "/devotionals", label: "Devotionals" },
   { href: "#prayer", label: "Prayer Needs" },
   { href: "#praise", label: "Praise Reports" },
   { href: "#gatherings", label: "Gatherings" },
@@ -320,7 +321,7 @@ function HomepageTeachingActions({ slug, hasPublishedDevotional, className, vari
   return (
     <div className={`flex flex-col items-start gap-2 ${className ?? ""}`}>
       <HomepageTeachingAction href={`/teachings/${slug}`} label="Read the full teaching" variant={variant} />
-      {hasPublishedDevotional ? <HomepageTeachingAction href={`/teachings/${slug}/devotional`} label="Open the 7-Day Devotional" variant={variant} /> : null}
+      {hasPublishedDevotional ? <HomepageTeachingAction href="/devotionals" label="Open 7-Day Devotions" variant={variant} /> : null}
     </div>
   );
 }

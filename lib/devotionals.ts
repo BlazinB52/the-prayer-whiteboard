@@ -8,6 +8,7 @@ export type DevotionalStatus = "draft" | "published";
 export type TeachingDevotional = {
   id: string;
   teaching_id: string;
+  slug: string;
   title: string;
   introduction: string | null;
   status: DevotionalStatus;

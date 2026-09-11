@@ -321,7 +321,7 @@ function HomepageTeachingActions({ slug, hasPublishedDevotional, className, vari
   return (
     <div className={`flex flex-col items-start gap-2 ${className ?? ""}`}>
       <HomepageTeachingAction href={`/teachings/${slug}`} label="Read the full teaching" variant={variant} />
-      {hasPublishedDevotional ? <HomepageTeachingAction href="/devotionals" label="Open 7-Day Devotions" variant={variant} /> : null}
+      {hasPublishedDevotional ? <HomepageTeachingAction href={`/devotionals/${slug}`} label="Open 7-Day Devotions" variant={variant} /> : null}
     </div>
   );
 }

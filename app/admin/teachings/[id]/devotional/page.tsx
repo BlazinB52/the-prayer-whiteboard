@@ -29,7 +29,7 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
 
   const { data: devotional } = await supabase
     .from("teaching_devotionals")
-    .select("id, teaching_id, title, introduction, status, published_at")
+    .select("id, teaching_id, slug, title, introduction, status, published_at")
     .eq("teaching_id", teaching.id)
     .maybeSingle();
 

@@ -25,7 +25,7 @@ export default async function AdminDevotionalPreviewPage({ params }: { params: P
 
   const { data: devotional } = await supabase
     .from("teaching_devotionals")
-    .select("id, title, introduction, status")
+    .select("id, slug, title, introduction, status")
     .eq("teaching_id", teaching.id)
     .maybeSingle();
   if (!devotional) notFound();

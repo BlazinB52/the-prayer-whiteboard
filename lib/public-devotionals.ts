@@ -1,3 +1,4 @@
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { splitParagraphs, type TeachingDevotional } from "./devotionals";
 import { createClient } from "./supabase/server";
 
@@ -20,6 +21,9 @@ type DevotionalRow = Pick<
 >;
 
 type TeachingRow = PublicDevotionalSeries["teaching"] & { id: string };
+type DevotionalWithTeachingRow = DevotionalRow & {
+  teaching: PublicDevotionalSeries["teaching"] | PublicDevotionalSeries["teaching"][];
+};
 
 export function getDevotionalPath(series: Pick<PublicDevotionalSeries, "slug">) {
   return `/devotionals/${series.slug}`;
@@ -93,25 +97,27 @@ export async function getPublishedDevotionalSeries(): Promise<PublicDevotionalSe
 }
 
 export async function getPublishedDevotionalSeriesBySlug(slug: string): Promise<PublicDevotionalSeries | null> {
-  const supabase = await createClient();
+  const supabase = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
   const { data: devotional, error: devotionalError } = await supabase
     .from("teaching_devotionals")
-    .select("id, teaching_id, slug, title, introduction, published_at")
+    .select("id, teaching_id, slug, title, introduction, published_at, teaching:teachings!inner(slug, title, gathering_date, summary, central_theme)")
     .eq("slug", slug)
     .eq("status", "published")
+    .eq("teachings.status", "published")
     .maybeSingle();
 
   if (devotionalError || !devotional) return null;
 
-  const devotionalRow = devotional as DevotionalRow;
-  const { data: teaching, error: teachingError } = await supabase
-    .from("teachings")
-    .select("id, slug, title, gathering_date, summary, central_theme")
-    .eq("id", devotionalRow.teaching_id)
-    .eq("status", "published")
-    .maybeSingle();
+  const devotionalRow = devotional as unknown as DevotionalWithTeachingRow;
+  const teaching = Array.isArray(devotionalRow.teaching)
+    ? devotionalRow.teaching[0]
+    : devotionalRow.teaching;
 
-  if (teachingError || !teaching) return null;
+  if (!teaching) return null;
 
   return {
     ...devotionalRow,

@@ -6,7 +6,6 @@ import {
   ArrowRight,
   CalendarDays,
   HeartHandshake,
-  MessageCircleHeart,
   Sparkles,
 } from "lucide-react";
 import { PublicHeader } from "@/app/public-header";
@@ -22,15 +21,14 @@ const teachingPath = "/teachings/aliyah-israel-harvest-prayer";
 const homepageNav = [
   { href: "#latest", label: "Latest Teaching" },
   { href: "/devotionals", label: "Devotionals" },
-  { href: "#prayer", label: "Prayer Needs" },
-  { href: "#praise", label: "Praise Reports" },
+  { href: "/points-of-agreement", label: "Prayer Guide" },
   { href: "#gatherings", label: "Gatherings" },
 ];
 
 export const metadata: Metadata = {
-  title: "The Whiteboard | Prayer, Scripture & Praise",
+  title: "The Whiteboard | Prayer & Scripture",
   description:
-    "A welcoming home for prayer-group teachings, prayer needs, praise reports, and growing together in God's Word.",
+    "A welcoming home for prayer-group teachings, points of agreement, and growing together in God's Word.",
   alternates: { canonical: pageUrl },
   robots: { index: true, follow: true },
 };
@@ -190,7 +188,7 @@ function FeaturedHomepage({ data }: { data: FeaturedHomepageData }) {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
       <PublicHeader maxWidthClassName="max-w-6xl" nav={homepageNav} />
-      <section className="relative"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" /><div className="relative mx-auto grid max-w-6xl gap-9 px-5 pb-14 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-20"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]"><Sparkles aria-hidden="true" size={15} />Welcome to our gathering place</p><h1 className="mt-6 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.045em] text-[#20382e] sm:text-6xl lg:text-7xl">Prayer changes things. <span className="text-[#a85e32]">The Word changes us.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.</p><div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link href={teachingPath} className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold !text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white visited:!text-white"><span>Read the featured teaching</span><ArrowRight aria-hidden="true" size={19} className="!text-white" /></Link><a href="#prayer" className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-[#284a3b]/15 bg-white px-6 text-base font-extrabold text-[#284a3b] shadow-lg shadow-[#4d5f52]/10 transition hover:-translate-y-0.5 hover:border-[#a85e32]/40 hover:shadow-xl hover:shadow-[#4d5f52]/15 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f1c66f] active:translate-y-0 active:shadow-md">Pray with us</a></div></div><div className="relative mx-auto w-full max-w-[510px]">{data.chalkboard ? <><div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" /><div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4"><a href={data.chalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger"><img src={data.chalkboard.url} alt={data.chalkboard.altText} className="h-auto w-full rounded-2xl object-contain" /></a>{data.chalkboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{data.chalkboard.caption}</p> : null}<div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p><p className="mt-1 font-extrabold text-[#263f33]">{data.teaching.title}</p></div></div></> : <div className="rounded-[1.75rem] border border-[#284a3b]/10 bg-[#fffdf8] p-8 text-center shadow-xl"><p className="text-sm font-bold text-[#607066]">Chalkboard coming soon</p></div>}</div></div></section>
+      <section className="relative"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" /><div className="relative mx-auto grid max-w-6xl gap-9 px-5 pb-14 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-20"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]"><Sparkles aria-hidden="true" size={15} />Welcome to our gathering place</p><h1 className="mt-6 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.045em] text-[#20382e] sm:text-6xl lg:text-7xl">Prayer changes things. <span className="text-[#a85e32]">The Word changes us.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.</p><div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link href={teachingPath} className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold !text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white visited:!text-white"><span>Read the featured teaching</span><ArrowRight aria-hidden="true" size={19} className="!text-white" /></Link><Link href="/points-of-agreement" className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-[#284a3b]/15 bg-white px-6 text-base font-extrabold text-[#284a3b] shadow-lg shadow-[#4d5f52]/10 transition hover:-translate-y-0.5 hover:border-[#a85e32]/40 hover:shadow-xl hover:shadow-[#4d5f52]/15 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f1c66f] active:translate-y-0 active:shadow-md">Pray with us</Link></div></div><div className="relative mx-auto w-full max-w-[510px]">{data.chalkboard ? <><div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" /><div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4"><a href={data.chalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger"><img src={data.chalkboard.url} alt={data.chalkboard.altText} className="h-auto w-full rounded-2xl object-contain" /></a>{data.chalkboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{data.chalkboard.caption}</p> : null}<div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p><p className="mt-1 font-extrabold text-[#263f33]">{data.teaching.title}</p></div></div></> : <div className="rounded-[1.75rem] border border-[#284a3b]/10 bg-[#fffdf8] p-8 text-center shadow-xl"><p className="text-sm font-bold text-[#607066]">Chalkboard coming soon</p></div>}</div></div></section>
       <section id="latest" className="bg-[#244a3a] px-5 py-14 text-white sm:px-8 sm:py-20"><div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start"><div><p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">{date}</p><h2 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">{data.teaching.title}</h2><p className="mt-5 text-base leading-7 text-[#dce8e1]">{description}</p><HomepageTeachingActions slug={data.teaching.slug} hasPublishedDevotional={data.teaching.hasPublishedDevotional} devotionalSlug={data.teaching.devotionalSlug} variant="dark" className="mt-7" /></div><div className="grid gap-4 sm:grid-cols-2">{data.highlights.map((highlight, index) => <HomepageHighlightCard key={highlight.id} highlight={highlight} href={`${teachingPath}#section-${highlight.id}`} index={index} />)}</div></div></section>
       <StaticHomepageLowerSections previousGatherings={data.previousGatherings} />
       <PublicFooter />
@@ -255,20 +253,13 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
   return (
     <>
       <section className="px-5 py-14 sm:px-8 sm:py-20">
-        <div className="mx-auto grid max-w-6xl gap-5 md:grid-cols-2">
-          <article id="prayer" className="rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
+        <div className="mx-auto max-w-6xl">
+          <article className="rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
             <span className="grid size-12 place-items-center rounded-2xl bg-[#e8efe9] text-[#244a3a]"><HeartHandshake aria-hidden="true" size={25} /></span>
             <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8e673c]">Stand together</p>
             <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">Points of Agreement</h2>
             <p className="mt-4 leading-7 text-[#5b6a61]">Join in prayer for active needs presented in a privacy-conscious summary form.</p>
-            <Link href="/prayer-and-praise#points-of-agreement" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">View Points of Agreement <ArrowRight aria-hidden="true" size={18} /></Link>
-          </article>
-          <article id="praise" className="rounded-[2rem] border border-[#d2a34f]/20 bg-[#fff8e8] p-6 shadow-xl shadow-[#8b6531]/8 sm:p-8">
-            <span className="grid size-12 place-items-center rounded-2xl bg-[#f5dfaa] text-[#8a5425]"><MessageCircleHeart aria-hidden="true" size={25} /></span>
-            <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8e673c]">Remember His goodness</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#503b27]">Praise Reports &amp; Answered Prayer</h2>
-            <p className="mt-4 leading-7 text-[#6f604f]">Celebrate answered prayer and testimonies of God&apos;s faithfulness.</p>
-            <Link href="/prayer-and-praise#praise-reports" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">View Praise Reports <ArrowRight aria-hidden="true" size={18} /></Link>
+            <Link href="/points-of-agreement" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">View Points of Agreement <ArrowRight aria-hidden="true" size={18} /></Link>
           </article>
         </div>
       </section>
@@ -369,12 +360,12 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
               >
                 <span className="!text-white">Read the full teaching</span> <ArrowRight aria-hidden="true" size={19} className="text-white transition group-hover:text-white" />
               </Link>
-              <a
-                href="#prayer"
+              <Link
+                href="/points-of-agreement"
                 className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-[#284a3b]/15 bg-white px-6 text-base font-extrabold text-[#284a3b] shadow-lg shadow-[#4d5f52]/10 transition hover:-translate-y-0.5 hover:border-[#a85e32]/40 hover:shadow-xl hover:shadow-[#4d5f52]/15 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#f1c66f] active:translate-y-0 active:shadow-md"
               >
                 Pray with us
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -441,8 +432,8 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
       </section>
 
       <section className="px-5 py-14 sm:px-8 sm:py-20">
-        <div className="mx-auto grid max-w-6xl gap-5 md:grid-cols-2">
-          <article id="prayer" className="rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
+        <div className="mx-auto max-w-6xl">
+          <article className="rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
             <span className="grid size-12 place-items-center rounded-2xl bg-[#e8efe9] text-[#244a3a]">
               <HeartHandshake aria-hidden="true" size={25} />
             </span>
@@ -451,22 +442,8 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
             <p className="mt-4 leading-7 text-[#5b6a61]">
               Join in prayer for active needs presented in a privacy-conscious summary form.
             </p>
-            <Link href="/prayer-and-praise#points-of-agreement" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
+            <Link href="/points-of-agreement" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
               View Points of Agreement <ArrowRight aria-hidden="true" size={18} />
-            </Link>
-          </article>
-
-          <article id="praise" className="rounded-[2rem] border border-[#d2a34f]/20 bg-[#fff8e8] p-6 shadow-xl shadow-[#8b6531]/8 sm:p-8">
-            <span className="grid size-12 place-items-center rounded-2xl bg-[#f5dfaa] text-[#8a5425]">
-              <MessageCircleHeart aria-hidden="true" size={25} />
-            </span>
-            <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8e673c]">Remember His goodness</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#503b27]">Praise Reports &amp; Answered Prayer</h2>
-            <p className="mt-4 leading-7 text-[#6f604f]">
-              Celebrate answered prayer and testimonies of God&apos;s faithfulness.
-            </p>
-            <Link href="/prayer-and-praise#praise-reports" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
-              View Praise Reports <ArrowRight aria-hidden="true" size={18} />
             </Link>
           </article>
         </div>

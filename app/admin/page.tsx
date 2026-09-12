@@ -20,8 +20,8 @@ const tools = [
     status: "Available",
   },
   {
-    title: "Prayer and Praise",
-    description: "Curate Points of Agreement and Praise Reports.",
+    title: "Points of Agreement",
+    description: "Curate the Prayer & Intercession Guide.",
     status: "Available",
   },
   {
@@ -79,8 +79,8 @@ export default async function AdminDashboardPage() {
                       <Link href="/admin/chalkboards" className="transition hover:text-[#a85e32]">
                         {tool.title}
                       </Link>
-                    ) : tool.title === "Prayer and Praise" ? (
-                      <Link href="/admin/prayer-and-praise" className="transition hover:text-[#a85e32]">
+                    ) : tool.title === "Points of Agreement" ? (
+                      <Link href="/admin/points-of-agreement" className="transition hover:text-[#a85e32]">
                         {tool.title}
                       </Link>
                     ) : (

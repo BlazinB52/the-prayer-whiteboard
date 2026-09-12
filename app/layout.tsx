@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: "%s | The Prayer Whiteboard",
   },
   description:
-    "Prayer-group teachings, prayer needs, praise reports, and encouragement from God's Word.",
+    "Prayer-group teachings, points of agreement, and encouragement from God's Word.",
 };
 
 export default function RootLayout({

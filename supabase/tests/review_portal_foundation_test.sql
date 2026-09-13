@@ -1,4 +1,4 @@
-﻿begin;
+begin;
 
 select plan(44);
 
@@ -24,9 +24,7 @@ values
   ('expired_reviewer', '00000000-0000-4000-8000-000000000013'),
   ('gale_reviewer', '00000000-0000-4000-8000-000000000014'),
   ('kay_reviewer', '00000000-0000-4000-8000-000000000015'),
-  ('brent_reviewer', '00000000-0000-4000-8000-000000000016'),
-  ('teaching_one', '00000000-0000-4000-8000-000000000017'),
-  ('teaching_two', '00000000-0000-4000-8000-000000000018');
+  ('brent_reviewer', '00000000-0000-4000-8000-000000000016');
 
 grant select on review_portal_test_ids to anon, authenticated;
 
@@ -173,73 +171,127 @@ values
   ((select id from review_portal_test_ids where key = 'gale_reviewer')),
   ((select id from review_portal_test_ids where key = 'kay_reviewer'));
 
-insert into public.teachings (
-  id,
-  slug,
-  title,
-  summary,
-  gathering_date,
-  status
-)
-values
-  (
-    (select id from review_portal_test_ids where key = 'teaching_one'),
-    'review-portal-foundation-one',
-    'Review Portal Foundation One',
-    'Disposable local test teaching.',
-    '2026-09-12',
-    'draft'
-  ),
-  (
-    (select id from review_portal_test_ids where key = 'teaching_two'),
-    'review-portal-foundation-two',
-    'Review Portal Foundation Two',
-    'Disposable local test teaching.',
-    '2026-09-12',
-    'draft'
-  );
-
 set local role authenticated;
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'admin_user'), true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select is(public.is_authenticated_admin(), true, 'admin user is authenticated admin');
 
-select public.admin_submit_review_snapshot(
+select public.admin_create_document_review_request(
+  'condensed_foldable_teaching',
+  'Foldable - Speak the Word Rest in God',
+  'Review pages 1-2. This is a Word-first foldable before website integration.',
+  'Two-page landscape foldable',
+  'https://example.sharepoint.com/sites/prayer/word-review',
   null,
-  'teaching',
-  (select id from review_portal_test_ids where key = 'teaching_one'),
   null,
-  'Review Portal Foundation Request One',
-  'version one',
-  '{"version": 1, "content": "one"}'::jsonb
-) as snapshot_id
-into temporary table review_portal_snapshot_one;
+  null,
+  null,
+  null
+) as request_id
+into temporary table review_portal_request_one;
 
-select review_request_id as request_id
-into temporary table review_portal_request_one
-from public.review_snapshots
-where id = (select snapshot_id from review_portal_snapshot_one);
+select is(
+  (select source_teaching_id is null and source_devotional_id is null from public.review_requests where id = (select request_id from review_portal_request_one)),
+  true,
+  'document-first request requires no teaching or devotional row'
+);
+select is(
+  (select subject_type from public.review_requests where id = (select request_id from review_portal_request_one)),
+  'condensed_foldable_teaching',
+  'document-first request stores the expanded review type'
+);
 
-select public.admin_submit_review_snapshot(
+select public.admin_register_review_document_version(
+  (select request_id from review_portal_request_one),
+  'original',
+  'Foldable - Speak the Word Rest in God.docx',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  123456,
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  'https://example.sharepoint.com/sites/prayer/word-review',
   null,
-  'teaching',
-  (select id from review_portal_test_ids where key = 'teaching_two'),
   null,
-  'Review Portal Foundation Request Two',
-  'version one',
-  '{"version": 1, "content": "two"}'::jsonb
-) as snapshot_id
-into temporary table review_portal_snapshot_other;
+  null
+) as document_id
+into temporary table review_portal_original_document;
 
-select review_request_id as request_id
-into temporary table review_portal_request_other
-from public.review_snapshots
-where id = (select snapshot_id from review_portal_snapshot_other);
+select is(
+  (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
+  'editorial_review',
+  'original document version moves request into editorial review'
+);
+select ok(
+  (select storage_path from public.review_document_versions where id = (select document_id from review_portal_original_document)) like 'review-requests/%/versions/%.docx',
+  'document storage path is generated'
+);
+
+select public.admin_set_review_onedrive_url(
+  (select request_id from review_portal_request_one),
+  'https://example.sharepoint.com/sites/prayer/updated-word-review',
+  'drive-1',
+  'item-1',
+  'version-1'
+);
+
+select is(
+  (select onedrive_url from public.review_requests where id = (select request_id from review_portal_request_one)),
+  'https://example.sharepoint.com/sites/prayer/updated-word-review',
+  'OneDrive working URL is stored as request metadata'
+);
+
+select public.admin_register_review_document_version(
+  (select request_id from review_portal_request_one),
+  'final_candidate',
+  'Foldable - Speak the Word Rest in God final.docx',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  223456,
+  'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+  null,
+  null,
+  null,
+  null
+) as document_id
+into temporary table review_portal_candidate_one;
+
+select is(
+  (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
+  'final_candidate_awaiting_approval',
+  'final candidate awaits approval'
+);
+
+select public.admin_create_document_review_request(
+  'other_publication_material',
+  'Other Document Request',
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null,
+  null
+) as request_id
+into temporary table review_portal_request_other;
+
+select public.admin_register_review_document_version(
+  (select request_id from review_portal_request_other),
+  'final_candidate',
+  'Other.docx',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  12345,
+  'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+  null,
+  null,
+  null,
+  null
+) as document_id
+into temporary table review_portal_candidate_other;
 
 set local role authenticated;
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'gale_user'), true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
+
 select is(public.is_authenticated_admin(), false, 'reviewer authorization does not satisfy admin authorization');
 
 set local role anon;
@@ -248,11 +300,7 @@ select set_config('request.jwt.claim.role', 'anon', true);
 
 select is((select count(*) from public.reviewer_accounts), 0::bigint, 'anonymous cannot read reviewer_accounts');
 select is((select count(*) from public.review_requests), 0::bigint, 'anonymous cannot read review_requests');
-select is((select count(*) from public.review_snapshots), 0::bigint, 'anonymous cannot read review_snapshots');
-select is((select count(*) from public.review_required_approvers), 0::bigint, 'anonymous cannot read review_required_approvers');
-select is((select count(*) from public.review_comments), 0::bigint, 'anonymous cannot read review_comments');
-select is((select count(*) from public.review_suggestions), 0::bigint, 'anonymous cannot read review_suggestions');
-select is((select count(*) from public.review_change_requests), 0::bigint, 'anonymous cannot read review_change_requests');
+select is((select count(*) from public.review_document_versions), 0::bigint, 'anonymous cannot read review_document_versions');
 select is((select count(*) from public.review_approvals), 0::bigint, 'anonymous cannot read review_approvals');
 select is((select count(*) from public.review_activity_events), 0::bigint, 'anonymous cannot read review_activity_events');
 
@@ -260,86 +308,57 @@ set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'pending_user'), true);
-select is((select count(*) from public.review_requests), 0::bigint, 'pending reviewer cannot read review content');
+select is((select count(*) from public.review_requests), 0::bigint, 'pending reviewer cannot read document review content');
 
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'must_change_user'), true);
-select is((select count(*) from public.review_requests), 0::bigint, 'must-change reviewer cannot read review content');
+select is((select count(*) from public.review_requests), 0::bigint, 'must-change reviewer cannot read document review content');
 
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'disabled_user'), true);
-select is((select count(*) from public.review_requests), 0::bigint, 'disabled reviewer cannot read review content');
+select is((select count(*) from public.review_requests), 0::bigint, 'disabled reviewer cannot read document review content');
 
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'expired_user'), true);
-select is((select count(*) from public.review_requests), 0::bigint, 'expired temporary-password reviewer cannot read review content');
+select is((select count(*) from public.review_requests), 0::bigint, 'expired temporary-password reviewer cannot read document review content');
 
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'gale_user'), true);
 select is(
   (select count(*) from public.review_requests where id = (select request_id from review_portal_request_one)),
   1::bigint,
-  'active reviewer can read active review request'
+  'active reviewer can read permitted request metadata'
 );
 select is(
-  (select count(*) from public.review_snapshots where id = (select snapshot_id from review_portal_snapshot_one)),
+  (select count(*) from public.review_document_versions where id = (select document_id from review_portal_candidate_one)),
   1::bigint,
-  'active reviewer can read active review snapshot'
+  'active reviewer can read permitted document-version metadata'
 );
 
 select results_eq(
-  $$ update public.review_snapshots set title = 'Tampered' where id = (select snapshot_id from review_portal_snapshot_one) returning id $$,
+  $$ update public.review_document_versions set original_filename = 'tampered.docx' where id = (select document_id from review_portal_candidate_one) returning id $$,
   $$ values (null::uuid) limit 0 $$,
-  'reviewer cannot update snapshot'
+  'reviewer cannot update document-version metadata'
 );
 select results_eq(
-  $$ delete from public.review_snapshots where id = (select snapshot_id from review_portal_snapshot_one) returning id $$,
+  $$ delete from public.review_document_versions where id = (select document_id from review_portal_candidate_one) returning id $$,
   $$ values (null::uuid) limit 0 $$,
-  'reviewer cannot delete snapshot'
+  'reviewer cannot delete document-version metadata'
 );
 select throws_ok(
-  $$
-    insert into public.review_comments (
-      review_request_id,
-      snapshot_id,
-      snapshot_version,
-      reviewer_account_id,
-      body
-    )
-    values (
-      (select request_id from review_portal_request_one),
-      (select snapshot_id from review_portal_snapshot_one),
-      1,
-      (select id from review_portal_test_ids where key = 'kay_reviewer'),
-      'impersonation'
-    )
-    returning id
-  $$,
-  '42501',
+  $$ select public.review_approve_document_version((select request_id from review_portal_request_one), (select document_id from review_portal_candidate_other)) $$,
+  'P0002',
   null,
-  'reviewer cannot add action under another reviewer identity'
+  'mismatched request and document version cannot be approved'
 );
 select throws_ok(
-  $$
-    insert into public.review_approvals (
-      review_request_id,
-      snapshot_id,
-      snapshot_version,
-      reviewer_account_id
-    )
-    values (
-      (select request_id from review_portal_request_other),
-      (select snapshot_id from review_portal_snapshot_one),
-      1,
-      (select id from review_portal_test_ids where key = 'gale_reviewer')
-    )
-  $$,
+  $$ select public.review_approve_document_version((select request_id from review_portal_request_one), (select document_id from review_portal_original_document)) $$,
   '42501',
   null,
-  'reviewer cannot act on snapshot belonging to another request'
+  'old document versions cannot be approved'
 );
 
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'brent_user'), true);
 select public.review_approve_current((select request_id from review_portal_request_one));
 select is(
   (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
-  'active',
+  'final_candidate_awaiting_approval',
   'Brent approval does not affect readiness'
 );
 
@@ -347,18 +366,18 @@ select set_config('request.jwt.claim.sub', (select id::text from review_portal_t
 select public.review_approve_current((select request_id from review_portal_request_one));
 select is(
   (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
-  'active',
-  'Gale alone does not make request ready'
+  'final_candidate_awaiting_approval',
+  'Gale alone does not make ready'
 );
 
-select public.review_withdraw_current_approval((select request_id from review_portal_request_one), 'reset for Kay alone test');
+select public.review_withdraw_current_approval((select request_id from review_portal_request_one), 'reset for Kay alone');
 
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'kay_user'), true);
 select public.review_approve_current((select request_id from review_portal_request_one));
 select is(
   (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
-  'active',
-  'Kay alone does not make request ready'
+  'final_candidate_awaiting_approval',
+  'Kay alone does not make ready'
 );
 
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'gale_user'), true);
@@ -366,123 +385,119 @@ select public.review_approve_current((select request_id from review_portal_reque
 select is(
   (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
   'ready_for_publication',
-  'Gale and Kay approving same current snapshot makes request ready'
+  'Gale and Kay approving same current final candidate makes ready'
 );
 
-select public.review_withdraw_current_approval((select request_id from review_portal_request_one), 'testing withdrawal readiness');
+select ok(
+  exists (
+    select 1
+    from public.review_approvals
+    where review_request_id = (select request_id from review_portal_request_one)
+      and document_version_id = (select document_id from review_portal_candidate_one)
+      and document_sha256_hex = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+      and snapshot_id is null
+  ),
+  'formal approval targets immutable document version and fingerprint, not OneDrive'
+);
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'admin_user'), true);
+select public.admin_register_review_document_version(
+  (select request_id from review_portal_request_one),
+  'final_candidate',
+  'Foldable - Speak the Word Rest in God candidate two.docx',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  323456,
+  'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+  null,
+  null,
+  null,
+  null
+) as document_id
+into temporary table review_portal_candidate_two;
+
 select is(
   (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
-  'active',
-  'withdrawing required approval returns request to active'
+  'final_candidate_awaiting_approval',
+  'new final candidate invalidates previous readiness'
 );
 
+select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'gale_user'), true);
+select public.review_approve_current((select request_id from review_portal_request_one));
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'admin_user'), true);
+select public.admin_register_review_document_version(
+  (select request_id from review_portal_request_one),
+  'final_candidate',
+  'Foldable - Speak the Word Rest in God candidate three.docx',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  423456,
+  'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+  null,
+  null,
+  null,
+  null
+) as document_id
+into temporary table review_portal_candidate_three;
+
+select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'kay_user'), true);
+select public.review_approve_current((select request_id from review_portal_request_one));
+select is(
+  (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
+  'final_candidate_awaiting_approval',
+  'different-version approvals do not make current candidate ready'
+);
+
+select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'gale_user'), true);
 select public.review_approve_current((select request_id from review_portal_request_one));
 select is(
   (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
   'ready_for_publication',
-  'Gale re-approval with Kay restores ready state'
+  'Gale and Kay on same replacement candidate makes ready'
 );
 
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'kay_user'), true);
-select public.review_request_changes((select request_id from review_portal_request_one), 'Please revise this section.');
+select public.review_request_changes((select request_id from review_portal_request_one), 'Please resolve Word comments.');
 select is(
   (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
-  'active',
-  'requesting changes recalculates request to active'
+  'changes_suggested',
+  'requesting changes changes editorial state'
 );
 select is(
   (
     select count(*)
     from public.review_approvals
     where review_request_id = (select request_id from review_portal_request_one)
+      and document_version_id = (select document_id from review_portal_candidate_three)
       and reviewer_account_id = (select id from review_portal_test_ids where key = 'kay_reviewer')
       and withdrawn_at is null
   ),
   0::bigint,
-  'requesting changes withdraws same reviewer approval'
+  'requesting changes withdraws same reviewer approval on current candidate'
 );
 
-set local role authenticated;
-select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'admin_user'), true);
-select public.admin_submit_review_snapshot(
-  (select request_id from review_portal_request_one),
-  'teaching',
-  (select id from review_portal_test_ids where key = 'teaching_one'),
-  null,
-  'Review Portal Foundation Request One',
-  'version two',
-  '{"version": 2, "content": "one"}'::jsonb
-) as snapshot_id
-into temporary table review_portal_snapshot_two;
-
-select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'gale_user'), true);
-select public.review_approve_current((select request_id from review_portal_request_one));
-select is(
-  (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
-  'active',
-  'Gale alone on new version is active'
+select public.review_mark_word_review_complete((select request_id from review_portal_request_one), 'Word review complete.');
+select public.review_report_changes_suggested((select request_id from review_portal_request_one), 'Track changes added.');
+select ok(
+  exists (
+    select 1
+    from public.review_document_reviewer_actions
+    where review_request_id = (select request_id from review_portal_request_one)
+      and reviewer_account_id = (select id from review_portal_test_ids where key = 'kay_reviewer')
+      and action_type in ('word_review_complete', 'changes_suggested')
+  ),
+  'Word editorial actions are recorded separately from final approval'
 );
-
-select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'admin_user'), true);
-select public.admin_submit_review_snapshot(
-  (select request_id from review_portal_request_one),
-  'teaching',
-  (select id from review_portal_test_ids where key = 'teaching_one'),
-  null,
-  'Review Portal Foundation Request One',
-  'version three',
-  '{"version": 3, "content": "one"}'::jsonb
-) as snapshot_id
-into temporary table review_portal_snapshot_three;
-
-select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'kay_user'), true);
-select public.review_approve_current((select request_id from review_portal_request_one));
-select is(
-  (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
-  'active',
-  'Gale and Kay approving different versions does not make current version ready'
-);
-
-select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'gale_user'), true);
-select throws_ok(
-  $$
-    insert into public.review_approvals (
-      review_request_id,
-      snapshot_id,
-      snapshot_version,
-      reviewer_account_id
-    )
-    values (
-      (select request_id from review_portal_request_one),
-      (select snapshot_id from review_portal_snapshot_two),
-      2,
-      (select id from review_portal_test_ids where key = 'gale_reviewer')
-    )
-  $$,
-  '42501',
-  null,
-  'reviewer cannot approve previous snapshot after a new current version exists'
-);
-select public.review_approve_current((select request_id from review_portal_request_one));
-select is(
-  (select status from public.review_requests where id = (select request_id from review_portal_request_one)),
-  'ready_for_publication',
-  'Gale and Kay on current version makes ready after version mismatch test'
-);
-
-select public.review_add_comment((select request_id from review_portal_request_one), 'A comment', 'section', 's1');
-
-select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'brent_user'), true);
-select public.review_suggest_replacement((select request_id from review_portal_request_one), 'section', 's1', 'Replacement wording', 'Old wording', 'Test note');
 
 select ok(
   exists (
     select 1
     from public.review_activity_events
     where review_request_id = (select request_id from review_portal_request_one)
-      and action_type = 'snapshot.submitted'
+      and action_type = 'document.final_candidate_registered'
   ),
-  'audit event created for snapshot.submitted'
+  'audit event created for final candidate registration'
 );
 select ok(
   exists (
@@ -498,15 +513,6 @@ select ok(
     select 1
     from public.review_activity_events
     where review_request_id = (select request_id from review_portal_request_one)
-      and action_type = 'approval.withdrawn'
-  ),
-  'audit event created for approval.withdrawn'
-);
-select ok(
-  exists (
-    select 1
-    from public.review_activity_events
-    where review_request_id = (select request_id from review_portal_request_one)
       and action_type = 'changes.requested'
   ),
   'audit event created for changes.requested'
@@ -516,18 +522,9 @@ select ok(
     select 1
     from public.review_activity_events
     where review_request_id = (select request_id from review_portal_request_one)
-      and action_type = 'comment.created'
+      and action_type = 'word_review.completed'
   ),
-  'audit event created for comment.created'
-);
-select ok(
-  exists (
-    select 1
-    from public.review_activity_events
-    where review_request_id = (select request_id from review_portal_request_one)
-      and action_type = 'suggestion.created'
-  ),
-  'audit event created for suggestion.created'
+  'audit event created for word review completion'
 );
 
 select set_config('request.jwt.claim.sub', (select id::text from review_portal_test_ids where key = 'gale_user'), true);
@@ -553,79 +550,25 @@ select results_eq(
   $$ values (null::uuid) limit 0 $$,
   'ordinary admin client cannot delete audit events'
 );
-select is(public.is_authenticated_admin(), true, 'existing admin authorization still works after review foundation');
+select is(public.is_authenticated_admin(), true, 'existing admin authorization still works after document-first correction');
 
-set local role postgres;
-
-delete from public.review_activity_events
-where review_request_id in (
-  select request_id from review_portal_request_one
-  union all
-  select request_id from review_portal_request_other
-);
-delete from public.review_approvals
-where review_request_id in (
-  select request_id from review_portal_request_one
-  union all
-  select request_id from review_portal_request_other
-);
-delete from public.review_comments
-where review_request_id in (
-  select request_id from review_portal_request_one
-  union all
-  select request_id from review_portal_request_other
-);
-delete from public.review_suggestions
-where review_request_id in (
-  select request_id from review_portal_request_one
-  union all
-  select request_id from review_portal_request_other
-);
-delete from public.review_change_requests
-where review_request_id in (
-  select request_id from review_portal_request_one
-  union all
-  select request_id from review_portal_request_other
-);
-update public.review_requests
-set current_snapshot_id = null
-where id in (
-  select request_id from review_portal_request_one
-  union all
-  select request_id from review_portal_request_other
-);
-delete from public.review_snapshots
-where review_request_id in (
-  select request_id from review_portal_request_one
-  union all
-  select request_id from review_portal_request_other
-);
-delete from public.review_requests
-where id in (
-  select request_id from review_portal_request_one
-  union all
-  select request_id from review_portal_request_other
-);
-delete from public.review_required_approvers
-where reviewer_account_id in (
-  select id from review_portal_test_ids where key in ('gale_reviewer', 'kay_reviewer')
-);
-delete from public.reviewer_accounts
-where id in (
-  select id from review_portal_test_ids where key like '%_reviewer'
-);
-delete from public.teachings
-where id in (
-  select id from review_portal_test_ids where key like 'teaching_%'
-);
-delete from public.admin_authorizations
-where id = (select id from review_portal_test_ids where key = 'admin_auth');
-delete from auth.users
-where id in (
-  select id from review_portal_test_ids where key like '%_user'
+select throws_ok(
+  $$
+    select public.admin_submit_review_snapshot(
+      null,
+      'teaching',
+      null,
+      null,
+      'Legacy Snapshot',
+      null,
+      '{"legacy": true}'::jsonb
+    )
+  $$,
+  '0A000',
+  null,
+  'legacy snapshot submission RPC is explicitly superseded'
 );
 
 select * from finish();
 
 rollback;
-

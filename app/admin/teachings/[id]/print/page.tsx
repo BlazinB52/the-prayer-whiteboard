@@ -18,9 +18,6 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 type Content = Record<string, unknown>;
 type ChalkboardAsset = {
   id: string;
-  teaching_id: string;
-  category_id: string | null;
-  section_id: string | null;
   title: string;
   alt_text: string;
   caption: string | null;
@@ -36,7 +33,7 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
   const { supabase } = await requireAdmin();
   const { data: teaching, error: teachingError } = await supabase
     .from("teachings")
-    .select("id, title, gathering_date, central_theme, introduction, summary, status")
+    .select("id, title, gathering_date, central_theme, introduction, summary, status, chalkboard_asset_id")
     .eq("id", id)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -57,12 +54,11 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
     .order("sort_order", { ascending: true });
   const { data: chalkboardAssets, error: chalkboardError } = await supabase
     .from("chalkboard_assets")
-    .select("id, teaching_id, category_id, section_id, title, alt_text, caption, website_storage_path, storage_path, display_order")
-    .eq("teaching_id", id)
+    .select("id, title, alt_text, caption, website_storage_path, storage_path, display_order")
+    .eq("id", teaching.chalkboard_asset_id ?? "00000000-0000-4000-8000-000000000000")
     .eq("is_current_version", true)
     .eq("status", "active")
-    .eq("include_in_print", true)
-    .order("display_order", { ascending: true });
+    .eq("include_in_print", true);
 
   if (categoriesError || sectionsError || chalkboardError) notFound();
   if ((categories ?? []).some((category) => category.teaching_id !== teaching.id) || (sections ?? []).some((section) => section.teaching_id !== teaching.id)) notFound();
@@ -71,11 +67,8 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
     ...category,
     sections: (sections ?? []).filter((section) => section.category_id === category.id),
   }));
-  const printableAssets = (chalkboardAssets ?? []).filter((asset) => asset.teaching_id === teaching.id) as ChalkboardAsset[];
+  const printableAssets = (chalkboardAssets ?? []).filter((asset) => asset.id === teaching.chalkboard_asset_id) as ChalkboardAsset[];
   const assetsWithUrls = await Promise.all(printableAssets.map(async (asset) => ({ asset, url: await getChalkboardPreviewUrl(asset.website_storage_path || asset.storage_path) })));
-  const assetsForTeaching = assetsWithUrls.filter(({ asset }) => !asset.category_id && !asset.section_id);
-  const assetsForCategory = (categoryId: string) => assetsWithUrls.filter(({ asset }) => asset.category_id === categoryId && !asset.section_id);
-  const assetsForSection = (sectionId: string) => assetsWithUrls.filter(({ asset }) => asset.section_id === sectionId);
 
   return (
     <main className="min-h-screen bg-[#eee7da] px-4 py-6 text-[#243126] sm:px-8 sm:py-10">
@@ -93,17 +86,16 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
           {teaching.summary ? <TextParagraphs text={teaching.summary} className="mt-5 text-[#52645a]" /> : null}
         </header>
         <div className="mt-8 space-y-6">
-          {assetsForTeaching.map(({ asset, url }) => <PrintableChalkboard key={asset.id} asset={asset} url={url} />)}
+          {assetsWithUrls.map(({ asset, url }) => <PrintableChalkboard key={asset.id} asset={asset} url={url} />)}
         </div>
         <div className="mt-10 space-y-10">
           {orderedCategories.map((category) => (
             <section key={category.id} className="print-category">
               <h2 className="print-category-heading border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2>
               <div className="mt-6 space-y-7">
-                {assetsForCategory(category.id).map(({ asset, url }) => <PrintableChalkboard key={asset.id} asset={asset} url={url} />)}
               </div>
               <div className="mt-6 space-y-7">
-                {category.sections.map((section) => <div key={section.id}><PrintableChalkboards assets={assetsForSection(section.id)} /><PrintableSection title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}
+                {category.sections.map((section) => <div key={section.id}><PrintableSection title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}
               </div>
             </section>
           ))}
@@ -265,10 +257,6 @@ function ScriptureReference({ value, className = "mt-3 font-bold text-[#385245]"
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
-}
-
-function PrintableChalkboards({ assets }: { assets: { asset: ChalkboardAsset; url: string | null }[] }) {
-  return <>{assets.map(({ asset, url }) => <PrintableChalkboard key={asset.id} asset={asset} url={url} />)}</>;
 }
 
 function PrintableChalkboard({ asset, url }: { asset: ChalkboardAsset; url: string | null }) {

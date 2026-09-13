@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { PrintToPdfButton } from "./print-to-pdf-button";
 
 type Content = Record<string, unknown>;
-type Asset = { id: string; teaching_id: string; category_id: string | null; section_id: string | null; alt_text: string; caption: string | null; website_storage_path: string | null; storage_path: string; download_storage_path: string | null; allow_download: boolean };
+type Asset = { id: string; alt_text: string; caption: string | null; website_storage_path: string | null; storage_path: string; download_storage_path: string | null; allow_download: boolean };
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -24,25 +24,22 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function StructuredTeachingPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
-  const { data: teaching, error: teachingError } = await supabase.from("teachings").select("id, title, gathering_date, central_theme, introduction, summary, status, slug").eq("slug", slug).eq("status", "published").maybeSingle();
+  const { data: teaching, error: teachingError } = await supabase.from("teachings").select("id, title, gathering_date, central_theme, introduction, summary, status, slug, chalkboard_asset_id").eq("slug", slug).eq("status", "published").maybeSingle();
   if (teachingError || !teaching || teaching.slug !== slug) notFound();
 
   const signer = createServiceRoleClient();
   const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assets, error: assetsError }] = await Promise.all([
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status, highlight_horizontal_alignment").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
-    signer
-      ? signer.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, alt_text, caption, website_storage_path, storage_path, download_storage_path, allow_download, display_order, is_current_version, status").eq("teaching_id", teaching.id).eq("is_current_version", true).eq("status", "active").order("display_order")
+    signer && teaching.chalkboard_asset_id
+      ? signer.from("chalkboard_assets").select("id, alt_text, caption, website_storage_path, storage_path, download_storage_path, allow_download, is_current_version, status").eq("id", teaching.chalkboard_asset_id).eq("is_current_version", true).eq("status", "active")
       : Promise.resolve({ data: [], error: null }),
   ]);
   if (categoriesError || sectionsError || assetsError) notFound();
   const validCategories = (categories ?? []).filter((category) => category.teaching_id === teaching.id);
   const validSections = (sections ?? []).filter((section) => section.teaching_id === teaching.id && validCategories.some((category) => category.id === section.category_id));
-  const validAssets = (assets ?? []).filter((asset) => asset.teaching_id === teaching.id && (!asset.category_id || validCategories.some((category) => category.id === asset.category_id)) && (!asset.section_id || validSections.some((section) => section.id === asset.section_id && section.category_id === asset.category_id))) as Asset[];
+  const validAssets = (assets ?? []).filter((asset) => asset.id === teaching.chalkboard_asset_id) as Asset[];
   const assetsWithUrls = await Promise.all(validAssets.map(async (asset) => ({ asset, url: await getWebsiteUrl(signer, asset) })));
-  const byTeaching = assetsWithUrls.filter(({ asset }) => !asset.category_id && !asset.section_id);
-  const byCategory = (categoryId: string) => assetsWithUrls.filter(({ asset }) => asset.category_id === categoryId && !asset.section_id);
-  const bySection = (sectionId: string) => assetsWithUrls.filter(({ asset }) => asset.section_id === sectionId);
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">
@@ -54,8 +51,8 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
       </div>
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
         <header className="public-teaching-header border-b border-[#284a3b]/15 pb-8"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">The Prayer Whiteboard</p><h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{teaching.title}</h1>{teaching.gathering_date ? <p className="mt-4 text-sm font-bold text-[#607066]">{formatDate(teaching.gathering_date)}</p> : null}{teaching.central_theme ? <p className="mt-5 text-lg font-bold text-[#385245]">{teaching.central_theme}</p> : null}{teaching.introduction ? <TextParagraphs text={teaching.introduction} className="mt-5 text-[#52645a]" /> : null}{teaching.summary ? <TextParagraphs text={teaching.summary} className="mt-5 text-[#52645a]" /> : null}</header>
-        <div className="mt-8 space-y-8">{byTeaching.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}</div>
-        <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2>{byCategory(category.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}>{bySection(section.id).map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}<PublicSection sectionId={section.id} title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}</div></section>)}</div>
+        <div className="mt-8 space-y-8">{assetsWithUrls.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}</div>
+        <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2><div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}><PublicSection sectionId={section.id} title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}</div></section>)}</div>
       </article>
       <PublicFooter />
       <ReturnToTop />

@@ -6,7 +6,7 @@ import type { DeleteTeachingState } from "./actions";
 type Action = (state: DeleteTeachingState, formData: FormData) => Promise<DeleteTeachingState>;
 
 const warning =
-  "Permanently delete this teaching? This will delete the teaching, all categories, sections, chalkboard associations, and associated chalkboard files. This action cannot be undone.";
+  "Permanently delete this teaching? This will delete the teaching, categories, and sections. Any chalkboard association will be removed, but the chalkboard library item and files will remain. This action cannot be undone.";
 
 export function DeleteTeachingButton({ action }: { action: Action }) {
   const [confirmation, setConfirmation] = useState("");

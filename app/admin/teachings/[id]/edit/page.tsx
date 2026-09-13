@@ -33,7 +33,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
   const { supabase } = await requireAdmin();
   const { data: teaching, error } = await supabase
     .from("teachings")
-    .select("id, title, gathering_date, central_theme, introduction, summary, status")
+    .select("id, title, gathering_date, central_theme, introduction, summary, status, chalkboard_asset_id")
     .eq("id", id)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -55,6 +55,27 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
     .eq("teaching_id", id)
     .eq("status", teaching.status)
     .order("sort_order", { ascending: true });
+
+  const [{ data: chalkboards }, { data: assignments }] = await Promise.all([
+    supabase
+      .from("chalkboard_assets")
+      .select("id, title, canonical_name, chalkboard_date")
+      .eq("is_current_version", true)
+      .eq("status", "active")
+      .order("chalkboard_date", { ascending: false })
+      .order("canonical_name", { ascending: true }),
+    supabase.from("teachings").select("id, title, chalkboard_asset_id").in("status", ["draft", "published"]).not("chalkboard_asset_id", "is", null),
+  ]);
+  const assignmentMap = new Map((assignments ?? []).map((assignedTeaching) => [assignedTeaching.chalkboard_asset_id as string, { id: assignedTeaching.id, title: assignedTeaching.title }]));
+  const chalkboardOptions = (chalkboards ?? []).map((chalkboard) => {
+    const assignment = assignmentMap.get(chalkboard.id);
+    return {
+      id: chalkboard.id,
+      label: chalkboard.canonical_name ?? chalkboard.title,
+      assignedTeachingTitle: assignment && assignment.id !== teaching.id ? assignment.title : null,
+      isCurrent: chalkboard.id === teaching.chalkboard_asset_id,
+    };
+  });
 
   const categoryItems = (categories ?? []).map((category) => ({
     ...category,
@@ -124,7 +145,9 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
             centralTheme: teaching.central_theme ?? "",
             introduction: teaching.introduction ?? "",
             summary: teaching.summary ?? "",
+            chalkboardAssetId: teaching.chalkboard_asset_id ?? "",
           }}
+          chalkboards={chalkboardOptions}
         />
         <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Devotional</p>

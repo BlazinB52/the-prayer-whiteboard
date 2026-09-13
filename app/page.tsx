@@ -85,6 +85,18 @@ type PreviousGathering = {
   devotionalSlug?: string | null;
 };
 
+type CurrentWeeklyUpdate = { id: string; title: string } | null;
+
+async function getCurrentWeeklyUpdate(): Promise<CurrentWeeklyUpdate> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("public_current_weekly_update")
+    .select("id, title")
+    .maybeSingle();
+
+  return error || !data ? null : data;
+}
+
 async function getPreviousGatherings(): Promise<PreviousGathering[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -122,7 +134,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   const supabase = await createClient();
   const { data: candidates, error: teachingError } = await supabase
     .from("teachings")
-    .select("id, slug, title, gathering_date, updated_at, is_featured, status, central_theme, introduction, summary")
+    .select("id, slug, title, gathering_date, updated_at, is_featured, status, central_theme, introduction, summary, chalkboard_asset_id")
     .eq("status", "published")
     .eq("is_featured", true);
   if (teachingError) return null;
@@ -137,8 +149,8 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assets, error: assetsError }, { data: previousGatherings, error: previousError }] = await Promise.all([
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status, highlight_horizontal_alignment").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
-    signer
-      ? signer.from("chalkboard_assets").select("id, teaching_id, category_id, section_id, alt_text, caption, website_storage_path, storage_path, display_order, is_current_version, status").eq("teaching_id", teaching.id).eq("is_current_version", true).eq("status", "active").is("category_id", null).is("section_id", null).order("display_order")
+    signer && selectedTeaching.chalkboard_asset_id
+      ? signer.from("chalkboard_assets").select("id, alt_text, caption, website_storage_path, storage_path, is_current_version, status").eq("id", selectedTeaching.chalkboard_asset_id).eq("is_current_version", true).eq("status", "active")
       : Promise.resolve({ data: [], error: null }),
     supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").eq("is_featured", false).order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
@@ -176,11 +188,20 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
 }
 
 export default async function PrayerGroupPage() {
-  const featured = await getFeaturedHomepageData();
-  return featured ? <FeaturedHomepage data={featured} /> : <HardCodedHomepage previousGatherings={await getPreviousGatherings()} />;
+  const [featured, weeklyUpdate] = await Promise.all([getFeaturedHomepageData(), getCurrentWeeklyUpdate()]);
+  return featured ? <FeaturedHomepage data={featured} weeklyUpdate={weeklyUpdate} /> : <HardCodedHomepage previousGatherings={await getPreviousGatherings()} weeklyUpdate={weeklyUpdate} />;
 }
 
-function FeaturedHomepage({ data }: { data: FeaturedHomepageData }) {
+function WeeklyUpdateHeroButton({ weeklyUpdate }: { weeklyUpdate: CurrentWeeklyUpdate }) {
+  if (!weeklyUpdate) return null;
+  return (
+    <Link href="/weekly-update" className="group mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold !text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white visited:!text-white">
+      <span>Read the weekly update</span><ArrowRight aria-hidden="true" size={19} className="!text-white" />
+    </Link>
+  );
+}
+
+function FeaturedHomepage({ data, weeklyUpdate }: { data: FeaturedHomepageData; weeklyUpdate: CurrentWeeklyUpdate }) {
   const teachingPath = `/teachings/${data.teaching.slug}`;
   const date = data.teaching.gathering_date ? new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${data.teaching.gathering_date}T00:00:00Z`)) : "Latest gathering";
   const description = data.teaching.central_theme || data.teaching.summary || data.teaching.introduction || "";
@@ -188,7 +209,7 @@ function FeaturedHomepage({ data }: { data: FeaturedHomepageData }) {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
       <PublicHeader maxWidthClassName="max-w-6xl" nav={homepageNav} />
-      <section className="relative"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" /><div className="relative mx-auto grid max-w-6xl gap-9 px-5 pb-14 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-20"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]"><Sparkles aria-hidden="true" size={15} />Welcome to our gathering place</p><h1 className="mt-6 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.045em] text-[#20382e] sm:text-6xl lg:text-7xl">Prayer changes things. <span className="text-[#a85e32]">The Word changes us.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.</p><Link href={teachingPath} className="group mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold !text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white visited:!text-white"><span>Read the featured teaching</span><ArrowRight aria-hidden="true" size={19} className="!text-white" /></Link></div><div className="relative mx-auto w-full max-w-[510px]">{data.chalkboard ? <><div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" /><div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4"><a href={data.chalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger"><img src={data.chalkboard.url} alt={data.chalkboard.altText} className="h-auto w-full rounded-2xl object-contain" /></a>{data.chalkboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{data.chalkboard.caption}</p> : null}<div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p><p className="mt-1 font-extrabold text-[#263f33]">{data.teaching.title}</p></div></div></> : <div className="rounded-[1.75rem] border border-[#284a3b]/10 bg-[#fffdf8] p-8 text-center shadow-xl"><p className="text-sm font-bold text-[#607066]">Chalkboard coming soon</p></div>}</div></div></section>
+      <section className="relative"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" /><div className="relative mx-auto grid max-w-6xl gap-9 px-5 pb-14 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-20"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]"><Sparkles aria-hidden="true" size={15} />Welcome to our gathering place</p><h1 className="mt-6 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.045em] text-[#20382e] sm:text-6xl lg:text-7xl">Prayer changes things. <span className="text-[#a85e32]">The Word changes us.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.</p><WeeklyUpdateHeroButton weeklyUpdate={weeklyUpdate} /></div><div className="relative mx-auto w-full max-w-[510px]">{data.chalkboard ? <><div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" /><div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4"><a href={data.chalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger"><img src={data.chalkboard.url} alt={data.chalkboard.altText} className="h-auto w-full rounded-2xl object-contain" /></a>{data.chalkboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{data.chalkboard.caption}</p> : null}<div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p><p className="mt-1 font-extrabold text-[#263f33]">{data.teaching.title}</p></div></div></> : <div className="rounded-[1.75rem] border border-[#284a3b]/10 bg-[#fffdf8] p-8 text-center shadow-xl"><p className="text-sm font-bold text-[#607066]">Chalkboard coming soon</p></div>}</div></div></section>
       <section id="latest" className="bg-[#244a3a] px-5 py-14 text-white sm:px-8 sm:py-20"><div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start"><div><p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">{date}</p><h2 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">{data.teaching.title}</h2><p className="mt-5 text-base leading-7 text-[#dce8e1]">{description}</p><HomepageTeachingActions slug={data.teaching.slug} hasPublishedDevotional={data.teaching.hasPublishedDevotional} devotionalSlug={data.teaching.devotionalSlug} variant="dark" className="mt-7" /></div><div className="grid gap-4 sm:grid-cols-2">{data.highlights.map((highlight, index) => <HomepageHighlightCard key={highlight.id} highlight={highlight} href={`${teachingPath}#section-${highlight.id}`} index={index} />)}</div></div></section>
       <StaticHomepageLowerSections previousGatherings={data.previousGatherings} />
       <PublicFooter />
@@ -334,7 +355,7 @@ function HomepageTeachingAction({ href, label, variant }: { href: string; label:
   );
 }
 
-function HardCodedHomepage({ previousGatherings }: { previousGatherings: PreviousGathering[] }) {
+function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGatherings: PreviousGathering[]; weeklyUpdate: CurrentWeeklyUpdate }) {
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
       <PublicHeader maxWidthClassName="max-w-6xl" nav={homepageNav} />
@@ -353,12 +374,7 @@ function HardCodedHomepage({ previousGatherings }: { previousGatherings: Previou
             <p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">
               A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.
             </p>
-            <Link
-              href={teachingPath}
-              className="group mt-8 inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:text-white"
-            >
-              <span className="!text-white">Read the full teaching</span> <ArrowRight aria-hidden="true" size={19} className="text-white transition group-hover:text-white" />
-            </Link>
+            <WeeklyUpdateHeroButton weeklyUpdate={weeklyUpdate} />
           </div>
 
           <div className="relative mx-auto w-full max-w-[510px]">

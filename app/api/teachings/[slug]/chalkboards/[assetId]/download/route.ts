@@ -13,7 +13,7 @@ function createPublicClient() {
 
 function safeFileName(value: string) {
   const normalized = value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
-  return `${normalized || "chalkboard"}.jpg`;
+  return `${normalized || "chalkboard"}.png`;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string; assetId: string }> }) {
@@ -24,18 +24,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   const signer = createServiceRoleClient();
   if (!supabase || !signer) return new Response("Download unavailable", { status: 503 });
 
-  const { data: teaching } = await supabase.from("teachings").select("id, title").eq("slug", slug).eq("status", "published").maybeSingle();
+  const { data: teaching } = await supabase.from("teachings").select("id, title, chalkboard_asset_id").eq("slug", slug).eq("status", "published").maybeSingle();
   if (!teaching) return new Response("Not found", { status: 404 });
+  if (teaching.chalkboard_asset_id !== assetId) return new Response("Not found", { status: 404 });
 
   const { data: asset } = await signer
     .from("chalkboard_assets")
-    .select("id, teaching_id, download_storage_path, allow_download, is_current_version, status")
+    .select("id, download_storage_path, allow_download, is_current_version, status")
     .eq("id", assetId)
-    .eq("teaching_id", teaching.id)
     .eq("is_current_version", true)
     .eq("status", "active")
     .maybeSingle();
-  if (!asset || asset.teaching_id !== teaching.id || !asset.allow_download || !asset.download_storage_path) return new Response("Not found", { status: 404 });
+  if (!asset || !asset.allow_download || !asset.download_storage_path) return new Response("Not found", { status: 404 });
 
   const { data: file, error } = await signer.storage.from(BUCKET).download(asset.download_storage_path);
   if (error || !file) return new Response("Not found", { status: 404 });
@@ -43,8 +43,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   return new Response(file, {
     headers: {
       "Cache-Control": "private, max-age=300",
-      "Content-Type": "image/jpeg",
-      "Content-Disposition": `attachment; filename="${safeFileName(teaching.title)}-chalkboard.jpg"`,
+      "Content-Type": "image/png",
+      "Content-Disposition": `attachment; filename="${safeFileName(teaching.title)}"`,
     },
   });
 }

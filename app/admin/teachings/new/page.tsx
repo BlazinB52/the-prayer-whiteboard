@@ -10,7 +10,24 @@ export const metadata: Metadata = {
 };
 
 export default async function NewTeachingPage() {
-  await requireAdmin();
+  const { supabase } = await requireAdmin();
+  const [{ data: chalkboards }, { data: assignments }] = await Promise.all([
+    supabase
+      .from("chalkboard_assets")
+      .select("id, title, canonical_name, chalkboard_date")
+      .eq("is_current_version", true)
+      .eq("status", "active")
+      .order("chalkboard_date", { ascending: false })
+      .order("canonical_name", { ascending: true }),
+    supabase.from("teachings").select("id, title, chalkboard_asset_id").in("status", ["draft", "published"]).not("chalkboard_asset_id", "is", null),
+  ]);
+  const assignmentMap = new Map((assignments ?? []).map((teaching) => [teaching.chalkboard_asset_id as string, teaching.title]));
+  const chalkboardOptions = (chalkboards ?? []).map((chalkboard) => ({
+    id: chalkboard.id,
+    label: chalkboard.canonical_name ?? chalkboard.title,
+    assignedTeachingTitle: assignmentMap.get(chalkboard.id) ?? null,
+    isCurrent: false,
+  }));
 
   return (
     <main className="admin-shell">
@@ -18,7 +35,7 @@ export default async function NewTeachingPage() {
         <Link href="/admin/teachings" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Teachings</Link>
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31]">New Teaching</h1>
         <p className="mt-3 text-sm text-[#607066]">Start with private draft metadata. Publishing and content structure will come later.</p>
-        <TeachingForm action={createTeaching} values={{ title: "", gatheringDate: "", centralTheme: "", introduction: "", summary: "" }} />
+        <TeachingForm action={createTeaching} values={{ title: "", gatheringDate: "", centralTheme: "", introduction: "", summary: "", chalkboardAssetId: "" }} chalkboards={chalkboardOptions} />
       </div>
     </main>
   );

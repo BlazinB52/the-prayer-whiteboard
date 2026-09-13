@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
 
-const CHALKBOARD_BUCKET = "chalkboards";
 const MAX_LENGTHS = {
   title: 160,
   centralTheme: 300,
@@ -92,6 +91,32 @@ function validateMetadata(formData: FormData) {
   };
 }
 
+async function validateChalkboardSelection(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  formData: FormData,
+  teachingId?: string,
+) {
+  const chalkboardAssetId = String(formData.get("chalkboardAssetId") ?? "").trim();
+  if (!chalkboardAssetId) return { value: null };
+  if (!UUID_PATTERN.test(chalkboardAssetId)) return { error: "Choose a valid chalkboard." };
+
+  const { data: chalkboard } = await supabase
+    .from("chalkboard_assets")
+    .select("id")
+    .eq("id", chalkboardAssetId)
+    .eq("is_current_version", true)
+    .eq("status", "active")
+    .maybeSingle();
+  if (!chalkboard) return { error: "Choose an available chalkboard from the library." };
+
+  let assignmentQuery = supabase.from("teachings").select("id, title").eq("chalkboard_asset_id", chalkboardAssetId).in("status", ["draft", "published"]);
+  if (teachingId) assignmentQuery = assignmentQuery.neq("id", teachingId);
+  const { data: assigned } = await assignmentQuery.maybeSingle();
+  if (assigned) return { error: `This chalkboard is already assigned to ${assigned.title}.` };
+
+  return { value: chalkboardAssetId };
+}
+
 function revalidateTeachingDevotionalPaths(slug: string) {
   revalidatePath(`/teachings/${slug}/devotional`);
   for (let dayNumber = 1; dayNumber <= 7; dayNumber += 1) {
@@ -111,6 +136,9 @@ export async function createTeaching(_: FormState, formData: FormData): Promise<
     return { error: "Please check the teaching details and try again." };
   }
 
+  const chalkboard = await validateChalkboardSelection(supabase, formData);
+  if (chalkboard.error) return { error: chalkboard.error };
+
   const baseSlug = slugify(result.value.title);
 
   for (let suffix = 0; suffix <= 99; suffix += 1) {
@@ -123,6 +151,7 @@ export async function createTeaching(_: FormState, formData: FormData): Promise<
         status: "draft",
         is_featured: false,
         published_at: null,
+        chalkboard_asset_id: chalkboard.value,
       })
       .select("id")
       .single();
@@ -159,9 +188,12 @@ export async function updateTeaching(
     return { error: "Please check the teaching details and try again." };
   }
 
+  const chalkboard = await validateChalkboardSelection(supabase, formData, id);
+  if (chalkboard.error) return { error: chalkboard.error };
+
   const { data, error } = await supabase
     .from("teachings")
-    .update(result.value)
+    .update({ ...result.value, chalkboard_asset_id: chalkboard.value })
     .eq("id", id)
     .in("status", ["draft", "published"])
     .select("id, slug")
@@ -247,31 +279,9 @@ export async function deleteTeaching(
     return { error: "This teaching could not be found." };
   }
 
-  const { data: assets, error: assetsError } = await supabase
-    .from("chalkboard_assets")
-    .select("storage_path, website_storage_path, download_storage_path, tv_storage_path")
-    .eq("teaching_id", teaching.id);
-
-  if (assetsError) {
-    return { error: "This teaching's chalkboard files could not be checked." };
-  }
-
-  const storagePaths = Array.from(
-    new Set(
-      (assets ?? []).flatMap((asset) => [
-        asset.storage_path,
-        asset.website_storage_path,
-        asset.download_storage_path,
-        asset.tv_storage_path,
-      ]).filter((path): path is string => Boolean(path)),
-    ),
-  );
-
-  if (storagePaths.length) {
-    const { error: storageError } = await supabase.storage.from(CHALKBOARD_BUCKET).remove(storagePaths);
-    if (storageError) {
-      return { error: "This teaching was not deleted because one or more chalkboard files could not be removed." };
-    }
+  const { error: detachError } = await supabase.from("chalkboard_assets").update({ teaching_id: null, category_id: null, section_id: null }).eq("teaching_id", teaching.id);
+  if (detachError) {
+    return { error: "This teaching's chalkboard associations could not be detached." };
   }
 
   const { data: deleted, error: deleteError } = await supabase
@@ -283,7 +293,7 @@ export async function deleteTeaching(
     .maybeSingle();
 
   if (deleteError || !deleted) {
-    return { error: "This teaching's files were removed, but the teaching record could not be deleted. Please contact an administrator before retrying." };
+    return { error: "This teaching record could not be deleted. Please try again." };
   }
 
   revalidatePath("/");

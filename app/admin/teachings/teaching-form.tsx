@@ -9,17 +9,24 @@ type TeachingValues = {
   centralTheme: string;
   introduction: string;
   summary: string;
+  chalkboardAssetId: string;
 };
 
 type FormState = { error?: string; saved?: boolean };
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
+type ChalkboardOption = {
+  id: string;
+  label: string;
+  assignedTeachingTitle: string | null;
+  isCurrent: boolean;
+};
 
-export function TeachingForm({ values, action }: { values: TeachingValues; action: Action }) {
+export function TeachingForm({ values, action, chalkboards = [] }: { values: TeachingValues; action: Action; chalkboards?: ChalkboardOption[] }) {
   const router = useRouter();
   const [draftValues, setDraftValues] = useState<TeachingValues>(values);
-  const formKey = [values.title, values.gatheringDate, values.centralTheme, values.introduction, values.summary].join("::");
+  const formKey = [values.title, values.gatheringDate, values.centralTheme, values.introduction, values.summary, values.chalkboardAssetId].join("::");
 
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target;
     setDraftValues((current) => ({ ...current, [name]: value }));
   };
@@ -53,6 +60,18 @@ export function TeachingForm({ values, action }: { values: TeachingValues; actio
       <label className="block text-sm font-bold text-[#385245]">
         Short summary
         <textarea name="summary" value={draftValues.summary} onChange={handleChange} maxLength={500} rows={4} className="admin-input resize-y py-3" />
+      </label>
+      <label className="block text-sm font-bold text-[#385245]">
+        Chalkboard
+        <select name="chalkboardAssetId" value={draftValues.chalkboardAssetId} onChange={handleChange} className="admin-input">
+          <option value="">No chalkboard</option>
+          {chalkboards.map((chalkboard) => (
+            <option key={chalkboard.id} value={chalkboard.id} disabled={Boolean(chalkboard.assignedTeachingTitle) && !chalkboard.isCurrent}>
+              {chalkboard.label}{chalkboard.assignedTeachingTitle && !chalkboard.isCurrent ? ` (assigned to ${chalkboard.assignedTeachingTitle})` : ""}
+            </option>
+          ))}
+        </select>
+        <span className="mt-1 block text-xs font-normal text-[#607066]">A teaching can reference one library chalkboard. Removing the selection does not delete the chalkboard.</span>
       </label>
       {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
       {state.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Teaching saved.</p> : null}

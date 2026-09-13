@@ -25,6 +25,11 @@ const tools = [
     status: "Available",
   },
   {
+    title: "Weekly Updates",
+    description: "Publish the current weekly update and manage archives.",
+    status: "Available",
+  },
+  {
     title: "Homepage Settings",
     description: "Shape the public Whiteboard experience.",
     status: "Coming next",
@@ -81,6 +86,10 @@ export default async function AdminDashboardPage() {
                       </Link>
                     ) : tool.title === "Points of Agreement" ? (
                       <Link href="/admin/points-of-agreement" className="transition hover:text-[#a85e32]">
+                        {tool.title}
+                      </Link>
+                    ) : tool.title === "Weekly Updates" ? (
+                      <Link href="/admin/weekly-updates" className="transition hover:text-[#a85e32]">
                         {tool.title}
                       </Link>
                     ) : (

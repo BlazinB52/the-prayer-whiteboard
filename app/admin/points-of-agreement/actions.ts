@@ -21,6 +21,7 @@ const TEXT_LIMITS = {
 
 type FormState = { error?: string; saved?: boolean };
 export type PointActionState = { error?: string };
+export type MovePointDirection = "up" | "down";
 
 function revalidatePointsOfAgreement() {
   revalidatePath("/");
@@ -58,16 +59,16 @@ function readStatus(formData: FormData) {
   return { value };
 }
 
-function readPointFields(formData: FormData) {
+function readPointFields(formData: FormData, { includeDisplayOrder }: { includeDisplayOrder: boolean }) {
   const point = readText(formData, "pointOfAgreement", "Point of Agreement", TEXT_LIMITS.title);
   const scripture = readText(formData, "scripture", "Scripture", TEXT_LIMITS.scripture);
   const target = readText(formData, "target", "Target", TEXT_LIMITS.target);
   const decree = readText(formData, "decree", "Decree", TEXT_LIMITS.decree);
   const additionalDirection = readText(formData, "additionalDirection", "Additional Direction", TEXT_LIMITS.additionalDirection, false);
   const expiresOn = readExpirationDate(formData);
-  const displayOrder = readDisplayOrder(formData);
   const status = readStatus(formData);
-  const error = [point, scripture, target, decree, additionalDirection, expiresOn, displayOrder, status].find((field) => field.error)?.error;
+  const displayOrder = includeDisplayOrder ? readDisplayOrder(formData) : undefined;
+  const error = [point, scripture, target, decree, additionalDirection, expiresOn, displayOrder, status].find((field) => field?.error)?.error;
   if (error) return { error };
 
   return {
@@ -78,7 +79,7 @@ function readPointFields(formData: FormData) {
       decree: decree.value!,
       additional_direction: additionalDirection.value || null,
       expires_on: expiresOn.value!,
-      display_order: displayOrder.value!,
+      ...(includeDisplayOrder ? { display_order: displayOrder!.value! } : {}),
       status: status.value!,
       archived_at: status.value === "archived" ? new Date().toISOString() : null,
     },
@@ -134,13 +135,20 @@ export async function updateGuideSettings(_: FormState, formData: FormData): Pro
 
 export async function createPointOfAgreement(_: FormState, formData: FormData): Promise<FormState> {
   const { supabase } = await requireAdmin();
-  const result = readPointFields(formData);
+  const result = readPointFields(formData, { includeDisplayOrder: false });
   if (result.error) return { error: result.error };
   if (!result.value) return { error: "This point could not be created." };
 
   const { error } = await supabase
-    .from("points_of_agreement")
-    .insert(result.value);
+    .rpc("admin_create_point_of_agreement", {
+      p_point_of_agreement: result.value.point_of_agreement,
+      p_scripture: result.value.scripture,
+      p_target: result.value.target,
+      p_decree: result.value.decree,
+      p_additional_direction: result.value.additional_direction,
+      p_expires_on: result.value.expires_on,
+      p_status: result.value.status,
+    });
 
   if (error) return { error: "This point could not be created." };
   revalidatePointsOfAgreement();
@@ -152,7 +160,7 @@ export async function updatePointOfAgreement(id: string, _: FormState, formData:
   const point = await loadPoint(supabase, id);
   if (!point) return { error: "This point could not be found." };
 
-  const result = readPointFields(formData);
+  const result = readPointFields(formData, { includeDisplayOrder: true });
   if (result.error) return { error: result.error };
   if (!result.value) return { error: "This point could not be saved." };
 
@@ -191,15 +199,26 @@ export async function restorePointOfAgreement(id: string, previousState: PointAc
   if (!point) return { error: "This point could not be found." };
   if (point.status !== "archived") return { error: "Only archived points can be restored." };
 
-  const { error } = await supabase
-    .from("points_of_agreement")
-    .update({ status: "active", archived_at: null })
-    .eq("id", point.id)
-    .eq("status", "archived");
+  const { error } = await supabase.rpc("admin_restore_point_of_agreement", { p_point_id: point.id });
 
   if (error) return { error: "This point could not be restored." };
   revalidatePointsOfAgreement();
   redirect("/admin/points-of-agreement?point=restored");
+}
+
+export async function movePointOfAgreement(id: string, direction: MovePointDirection, previousState: PointActionState): Promise<PointActionState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+  if (!UUID_PATTERN.test(id)) return { error: "This point could not be found." };
+
+  const { error } = await supabase.rpc("admin_move_point_of_agreement", {
+    p_point_id: id,
+    p_direction: direction,
+  });
+
+  if (error) return { error: direction === "up" ? "This point could not be moved up." : "This point could not be moved down." };
+  revalidatePointsOfAgreement();
+  redirect(`/admin/points-of-agreement?point=moved-${direction}`);
 }
 
 export async function deletePointOfAgreement(id: string, previousState: PointActionState, formData: FormData): Promise<PointActionState> {

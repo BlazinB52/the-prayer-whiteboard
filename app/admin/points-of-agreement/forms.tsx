@@ -42,9 +42,9 @@ export function PointOfAgreementForm({ point, action }: { point?: PointOfAgreeme
       <Textarea label="Target" name="target" defaultValue={point?.target ?? ""} maxLength={3000} rows={4} />
       <Textarea label="Decree" name="decree" defaultValue={point?.decree ?? ""} maxLength={3000} rows={4} />
       <Textarea label="Additional Direction" name="additionalDirection" defaultValue={point?.additional_direction ?? ""} maxLength={3000} rows={3} required={false} />
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className={`grid gap-4 ${point ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <TextInput label="Expiration date" name="expiresOn" type="date" defaultValue={point?.expires_on ?? ""} />
-        <TextInput label="Display order" name="displayOrder" type="number" min={1} defaultValue={String(point?.display_order ?? 1)} />
+        {point ? <TextInput label="Display order" name="displayOrder" type="number" min={1} defaultValue={String(point.display_order)} /> : null}
         <label className="block text-sm font-bold text-[#385245]">
           Status
           <select name="status" value={status} onChange={(event) => setStatus(event.target.value as PointOfAgreementStatus)} className="admin-input">
@@ -60,7 +60,7 @@ export function PointOfAgreementForm({ point, action }: { point?: PointOfAgreeme
   );
 }
 
-export function ConfirmActionButton({ action, label, pendingLabel, confirmation, variant = "secondary" }: { action: ButtonAction; label: string; pendingLabel: string; confirmation?: string; variant?: "primary" | "secondary" | "danger" }) {
+export function ConfirmActionButton({ action, label, pendingLabel, confirmation, variant = "secondary", disabled = false }: { action: ButtonAction; label: string; pendingLabel: string; confirmation?: string; variant?: "primary" | "secondary" | "danger"; disabled?: boolean }) {
   const [state, formAction, isPending] = useActionState(action, {});
   const className = variant === "primary" ? "admin-primary-button" : variant === "danger" ? "admin-danger-button" : "admin-secondary-button";
 
@@ -74,7 +74,7 @@ export function ConfirmActionButton({ action, label, pendingLabel, confirmation,
       }}
     >
       {state.error ? <p role="alert" className="mb-2 text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
-      <button type="submit" disabled={isPending} className={className}>{isPending ? pendingLabel : label}</button>
+      <button type="submit" disabled={isPending || disabled} className={className}>{isPending ? pendingLabel : label}</button>
     </form>
   );
 }

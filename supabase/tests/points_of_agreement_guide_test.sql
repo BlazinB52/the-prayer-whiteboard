@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(18);
 
 create temp table points_of_agreement_test_ids (
   key text primary key,
@@ -97,6 +97,17 @@ values
     9003,
     'archived',
     now()
+  ),
+  (
+    'Local Regression Archived Hidden',
+    'Hidden archived scripture',
+    'Hidden archived target',
+    'Hidden archived decree',
+    null,
+    current_date + 30,
+    9004,
+    'archived',
+    now()
   );
 
 update public.points_of_agreement_guide_settings
@@ -107,6 +118,76 @@ select is(
   (select title from public.points_of_agreement_guide_settings where id = true),
   'LOCAL REGRESSION PRAYER GUIDE',
   'admin can update guide settings'
+);
+select ok(
+  exists (
+    select 1
+    from pg_indexes
+    where schemaname = 'public'
+      and indexname = 'points_of_agreement_active_display_order_unique_idx'
+      and indexdef like '%WHERE (status = ''active''::text)%'
+  ),
+  'active display order has partial uniqueness protection'
+);
+select throws_ok(
+  $$
+    insert into public.points_of_agreement (
+      point_of_agreement,
+      scripture,
+      target,
+      decree,
+      expires_on,
+      display_order,
+      status
+    )
+    values (
+      'Local Regression Duplicate Active Order',
+      'Duplicate scripture',
+      'Duplicate target',
+      'Duplicate decree',
+      current_date + 30,
+      9001,
+      'active'
+    )
+  $$,
+  '23505',
+  null,
+  'database rejects duplicate active display order'
+);
+
+select public.admin_create_point_of_agreement(
+  'Local Regression RPC Created',
+  'RPC scripture',
+  'RPC target',
+  'RPC decree',
+  null,
+  current_date + 30,
+  'active'
+) as id
+into temporary table points_of_agreement_rpc_created;
+
+select is(
+  (select display_order from public.points_of_agreement where id = (select id from points_of_agreement_rpc_created)),
+  9003,
+  'admin create RPC assigns next active display order'
+);
+select public.admin_move_point_of_agreement((select id from points_of_agreement_rpc_created), 'up');
+select is(
+  (select display_order from public.points_of_agreement where id = (select id from points_of_agreement_rpc_created)),
+  9002,
+  'admin move RPC swaps with adjacent active point'
+);
+select throws_ok(
+  $$ select public.admin_move_point_of_agreement((select id from public.points_of_agreement where point_of_agreement = 'Local Regression Active Current'), 'up') $$,
+  '22023',
+  null,
+  'first active point cannot move up'
+);
+select public.admin_restore_point_of_agreement((select id from public.points_of_agreement where point_of_agreement = 'Local Regression Archived'));
+select is(
+  (select display_order from public.points_of_agreement where point_of_agreement = 'Local Regression Archived'),
+  9004,
+  'restore RPC assigns next active display order'
 );
 
 set local role anon;
@@ -141,7 +222,7 @@ select is(
   'anonymous can read active expired point through public view'
 );
 select is(
-  (select count(*) from public.public_points_of_agreement where point_of_agreement = 'Local Regression Archived'),
+  (select count(*) from public.public_points_of_agreement where point_of_agreement = 'Local Regression Archived Hidden'),
   0::bigint,
   'anonymous cannot read archived point through public view'
 );

@@ -4,6 +4,7 @@ import {
   archivePointOfAgreement,
   createPointOfAgreement,
   deletePointOfAgreement,
+  movePointOfAgreement,
   restorePointOfAgreement,
   updateGuideSettings,
   updatePointOfAgreement,
@@ -46,7 +47,8 @@ export default async function AdminPointsOfAgreementPage({
       .select("id, point_of_agreement, scripture, target, decree, additional_direction, expires_on, display_order, status, created_at, updated_at, archived_at")
       .order("status", { ascending: true })
       .order("display_order", { ascending: true })
-      .order("point_of_agreement", { ascending: true }),
+      .order("created_at", { ascending: true })
+      .order("id", { ascending: true }),
   ]);
   const guideSettings = settingsError || !settings
     ? DEFAULT_POINTS_OF_AGREEMENT_GUIDE_SETTINGS
@@ -76,7 +78,7 @@ export default async function AdminPointsOfAgreementPage({
           </div>
         </header>
 
-        {params?.point ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/15 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Point {params.point}.</p> : null}
+        {params?.point ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/15 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">{pointStatusMessage(params.point)}</p> : null}
         {settingsError ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/20 bg-[#fff3ed] px-4 py-3 text-sm font-bold text-[#a2472c]">Guide settings could not be loaded. Default text is shown.</p> : null}
         {pointsError ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/20 bg-[#fff3ed] px-4 py-3 text-sm font-bold text-[#a2472c]">Points could not be loaded.</p> : null}
 
@@ -122,21 +124,26 @@ export default async function AdminPointsOfAgreementPage({
           )}
         </section>
 
-        <PointList title="Active points" points={activePoints} />
+        <PointList title="Active points" points={activePoints} enableMoveControls />
         <PointList title="Archived points" points={archivedPoints} />
       </div>
     </main>
   );
 }
 
-function PointList({ title, points }: { title: string; points: PointOfAgreement[] }) {
+function PointList({ title, points, enableMoveControls = false }: { title: string; points: PointOfAgreement[]; enableMoveControls?: boolean }) {
   return (
     <section className="border-t border-[#284a3b]/10 py-8">
       <h2 className="text-3xl font-extrabold text-[#243d31]">{title}</h2>
       {points.length ? (
         <div className="mt-5 space-y-5">
-          {points.map((point) => (
-            <PointCard key={point.id} point={point} />
+          {points.map((point, index) => (
+            <PointCard
+              key={point.id}
+              point={point}
+              canMoveUp={enableMoveControls && index > 0}
+              canMoveDown={enableMoveControls && index < points.length - 1}
+            />
           ))}
         </div>
       ) : (
@@ -148,27 +155,33 @@ function PointList({ title, points }: { title: string; points: PointOfAgreement[
   );
 }
 
-function PointCard({ point }: { point: PointOfAgreement }) {
+function PointCard({ point, canMoveUp = false, canMoveDown = false }: { point: PointOfAgreement; canMoveUp?: boolean; canMoveDown?: boolean }) {
   const expirationState = getExpirationState(point.expires_on);
   const updateAction = updatePointOfAgreement.bind(null, point.id);
   const archiveAction = archivePointOfAgreement.bind(null, point.id);
   const restoreAction = restorePointOfAgreement.bind(null, point.id);
   const deleteAction = deletePointOfAgreement.bind(null, point.id);
+  const moveUpAction = movePointOfAgreement.bind(null, point.id, "up");
+  const moveDownAction = movePointOfAgreement.bind(null, point.id, "down");
 
   return (
     <article className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-lg shadow-[#4d5f52]/8">
       <div className="flex flex-col gap-3 border-b border-[#284a3b]/10 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Order {point.display_order} · {point.status}</p>
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Order {point.display_order} &middot; {point.status}</p>
           <h3 className="mt-2 text-2xl font-extrabold text-[#243d31]">{point.point_of_agreement}</h3>
           <p className="mt-2 text-sm font-bold text-[#607066]">
             Expires {formatGuideDate(point.expires_on)}
-            {expirationState === "expired" ? " · expired" : expirationState === "expiring-soon" ? " · expiring soon" : ""}
+            {expirationState === "expired" ? " - expired" : expirationState === "expiring-soon" ? " - expiring soon" : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {point.status === "active" ? (
-            <ConfirmActionButton action={archiveAction} label="Archive" pendingLabel="Archiving..." confirmation="Archive this point?" />
+            <>
+              <ConfirmActionButton action={moveUpAction} label="Move up" pendingLabel="Moving..." disabled={!canMoveUp} />
+              <ConfirmActionButton action={moveDownAction} label="Move down" pendingLabel="Moving..." disabled={!canMoveDown} />
+              <ConfirmActionButton action={archiveAction} label="Archive" pendingLabel="Archiving..." confirmation="Archive this point?" />
+            </>
           ) : (
             <ConfirmActionButton action={restoreAction} label="Restore" pendingLabel="Restoring..." confirmation="Restore this point to active?" />
           )}
@@ -180,4 +193,16 @@ function PointCard({ point }: { point: PointOfAgreement }) {
       </div>
     </article>
   );
+}
+
+function pointStatusMessage(value: string) {
+  const messages: Record<string, string> = {
+    created: "Point created.",
+    archived: "Point archived.",
+    restored: "Point restored.",
+    deleted: "Point deleted.",
+    "moved-up": "Point moved up.",
+    "moved-down": "Point moved down.",
+  };
+  return messages[value] ?? "Point updated.";
 }

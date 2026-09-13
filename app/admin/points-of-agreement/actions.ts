@@ -37,12 +37,6 @@ function readText(formData: FormData, name: string, label: string, maxLength: nu
   return { value };
 }
 
-function readDisplayOrder(formData: FormData) {
-  const value = Number(String(formData.get("displayOrder") ?? "").trim());
-  if (!Number.isInteger(value) || value < 1) return { error: "Display order must be a positive whole number." };
-  return { value };
-}
-
 function readExpirationDate(formData: FormData) {
   const value = String(formData.get("expiresOn") ?? "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return { error: "Expiration date is required." };
@@ -59,7 +53,7 @@ function readStatus(formData: FormData) {
   return { value };
 }
 
-function readPointFields(formData: FormData, { includeDisplayOrder }: { includeDisplayOrder: boolean }) {
+function readPointFields(formData: FormData) {
   const point = readText(formData, "pointOfAgreement", "Point of Agreement", TEXT_LIMITS.title);
   const scripture = readText(formData, "scripture", "Scripture", TEXT_LIMITS.scripture);
   const target = readText(formData, "target", "Target", TEXT_LIMITS.target);
@@ -67,8 +61,7 @@ function readPointFields(formData: FormData, { includeDisplayOrder }: { includeD
   const additionalDirection = readText(formData, "additionalDirection", "Additional Direction", TEXT_LIMITS.additionalDirection, false);
   const expiresOn = readExpirationDate(formData);
   const status = readStatus(formData);
-  const displayOrder = includeDisplayOrder ? readDisplayOrder(formData) : undefined;
-  const error = [point, scripture, target, decree, additionalDirection, expiresOn, displayOrder, status].find((field) => field?.error)?.error;
+  const error = [point, scripture, target, decree, additionalDirection, expiresOn, status].find((field) => field.error)?.error;
   if (error) return { error };
 
   return {
@@ -79,7 +72,6 @@ function readPointFields(formData: FormData, { includeDisplayOrder }: { includeD
       decree: decree.value!,
       additional_direction: additionalDirection.value || null,
       expires_on: expiresOn.value!,
-      ...(includeDisplayOrder ? { display_order: displayOrder!.value! } : {}),
       status: status.value!,
       archived_at: status.value === "archived" ? new Date().toISOString() : null,
     },
@@ -135,7 +127,7 @@ export async function updateGuideSettings(_: FormState, formData: FormData): Pro
 
 export async function createPointOfAgreement(_: FormState, formData: FormData): Promise<FormState> {
   const { supabase } = await requireAdmin();
-  const result = readPointFields(formData, { includeDisplayOrder: false });
+  const result = readPointFields(formData);
   if (result.error) return { error: result.error };
   if (!result.value) return { error: "This point could not be created." };
 
@@ -160,7 +152,7 @@ export async function updatePointOfAgreement(id: string, _: FormState, formData:
   const point = await loadPoint(supabase, id);
   if (!point) return { error: "This point could not be found." };
 
-  const result = readPointFields(formData, { includeDisplayOrder: true });
+  const result = readPointFields(formData);
   if (result.error) return { error: result.error };
   if (!result.value) return { error: "This point could not be saved." };
 

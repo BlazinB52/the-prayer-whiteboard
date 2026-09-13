@@ -58,16 +58,16 @@ export default async function PointsOfAgreementPage() {
             The Prayer & Intercession Guide could not be loaded.
           </p>
         ) : publicPoints.length ? (
-          <div className="mt-9 space-y-5">
+          <div className="mt-8 space-y-5 sm:mt-10 sm:space-y-6">
             {publicPoints.map((point, index) => (
-              <section key={`${point.display_order}-${point.point_of_agreement}`} className="rounded-[1.5rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-sm shadow-[#4d5f52]/5 sm:p-8">
-                <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">
+              <section key={`${point.display_order}-${point.point_of_agreement}`} className="rounded-[1.5rem] border border-[#284a3b]/20 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/10 sm:p-8">
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#946332]">
                   FOCUS {index + 1}: {point.point_of_agreement}
                 </p>
-                <GuideField label="SCRIPTURE" value={point.scripture} />
-                <GuideField label="TARGET" value={point.target} />
-                <GuideField label="DECREE" value={point.decree} />
-                {point.additional_direction ? <GuideField label="ADDITIONAL DIRECTION" value={point.additional_direction} /> : null}
+                <GuideField label="SCRIPTURE" value={point.scripture} variant="scripture" />
+                <GuideField label="TARGET" value={point.target} variant="target" />
+                <GuideField label="DECREE" value={point.decree} variant="decree" />
+                {point.additional_direction ? <GuideField label="ADDITIONAL DIRECTION" value={point.additional_direction} variant="direction" /> : null}
               </section>
             ))}
           </div>
@@ -95,11 +95,18 @@ export default async function PointsOfAgreementPage() {
   );
 }
 
-function GuideField({ label, value }: { label: string; value: string }) {
+function GuideField({ label, value, variant }: { label: string; value: string; variant: "scripture" | "target" | "decree" | "direction" }) {
+  const bodyClassName = {
+    scripture: "mt-2 rounded-2xl border-l-4 border-[#c99a52] bg-[#fff6e4] px-4 py-3 text-[#3f4f45] shadow-inner shadow-[#8b6531]/5 sm:px-5 sm:py-4 italic",
+    target: "mt-2 px-1 text-[#52645a]",
+    decree: "mt-2 rounded-2xl border-l-4 border-[#244a3a] bg-[#eaf2ec] px-4 py-3 text-[#31483b] shadow-inner shadow-[#244a3a]/5 sm:px-5 sm:py-4",
+    direction: "mt-2 rounded-2xl border border-[#d2a34f]/25 bg-[#fffaf0] px-4 py-3 text-[#5b6a61] sm:px-5",
+  }[variant];
+
   return (
-    <div className="mt-5">
-      <h2 className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#8e673c]">{label}:</h2>
-      <div className="mt-2 space-y-3 whitespace-pre-wrap leading-7 text-[#52645a]">{value}</div>
+    <div className={variant === "target" ? "mt-4 sm:mt-5" : "mt-5 sm:mt-6"}>
+      <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#243d31]">{label}:</h2>
+      <div className={`space-y-3 whitespace-pre-wrap break-words text-base font-normal leading-7 ${bodyClassName}`}>{value}</div>
     </div>
   );
 }

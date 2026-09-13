@@ -44,7 +44,14 @@ export function PointOfAgreementForm({ point, action }: { point?: PointOfAgreeme
       <Textarea label="Additional Direction" name="additionalDirection" defaultValue={point?.additional_direction ?? ""} maxLength={3000} rows={3} required={false} />
       <div className={`grid gap-4 ${point ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <TextInput label="Expiration date" name="expiresOn" type="date" defaultValue={point?.expires_on ?? ""} />
-        {point ? <TextInput label="Display order" name="displayOrder" type="number" min={1} defaultValue={String(point.display_order)} /> : null}
+        {point ? (
+          <div className="block text-sm font-bold text-[#385245]">
+            Display order
+            <div className="mt-2 flex min-h-12 items-center rounded-xl border border-[#284a3b]/10 bg-[#f4efe5] px-4 text-base font-extrabold text-[#385245]">
+              Order {point.display_order}
+            </div>
+          </div>
+        ) : null}
         <label className="block text-sm font-bold text-[#385245]">
           Status
           <select name="status" value={status} onChange={(event) => setStatus(event.target.value as PointOfAgreementStatus)} className="admin-input">

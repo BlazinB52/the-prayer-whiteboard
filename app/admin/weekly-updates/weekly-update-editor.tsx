@@ -5,10 +5,15 @@ import { useRouter } from "next/navigation";
 
 type FormState = { error?: string; saved?: boolean };
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
+export type WeeklyUpdateChalkboardOption = {
+  id: string;
+  label: string;
+};
 
-export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", submitLabel = "Save Weekly Update", sourceRequired = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; submitLabel?: string; sourceRequired?: boolean }) {
+export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", initialChalkboardAssetId = "", chalkboards = [], submitLabel = "Save Weekly Update", sourceRequired = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; initialChalkboardAssetId?: string | null; chalkboards?: WeeklyUpdateChalkboardOption[]; submitLabel?: string; sourceRequired?: boolean }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
+  const [chalkboardAssetId, setChalkboardAssetId] = useState(initialChalkboardAssetId ?? "");
   const [state, formAction, pending] = useActionState(async (previousState: FormState, formData: FormData) => {
     const result = await action(previousState, formData);
     if (result.saved) router.refresh();
@@ -19,6 +24,13 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
     <form action={formAction} className="space-y-4">
       {weeklyUpdateId ? <input type="hidden" name="weeklyUpdateId" value={weeklyUpdateId} /> : null}
       <label className="block text-sm font-bold text-[#385245]">Title<input name="title" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={180} className="admin-input" /></label>
+      <label className="block text-sm font-bold text-[#385245]">
+        Weekly Update chalkboard
+        <select name="chalkboardAssetId" value={chalkboardAssetId} onChange={(event) => setChalkboardAssetId(event.target.value)} className="admin-input">
+          <option value="">No Weekly Update chalkboard</option>
+          {chalkboards.map((chalkboard) => <option key={chalkboard.id} value={chalkboard.id}>{chalkboard.label}</option>)}
+        </select>
+      </label>
       <label className="block text-sm font-bold text-[#385245]">
         Weekly update document
         <input name="sourceDocument" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required={sourceRequired} className="admin-input py-2" />

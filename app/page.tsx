@@ -85,16 +85,43 @@ type PreviousGathering = {
   devotionalSlug?: string | null;
 };
 
-type CurrentWeeklyUpdate = { id: string; title: string } | null;
+type HomepageChalkboard = { url: string; altText: string; caption: string | null };
+type CurrentWeeklyUpdate = { id: string; title: string; chalkboard: HomepageChalkboard | null } | null;
+
+async function getSignedChalkboard(assetId: string | null): Promise<HomepageChalkboard | null> {
+  if (!assetId) return null;
+  const signer = createServiceRoleClient();
+  if (!signer) return null;
+  const { data: asset, error } = await signer
+    .from("chalkboard_assets")
+    .select("id, alt_text, caption, website_storage_path, storage_path, is_current_version, status")
+    .eq("id", assetId)
+    .eq("is_current_version", true)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error || !asset) return null;
+  const paths = [asset.website_storage_path, asset.storage_path].filter((path): path is string => Boolean(path));
+  for (const path of paths) {
+    const { data } = await signer.storage.from("chalkboards").createSignedUrl(path, 300);
+    if (data?.signedUrl) return { url: data.signedUrl, altText: asset.alt_text, caption: asset.caption };
+  }
+  return null;
+}
 
 async function getCurrentWeeklyUpdate(): Promise<CurrentWeeklyUpdate> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("public_current_weekly_update")
-    .select("id, title")
+    .select("id, title, chalkboard_asset_id")
     .maybeSingle();
 
-  return error || !data ? null : data;
+  if (error || !data) return null;
+  return {
+    id: data.id,
+    title: data.title,
+    chalkboard: await getSignedChalkboard(data.chalkboard_asset_id),
+  };
 }
 
 async function getPreviousGatherings(): Promise<PreviousGathering[]> {
@@ -144,14 +171,9 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   const selectedTeaching = (candidates ?? []).find((candidate) => candidate.id === teaching.id);
   if (!selectedTeaching) return null;
 
-  const signer = createServiceRoleClient();
-
-  const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assets, error: assetsError }, { data: previousGatherings, error: previousError }] = await Promise.all([
+  const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: previousGatherings, error: previousError }] = await Promise.all([
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status, highlight_horizontal_alignment").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
-    signer && selectedTeaching.chalkboard_asset_id
-      ? signer.from("chalkboard_assets").select("id, alt_text, caption, website_storage_path, storage_path, is_current_version, status").eq("id", selectedTeaching.chalkboard_asset_id).eq("is_current_version", true).eq("status", "active")
-      : Promise.resolve({ data: [], error: null }),
     supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").eq("is_featured", false).order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
   if (categoriesError || sectionsError || previousError) return null;
@@ -163,21 +185,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   const validSections = (sections ?? []).filter((section) => section.teaching_id === teaching.id && validCategories.some((category) => category.id === section.category_id));
   const highlights = validCategories.flatMap((category) => validSections.filter((section) => section.category_id === category.id).map((section) => ({ id: section.id, title: section.title, categoryTitle: category.title, content: section.content, highlightHorizontalAlignment: normalizeHighlightHorizontalAlignment(section.highlight_horizontal_alignment), selected: Boolean(section.content && typeof section.content === "object" && (section.content as Record<string, unknown>).homepageHighlight === true) }))).filter((section) => section.selected).slice(0, 4);
 
-  let chalkboard: FeaturedHomepageData["chalkboard"] = null;
-  const signableAssets = assetsError ? [] : assets ?? [];
-  if (signer) {
-    for (const asset of signableAssets) {
-      const paths = [asset.website_storage_path, asset.storage_path].filter((path): path is string => Boolean(path));
-      for (const path of paths) {
-        const { data } = await signer.storage.from("chalkboards").createSignedUrl(path, 300);
-        if (data?.signedUrl) {
-          chalkboard = { url: data.signedUrl, altText: asset.alt_text, caption: asset.caption };
-          break;
-        }
-      }
-      if (chalkboard) break;
-    }
-  }
+  const chalkboard = await getSignedChalkboard(selectedTeaching.chalkboard_asset_id);
 
   return {
     teaching: { ...selectedTeaching, hasPublishedDevotional: devotionalSlugsByTeachingId.has(teaching.id), devotionalSlug: devotionalSlugsByTeachingId.get(teaching.id) ?? null } as FeaturedHomepageData["teaching"],
@@ -205,11 +213,13 @@ function FeaturedHomepage({ data, weeklyUpdate }: { data: FeaturedHomepageData; 
   const teachingPath = `/teachings/${data.teaching.slug}`;
   const date = data.teaching.gathering_date ? new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${data.teaching.gathering_date}T00:00:00Z`)) : "Latest gathering";
   const description = data.teaching.central_theme || data.teaching.summary || data.teaching.introduction || "";
+  const heroChalkboard = weeklyUpdate?.chalkboard ?? data.chalkboard;
+  const heroChalkboardTitle = weeklyUpdate?.chalkboard ? weeklyUpdate.title : data.teaching.title;
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
       <PublicHeader maxWidthClassName="max-w-6xl" nav={homepageNav} />
-      <section className="relative"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" /><div className="relative mx-auto grid max-w-6xl gap-9 px-5 pb-14 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-20"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]"><Sparkles aria-hidden="true" size={15} />Welcome to our gathering place</p><h1 className="mt-6 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.045em] text-[#20382e] sm:text-6xl lg:text-7xl">Prayer changes things. <span className="text-[#a85e32]">The Word changes us.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.</p><WeeklyUpdateHeroButton weeklyUpdate={weeklyUpdate} /></div><div className="relative mx-auto w-full max-w-[510px]">{data.chalkboard ? <><div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" /><div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4"><a href={data.chalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger"><img src={data.chalkboard.url} alt={data.chalkboard.altText} className="h-auto w-full rounded-2xl object-contain" /></a>{data.chalkboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{data.chalkboard.caption}</p> : null}<div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p><p className="mt-1 font-extrabold text-[#263f33]">{data.teaching.title}</p></div></div></> : <div className="rounded-[1.75rem] border border-[#284a3b]/10 bg-[#fffdf8] p-8 text-center shadow-xl"><p className="text-sm font-bold text-[#607066]">Chalkboard coming soon</p></div>}</div></div></section>
+      <section className="relative"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" /><div className="relative mx-auto grid max-w-6xl gap-9 px-5 pb-14 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-20"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]"><Sparkles aria-hidden="true" size={15} />Welcome to our gathering place</p><h1 className="mt-6 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.045em] text-[#20382e] sm:text-6xl lg:text-7xl">Prayer changes things. <span className="text-[#a85e32]">The Word changes us.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.</p><WeeklyUpdateHeroButton weeklyUpdate={weeklyUpdate} /></div><div className="relative mx-auto w-full max-w-[510px]">{heroChalkboard ? <><div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" /><div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4"><a href={heroChalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger"><img src={heroChalkboard.url} alt={heroChalkboard.altText} className="h-auto w-full rounded-2xl object-contain" /></a>{heroChalkboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{heroChalkboard.caption}</p> : null}<div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p><p className="mt-1 font-extrabold text-[#263f33]">{heroChalkboardTitle}</p></div></div></> : <div className="rounded-[1.75rem] border border-[#284a3b]/10 bg-[#fffdf8] p-8 text-center shadow-xl"><p className="text-sm font-bold text-[#607066]">Chalkboard coming soon</p></div>}</div></div></section>
       <section id="latest" className="bg-[#244a3a] px-5 py-14 text-white sm:px-8 sm:py-20"><div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start"><div><p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">{date}</p><h2 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">{data.teaching.title}</h2><p className="mt-5 text-base leading-7 text-[#dce8e1]">{description}</p><HomepageTeachingActions slug={data.teaching.slug} hasPublishedDevotional={data.teaching.hasPublishedDevotional} devotionalSlug={data.teaching.devotionalSlug} variant="dark" className="mt-7" /></div><div className="grid gap-4 sm:grid-cols-2">{data.highlights.map((highlight, index) => <HomepageHighlightCard key={highlight.id} highlight={highlight} href={`${teachingPath}#section-${highlight.id}`} index={index} />)}</div></div></section>
       <StaticHomepageLowerSections previousGatherings={data.previousGatherings} />
       <PublicFooter />
@@ -356,6 +366,7 @@ function HomepageTeachingAction({ href, label, variant }: { href: string; label:
 }
 
 function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGatherings: PreviousGathering[]; weeklyUpdate: CurrentWeeklyUpdate }) {
+  const weeklyUpdateChalkboard = weeklyUpdate?.chalkboard ?? null;
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
       <PublicHeader maxWidthClassName="max-w-6xl" nav={homepageNav} />
@@ -380,17 +391,24 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
           <div className="relative mx-auto w-full max-w-[510px]">
             <div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" />
             <div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4">
-              <Image
-                src="/prayergroup/aliyah-chalkboard.jpg"
-                alt="Chalkboard teaching about Aliyah, Israel, the harvest, and prayer"
-                width={588}
-                height={734}
-                priority
-                className="h-auto w-full rounded-2xl"
-              />
+              {weeklyUpdateChalkboard ? (
+                <a href={weeklyUpdateChalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger">
+                  <img src={weeklyUpdateChalkboard.url} alt={weeklyUpdateChalkboard.altText} className="h-auto w-full rounded-2xl object-contain" />
+                </a>
+              ) : (
+                <Image
+                  src="/prayergroup/aliyah-chalkboard.jpg"
+                  alt="Chalkboard teaching about Aliyah, Israel, the harvest, and prayer"
+                  width={588}
+                  height={734}
+                  priority
+                  className="h-auto w-full rounded-2xl"
+                />
+              )}
+              {weeklyUpdateChalkboard?.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{weeklyUpdateChalkboard.caption}</p> : null}
               <div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10">
                 <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p>
-                <p className="mt-1 font-extrabold text-[#263f33]">Aliyah &middot; Israel &middot; The Harvest &middot; Prayer</p>
+                <p className="mt-1 font-extrabold text-[#263f33]">{weeklyUpdateChalkboard && weeklyUpdate ? weeklyUpdate.title : <>Aliyah &middot; Israel &middot; The Harvest &middot; Prayer</>}</p>
               </div>
             </div>
           </div>

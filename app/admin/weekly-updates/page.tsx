@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { archiveWeeklyUpdate, createWeeklyUpdate, publishWeeklyUpdate, updateWeeklyUpdate } from "./actions";
-import { WeeklyUpdateEditor } from "./weekly-update-editor";
+import { WeeklyUpdateEditor, type WeeklyUpdateChalkboardOption } from "./weekly-update-editor";
 import { WeeklyUpdateStatusButton } from "./status-buttons";
 import { WeeklyUpdateContent } from "@/app/weekly-update/weekly-update-content";
 import { requireAdmin } from "@/lib/supabase/admin";
@@ -19,11 +19,25 @@ function formatDate(value: string | null) {
 export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchParams: Promise<{ created?: string; published?: string; archived?: string }> }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
-  const { data: updates, error } = await supabase
-    .from("weekly_updates")
-    .select("id, title, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at")
-    .order("is_current", { ascending: false })
-    .order("updated_at", { ascending: false });
+  const [{ data: updates, error }, { data: chalkboards }] = await Promise.all([
+    supabase
+      .from("weekly_updates")
+      .select("id, title, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id")
+      .order("is_current", { ascending: false })
+      .order("updated_at", { ascending: false }),
+    supabase
+      .from("chalkboard_assets")
+      .select("id, canonical_name, title, chalkboard_date")
+      .eq("status", "active")
+      .eq("is_current_version", true)
+      .or("website_storage_path.not.is.null,storage_path.not.is.null")
+      .order("chalkboard_date", { ascending: false })
+      .order("canonical_name", { ascending: true }),
+  ]);
+  const chalkboardOptions: WeeklyUpdateChalkboardOption[] = (chalkboards ?? []).map((chalkboard) => ({
+    id: chalkboard.id,
+    label: `${formatDate(chalkboard.chalkboard_date)} - ${chalkboard.canonical_name ?? chalkboard.title}`,
+  }));
 
   return (
     <main className="admin-shell">
@@ -44,7 +58,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         <section className="py-8">
           <article className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8 sm:p-6">
             <h2 className="text-2xl font-extrabold text-[#243d31]">New weekly update</h2>
-            <div className="mt-5"><WeeklyUpdateEditor action={createWeeklyUpdate} submitLabel="Upload and convert draft" sourceRequired /></div>
+            <div className="mt-5"><WeeklyUpdateEditor action={createWeeklyUpdate} chalkboards={chalkboardOptions} submitLabel="Upload and convert draft" sourceRequired /></div>
           </article>
         </section>
 
@@ -61,6 +75,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <h3 className="mt-2 text-2xl font-extrabold text-[#243d31]">{update.title}</h3>
                       <p className="mt-2 text-sm text-[#607066]">Published: {formatDate(update.published_at)}{update.archived_at ? ` · Archived: ${formatDate(update.archived_at)}` : ""}</p>
                       <p className="mt-1 text-sm text-[#607066]">Source document: <span className="font-bold text-[#385245]">{update.source_document_file_name ?? "Not retained"}</span></p>
+                      <p className="mt-1 text-sm text-[#607066]">Weekly Update chalkboard: <span className="font-bold text-[#385245]">{chalkboardOptions.find((chalkboard) => chalkboard.id === update.chalkboard_asset_id)?.label ?? "None selected"}</span></p>
                     </div>
                     <div className="flex flex-wrap gap-3">
                       {update.status !== "archived" ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate} weeklyUpdateId={update.id} intent="publish" label="Publish current" /> : null}
@@ -70,7 +85,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   {update.status !== "archived" ? (
                     <details className="mt-5">
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit title or replace document</summary>
-                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialTitle={update.title} /></div>
+                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialTitle={update.title} initialChalkboardAssetId={update.chalkboard_asset_id} chalkboards={chalkboardOptions} /></div>
                     </details>
                   ) : null}
                   <details className="mt-5">

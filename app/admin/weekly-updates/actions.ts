@@ -81,6 +81,28 @@ function readWeeklyUpdateId(formData: FormData) {
   return { value };
 }
 
+async function readChalkboardAssetId(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  formData: FormData,
+) {
+  const value = String(formData.get("chalkboardAssetId") ?? "").trim();
+  if (!value) return { value: null };
+  if (!UUID_PATTERN.test(value)) return { error: "Choose a valid Weekly Update chalkboard." };
+
+  const { data, error } = await supabase
+    .from("chalkboard_assets")
+    .select("id, website_storage_path, storage_path")
+    .eq("id", value)
+    .eq("status", "active")
+    .eq("is_current_version", true)
+    .maybeSingle();
+
+  if (error) return { error: `Weekly Update chalkboard could not be verified: ${error.message}` };
+  if (!data) return { error: "Choose an active current chalkboard from the library." };
+  if (!data.website_storage_path && !data.storage_path) return { error: "Choose a chalkboard with a usable image file." };
+  return { value: data.id as string };
+}
+
 async function getAdminActionClient(): Promise<AdminActionClient> {
   const supabase = await createClient();
   const {
@@ -117,6 +139,8 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
   const title = cleanTitle(formData);
   if (title.error) return { error: title.error };
   if (!title.value) return { error: "Please check the weekly update details and try again." };
+  const chalkboard = await readChalkboardAssetId(supabase, formData);
+  if (chalkboard.error) return { error: chalkboard.error };
 
   const docx = await readDocx(formData, true);
   if (docx.error) return { error: docx.error };
@@ -135,6 +159,7 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
       converted_content: docx.value.converted.blocks,
       source_document_storage_path: stored.path,
       source_document_file_name: docx.value.fileName,
+      chalkboard_asset_id: chalkboard.value,
       status: "draft",
       is_current: false,
     })
@@ -156,11 +181,13 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
   const title = cleanTitle(formData);
   if (title.error) return { error: title.error };
   if (!title.value) return { error: "Please check the weekly update details and try again." };
+  const chalkboard = await readChalkboardAssetId(supabase, formData);
+  if (chalkboard.error) return { error: chalkboard.error };
 
   const docx = await readDocx(formData, false);
   if (docx.error) return { error: docx.error };
 
-  const update: Record<string, unknown> = { title: title.value };
+  const update: Record<string, unknown> = { title: title.value, chalkboard_asset_id: chalkboard.value };
   let storedPath: string | null = null;
   if (docx.value) {
     const stored = await storeSourceDocument(supabase, id.value, docx.value.fileName, docx.value.buffer);

@@ -213,7 +213,8 @@ export async function getChalkboardPreviewUrl(path: string) {
   return error ? null : data.signedUrl;
 }
 
-export async function updateChalkboardDetails(assetId: string, _: ChalkboardActionState, formData: FormData): Promise<ChalkboardActionState> {
+export async function updateChalkboardDetails(_: ChalkboardActionState, formData: FormData): Promise<ChalkboardActionState> {
+  const assetId = String(formData.get("chalkboardId") ?? "").trim();
   if (!validId(assetId)) return { error: "This chalkboard could not be found." };
   const names = buildNames(String(formData.get("chalkboardDate") ?? ""), String(formData.get("title") ?? ""));
   const altText = cleanText(String(formData.get("altText") ?? ""), 500);

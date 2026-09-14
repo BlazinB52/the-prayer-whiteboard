@@ -78,6 +78,7 @@ export function ChalkboardCard({ asset, updateAction, deleteAction }: { asset: A
           <details ref={detailsRef} className="mt-5">
             <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit details</summary>
             <form action={updateFormAction} className="mt-4 space-y-4">
+              <input type="hidden" name="chalkboardId" value={asset.id} />
               <label className="block text-sm font-bold text-[#385245]">Chalkboard date<input name="chalkboardDate" type="date" value={chalkboardDate} onChange={(event) => setChalkboardDate(event.target.value)} required className="admin-input" /></label>
               <label className="block text-sm font-bold text-[#385245]">Chalkboard title<input name="title" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={160} className="admin-input" /></label>
               <label className="block text-sm font-bold text-[#385245]">Alternative text<input name="altText" value={altText} onChange={(event) => setAltText(event.target.value)} required maxLength={500} className="admin-input" /></label>

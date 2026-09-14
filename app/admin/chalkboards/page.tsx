@@ -63,7 +63,7 @@ export default async function AdminChalkboardsPage() {
                     uploaded_at: asset.uploaded_at,
                     previewUrl: url,
                   }}
-                  updateAction={updateChalkboardDetails.bind(null, asset.id)}
+                  updateAction={updateChalkboardDetails}
                   deleteAction={deleteChalkboard.bind(null, asset.id)}
                 />
               ))}

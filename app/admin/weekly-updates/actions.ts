@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 
 type FormState = { error?: string; saved?: boolean };
 export type WeeklyUpdateActionState = { error?: string };
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SOURCE_BUCKET = "weekly-update-documents";
 const MAX_DOCX_BYTES = 8 * 1024 * 1024;
 

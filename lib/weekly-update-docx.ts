@@ -126,9 +126,9 @@ function paragraphStyle(paragraphXml: string, styles: Map<string, string>) {
   return styles.get(id) ?? id.toLowerCase();
 }
 
-function isFalseProperty(runProperties: string, tagName: "b" | "i") {
+function isOnProperty(runProperties: string, tagName: "b" | "i") {
   const match = new RegExp(`<w:${tagName}\\b([^>]*)\\/?>`, "i").exec(runProperties);
-  if (!match) return true;
+  if (!match) return false;
   return !/w:val="(?:0|false)"/i.test(match[1]);
 }
 
@@ -159,8 +159,8 @@ function parseRuns(paragraphXml: string) {
   for (const run of runMatches) {
     if (/<w:br\b[^>]*w:type="page"/i.test(run)) continue;
     const runProperties = /<w:rPr\b[\s\S]*?<\/w:rPr>/i.exec(run)?.[0] ?? "";
-    const bold = isFalseProperty(runProperties, "b");
-    const italic = isFalseProperty(runProperties, "i");
+    const bold = isOnProperty(runProperties, "b");
+    const italic = isOnProperty(runProperties, "i");
     const textMatches = run.match(/<w:t\b[^>]*>[\s\S]*?<\/w:t>|<w:tab\s*\/>|<w:br\s*\/>/g) ?? [];
     for (const part of textMatches) {
       if (/^<w:tab/i.test(part)) {

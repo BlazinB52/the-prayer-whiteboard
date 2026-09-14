@@ -4,12 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { convertDocxToWeeklyUpdate } from "@/lib/weekly-update-docx";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 
 type FormState = { error?: string; saved?: boolean };
 export type WeeklyUpdateActionState = { error?: string };
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
 const SOURCE_BUCKET = "weekly-update-documents";
 const MAX_DOCX_BYTES = 8 * 1024 * 1024;
+
+type AdminActionClient =
+  | { supabase: Awaited<ReturnType<typeof createClient>>; error: null }
+  | { supabase: null; error: string };
 
 function cleanTitle(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
@@ -67,6 +72,44 @@ async function storeSourceDocument(
   });
   if (error) return { error: "The source document could not be stored privately." };
   return { path };
+}
+
+function readWeeklyUpdateId(formData: FormData) {
+  const value = String(formData.get("weeklyUpdateId") ?? "").trim();
+  if (!value) return { error: "Missing weekly update ID." };
+  if (!UUID_PATTERN.test(value)) return { error: "Invalid weekly update ID." };
+  return { value };
+}
+
+async function getAdminActionClient(): Promise<AdminActionClient> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+  if (userError) return { supabase: null, error: `Administrator authentication failed: ${userError.message}` };
+  if (!user) return { supabase: null, error: "Administrator authorization is required." };
+
+  const { data: isAdmin, error: adminError } = await supabase.rpc("is_authenticated_admin");
+  if (adminError) return { supabase: null, error: `Administrator authorization could not be verified: ${adminError.message}` };
+  if (!isAdmin) return { supabase: null, error: "Administrator authorization is required." };
+
+  return { supabase, error: null };
+}
+
+async function readWeeklyUpdateForStatusAction(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  id: string,
+) {
+  const { data, error } = await supabase
+    .from("weekly_updates")
+    .select("id, status")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) return { error: `Database lookup failed: ${error.message}` };
+  if (!data) return { error: "Weekly update not found." };
+  return { data };
 }
 
 export async function createWeeklyUpdate(_: FormState, formData: FormData): Promise<FormState> {
@@ -146,30 +189,47 @@ export async function updateWeeklyUpdate(id: string, _: FormState, formData: For
   return { saved: true };
 }
 
-export async function publishWeeklyUpdate(id: string, previousState: WeeklyUpdateActionState): Promise<WeeklyUpdateActionState> {
+export async function publishWeeklyUpdate(previousState: WeeklyUpdateActionState, formData: FormData): Promise<WeeklyUpdateActionState> {
   void previousState;
-  if (!UUID_PATTERN.test(id)) return { error: "This weekly update could not be found." };
-  const { supabase } = await requireAdmin();
-  const { error } = await supabase.rpc("publish_weekly_update", { p_weekly_update_id: id });
-  if (error) return { error: error.message || "The weekly update could not be published." };
+  const id = readWeeklyUpdateId(formData);
+  if (id.error || !id.value) return { error: id.error ?? "Invalid weekly update ID." };
+  const admin = await getAdminActionClient();
+  if (!admin.supabase) return { error: admin.error };
+  const { supabase } = admin;
+
+  const existing = await readWeeklyUpdateForStatusAction(supabase, id.value);
+  if (existing.error || !existing.data) return { error: existing.error ?? "Weekly update not found." };
+  if (!["draft", "published"].includes(existing.data.status)) return { error: "Only draft or published weekly updates can be published." };
+
+  const { error } = await supabase.rpc("publish_weekly_update", { p_weekly_update_id: id.value });
+  if (error) return { error: `Weekly update publish failed: ${error.message}` };
   revalidatePath("/admin/weekly-updates");
   revalidatePath("/weekly-update");
   revalidatePath("/");
   redirect("/admin/weekly-updates?published=1");
 }
 
-export async function archiveWeeklyUpdate(id: string, previousState: WeeklyUpdateActionState): Promise<WeeklyUpdateActionState> {
+export async function archiveWeeklyUpdate(previousState: WeeklyUpdateActionState, formData: FormData): Promise<WeeklyUpdateActionState> {
   void previousState;
-  if (!UUID_PATTERN.test(id)) return { error: "This weekly update could not be found." };
-  const { supabase } = await requireAdmin();
+  const id = readWeeklyUpdateId(formData);
+  if (id.error || !id.value) return { error: id.error ?? "Invalid weekly update ID." };
+  const admin = await getAdminActionClient();
+  if (!admin.supabase) return { error: admin.error };
+  const { supabase } = admin;
+
+  const existing = await readWeeklyUpdateForStatusAction(supabase, id.value);
+  if (existing.error || !existing.data) return { error: existing.error ?? "Weekly update not found." };
+  if (!["draft", "published"].includes(existing.data.status)) return { error: "Only draft or published weekly updates can be archived." };
+
   const { data, error } = await supabase
     .from("weekly_updates")
     .update({ status: "archived", is_current: false, archived_at: new Date().toISOString() })
-    .eq("id", id)
+    .eq("id", id.value)
     .in("status", ["draft", "published"])
     .select("id")
     .maybeSingle();
-  if (error || !data) return { error: "The weekly update could not be archived." };
+  if (error) return { error: `Weekly update archive failed: ${error.message}` };
+  if (!data) return { error: "Weekly update not found." };
   revalidatePath("/admin/weekly-updates");
   revalidatePath("/weekly-update");
   revalidatePath("/");

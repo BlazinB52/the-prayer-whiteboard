@@ -56,7 +56,7 @@ export function WeeklyUpdateContent({ body, blocks }: { body?: string; blocks?: 
               </ul>
             );
           }
-          if (block.type === "quote") return <blockquote key={index} className="border-l-4 border-[#c99450] pl-5 text-lg font-bold italic leading-8 text-[#385245]">{renderChildren(block.children)}</blockquote>;
+          if (block.type === "quote") return <blockquote key={index} className="border-l-4 border-[#c99450] pl-5 text-lg font-bold leading-8 text-[#385245]">{renderChildren(block.children)}</blockquote>;
           return <p key={index} className="whitespace-pre-wrap leading-8">{renderChildren(block.children)}</p>;
         })}
       </div>
@@ -81,7 +81,7 @@ export function WeeklyUpdateContent({ body, blocks }: { body?: string; blocks?: 
           );
         }
         if (block.split("\n").every((line) => line.trim().startsWith(">"))) {
-          return <blockquote key={index} className="border-l-4 border-[#c99450] pl-5 text-lg font-bold italic leading-8 text-[#385245]">{block.split("\n").map((line) => line.trim().replace(/^>\s?/, "")).join(" ")}</blockquote>;
+          return <blockquote key={index} className="border-l-4 border-[#c99450] pl-5 text-lg font-bold leading-8 text-[#385245]">{block.split("\n").map((line) => line.trim().replace(/^>\s?/, "")).join(" ")}</blockquote>;
         }
         return <p key={index} className="whitespace-pre-wrap leading-8">{inlineParts(block)}</p>;
       })}

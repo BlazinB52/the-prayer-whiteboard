@@ -63,8 +63,8 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <p className="mt-1 text-sm text-[#607066]">Source document: <span className="font-bold text-[#385245]">{update.source_document_file_name ?? "Not retained"}</span></p>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      {update.status !== "archived" ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate.bind(null, update.id)} label="Publish current" /> : null}
-                      {update.status !== "archived" ? <WeeklyUpdateStatusButton action={archiveWeeklyUpdate.bind(null, update.id)} label="Archive" variant="danger" /> : null}
+                      {update.status !== "archived" ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate} weeklyUpdateId={update.id} intent="publish" label="Publish current" /> : null}
+                      {update.status !== "archived" ? <WeeklyUpdateStatusButton action={archiveWeeklyUpdate} weeklyUpdateId={update.id} intent="archive" label="Archive" variant="danger" /> : null}
                     </div>
                   </div>
                   {update.status !== "archived" ? (

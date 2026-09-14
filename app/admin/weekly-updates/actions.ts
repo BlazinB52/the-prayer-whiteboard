@@ -149,8 +149,9 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
   redirect("/admin/weekly-updates?created=1");
 }
 
-export async function updateWeeklyUpdate(id: string, _: FormState, formData: FormData): Promise<FormState> {
-  if (!UUID_PATTERN.test(id)) return { error: "This weekly update could not be found." };
+export async function updateWeeklyUpdate(_: FormState, formData: FormData): Promise<FormState> {
+  const id = readWeeklyUpdateId(formData);
+  if (id.error || !id.value) return { error: id.error ?? "Invalid weekly update ID." };
   const { supabase } = await requireAdmin();
   const title = cleanTitle(formData);
   if (title.error) return { error: title.error };
@@ -162,7 +163,7 @@ export async function updateWeeklyUpdate(id: string, _: FormState, formData: For
   const update: Record<string, unknown> = { title: title.value };
   let storedPath: string | null = null;
   if (docx.value) {
-    const stored = await storeSourceDocument(supabase, id, docx.value.fileName, docx.value.buffer);
+    const stored = await storeSourceDocument(supabase, id.value, docx.value.fileName, docx.value.buffer);
     if (stored.error || !stored.path) return { error: stored.error ?? "The source document could not be stored privately." };
     storedPath = stored.path;
     update.body_markdown = docx.value.converted.plainText;
@@ -174,7 +175,7 @@ export async function updateWeeklyUpdate(id: string, _: FormState, formData: For
   const { data, error } = await supabase
     .from("weekly_updates")
     .update(update)
-    .eq("id", id)
+    .eq("id", id.value)
     .in("status", ["draft", "published"])
     .select("id")
     .maybeSingle();

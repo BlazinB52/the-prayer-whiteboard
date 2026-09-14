@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 type FormState = { error?: string; saved?: boolean };
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
 
-export function WeeklyUpdateEditor({ action, initialTitle = "", submitLabel = "Save Weekly Update", sourceRequired = false }: { action: Action; initialTitle?: string; submitLabel?: string; sourceRequired?: boolean }) {
+export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", submitLabel = "Save Weekly Update", sourceRequired = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; submitLabel?: string; sourceRequired?: boolean }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [state, formAction, pending] = useActionState(async (previousState: FormState, formData: FormData) => {
@@ -17,6 +17,7 @@ export function WeeklyUpdateEditor({ action, initialTitle = "", submitLabel = "S
 
   return (
     <form action={formAction} className="space-y-4">
+      {weeklyUpdateId ? <input type="hidden" name="weeklyUpdateId" value={weeklyUpdateId} /> : null}
       <label className="block text-sm font-bold text-[#385245]">Title<input name="title" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={180} className="admin-input" /></label>
       <label className="block text-sm font-bold text-[#385245]">
         Weekly update document

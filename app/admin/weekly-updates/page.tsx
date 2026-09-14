@@ -70,7 +70,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   {update.status !== "archived" ? (
                     <details className="mt-5">
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit title or replace document</summary>
-                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate.bind(null, update.id)} initialTitle={update.title} /></div>
+                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialTitle={update.title} /></div>
                     </details>
                   ) : null}
                   <details className="mt-5">

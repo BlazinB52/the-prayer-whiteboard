@@ -12,8 +12,7 @@ const WEBSITE_WIDTH = 1080;
 const WEBSITE_HEIGHT = 1440;
 const DOWNLOAD_WIDTH = 2160;
 const DOWNLOAD_HEIGHT = 2880;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const INCOMING_PATH_PATTERN = /^library\/(\d{8})\/([^/]+)\/([0-9a-f-]{36})\/v1\/incoming\.(jpg|jpeg|png|webp)$/i;
 
 export type ChalkboardActionState = { error?: string; saved?: boolean; deleted?: boolean; path?: string; token?: string; assetGroupId?: string };

@@ -41,6 +41,33 @@ test("network failure is reported as failed without throwing", async () => {
   if (!result.ok) assert.equal(result.reason, "network");
 });
 
+test("network diagnostics exclude request secrets and recipient information", async () => {
+  const result = await sendSenderTransactionalEmail({
+    ...baseInput,
+    apiKey: "secret-sender-api-key",
+    toEmail: "reader@example.test",
+    html: "<a href=\"https://theprayerwhiteboard.com/subscribe/confirm?token=secret-token\">Confirm</a>",
+    text: "Confirm at https://theprayerwhiteboard.com/subscribe/confirm?token=secret-token",
+    fetcher: async () => {
+      const error = new Error("Failed for reader@example.test using secret-sender-api-key at https://theprayerwhiteboard.com/subscribe/confirm?token=secret-token", {
+        cause: { code: "UND_ERR_CONNECT_TIMEOUT" },
+      });
+      error.name = "TypeError";
+      throw error;
+    },
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.message, "Sender API request failed.");
+  assert.equal(JSON.stringify(result), JSON.stringify(result).includes("secret-sender-api-key") ? "contains secret" : JSON.stringify(result));
+  assert.equal(JSON.stringify(result).includes("reader@example.test"), false);
+  assert.equal(JSON.stringify(result).includes("secret-token"), false);
+  assert.equal(JSON.stringify(result).includes("theprayerwhiteboard.com/subscribe/confirm"), false);
+  if (!result.ok) {
+    assert.equal(result.diagnostic?.errorName, "TypeError");
+    assert.equal(result.diagnostic?.causeCode, "UND_ERR_CONNECT_TIMEOUT");
+  }
+});
+
 test("request timeout is reported distinctly", async () => {
   const result = await sendSenderTransactionalEmail({
     ...baseInput,

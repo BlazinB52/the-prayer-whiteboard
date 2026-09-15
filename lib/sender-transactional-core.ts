@@ -11,9 +11,15 @@ export type SenderTransactionalInput = {
   fetcher?: typeof fetch;
 };
 
+export type SenderDiagnostic = {
+  errorName: string | null;
+  errorMessage: string | null;
+  causeCode: string | null;
+};
+
 export type SenderTransactionalResult =
   | { ok: true; providerMessageId: string | null }
-  | { ok: false; reason: "configuration" | "rejected" | "timeout" | "network"; message: string };
+  | { ok: false; reason: "configuration" | "rejected" | "timeout" | "network"; message: string; diagnostic?: SenderDiagnostic };
 
 const SEND_ENDPOINT = "https://api.sender.net/v2/message/send";
 
@@ -21,6 +27,30 @@ function normalizeErrorMessage(value: unknown) {
   if (!value || typeof value !== "object") return null;
   const maybeMessage = (value as { message?: unknown }).message;
   return typeof maybeMessage === "string" ? maybeMessage.slice(0, 300) : null;
+}
+
+function redactDiagnosticValue(value: string, input: SenderTransactionalInput) {
+  const sensitiveValues = [input.apiKey, input.fromEmail, input.toEmail, input.toName, input.html, input.text].filter((item): item is string => Boolean(item));
+  let redacted = value.slice(0, 300);
+  for (const sensitive of sensitiveValues) {
+    redacted = redacted.split(sensitive).join("[redacted]");
+  }
+  return redacted
+    .replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[redacted-email]")
+    .replace(/https?:\/\/\S+/g, "[redacted-url]");
+}
+
+function diagnosticFromError(error: unknown, input: SenderTransactionalInput): SenderDiagnostic {
+  if (!(error instanceof Error)) {
+    return { errorName: null, errorMessage: null, causeCode: null };
+  }
+  const cause = error.cause;
+  const maybeCode = cause && typeof cause === "object" ? (cause as { code?: unknown }).code : null;
+  return {
+    errorName: redactDiagnosticValue(error.name, input),
+    errorMessage: redactDiagnosticValue(error.message, input),
+    causeCode: typeof maybeCode === "string" ? redactDiagnosticValue(maybeCode, input) : null,
+  };
 }
 
 export async function sendSenderTransactionalEmail(input: SenderTransactionalInput): Promise<SenderTransactionalResult> {
@@ -63,6 +93,6 @@ export async function sendSenderTransactionalEmail(input: SenderTransactionalInp
     if (error instanceof Error && error.name === "AbortError") {
       return { ok: false, reason: "timeout", message: "Sender API request timed out." };
     }
-    return { ok: false, reason: "network", message: "Sender API request failed." };
+    return { ok: false, reason: "network", message: "Sender API request failed.", diagnostic: diagnosticFromError(error, input) };
   }
 }

@@ -4,6 +4,7 @@ import { ArrowRight, BookOpenCheck, CalendarDays } from "lucide-react";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
+import { EmailUpdatesCta } from "@/app/email-updates-cta";
 import {
   getDevotionalDescription,
   getDevotionalPath,
@@ -77,6 +78,7 @@ export default async function DevotionalsPage() {
           )}
         </div>
       </section>
+      <EmailUpdatesCta copy="Want to receive 7-Day Devotionals and other content from The Prayer Whiteboard? Choose the emails you would like to receive." />
       <PublicFooter />
       <ReturnToTop />
     </main>

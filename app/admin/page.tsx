@@ -35,6 +35,11 @@ const tools = [
     status: "Available",
   },
   {
+    title: "Email Subscribers",
+    description: "View opt-in status, category preferences, and Sender sync state.",
+    status: "Available",
+  },
+  {
     title: "Homepage Settings",
     description: "Shape the public Whiteboard experience.",
     status: "Coming next",
@@ -99,6 +104,10 @@ export default async function AdminDashboardPage() {
                       </Link>
                     ) : tool.title === "Footers" ? (
                       <Link href="/admin/footers" className="transition hover:text-[#a85e32]">
+                        {tool.title}
+                      </Link>
+                    ) : tool.title === "Email Subscribers" ? (
+                      <Link href="/admin/subscribers" className="transition hover:text-[#a85e32]">
                         {tool.title}
                       </Link>
                     ) : (

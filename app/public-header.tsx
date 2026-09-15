@@ -22,7 +22,7 @@ export function PublicHeader({ maxWidthClassName = "max-w-5xl", nav, homeLabel =
             <nav className="hidden items-center gap-7 text-sm font-bold text-[#385245] md:flex" aria-label="Main navigation">
               {nav.map((item) => <a key={item.href} href={item.href} className="transition hover:text-[#a45e2e]">{item.label}</a>)}
             </nav>
-            <a href={nav[nav.length - 1]?.href ?? "#"} className="grid size-11 shrink-0 place-items-center rounded-xl border border-[#284a3b]/15 bg-white text-[#244a3a] md:hidden" aria-label="Jump to gatherings">
+            <a href={nav[nav.length - 1]?.href ?? "#"} className="grid size-11 shrink-0 place-items-center rounded-xl border border-[#284a3b]/15 bg-white text-[#244a3a] md:hidden" aria-label={`Open ${nav[nav.length - 1]?.label ?? "navigation"}`}>
               <Menu aria-hidden="true" size={22} />
             </a>
           </>

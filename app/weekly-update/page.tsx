@@ -6,6 +6,7 @@ import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { ContentFooter } from "@/app/content-footer";
+import { EmailUpdatesCta } from "@/app/email-updates-cta";
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyUpdateContent } from "./weekly-update-content";
 import { WeeklyUpdatePrintButton } from "./print-button";
@@ -69,6 +70,7 @@ export default async function WeeklyUpdatePage() {
           {footer?.status === "active" ? <ContentFooter content={footer.content} /> : null}
         </div>
       </article>
+      <EmailUpdatesCta copy="Want to receive this Weekly Update and other content from The Prayer Whiteboard? Choose the emails you would like to receive." />
       <PublicFooter />
       <ReturnToTop />
     </main>

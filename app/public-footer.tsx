@@ -16,6 +16,12 @@ export function PublicFooter() {
         <Link href="/devotionals" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f1c66f]">
           Devotionals
         </Link>
+        <Link href="/subscribe" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f1c66f]">
+          Email Updates
+        </Link>
+        <Link href="/privacy" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f1c66f]">
+          Privacy
+        </Link>
         <a href={`mailto:${contactEmail}`} className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f1c66f]">
           Contact
         </a>

@@ -6,7 +6,6 @@ import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { ContentFooter } from "@/app/content-footer";
-import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyUpdateContent } from "./weekly-update-content";
 import { WeeklyUpdatePrintButton } from "./print-button";
@@ -27,15 +26,13 @@ export default async function WeeklyUpdatePage() {
     .maybeSingle();
 
   if (error || !data) notFound();
-  const signer = createServiceRoleClient();
-  const footerClient = signer ?? supabase;
-  const { data: footerAssignment } = await footerClient
+  const { data: footerAssignment } = await supabase
     .from("weekly_update_footer_assignments")
     .select("footer_id")
     .eq("weekly_update_id", data.id)
     .maybeSingle();
   const { data: footer } = footerAssignment?.footer_id
-    ? await footerClient
+    ? await supabase
         .from("content_footers")
         .select("content, status")
         .eq("id", footerAssignment.footer_id)

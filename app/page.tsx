@@ -87,10 +87,11 @@ type PreviousGathering = {
 
 type HomepageChalkboard = { url: string; altText: string; caption: string | null };
 type CurrentWeeklyUpdate = { id: string; title: string; chalkboard: HomepageChalkboard | null } | null;
+type ServiceRoleClient = NonNullable<ReturnType<typeof createServiceRoleClient>>;
 
-async function getSignedChalkboard(assetId: string | null): Promise<HomepageChalkboard | null> {
+async function getSignedChalkboard(assetId: string | null, client?: ServiceRoleClient): Promise<HomepageChalkboard | null> {
   if (!assetId) return null;
-  const signer = createServiceRoleClient();
+  const signer = client ?? createServiceRoleClient();
   if (!signer) return null;
   const { data: asset, error } = await signer
     .from("chalkboard_assets")
@@ -113,20 +114,29 @@ async function getCurrentWeeklyUpdate(): Promise<CurrentWeeklyUpdate> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("public_current_weekly_update")
-    .select("id, title")
+    .select("id, title, chalkboard_asset_id")
     .maybeSingle();
 
   if (error || !data) return null;
-  const { data: assignments } = await supabase
-    .from("weekly_update_chalkboard_assignments")
-    .select("chalkboard_asset_id, display_order")
-    .eq("weekly_update_id", data.id)
-    .order("display_order", { ascending: true })
-    .limit(1);
+  const signer = createServiceRoleClient();
+  const { data: assignments } = signer
+    ? await signer
+        .from("weekly_update_chalkboard_assignments")
+        .select("chalkboard_asset_id, display_order")
+        .eq("weekly_update_id", data.id)
+        .order("display_order", { ascending: true })
+    : { data: null };
+  const assignedChalkboardIds = (assignments ?? []).map((assignment) => assignment.chalkboard_asset_id as string).filter(Boolean);
+  const candidateChalkboardIds = [...assignedChalkboardIds, data.chalkboard_asset_id as string | null].filter((assetId, index, values): assetId is string => Boolean(assetId) && values.indexOf(assetId) === index);
+  let chalkboard: HomepageChalkboard | null = null;
+  for (const assetId of candidateChalkboardIds) {
+    chalkboard = await getSignedChalkboard(assetId, signer ?? undefined);
+    if (chalkboard) break;
+  }
   return {
     id: data.id,
     title: data.title,
-    chalkboard: await getSignedChalkboard(assignments?.[0]?.chalkboard_asset_id ?? null),
+    chalkboard,
   };
 }
 

@@ -90,6 +90,14 @@ test("raw tokens are not stored in delivery metadata fields", async () => {
   assert.equal(source.includes("deliveryStatus: \"sender_not_configured\""), false);
 });
 
+test("new access tokens replace older unused access tokens for the same subscriber", async () => {
+  const source = await readFile("lib/email-subscriptions.ts", "utf8");
+  assert.match(source, /\.from\("email_access_tokens"\)\s*\.update\(\{ used_at: new Date\(\)\.toISOString\(\) \}\)/);
+  assert.match(source, /\.eq\("subscriber_id", subscriberId\)/);
+  assert.match(source, /\.eq\("token_type", tokenType\)/);
+  assert.match(source, /\.is\("used_at", null\)/);
+});
+
 test("existing Sender devotional embedded form remains unchanged", async () => {
   const source = await readFile("app/devotionals/start/subscription-form.tsx", "utf8");
   assert.match(source, /SENDER_FORM_ID = "dyPEr6"/);

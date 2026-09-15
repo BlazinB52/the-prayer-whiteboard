@@ -110,6 +110,13 @@ async function createAccessToken(subscriberId: string, tokenType: "confirmation"
   const supabase = getClient();
   const token = generateToken();
   const expiresAt = tokenType === "confirmation" ? expiresInHours(CONFIRMATION_TTL_HOURS) : expiresInMinutes(MANAGEMENT_TTL_MINUTES);
+  const { error: replacementError } = await supabase
+    .from("email_access_tokens")
+    .update({ used_at: new Date().toISOString() })
+    .eq("subscriber_id", subscriberId)
+    .eq("token_type", tokenType)
+    .is("used_at", null);
+  if (replacementError) throw new Error("Access token could not be replaced.");
   const { error } = await supabase.from("email_access_tokens").insert({
     subscriber_id: subscriberId,
     token_type: tokenType,

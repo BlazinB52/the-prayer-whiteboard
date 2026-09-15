@@ -23,6 +23,14 @@ export type SenderTransactionalResult =
 
 const SEND_ENDPOINT = "https://api.sender.net/v2/message/send";
 
+function normalizeApiKey(apiKey: string) {
+  return apiKey.replace(/^\uFEFF+|\uFEFF+$/g, "").trim();
+}
+
+function isSafeHeaderValue(value: string) {
+  return /^[\x20-\x7E]+$/.test(value);
+}
+
 function normalizeErrorMessage(value: unknown) {
   if (!value || typeof value !== "object") return null;
   const maybeMessage = (value as { message?: unknown }).message;
@@ -54,7 +62,8 @@ function diagnosticFromError(error: unknown, input: SenderTransactionalInput): S
 }
 
 export async function sendSenderTransactionalEmail(input: SenderTransactionalInput): Promise<SenderTransactionalResult> {
-  if (!input.apiKey || !input.fromEmail || !input.fromName) {
+  const apiKey = normalizeApiKey(input.apiKey);
+  if (!apiKey || !isSafeHeaderValue(apiKey) || !input.fromEmail || !input.fromName) {
     return { ok: false, reason: "configuration", message: "Sender transactional email is not configured." };
   }
 
@@ -66,7 +75,7 @@ export async function sendSenderTransactionalEmail(input: SenderTransactionalInp
     const response = await fetcher(SEND_ENDPOINT, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${input.apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         Accept: "application/json",
         "Content-Type": "application/json",
       },

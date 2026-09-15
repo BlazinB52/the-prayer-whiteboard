@@ -32,6 +32,34 @@ test("Sender API rejection is reported as failed without throwing", async () => 
   if (!result.ok) assert.equal(result.reason, "rejected");
 });
 
+test("Sender API key is normalized before building the Authorization header", async () => {
+  let authorizationHeader = "";
+  const result = await sendSenderTransactionalEmail({
+    ...baseInput,
+    apiKey: "\uFEFF test-api-key \uFEFF",
+    fetcher: async (_url, init) => {
+      authorizationHeader = new Headers(init?.headers).get("Authorization") ?? "";
+      return new Response(JSON.stringify({ emailId: "message-123" }), { status: 200 });
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.equal(authorizationHeader, "Bearer test-api-key");
+});
+
+test("unsafe Sender API keys are rejected before the request is sent", async () => {
+  let requestWasSent = false;
+  const result = await sendSenderTransactionalEmail({
+    ...baseInput,
+    apiKey: "test-api-key\u0100",
+    fetcher: async () => {
+      requestWasSent = true;
+      return new Response("{}", { status: 200 });
+    },
+  });
+  assert.deepEqual(result, { ok: false, reason: "configuration", message: "Sender transactional email is not configured." });
+  assert.equal(requestWasSent, false);
+});
+
 test("network failure is reported as failed without throwing", async () => {
   const result = await sendSenderTransactionalEmail({
     ...baseInput,

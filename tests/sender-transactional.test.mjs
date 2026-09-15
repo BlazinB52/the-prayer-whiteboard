@@ -72,6 +72,38 @@ test("Sender API key is normalized before building the Authorization header", as
   assert.equal(authorizationHeader, "Bearer test-api-key");
 });
 
+test("Sender From address and name are normalized before building the payload", async () => {
+  let body = {};
+  const result = await sendSenderTransactionalEmail({
+    ...baseInput,
+    fromEmail: "\uFEFF Updates@ThePrayerWhiteboard.com \uFEFF",
+    fromName: "\uFEFF The Prayer Whiteboard \uFEFF",
+    fetcher: async (_url, init) => {
+      body = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify({ emailId: "message-123" }), { status: 200 });
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(body.from, {
+    email: "updates@theprayerwhiteboard.com",
+    name: "The Prayer Whiteboard",
+  });
+});
+
+test("invalid Sender From address is rejected before the request is sent", async () => {
+  let requestWasSent = false;
+  const result = await sendSenderTransactionalEmail({
+    ...baseInput,
+    fromEmail: "\uFEFF not-an-email \uFEFF",
+    fetcher: async () => {
+      requestWasSent = true;
+      return new Response("{}", { status: 200 });
+    },
+  });
+  assert.deepEqual(result, { ok: false, reason: "configuration", message: "Sender transactional email is not configured." });
+  assert.equal(requestWasSent, false);
+});
+
 test("unsafe Sender API keys are rejected before the request is sent", async () => {
   let requestWasSent = false;
   const result = await sendSenderTransactionalEmail({

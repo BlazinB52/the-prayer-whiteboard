@@ -33,8 +33,20 @@ function normalizeApiKey(apiKey: string) {
   return apiKey.replace(/^\uFEFF+|\uFEFF+$/g, "").trim();
 }
 
+function normalizeHeaderText(value: string) {
+  return value.replace(/^\uFEFF+|\uFEFF+$/g, "").trim();
+}
+
+function normalizeEmail(value: string) {
+  return normalizeHeaderText(value).toLowerCase();
+}
+
 function isSafeHeaderValue(value: string) {
   return /^[\x20-\x7E]+$/.test(value);
+}
+
+function isEmailAddress(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
 function normalizeErrorMessage(value: unknown) {
@@ -85,7 +97,9 @@ async function readRejectionPayload(response: Response) {
 
 export async function sendSenderTransactionalEmail(input: SenderTransactionalInput): Promise<SenderTransactionalResult> {
   const apiKey = normalizeApiKey(input.apiKey);
-  if (!apiKey || !isSafeHeaderValue(apiKey) || !input.fromEmail || !input.fromName) {
+  const fromEmail = normalizeEmail(input.fromEmail);
+  const fromName = normalizeHeaderText(input.fromName);
+  if (!apiKey || !isSafeHeaderValue(apiKey) || !fromEmail || !isEmailAddress(fromEmail) || !fromName) {
     return { ok: false, reason: "configuration", message: "Sender transactional email is not configured." };
   }
 
@@ -102,7 +116,7 @@ export async function sendSenderTransactionalEmail(input: SenderTransactionalInp
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: { email: input.fromEmail, name: input.fromName },
+        from: { email: fromEmail, name: fromName },
         to: { email: input.toEmail, name: input.toName || input.toEmail },
         subject: input.subject,
         html: input.html,

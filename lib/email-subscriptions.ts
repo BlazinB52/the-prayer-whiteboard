@@ -128,7 +128,7 @@ async function createAccessToken(subscriberId: string, tokenType: "confirmation"
 }
 
 function siteUrl() {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL || "https://theprayerwhiteboard.com";
+  const configured = (process.env.NEXT_PUBLIC_SITE_URL || "https://theprayerwhiteboard.com").replace(/^\uFEFF+|\uFEFF+$/g, "").trim();
   if (process.env.NODE_ENV === "production" && configured.includes("localhost")) {
     throw new Error("Production subscription links cannot use localhost.");
   }

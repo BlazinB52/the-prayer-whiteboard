@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(15);
 
 create temp table email_subscription_test_ids (
   key text primary key,
@@ -13,9 +13,10 @@ values
   ('regular_user', '00000000-0000-4000-a000-000000000503'),
   ('admin_auth', '00000000-0000-4000-a000-000000000502'),
   ('subscriber', '00000000-0000-4000-a000-000000000511'),
-  ('legacy_subscriber', '00000000-0000-4000-a000-000000000512');
+  ('legacy_subscriber', '00000000-0000-4000-a000-000000000512'),
+  ('service_subscriber', '00000000-0000-4000-a000-000000000513');
 
-grant select on email_subscription_test_ids to anon, authenticated;
+grant select on email_subscription_test_ids to anon, authenticated, service_role;
 
 insert into auth.users (
   instance_id,
@@ -191,6 +192,84 @@ select is(
   (select count(*) from public.email_subscribers),
   0::bigint,
   'anonymous users cannot read existing subscriber rows'
+);
+
+set local role service_role;
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claim.role', 'service_role', true);
+
+insert into public.email_subscribers (id, first_name, email, normalized_email, status)
+values ((select id from email_subscription_test_ids where key = 'service_subscriber'), 'Server', 'server-subscription@example.test', 'server-subscription@example.test', 'pending');
+
+insert into public.email_subscription_preferences (subscriber_id, category, status)
+values ((select id from email_subscription_test_ids where key = 'service_subscriber'), 'weekly_updates', 'pending');
+
+insert into public.email_access_tokens (subscriber_id, token_type, token_hash, expires_at)
+values ((select id from email_subscription_test_ids where key = 'service_subscriber'), 'confirmation', repeat('b', 64), now() + interval '1 hour');
+
+insert into public.email_delivery_events (subscriber_id, provider, message_type, status)
+values ((select id from email_subscription_test_ids where key = 'service_subscriber'), 'sender', 'confirmation', 'queued');
+
+insert into public.email_consent_events (subscriber_id, event_type, categories, first_name, normalized_email)
+values ((select id from email_subscription_test_ids where key = 'service_subscriber'), 'subscription_requested', array['weekly_updates']::text[], 'Server', 'server-subscription@example.test');
+
+select ok(
+  exists (
+    select 1
+    from public.email_subscribers subscriber
+    join public.email_subscription_preferences preference on preference.subscriber_id = subscriber.id
+    join public.email_access_tokens token on token.subscriber_id = subscriber.id
+    join public.email_delivery_events delivery on delivery.subscriber_id = subscriber.id
+    join public.email_consent_events consent on consent.subscriber_id = subscriber.id
+    where subscriber.id = (select id from email_subscription_test_ids where key = 'service_subscriber')
+      and preference.category = 'weekly_updates'
+      and token.token_type = 'confirmation'
+      and delivery.status = 'queued'
+      and consent.event_type = 'subscription_requested'
+  ),
+  'service_role can create server-side subscription records'
+);
+
+update public.email_access_tokens
+set used_at = now()
+where subscriber_id = (select id from email_subscription_test_ids where key = 'service_subscriber');
+
+update public.email_delivery_events
+set status = 'sent', provider_message_id = 'local-test-message'
+where subscriber_id = (select id from email_subscription_test_ids where key = 'service_subscriber');
+
+update public.email_subscribers
+set status = 'confirmed', confirmed_at = now()
+where id = (select id from email_subscription_test_ids where key = 'service_subscriber');
+
+update public.email_subscription_preferences
+set status = 'active', confirmed_at = now()
+where subscriber_id = (select id from email_subscription_test_ids where key = 'service_subscriber');
+
+select ok(
+  exists (
+    select 1
+    from public.email_subscribers subscriber
+    join public.email_subscription_preferences preference on preference.subscriber_id = subscriber.id
+    join public.email_access_tokens token on token.subscriber_id = subscriber.id
+    join public.email_delivery_events delivery on delivery.subscriber_id = subscriber.id
+    where subscriber.id = (select id from email_subscription_test_ids where key = 'service_subscriber')
+      and subscriber.status = 'confirmed'
+      and preference.status = 'active'
+      and token.used_at is not null
+      and delivery.status = 'sent'
+  ),
+  'service_role can update subscription workflow records'
+);
+
+set local role anon;
+select set_config('request.jwt.claim.sub', '', true);
+select set_config('request.jwt.claim.role', 'anon', true);
+
+select is(
+  (select count(*) from public.email_subscribers where id = (select id from email_subscription_test_ids where key = 'service_subscriber')),
+  0::bigint,
+  'anonymous users cannot read service_role-created subscriber rows'
 );
 
 set local role authenticated;

@@ -142,20 +142,29 @@ async function upsertActiveSubscribers(activeRows) {
     ];
     const { error: preferenceError } = await supabase.from("email_subscription_preferences").upsert(preferences, { onConflict: "subscriber_id,category" });
     if (preferenceError) throw preferenceError;
-    const { error: consentError } = await supabase.from("email_consent_events").insert({
-      subscriber_id: subscriberId,
-      event_type: "legacy_devotional_imported",
-      categories: ["devotionals"],
-      first_name: firstName.slice(0, 120),
-      normalized_email: email,
-      metadata: {
-        source: "sender.net",
-        source_form: "existing devotional double opt-in form",
-        confirmation_timestamp_available: Boolean(confirmedAt),
-        email_fingerprint: fingerprint(email),
-      },
-    });
-    if (consentError) throw consentError;
+    const { count: existingConsentCount, error: consentReadError } = await supabase
+      .from("email_consent_events")
+      .select("id", { count: "exact", head: true })
+      .eq("subscriber_id", subscriberId)
+      .eq("event_type", "legacy_devotional_imported")
+      .contains("categories", ["devotionals"]);
+    if (consentReadError) throw consentReadError;
+    if (!existingConsentCount) {
+      const { error: consentError } = await supabase.from("email_consent_events").insert({
+        subscriber_id: subscriberId,
+        event_type: "legacy_devotional_imported",
+        categories: ["devotionals"],
+        first_name: firstName.slice(0, 120),
+        normalized_email: email,
+        metadata: {
+          source: "sender.net",
+          source_form: "existing devotional double opt-in form",
+          confirmation_timestamp_available: Boolean(confirmedAt),
+          email_fingerprint: fingerprint(email),
+        },
+      });
+      if (consentError) throw consentError;
+    }
   }
 }
 

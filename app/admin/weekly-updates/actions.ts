@@ -81,26 +81,70 @@ function readWeeklyUpdateId(formData: FormData) {
   return { value };
 }
 
-async function readChalkboardAssetId(
+async function readChalkboardAssetIds(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
   formData: FormData,
 ) {
-  const value = String(formData.get("chalkboardAssetId") ?? "").trim();
-  if (!value) return { value: null };
-  if (!UUID_PATTERN.test(value)) return { error: "Choose a valid Weekly Update chalkboard." };
+  const values = Array.from(new Set(formData.getAll("chalkboardAssetIds").map((value) => String(value).trim()).filter(Boolean)));
+  if (!values.length) return { value: [] as string[] };
+  if (values.some((value) => !UUID_PATTERN.test(value))) return { error: "Choose valid Weekly Update chalkboards." };
 
   const { data, error } = await supabase
     .from("chalkboard_assets")
     .select("id, website_storage_path, storage_path")
-    .eq("id", value)
+    .in("id", values)
     .eq("status", "active")
-    .eq("is_current_version", true)
-    .maybeSingle();
+    .eq("is_current_version", true);
 
   if (error) return { error: `Weekly Update chalkboard could not be verified: ${error.message}` };
-  if (!data) return { error: "Choose an active current chalkboard from the library." };
-  if (!data.website_storage_path && !data.storage_path) return { error: "Choose a chalkboard with a usable image file." };
-  return { value: data.id as string };
+  if ((data ?? []).length !== values.length) return { error: "Choose active current chalkboards from the library." };
+  if ((data ?? []).some((asset) => !asset.website_storage_path && !asset.storage_path)) return { error: "Choose chalkboards with usable image files." };
+  return { value: values };
+}
+
+async function replaceWeeklyUpdateChalkboards(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  weeklyUpdateId: string,
+  chalkboardAssetIds: string[],
+) {
+  const { error: deleteError } = await supabase.from("weekly_update_chalkboard_assignments").delete().eq("weekly_update_id", weeklyUpdateId);
+  if (deleteError) return { error: "This Weekly Update's chalkboard assignments could not be updated." };
+  if (!chalkboardAssetIds.length) return {};
+  const { error: insertError } = await supabase.from("weekly_update_chalkboard_assignments").insert(chalkboardAssetIds.map((chalkboardAssetId, index) => ({
+    weekly_update_id: weeklyUpdateId,
+    chalkboard_asset_id: chalkboardAssetId,
+    display_order: index + 1,
+  })));
+  if (insertError) return { error: "This Weekly Update's chalkboard assignments could not be saved." };
+  return {};
+}
+
+async function readFooterAssignment(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  formData: FormData,
+) {
+  const includeFooter = formData.get("includeFooter") === "on" || formData.get("includeFooter") === "true";
+  const footerId = String(formData.get("footerId") ?? "").trim();
+  if (!includeFooter) return { value: null };
+  if (!footerId) return { error: "Choose a footer or uncheck Include footer." };
+  if (!UUID_PATTERN.test(footerId)) return { error: "Choose a valid footer." };
+  const { data, error } = await supabase.from("content_footers").select("id").eq("id", footerId).eq("status", "active").maybeSingle();
+  if (error) return { error: "The selected footer could not be verified." };
+  if (!data) return { error: "Choose an active footer from the library." };
+  return { value: footerId };
+}
+
+async function replaceWeeklyUpdateFooter(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  weeklyUpdateId: string,
+  footerId: string | null,
+) {
+  const { error: deleteError } = await supabase.from("weekly_update_footer_assignments").delete().eq("weekly_update_id", weeklyUpdateId);
+  if (deleteError) return { error: "This Weekly Update's footer assignment could not be updated." };
+  if (!footerId) return {};
+  const { error: insertError } = await supabase.from("weekly_update_footer_assignments").insert({ weekly_update_id: weeklyUpdateId, footer_id: footerId });
+  if (insertError) return { error: "This Weekly Update's footer assignment could not be saved." };
+  return {};
 }
 
 async function getAdminActionClient(): Promise<AdminActionClient> {
@@ -139,8 +183,10 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
   const title = cleanTitle(formData);
   if (title.error) return { error: title.error };
   if (!title.value) return { error: "Please check the weekly update details and try again." };
-  const chalkboard = await readChalkboardAssetId(supabase, formData);
+  const chalkboard = await readChalkboardAssetIds(supabase, formData);
   if (chalkboard.error) return { error: chalkboard.error };
+  const footer = await readFooterAssignment(supabase, formData);
+  if (footer.error) return { error: footer.error };
 
   const docx = await readDocx(formData, true);
   if (docx.error) return { error: docx.error };
@@ -159,7 +205,7 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
       converted_content: docx.value.converted.blocks,
       source_document_storage_path: stored.path,
       source_document_file_name: docx.value.fileName,
-      chalkboard_asset_id: chalkboard.value,
+      chalkboard_asset_id: chalkboard.value?.[0] ?? null,
       status: "draft",
       is_current: false,
     })
@@ -169,6 +215,10 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
     await supabase.storage.from(SOURCE_BUCKET).remove([stored.path]);
     return { error: "The weekly update could not be created." };
   }
+  const chalkboardResult = await replaceWeeklyUpdateChalkboards(supabase, data.id, chalkboard.value ?? []);
+  if (chalkboardResult.error) return { error: chalkboardResult.error };
+  const footerResult = await replaceWeeklyUpdateFooter(supabase, data.id, footer.value ?? null);
+  if (footerResult.error) return { error: footerResult.error };
 
   revalidatePath("/admin/weekly-updates");
   redirect("/admin/weekly-updates?created=1");
@@ -181,13 +231,15 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
   const title = cleanTitle(formData);
   if (title.error) return { error: title.error };
   if (!title.value) return { error: "Please check the weekly update details and try again." };
-  const chalkboard = await readChalkboardAssetId(supabase, formData);
+  const chalkboard = await readChalkboardAssetIds(supabase, formData);
   if (chalkboard.error) return { error: chalkboard.error };
+  const footer = await readFooterAssignment(supabase, formData);
+  if (footer.error) return { error: footer.error };
 
   const docx = await readDocx(formData, false);
   if (docx.error) return { error: docx.error };
 
-  const update: Record<string, unknown> = { title: title.value, chalkboard_asset_id: chalkboard.value };
+  const update: Record<string, unknown> = { title: title.value, chalkboard_asset_id: chalkboard.value?.[0] ?? null };
   let storedPath: string | null = null;
   if (docx.value) {
     const stored = await storeSourceDocument(supabase, id.value, docx.value.fileName, docx.value.buffer);
@@ -210,6 +262,10 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
     if (storedPath) await supabase.storage.from(SOURCE_BUCKET).remove([storedPath]);
     return { error: "The weekly update could not be saved." };
   }
+  const chalkboardResult = await replaceWeeklyUpdateChalkboards(supabase, id.value, chalkboard.value ?? []);
+  if (chalkboardResult.error) return { error: chalkboardResult.error };
+  const footerResult = await replaceWeeklyUpdateFooter(supabase, id.value, footer.value ?? null);
+  if (footerResult.error) return { error: footerResult.error };
 
   revalidatePath("/admin/weekly-updates");
   revalidatePath("/weekly-update");

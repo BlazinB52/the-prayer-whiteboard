@@ -113,14 +113,20 @@ async function getCurrentWeeklyUpdate(): Promise<CurrentWeeklyUpdate> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("public_current_weekly_update")
-    .select("id, title, chalkboard_asset_id")
+    .select("id, title")
     .maybeSingle();
 
   if (error || !data) return null;
+  const { data: assignments } = await supabase
+    .from("weekly_update_chalkboard_assignments")
+    .select("chalkboard_asset_id, display_order")
+    .eq("weekly_update_id", data.id)
+    .order("display_order", { ascending: true })
+    .limit(1);
   return {
     id: data.id,
     title: data.title,
-    chalkboard: await getSignedChalkboard(data.chalkboard_asset_id),
+    chalkboard: await getSignedChalkboard(assignments?.[0]?.chalkboard_asset_id ?? null),
   };
 }
 
@@ -185,7 +191,13 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   const validSections = (sections ?? []).filter((section) => section.teaching_id === teaching.id && validCategories.some((category) => category.id === section.category_id));
   const highlights = validCategories.flatMap((category) => validSections.filter((section) => section.category_id === category.id).map((section) => ({ id: section.id, title: section.title, categoryTitle: category.title, content: section.content, highlightHorizontalAlignment: normalizeHighlightHorizontalAlignment(section.highlight_horizontal_alignment), selected: Boolean(section.content && typeof section.content === "object" && (section.content as Record<string, unknown>).homepageHighlight === true) }))).filter((section) => section.selected).slice(0, 4);
 
-  const chalkboard = await getSignedChalkboard(selectedTeaching.chalkboard_asset_id);
+  const { data: teachingChalkboards } = await supabase
+    .from("teaching_chalkboard_assignments")
+    .select("chalkboard_asset_id, display_order")
+    .eq("teaching_id", teaching.id)
+    .order("display_order", { ascending: true })
+    .limit(1);
+  const chalkboard = await getSignedChalkboard(teachingChalkboards?.[0]?.chalkboard_asset_id ?? selectedTeaching.chalkboard_asset_id);
 
   return {
     teaching: { ...selectedTeaching, hasPublishedDevotional: devotionalSlugsByTeachingId.has(teaching.id), devotionalSlug: devotionalSlugsByTeachingId.get(teaching.id) ?? null } as FeaturedHomepageData["teaching"],

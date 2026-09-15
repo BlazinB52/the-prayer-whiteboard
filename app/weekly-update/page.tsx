@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
+import { ContentFooter } from "@/app/content-footer";
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyUpdateContent } from "./weekly-update-content";
 import { WeeklyUpdatePrintButton } from "./print-button";
@@ -18,10 +19,16 @@ export default async function WeeklyUpdatePage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("public_current_weekly_update")
-    .select("title, body_markdown, converted_content, published_at")
+    .select("id, title, body_markdown, converted_content, published_at")
     .maybeSingle();
 
   if (error || !data) notFound();
+  const { data: footerAssignment } = await supabase
+    .from("weekly_update_footer_assignments")
+    .select("content_footers(content, status)")
+    .eq("weekly_update_id", data.id)
+    .maybeSingle();
+  const footer = Array.isArray(footerAssignment?.content_footers) ? footerAssignment.content_footers[0] : footerAssignment?.content_footers;
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">
@@ -49,6 +56,7 @@ export default async function WeeklyUpdatePage() {
             />
           </div>
           <WeeklyUpdateContent body={data.body_markdown} blocks={data.converted_content} />
+          {footer?.status === "active" ? <ContentFooter content={footer.content} /> : null}
         </div>
       </article>
       <PublicFooter />

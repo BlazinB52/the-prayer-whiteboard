@@ -56,7 +56,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
     .eq("status", teaching.status)
     .order("sort_order", { ascending: true });
 
-  const [{ data: chalkboards }, { data: assignments }] = await Promise.all([
+  const [{ data: chalkboards }, { data: assignedChalkboards }, { data: footers }, { data: footerAssignment }] = await Promise.all([
     supabase
       .from("chalkboard_assets")
       .select("id, title, canonical_name, chalkboard_date")
@@ -64,18 +64,16 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
       .eq("status", "active")
       .order("chalkboard_date", { ascending: false })
       .order("canonical_name", { ascending: true }),
-    supabase.from("teachings").select("id, title, chalkboard_asset_id").in("status", ["draft", "published"]).not("chalkboard_asset_id", "is", null),
+    supabase.from("teaching_chalkboard_assignments").select("chalkboard_asset_id").eq("teaching_id", id).order("display_order", { ascending: true }),
+    supabase.from("content_footers").select("id, internal_title").eq("status", "active").order("internal_title", { ascending: true }),
+    supabase.from("teaching_footer_assignments").select("footer_id").eq("teaching_id", id).maybeSingle(),
   ]);
-  const assignmentMap = new Map((assignments ?? []).map((assignedTeaching) => [assignedTeaching.chalkboard_asset_id as string, { id: assignedTeaching.id, title: assignedTeaching.title }]));
-  const chalkboardOptions = (chalkboards ?? []).map((chalkboard) => {
-    const assignment = assignmentMap.get(chalkboard.id);
-    return {
-      id: chalkboard.id,
-      label: chalkboard.canonical_name ?? chalkboard.title,
-      assignedTeachingTitle: assignment && assignment.id !== teaching.id ? assignment.title : null,
-      isCurrent: chalkboard.id === teaching.chalkboard_asset_id,
-    };
-  });
+  const assignedChalkboardIds = (assignedChalkboards ?? []).map((assignment) => assignment.chalkboard_asset_id as string);
+  const chalkboardOptions = (chalkboards ?? []).map((chalkboard) => ({
+    id: chalkboard.id,
+    label: chalkboard.canonical_name ?? chalkboard.title,
+  }));
+  const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title }));
 
   const categoryItems = (categories ?? []).map((category) => ({
     ...category,
@@ -145,9 +143,12 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
             centralTheme: teaching.central_theme ?? "",
             introduction: teaching.introduction ?? "",
             summary: teaching.summary ?? "",
-            chalkboardAssetId: teaching.chalkboard_asset_id ?? "",
+            chalkboardAssetIds: assignedChalkboardIds.length ? assignedChalkboardIds : (teaching.chalkboard_asset_id ? [teaching.chalkboard_asset_id] : []),
+            includeFooter: Boolean(footerAssignment?.footer_id),
+            footerId: footerAssignment?.footer_id ?? "",
           }}
           chalkboards={chalkboardOptions}
+          footers={footerOptions}
         />
         <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Devotional</p>

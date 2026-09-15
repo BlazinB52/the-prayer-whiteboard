@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { archiveWeeklyUpdate, createWeeklyUpdate, publishWeeklyUpdate, updateWeeklyUpdate } from "./actions";
-import { WeeklyUpdateEditor, type WeeklyUpdateChalkboardOption } from "./weekly-update-editor";
+import { WeeklyUpdateEditor, type WeeklyUpdateChalkboardOption, type WeeklyUpdateFooterOption } from "./weekly-update-editor";
 import { WeeklyUpdateStatusButton } from "./status-buttons";
 import { WeeklyUpdateContent } from "@/app/weekly-update/weekly-update-content";
+import { ContentFooter } from "@/app/content-footer";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -19,7 +20,7 @@ function formatDate(value: string | null) {
 export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchParams: Promise<{ created?: string; published?: string; archived?: string }> }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
-  const [{ data: updates, error }, { data: chalkboards }] = await Promise.all([
+  const [{ data: updates, error }, { data: chalkboards }, { data: chalkboardAssignments }, { data: footers }, { data: footerAssignments }] = await Promise.all([
     supabase
       .from("weekly_updates")
       .select("id, title, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id")
@@ -33,11 +34,25 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
       .or("website_storage_path.not.is.null,storage_path.not.is.null")
       .order("chalkboard_date", { ascending: false })
       .order("canonical_name", { ascending: true }),
+    supabase.from("weekly_update_chalkboard_assignments").select("weekly_update_id, chalkboard_asset_id, display_order").order("display_order", { ascending: true }),
+    supabase.from("content_footers").select("id, internal_title, content").eq("status", "active").order("internal_title", { ascending: true }),
+    supabase.from("weekly_update_footer_assignments").select("weekly_update_id, footer_id"),
   ]);
   const chalkboardOptions: WeeklyUpdateChalkboardOption[] = (chalkboards ?? []).map((chalkboard) => ({
     id: chalkboard.id,
     label: `${formatDate(chalkboard.chalkboard_date)} - ${chalkboard.canonical_name ?? chalkboard.title}`,
   }));
+  const footerOptions: WeeklyUpdateFooterOption[] = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title }));
+  const chalkboardLabels = new Map(chalkboardOptions.map((chalkboard) => [chalkboard.id, chalkboard.label]));
+  const footerLabels = new Map(footerOptions.map((footer) => [footer.id, footer.label]));
+  const footerContent = new Map((footers ?? []).map((footer) => [footer.id, footer.content]));
+  const chalkboardIdsByUpdate = new Map<string, string[]>();
+  for (const assignment of chalkboardAssignments ?? []) {
+    const current = chalkboardIdsByUpdate.get(assignment.weekly_update_id) ?? [];
+    current.push(assignment.chalkboard_asset_id);
+    chalkboardIdsByUpdate.set(assignment.weekly_update_id, current);
+  }
+  const footerIdByUpdate = new Map((footerAssignments ?? []).map((assignment) => [assignment.weekly_update_id as string, assignment.footer_id as string]));
 
   return (
     <main className="admin-shell">
@@ -58,7 +73,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         <section className="py-8">
           <article className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8 sm:p-6">
             <h2 className="text-2xl font-extrabold text-[#243d31]">New weekly update</h2>
-            <div className="mt-5"><WeeklyUpdateEditor action={createWeeklyUpdate} chalkboards={chalkboardOptions} submitLabel="Upload and convert draft" sourceRequired /></div>
+            <div className="mt-5"><WeeklyUpdateEditor action={createWeeklyUpdate} chalkboards={chalkboardOptions} footers={footerOptions} submitLabel="Upload and convert draft" sourceRequired /></div>
           </article>
         </section>
 
@@ -75,7 +90,8 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <h3 className="mt-2 text-2xl font-extrabold text-[#243d31]">{update.title}</h3>
                       <p className="mt-2 text-sm text-[#607066]">Published: {formatDate(update.published_at)}{update.archived_at ? ` · Archived: ${formatDate(update.archived_at)}` : ""}</p>
                       <p className="mt-1 text-sm text-[#607066]">Source document: <span className="font-bold text-[#385245]">{update.source_document_file_name ?? "Not retained"}</span></p>
-                      <p className="mt-1 text-sm text-[#607066]">Weekly Update chalkboard: <span className="font-bold text-[#385245]">{chalkboardOptions.find((chalkboard) => chalkboard.id === update.chalkboard_asset_id)?.label ?? "None selected"}</span></p>
+                      <p className="mt-1 text-sm text-[#607066]">Weekly Update chalkboards: <span className="font-bold text-[#385245]">{(chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])).map((id) => chalkboardLabels.get(id)).filter(Boolean).join(", ") || "None selected"}</span></p>
+                      <p className="mt-1 text-sm text-[#607066]">Footer: <span className="font-bold text-[#385245]">{footerLabels.get(footerIdByUpdate.get(update.id) ?? "") ?? "None selected"}</span></p>
                     </div>
                     <div className="flex flex-wrap gap-3">
                       {update.status !== "archived" ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate} weeklyUpdateId={update.id} intent="publish" label="Publish current" /> : null}
@@ -85,13 +101,14 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   {update.status !== "archived" ? (
                     <details className="mt-5">
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit title or replace document</summary>
-                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialTitle={update.title} initialChalkboardAssetId={update.chalkboard_asset_id} chalkboards={chalkboardOptions} /></div>
+                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialTitle={update.title} initialChalkboardAssetIds={chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} chalkboards={chalkboardOptions} footers={footerOptions} /></div>
                     </details>
                   ) : null}
                   <details className="mt-5">
                     <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Preview converted content</summary>
                     <div className="mt-5 rounded-xl border border-[#284a3b]/10 bg-white p-5">
                       <WeeklyUpdateContent body={update.body_markdown} blocks={update.converted_content} />
+                      <ContentFooter content={footerContent.get(footerIdByUpdate.get(update.id) ?? "")} />
                     </div>
                   </details>
                 </article>

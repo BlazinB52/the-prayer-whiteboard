@@ -258,9 +258,16 @@ export async function deleteChalkboard(assetId: string, _: ChalkboardActionState
     .maybeSingle();
   if (!asset) return { error: "This chalkboard could not be found." };
 
+  const [{ count: teachingCount }, { count: weeklyUpdateCount }, { count: legacyTeachingCount }] = await Promise.all([
+    supabase.from("teaching_chalkboard_assignments").select("teaching_id", { count: "exact", head: true }).eq("chalkboard_asset_id", assetId),
+    supabase.from("weekly_update_chalkboard_assignments").select("weekly_update_id", { count: "exact", head: true }).eq("chalkboard_asset_id", assetId),
+    supabase.from("teachings").select("id", { count: "exact", head: true }).eq("chalkboard_asset_id", assetId),
+  ]);
+  if ((teachingCount ?? 0) + (weeklyUpdateCount ?? 0) + (legacyTeachingCount ?? 0) > 0) {
+    return { error: "This chalkboard is assigned. Remove its assignments before deleting it." };
+  }
+
   const paths = [asset.storage_path, asset.website_storage_path, asset.download_storage_path, asset.tv_storage_path].filter((path): path is string => Boolean(path));
-  const { error: unlinkError } = await supabase.from("teachings").update({ chalkboard_asset_id: null }).eq("chalkboard_asset_id", assetId);
-  if (unlinkError) return { error: "This chalkboard could not be detached from teachings." };
 
   const { error: storageError } = await supabase.storage.from(BUCKET).remove(paths);
   if (storageError) return { error: "This chalkboard was not deleted because one or more files could not be removed." };

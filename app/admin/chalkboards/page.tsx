@@ -16,8 +16,10 @@ function dateForInput(value: string | null) {
 
 export default async function AdminChalkboardsPage() {
   const { supabase } = await requireAdmin();
-  const [{ data: teachings }, { data: assets, error }] = await Promise.all([
+  const [{ data: teachings }, { data: teachingAssignments }, { data: weeklyUpdateAssignments }, { data: assets, error }] = await Promise.all([
     supabase.from("teachings").select("id, title, chalkboard_asset_id").in("status", ["draft", "published"]).order("gathering_date", { ascending: false }),
+    supabase.from("teaching_chalkboard_assignments").select("chalkboard_asset_id, teachings(title, status)"),
+    supabase.from("weekly_update_chalkboard_assignments").select("chalkboard_asset_id, weekly_updates(title, status, is_current)"),
     supabase
       .from("chalkboard_assets")
       .select("id, title, canonical_name, chalkboard_date, alt_text, caption, website_storage_path, width, height, include_in_print, allow_download, download_storage_path, uploaded_at")
@@ -28,6 +30,25 @@ export default async function AdminChalkboardsPage() {
   ]);
 
   const teachingByAsset = new Map((teachings ?? []).filter((teaching) => teaching.chalkboard_asset_id).map((teaching) => [teaching.chalkboard_asset_id as string, teaching.title]));
+  const assignmentsByAsset = new Map<string, string[]>();
+  for (const assignment of teachingAssignments ?? []) {
+    const teaching = Array.isArray(assignment.teachings) ? assignment.teachings[0] : assignment.teachings;
+    if (!teaching) continue;
+    const current = assignmentsByAsset.get(assignment.chalkboard_asset_id) ?? [];
+    current.push(`Teaching: ${teaching.title}`);
+    assignmentsByAsset.set(assignment.chalkboard_asset_id, current);
+  }
+  for (const [assetId, title] of teachingByAsset) {
+    if (assignmentsByAsset.has(assetId)) continue;
+    assignmentsByAsset.set(assetId, [`Teaching: ${title}`]);
+  }
+  for (const assignment of weeklyUpdateAssignments ?? []) {
+    const weeklyUpdate = Array.isArray(assignment.weekly_updates) ? assignment.weekly_updates[0] : assignment.weekly_updates;
+    if (!weeklyUpdate) continue;
+    const current = assignmentsByAsset.get(assignment.chalkboard_asset_id) ?? [];
+    current.push(`Weekly Update: ${weeklyUpdate.title}${weeklyUpdate.is_current ? " (current)" : ""}`);
+    assignmentsByAsset.set(assignment.chalkboard_asset_id, current);
+  }
   const previews = await Promise.all((assets ?? []).map(async (asset) => ({ asset, url: asset.website_storage_path ? await getChalkboardPreviewUrl(asset.website_storage_path) : null })));
 
   return (
@@ -51,7 +72,7 @@ export default async function AdminChalkboardsPage() {
                     id: asset.id,
                     canonicalName: asset.canonical_name ?? asset.title,
                     chalkboardDate: dateForInput(asset.chalkboard_date),
-                    teachingTitle: teachingByAsset.get(asset.id) ?? null,
+                    assignments: assignmentsByAsset.get(asset.id) ?? [],
                     title: asset.title,
                     alt_text: asset.alt_text,
                     caption: asset.caption,

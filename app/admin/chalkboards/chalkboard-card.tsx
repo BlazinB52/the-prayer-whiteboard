@@ -10,7 +10,7 @@ type Asset = {
   id: string;
   canonicalName: string;
   chalkboardDate: string;
-  teachingTitle: string | null;
+  assignments: string[];
   title: string;
   alt_text: string;
   caption: string | null;
@@ -65,7 +65,7 @@ export function ChalkboardCard({ asset, updateAction, deleteAction }: { asset: A
           <p className="text-xs font-black uppercase tracking-[0.14em] text-[#946332]">{asset.canonicalName}</p>
           <h3 className="mt-2 text-xl font-extrabold text-[#243d31]">{asset.title}</h3>
           <dl className="mt-4 grid gap-2 text-sm text-[#607066]">
-            <div className="flex justify-between gap-3"><dt>Associated teaching</dt><dd className="text-right font-bold text-[#385245]">{asset.teachingTitle ?? "Unassigned"}</dd></div>
+            <div className="flex justify-between gap-3"><dt>Assignments</dt><dd className="text-right font-bold text-[#385245]">{asset.assignments.length ? asset.assignments.join(", ") : "Unassigned"}</dd></div>
             <div className="flex justify-between gap-3"><dt>Dimensions</dt><dd className="font-bold text-[#385245]">{asset.width} x {asset.height}</dd></div>
             <div className="flex justify-between gap-3"><dt>Print</dt><dd className="font-bold text-[#385245]">{asset.include_in_print ? "Included" : "Excluded"}</dd></div>
             <div className="flex justify-between gap-3"><dt>Download</dt><dd className="font-bold text-[#385245]">{asset.allow_download ? "Allowed" : "Disabled"}</dd></div>

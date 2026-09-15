@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { ContentFooter } from "@/app/content-footer";
 import { getChalkboardPreviewUrl } from "../../../chalkboards/actions";
 import { getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment } from "../../callout-utils";
 import { PrintButton } from "./print-button";
@@ -52,13 +53,16 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
     .eq("teaching_id", id)
     .eq("status", teaching.status)
     .order("sort_order", { ascending: true });
-  const { data: chalkboardAssets, error: chalkboardError } = await supabase
-    .from("chalkboard_assets")
-    .select("id, title, alt_text, caption, website_storage_path, storage_path, display_order")
-    .eq("id", teaching.chalkboard_asset_id ?? "00000000-0000-4000-8000-000000000000")
-    .eq("is_current_version", true)
-    .eq("status", "active")
-    .eq("include_in_print", true);
+  const { data: chalkboardAssignments, error: chalkboardError } = await supabase
+    .from("teaching_chalkboard_assignments")
+    .select("display_order, chalkboard_assets(id, title, alt_text, caption, website_storage_path, storage_path, display_order, include_in_print, is_current_version, status)")
+    .eq("teaching_id", teaching.id)
+    .order("display_order", { ascending: true });
+  const { data: footerAssignment } = await supabase
+    .from("teaching_footer_assignments")
+    .select("content_footers(content, status)")
+    .eq("teaching_id", teaching.id)
+    .maybeSingle();
 
   if (categoriesError || sectionsError || chalkboardError) notFound();
   if ((categories ?? []).some((category) => category.teaching_id !== teaching.id) || (sections ?? []).some((section) => section.teaching_id !== teaching.id)) notFound();
@@ -67,8 +71,12 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
     ...category,
     sections: (sections ?? []).filter((section) => section.category_id === category.id),
   }));
-  const printableAssets = (chalkboardAssets ?? []).filter((asset) => asset.id === teaching.chalkboard_asset_id) as ChalkboardAsset[];
+  const printableAssets = (chalkboardAssignments ?? []).flatMap((assignment) => {
+    const asset = Array.isArray(assignment.chalkboard_assets) ? assignment.chalkboard_assets[0] : assignment.chalkboard_assets;
+    return asset && asset.status === "active" && asset.is_current_version && asset.include_in_print ? [asset as ChalkboardAsset] : [];
+  });
   const assetsWithUrls = await Promise.all(printableAssets.map(async (asset) => ({ asset, url: await getChalkboardPreviewUrl(asset.website_storage_path || asset.storage_path) })));
+  const footer = Array.isArray(footerAssignment?.content_footers) ? footerAssignment.content_footers[0] : footerAssignment?.content_footers;
 
   return (
     <main className="min-h-screen bg-[#eee7da] px-4 py-6 text-[#243126] sm:px-8 sm:py-10">
@@ -100,6 +108,7 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
             </section>
           ))}
         </div>
+        {footer?.status === "active" ? <ContentFooter content={footer.content} /> : null}
       </article>
     </main>
   );

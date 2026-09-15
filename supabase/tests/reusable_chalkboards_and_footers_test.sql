@@ -1,6 +1,6 @@
 begin;
 
-select plan(12);
+select plan(13);
 
 create temp table reusable_content_test_ids (
   key text primary key,
@@ -14,6 +14,9 @@ values
   ('admin_auth', '00000000-0000-4000-a000-000000000003'),
   ('teaching_one', '00000000-0000-4000-a000-000000000011'),
   ('teaching_two', '00000000-0000-4000-a000-000000000012'),
+  ('teaching_without_chalkboard', '00000000-0000-4000-a000-000000000013'),
+  ('category_without_chalkboard', '00000000-0000-4000-a000-000000000014'),
+  ('section_without_chalkboard', '00000000-0000-4000-a000-000000000015'),
   ('weekly_update', '00000000-0000-4000-a000-000000000021'),
   ('chalkboard_one', '00000000-0000-4000-a000-000000000031'),
   ('chalkboard_two', '00000000-0000-4000-a000-000000000032'),
@@ -230,6 +233,62 @@ select is(
   (select count(*) from public.content_footers where id = (select id from reusable_content_test_ids where key = 'footer_two')),
   1::bigint,
   'anonymous can read a different active footer assigned to public teaching content'
+);
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', (select id::text from reusable_content_test_ids where key = 'admin_user'), true);
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
+insert into public.teachings (id, title, slug, status, summary, gathering_date, chalkboard_asset_id)
+values (
+  (select id from reusable_content_test_ids where key = 'teaching_without_chalkboard'),
+  'Publish Without Chalkboard',
+  'publish-without-chalkboard',
+  'draft',
+  'This teaching has all publishable content except a chalkboard.',
+  '2026-09-15',
+  null
+);
+
+insert into public.teaching_categories (id, teaching_id, slug, title, sort_order, status)
+values (
+  (select id from reusable_content_test_ids where key = 'category_without_chalkboard'),
+  (select id from reusable_content_test_ids where key = 'teaching_without_chalkboard'),
+  'publishable-category',
+  'Publishable Category',
+  1,
+  'draft'
+);
+
+insert into public.teaching_sections (id, teaching_id, category_id, slug, title, content, sort_order, status)
+values (
+  (select id from reusable_content_test_ids where key = 'section_without_chalkboard'),
+  (select id from reusable_content_test_ids where key = 'teaching_without_chalkboard'),
+  (select id from reusable_content_test_ids where key = 'category_without_chalkboard'),
+  'publishable-section',
+  'Publishable Section',
+  '{"format":"paragraph","text":"Publishable section text."}'::jsonb,
+  1,
+  'draft'
+);
+
+select public.publish_and_feature_teaching((select id from reusable_content_test_ids where key = 'teaching_without_chalkboard'));
+
+select ok(
+  exists (
+    select 1
+    from public.teachings teaching
+    where teaching.id = (select id from reusable_content_test_ids where key = 'teaching_without_chalkboard')
+      and teaching.status = 'published'
+      and teaching.is_featured = true
+      and teaching.chalkboard_asset_id is null
+      and not exists (
+        select 1
+        from public.teaching_chalkboard_assignments assignment
+        where assignment.teaching_id = teaching.id
+      )
+  ),
+  'admin can publish and feature a teaching without a chalkboard'
 );
 
 select * from finish();

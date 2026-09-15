@@ -24,10 +24,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   const signer = createServiceRoleClient();
   if (!supabase || !signer) return new Response("Download unavailable", { status: 503 });
 
-  const { data: teaching } = await supabase.from("teachings").select("id, title").eq("slug", slug).eq("status", "published").maybeSingle();
+  const { data: teaching } = await supabase.from("teachings").select("id, title, chalkboard_asset_id").eq("slug", slug).eq("status", "published").maybeSingle();
   if (!teaching) return new Response("Not found", { status: 404 });
   const { data: assignment } = await supabase.from("teaching_chalkboard_assignments").select("teaching_id").eq("teaching_id", teaching.id).eq("chalkboard_asset_id", assetId).maybeSingle();
-  if (!assignment) return new Response("Not found", { status: 404 });
+  if (!assignment && teaching.chalkboard_asset_id !== assetId) return new Response("Not found", { status: 404 });
 
   const { data: asset } = await signer
     .from("chalkboard_assets")

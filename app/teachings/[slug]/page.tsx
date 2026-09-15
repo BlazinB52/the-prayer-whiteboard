@@ -29,23 +29,26 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
   if (teachingError || !teaching || teaching.slug !== slug) notFound();
 
   const signer = createServiceRoleClient();
-  const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assignments, error: assetsError }, { data: footerAssignment }] = await Promise.all([
+  const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assignments }, { data: footerAssignment }] = await Promise.all([
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status, highlight_horizontal_alignment").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
-    signer
-      ? signer.from("teaching_chalkboard_assignments").select("display_order, chalkboard_assets(id, alt_text, caption, website_storage_path, storage_path, download_storage_path, allow_download, is_current_version, status)").eq("teaching_id", teaching.id).order("display_order", { ascending: true })
-      : Promise.resolve({ data: [], error: null }),
-    supabase.from("teaching_footer_assignments").select("content_footers(content, status)").eq("teaching_id", teaching.id).maybeSingle(),
+    supabase.from("teaching_chalkboard_assignments").select("chalkboard_asset_id, display_order").eq("teaching_id", teaching.id).order("display_order", { ascending: true }),
+    supabase.from("teaching_footer_assignments").select("footer_id").eq("teaching_id", teaching.id).maybeSingle(),
   ]);
-  if (categoriesError || sectionsError || assetsError) notFound();
+  if (categoriesError || sectionsError) notFound();
   const validCategories = (categories ?? []).filter((category) => category.teaching_id === teaching.id);
   const validSections = (sections ?? []).filter((section) => section.teaching_id === teaching.id && validCategories.some((category) => category.id === section.category_id));
-  const validAssets = (assignments ?? []).flatMap((assignment) => {
-    const asset = Array.isArray(assignment.chalkboard_assets) ? assignment.chalkboard_assets[0] : assignment.chalkboard_assets;
-    return asset && asset.status === "active" && asset.is_current_version ? [asset as Asset] : [];
-  });
+  const assignedChalkboardIds = (assignments ?? []).map((assignment) => assignment.chalkboard_asset_id as string).filter(Boolean);
+  const chalkboardIds = assignedChalkboardIds.length ? assignedChalkboardIds : (teaching.chalkboard_asset_id ? [teaching.chalkboard_asset_id] : []);
+  const { data: assets } = signer && chalkboardIds.length
+    ? await signer.from("chalkboard_assets").select("id, alt_text, caption, website_storage_path, storage_path, download_storage_path, allow_download, is_current_version, status").in("id", chalkboardIds).eq("is_current_version", true).eq("status", "active")
+    : { data: [] };
+  const assetById = new Map((assets ?? []).map((asset) => [asset.id, asset as Asset]));
+  const validAssets = chalkboardIds.flatMap((id) => assetById.get(id) ? [assetById.get(id)!] : []);
   const assetsWithUrls = await Promise.all(validAssets.map(async (asset) => ({ asset, url: await getWebsiteUrl(signer, asset) })));
-  const footer = Array.isArray(footerAssignment?.content_footers) ? footerAssignment.content_footers[0] : footerAssignment?.content_footers;
+  const { data: footer } = footerAssignment?.footer_id
+    ? await supabase.from("content_footers").select("content, status").eq("id", footerAssignment.footer_id).eq("status", "active").maybeSingle()
+    : { data: null };
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">

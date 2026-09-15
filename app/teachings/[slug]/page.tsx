@@ -33,7 +33,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status, highlight_horizontal_alignment").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_chalkboard_assignments").select("chalkboard_asset_id, display_order").eq("teaching_id", teaching.id).order("display_order", { ascending: true }),
-    supabase.from("teaching_footer_assignments").select("footer_id").eq("teaching_id", teaching.id).maybeSingle(),
+    (signer ?? supabase).from("teaching_footer_assignments").select("footer_id").eq("teaching_id", teaching.id).maybeSingle(),
   ]);
   if (categoriesError || sectionsError) notFound();
   const validCategories = (categories ?? []).filter((category) => category.teaching_id === teaching.id);
@@ -46,8 +46,9 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
   const assetById = new Map((assets ?? []).map((asset) => [asset.id, asset as Asset]));
   const validAssets = chalkboardIds.flatMap((id) => assetById.get(id) ? [assetById.get(id)!] : []);
   const assetsWithUrls = await Promise.all(validAssets.map(async (asset) => ({ asset, url: await getWebsiteUrl(signer, asset) })));
+  const footerClient = signer ?? supabase;
   const { data: footer } = footerAssignment?.footer_id
-    ? await supabase.from("content_footers").select("content, status").eq("id", footerAssignment.footer_id).eq("status", "active").maybeSingle()
+    ? await footerClient.from("content_footers").select("content, status").eq("id", footerAssignment.footer_id).eq("status", "active").maybeSingle()
     : { data: null };
 
   return (

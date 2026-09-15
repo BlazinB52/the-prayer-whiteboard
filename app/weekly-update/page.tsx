@@ -6,6 +6,7 @@ import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { ContentFooter } from "@/app/content-footer";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { WeeklyUpdateContent } from "./weekly-update-content";
 import { WeeklyUpdatePrintButton } from "./print-button";
@@ -23,12 +24,21 @@ export default async function WeeklyUpdatePage() {
     .maybeSingle();
 
   if (error || !data) notFound();
-  const { data: footerAssignment } = await supabase
+  const signer = createServiceRoleClient();
+  const footerClient = signer ?? supabase;
+  const { data: footerAssignment } = await footerClient
     .from("weekly_update_footer_assignments")
-    .select("content_footers(content, status)")
+    .select("footer_id")
     .eq("weekly_update_id", data.id)
     .maybeSingle();
-  const footer = Array.isArray(footerAssignment?.content_footers) ? footerAssignment.content_footers[0] : footerAssignment?.content_footers;
+  const { data: footer } = footerAssignment?.footer_id
+    ? await footerClient
+        .from("content_footers")
+        .select("content, status")
+        .eq("id", footerAssignment.footer_id)
+        .eq("status", "active")
+        .maybeSingle()
+    : { data: null };
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">

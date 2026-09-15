@@ -14,6 +14,9 @@ import { PrintToPdfButton } from "./print-to-pdf-button";
 type Content = Record<string, unknown>;
 type Asset = { id: string; alt_text: string; caption: string | null; website_storage_path: string | null; storage_path: string; download_storage_path: string | null; allow_download: boolean };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const supabase = await createClient();

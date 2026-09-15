@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   description: "The current weekly update from The Prayer Whiteboard.",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function WeeklyUpdatePage() {
   const supabase = await createClient();
   const { data, error } = await supabase

@@ -173,10 +173,11 @@ async function updateDeliveryEvent(deliveryEventId: string, result: Awaited<Retu
     return;
   }
   const { data: deliveryEvent } = await supabase.from("email_delivery_events").select("metadata").eq("id", deliveryEventId).maybeSingle();
+  const senderDiagnostic = result.diagnostic ?? result.rejection ?? null;
   await supabase.from("email_delivery_events").update({
     status: "failed",
     error: result.reason,
-    metadata: result.diagnostic ? { ...((deliveryEvent?.metadata as Record<string, unknown> | null) ?? {}), senderDiagnostic: result.diagnostic } : deliveryEvent?.metadata,
+    metadata: senderDiagnostic ? { ...((deliveryEvent?.metadata as Record<string, unknown> | null) ?? {}), senderDiagnostic } : deliveryEvent?.metadata,
   }).eq("id", deliveryEventId);
 }
 

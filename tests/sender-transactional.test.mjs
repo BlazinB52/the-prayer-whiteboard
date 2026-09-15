@@ -32,6 +32,32 @@ test("Sender API rejection is reported as failed without throwing", async () => 
   if (!result.ok) assert.equal(result.reason, "rejected");
 });
 
+test("Sender API rejection diagnostics are sanitized", async () => {
+  const result = await sendSenderTransactionalEmail({
+    ...baseInput,
+    apiKey: "secret-sender-api-key",
+    toEmail: "reader@example.test",
+    html: "<a href=\"https://theprayerwhiteboard.com/subscribe/confirm?token=secret-token\">Confirm</a>",
+    text: "Confirm at https://theprayerwhiteboard.com/subscribe/confirm?token=secret-token",
+    fetcher: async () => new Response(JSON.stringify({
+      code: "sender_rejected",
+      message: "Rejected reader@example.test with secret-sender-api-key at https://theprayerwhiteboard.com/subscribe/confirm?token=secret-token",
+    }), { status: 422 }),
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.reason, "rejected");
+    assert.equal(result.rejection?.httpStatus, 422);
+    assert.equal(result.rejection?.errorCode, "sender_rejected");
+    assert.match(result.rejection?.errorMessage ?? "", /\[redacted\]|\[redacted-email\]/);
+  }
+  const serialized = JSON.stringify(result);
+  assert.equal(serialized.includes("secret-sender-api-key"), false);
+  assert.equal(serialized.includes("reader@example.test"), false);
+  assert.equal(serialized.includes("secret-token"), false);
+  assert.equal(serialized.includes("theprayerwhiteboard.com/subscribe/confirm"), false);
+});
+
 test("Sender API key is normalized before building the Authorization header", async () => {
   let authorizationHeader = "";
   const result = await sendSenderTransactionalEmail({

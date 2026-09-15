@@ -17,9 +17,15 @@ export type SenderDiagnostic = {
   causeCode: string | null;
 };
 
+export type SenderRejectionDiagnostic = {
+  httpStatus: number;
+  errorCode: string | null;
+  errorMessage: string | null;
+};
+
 export type SenderTransactionalResult =
   | { ok: true; providerMessageId: string | null }
-  | { ok: false; reason: "configuration" | "rejected" | "timeout" | "network"; message: string; diagnostic?: SenderDiagnostic };
+  | { ok: false; reason: "configuration" | "rejected" | "timeout" | "network"; message: string; diagnostic?: SenderDiagnostic; rejection?: SenderRejectionDiagnostic };
 
 const SEND_ENDPOINT = "https://api.sender.net/v2/message/send";
 
@@ -35,6 +41,12 @@ function normalizeErrorMessage(value: unknown) {
   if (!value || typeof value !== "object") return null;
   const maybeMessage = (value as { message?: unknown }).message;
   return typeof maybeMessage === "string" ? maybeMessage.slice(0, 300) : null;
+}
+
+function normalizeErrorCode(value: unknown) {
+  if (!value || typeof value !== "object") return null;
+  const maybeCode = (value as { code?: unknown; errorCode?: unknown; error?: unknown }).code ?? (value as { errorCode?: unknown }).errorCode ?? (value as { error?: unknown }).error;
+  return typeof maybeCode === "string" ? maybeCode.slice(0, 120) : null;
 }
 
 function redactDiagnosticValue(value: string, input: SenderTransactionalInput) {
@@ -59,6 +71,16 @@ function diagnosticFromError(error: unknown, input: SenderTransactionalInput): S
     errorMessage: redactDiagnosticValue(error.message, input),
     causeCode: typeof maybeCode === "string" ? redactDiagnosticValue(maybeCode, input) : null,
   };
+}
+
+async function readRejectionPayload(response: Response) {
+  const raw = await response.text().catch(() => "");
+  if (!raw) return { payload: null, text: null };
+  try {
+    return { payload: JSON.parse(raw) as unknown, text: raw };
+  } catch {
+    return { payload: null, text: raw };
+  }
 }
 
 export async function sendSenderTransactionalEmail(input: SenderTransactionalInput): Promise<SenderTransactionalResult> {
@@ -91,9 +113,22 @@ export async function sendSenderTransactionalEmail(input: SenderTransactionalInp
     });
     clearTimeout(timeout);
 
-    const payload = await response.json().catch(() => null) as { emailId?: unknown; id?: unknown } | null;
+    const rejectionPayload = response.ok ? null : await readRejectionPayload(response);
+    const payload = response.ok ? await response.json().catch(() => null) as { emailId?: unknown; id?: unknown } | null : rejectionPayload?.payload as { emailId?: unknown; id?: unknown } | null;
     if (!response.ok) {
-      return { ok: false, reason: "rejected", message: normalizeErrorMessage(payload) ?? `Sender API rejected the request with status ${response.status}.` };
+      const rawMessage = normalizeErrorMessage(payload) ?? rejectionPayload?.text ?? `Sender API rejected the request with status ${response.status}.`;
+      const safeMessage = redactDiagnosticValue(rawMessage, input).slice(0, 300);
+      const safeCode = normalizeErrorCode(payload);
+      return {
+        ok: false,
+        reason: "rejected",
+        message: safeMessage,
+        rejection: {
+          httpStatus: response.status,
+          errorCode: safeCode ? redactDiagnosticValue(safeCode, input).slice(0, 120) : null,
+          errorMessage: safeMessage,
+        },
+      };
     }
     const providerMessageId = typeof payload?.emailId === "string" ? payload.emailId : typeof payload?.id === "string" ? payload.id : null;
     return { ok: true, providerMessageId };

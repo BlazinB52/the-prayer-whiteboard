@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
 import { PublicFooter } from "@/app/public-footer";
+import { formatInlineText } from "@/app/formatted-text";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { splitParagraphs, type DevotionalDay } from "@/lib/devotionals";
@@ -121,5 +122,5 @@ function DevotionalField({ title, children }: { title: string; children: ReactNo
 
 function TextBlock({ text }: { text?: string | null }) {
   const paragraphs = splitParagraphs(text);
-  return <div className="space-y-4">{paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div>;
+  return <div className="space-y-4">{paragraphs.map((paragraph) => <p key={paragraph}>{formatInlineText(paragraph)}</p>)}</div>;
 }

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { formatInlineText } from "@/app/formatted-text";
 
 const URL_PATTERN = /(https?:\/\/[^\s<]+)/g;
 
@@ -8,7 +9,7 @@ function renderLinkedText(text: string): ReactNode[] {
   let match: RegExpExecArray | null;
 
   while ((match = URL_PATTERN.exec(text)) !== null) {
-    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    if (match.index > lastIndex) parts.push(...formatInlineText(text.slice(lastIndex, match.index)));
     const url = match[0].replace(/[.,;:!?)]$/, "");
     const trailing = match[0].slice(url.length);
     parts.push(
@@ -16,11 +17,11 @@ function renderLinkedText(text: string): ReactNode[] {
         {url}
       </a>,
     );
-    if (trailing) parts.push(trailing);
+    if (trailing) parts.push(...formatInlineText(trailing));
     lastIndex = match.index + match[0].length;
   }
 
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  if (lastIndex < text.length) parts.push(...formatInlineText(text.slice(lastIndex)));
   return parts;
 }
 

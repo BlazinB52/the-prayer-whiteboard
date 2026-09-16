@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { formatInlineText } from "@/app/formatted-text";
 import { DEVOTIONAL_DAY_NUMBERS, splitParagraphs, type DevotionalDay } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
 
@@ -83,5 +84,5 @@ function Field({ title, children }: { title: string; children: ReactNode }) {
 function TextBlock({ text, className }: { text?: string | null; className?: string }) {
   const paragraphs = splitParagraphs(text);
   if (!paragraphs.length) return <p className={className}>Not saved.</p>;
-  return <div className={`space-y-3 ${className ?? ""}`}>{paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div>;
+  return <div className={`space-y-3 ${className ?? ""}`}>{paragraphs.map((paragraph) => <p key={paragraph}>{formatInlineText(paragraph)}</p>)}</div>;
 }

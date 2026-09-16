@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { formatInlineText } from "@/app/formatted-text";
 
 export type SectionCalloutType = "our-prayer" | "application-for-believers" | "custom";
 export type SectionCalloutStyle = "filled" | "outline" | "soft";
@@ -86,7 +87,7 @@ export function getCalloutBulletListClassName(alignment: HighlightHorizontalAlig
 
 function TextParagraphs({ text, className }: { text: unknown; className?: string }) {
   const paragraphs = String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean);
-  return <div className={className ?? "space-y-3"}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{paragraph}</p>)}</div>;
+  return <div className={className ?? "space-y-3"}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{formatInlineText(paragraph)}</p>)}</div>;
 }
 
 function renderSectionBody({ value, title }: { value: SectionContentValue; title?: string }) {
@@ -97,7 +98,7 @@ function renderSectionBody({ value, title }: { value: SectionContentValue; title
       <>
         {shouldShowTitle && title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
         {value.introduction ? <TextParagraphs text={value.introduction} className="space-y-3 text-[#52645a]" /> : null}
-        {value.bullets && value.bullets.length ? <ul className="mt-3 list-disc space-y-2 pl-6 text-[#52645a]">{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul> : null}
+        {value.bullets && value.bullets.length ? <ul className="mt-3 list-disc space-y-2 pl-6 text-[#52645a]">{value.bullets.map((bullet) => <li key={String(bullet)}>{formatInlineText(bullet)}</li>)}</ul> : null}
         {value.conclusion ? <TextParagraphs text={value.conclusion} className="mt-3 space-y-3 text-[#52645a]" /> : null}
       </>
     );
@@ -146,7 +147,7 @@ export function CalloutSection({ title, value, callout, alignment = "left", clas
           {value.format === "bullets" ? (
             <>
               {value.introduction ? <TextParagraphs text={value.introduction} className="space-y-3" /> : null}
-              {value.bullets && value.bullets.length ? <ul className={getCalloutBulletListClassName(normalizedAlignment)}>{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul> : null}
+              {value.bullets && value.bullets.length ? <ul className={getCalloutBulletListClassName(normalizedAlignment)}>{value.bullets.map((bullet) => <li key={String(bullet)}>{formatInlineText(bullet)}</li>)}</ul> : null}
               {value.conclusion ? <TextParagraphs text={value.conclusion} className="mt-3 space-y-3" /> : null}
             </>
           ) : value.format === "scripture" ? (

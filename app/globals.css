@@ -135,12 +135,11 @@ a {
   margin-bottom: 0 !important;
 }
 
-@media print {
-  @page {
-    size: auto;
-    margin: 0.75in 0.6in;
-  }
+@page {
+  margin: 0.75in 0.6in 1in 0.6in;
+}
 
+@media print {
   body {
     background: white;
     color: #1f2c24;

@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
+import { formatInlineText } from "@/app/formatted-text";
 import type { ContentActionState, SectionFormat } from "./content-actions";
 import { CalloutSection, getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, getPresetDefaults, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment, type SectionCallout, type SectionCalloutStyle, type SectionCalloutType, type SectionContentValue } from "./callout-utils";
 
@@ -379,7 +380,7 @@ function SectionPreview({ content, title, highlightHorizontalAlignment }: { cont
   const body = value.format === "bullets" && Array.isArray(value.bullets) ? (
     <>
       {value.introduction ? <div className="space-y-3"><TextParagraphs text={value.introduction} /></div> : null}
-      {value.bullets.length ? <ul className={callout ? getCalloutBulletListClassName(alignment, "space-y-1") : "list-disc space-y-1 pl-5"}>{value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}</ul> : null}
+      {value.bullets.length ? <ul className={callout ? getCalloutBulletListClassName(alignment, "space-y-1") : "list-disc space-y-1 pl-5"}>{value.bullets.map((bullet) => <li key={String(bullet)}>{formatInlineText(bullet)}</li>)}</ul> : null}
       {value.conclusion ? <div className="mt-3 space-y-3"><TextParagraphs text={value.conclusion} /></div> : null}
     </>
   ) : value.format === "scripture" ? (
@@ -413,5 +414,5 @@ function SectionPreview({ content, title, highlightHorizontalAlignment }: { cont
 
 function TextParagraphs({ text }: { text: unknown }) {
   const paragraphs = String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean);
-  return <>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{paragraph}</p>)}</>;
+  return <>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{formatInlineText(paragraph)}</p>)}</>;
 }

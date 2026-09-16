@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowRight, HeartHandshake } from "lucide-react";
 import { PublicFooter } from "@/app/public-footer";
+import { formatInlineText } from "@/app/formatted-text";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import {
@@ -44,9 +45,9 @@ export default async function PointsOfAgreementPage() {
             Points of Agreement
           </p>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{guideSettings.title}</h1>
-          <p className="mt-4 max-w-3xl text-lg font-bold leading-8 text-[#52645a]">{guideSettings.subtitle}</p>
+          <p className="mt-4 max-w-3xl text-lg font-bold leading-8 text-[#52645a]">{formatInlineText(guideSettings.subtitle)}</p>
           <blockquote className="mt-8 border-l-4 border-[#d2a34f] pl-5 text-lg italic leading-8 text-[#4d5f52]">
-            <p>{guideSettings.opening_scripture}</p>
+            <p>{formatInlineText(guideSettings.opening_scripture)}</p>
             <cite className="mt-3 block text-xs not-italic font-extrabold uppercase tracking-[0.18em] text-[#946332]">
               {guideSettings.opening_scripture_reference}
             </cite>
@@ -79,7 +80,7 @@ export default async function PointsOfAgreementPage() {
 
         <footer className="mt-10 border-t border-[#284a3b]/15 pt-8">
           <blockquote className="text-lg italic leading-8 text-[#4d5f52]">
-            <p>{guideSettings.footer_quotation}</p>
+            <p>{formatInlineText(guideSettings.footer_quotation)}</p>
             <cite className="mt-3 block text-xs not-italic font-extrabold uppercase tracking-[0.18em] text-[#946332]">
               {guideSettings.footer_scripture_reference}
             </cite>
@@ -106,7 +107,7 @@ function GuideField({ label, value, variant }: { label: string; value: string; v
   return (
     <div className={variant === "target" ? "mt-4 sm:mt-5" : "mt-5 sm:mt-6"}>
       <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#243d31]">{label}:</h2>
-      <div className={`space-y-3 whitespace-pre-wrap break-words text-base font-normal leading-7 ${bodyClassName}`}>{value}</div>
+      <div className={`space-y-3 whitespace-pre-wrap break-words text-base font-normal leading-7 ${bodyClassName}`}>{formatInlineText(value)}</div>
     </div>
   );
 }

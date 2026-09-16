@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
 import { PublicFooter } from "@/app/public-footer";
+import { formatInlineText } from "@/app/formatted-text";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { DEVOTIONAL_DAY_NUMBERS, splitParagraphs, type DevotionalDay } from "@/lib/devotionals";
@@ -98,5 +99,5 @@ export default async function DevotionalOverviewPage({ params }: { params: Promi
 function TextBlock({ text, className }: { text?: string | null; className?: string }) {
   const paragraphs = splitParagraphs(text);
   if (!paragraphs.length) return null;
-  return <div className={`space-y-4 ${className ?? ""}`}>{paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div>;
+  return <div className={`space-y-4 ${className ?? ""}`}>{paragraphs.map((paragraph) => <p key={paragraph}>{formatInlineText(paragraph)}</p>)}</div>;
 }

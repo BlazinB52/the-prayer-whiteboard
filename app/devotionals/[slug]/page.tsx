@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpenCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import { PublicFooter } from "@/app/public-footer";
+import { formatInlineText } from "@/app/formatted-text";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import {
@@ -47,7 +48,7 @@ export default async function PublicDevotionalPage({ params }: { params: Promise
             {series.title}
           </h1>
           <p className="mt-4 text-sm font-bold text-[#607066]">For {series.teaching.title}</p>
-          <p className="mt-6 text-lg leading-8 text-[#52645a]">{description}</p>
+          <p className="mt-6 text-lg leading-8 text-[#52645a]">{formatInlineText(description)}</p>
           <Link href={getDevotionalStartPath(series)} className="mt-5 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold !text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white visited:!text-white sm:w-auto">
             {getDevotionalStartLabel(series)} <ArrowRight aria-hidden="true" size={19} />
           </Link>

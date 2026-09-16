@@ -3,7 +3,6 @@ export type FeaturedTeachingCandidate = {
   slug: string;
   title: string;
   gathering_date: string | null;
-  updated_at: string;
   is_featured: boolean;
   status: string;
 };
@@ -19,7 +18,7 @@ export function selectFeaturedTeaching(candidates: FeaturedTeachingCandidate[]) 
     .sort((left, right) => {
       const leftDate = left.gathering_date ? Date.parse(`${left.gathering_date}T00:00:00Z`) : Number.NEGATIVE_INFINITY;
       const rightDate = right.gathering_date ? Date.parse(`${right.gathering_date}T00:00:00Z`) : Number.NEGATIVE_INFINITY;
-      return rightDate - leftDate || right.updated_at.localeCompare(left.updated_at) || right.id.localeCompare(left.id);
+      return rightDate - leftDate || right.id.localeCompare(left.id);
     })[0] ?? null;
 }
 

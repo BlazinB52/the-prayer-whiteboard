@@ -15,7 +15,6 @@ import { EmailUpdatesCta } from "@/app/email-updates-cta";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { selectFeaturedTeaching, type FeaturedTeachingCandidate } from "@/lib/homepage-utils";
-import { getCalloutBulletListClassName, getCalloutLabel, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment } from "./admin/teachings/callout-utils";
 
 const pageUrl = "https://theprayerwhiteboard.com";
 const teachingPath = "/teachings/aliyah-israel-harvest-prayer";
@@ -62,20 +61,22 @@ type FeaturedHomepageData = {
     central_theme: string | null;
     introduction: string | null;
     summary: string | null;
+    teaser_1_heading: string | null;
+    teaser_1_text: string | null;
+    teaser_2_heading: string | null;
+    teaser_2_text: string | null;
     hasPublishedDevotional: boolean;
     devotionalSlug: string | null;
   };
-  highlights: HomepageHighlight[];
+  teasers: HomepageTeaser[];
   chalkboard: { url: string; altText: string; caption: string | null } | null;
   previousGatherings: PreviousGathering[];
 };
 
-type HomepageHighlight = {
+type HomepageTeaser = {
   id: string;
-  title: string;
-  categoryTitle: string;
-  content: unknown;
-  highlightHorizontalAlignment: HighlightHorizontalAlignment;
+  heading: string;
+  text: string;
 };
 
 type PreviousGathering = {
@@ -178,7 +179,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   const supabase = await createClient();
   const { data: candidates, error: teachingError } = await supabase
     .from("teachings")
-    .select("id, slug, title, gathering_date, updated_at, is_featured, status, central_theme, introduction, summary, chalkboard_asset_id")
+    .select("id, slug, title, gathering_date, is_featured, status, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, chalkboard_asset_id")
     .eq("status", "published")
     .eq("is_featured", true);
   if (teachingError) return null;
@@ -188,19 +189,13 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   const selectedTeaching = (candidates ?? []).find((candidate) => candidate.id === teaching.id);
   if (!selectedTeaching) return null;
 
-  const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: previousGatherings, error: previousError }] = await Promise.all([
-    supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
-    supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status, highlight_horizontal_alignment").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
+  const [{ data: previousGatherings, error: previousError }] = await Promise.all([
     supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
-  if (categoriesError || sectionsError || previousError) return null;
+  if (previousError) return null;
 
   const previousGatheringItems = (previousGatherings ?? []) as PreviousGathering[];
   const devotionalSlugsByTeachingId = await getPublishedDevotionalSlugsByTeachingId([teaching.id, ...previousGatheringItems.map((gathering) => gathering.id)]);
-
-  const validCategories = (categories ?? []).filter((category) => category.teaching_id === teaching.id);
-  const validSections = (sections ?? []).filter((section) => section.teaching_id === teaching.id && validCategories.some((category) => category.id === section.category_id));
-  const highlights = validCategories.flatMap((category) => validSections.filter((section) => section.category_id === category.id).map((section) => ({ id: section.id, title: section.title, categoryTitle: category.title, content: section.content, highlightHorizontalAlignment: normalizeHighlightHorizontalAlignment(section.highlight_horizontal_alignment), selected: Boolean(section.content && typeof section.content === "object" && (section.content as Record<string, unknown>).homepageHighlight === true) }))).filter((section) => section.selected).slice(0, 4);
 
   const { data: teachingChalkboards } = await supabase
     .from("teaching_chalkboard_assignments")
@@ -212,10 +207,17 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
 
   return {
     teaching: { ...selectedTeaching, hasPublishedDevotional: devotionalSlugsByTeachingId.has(teaching.id), devotionalSlug: devotionalSlugsByTeachingId.get(teaching.id) ?? null } as FeaturedHomepageData["teaching"],
-    highlights,
+    teasers: buildHomepageTeasers(selectedTeaching),
     chalkboard,
     previousGatherings: previousGatheringItems.map((gathering) => ({ ...gathering, hasPublishedDevotional: devotionalSlugsByTeachingId.has(gathering.id), devotionalSlug: devotionalSlugsByTeachingId.get(gathering.id) ?? null })),
   };
+}
+
+function buildHomepageTeasers(teaching: Pick<FeaturedHomepageData["teaching"], "teaser_1_heading" | "teaser_1_text" | "teaser_2_heading" | "teaser_2_text">): HomepageTeaser[] {
+  return [
+    { id: "teaser-1", heading: teaching.teaser_1_heading?.trim() ?? "", text: teaching.teaser_1_text?.trim() ?? "" },
+    { id: "teaser-2", heading: teaching.teaser_2_heading?.trim() ?? "", text: teaching.teaser_2_text?.trim() ?? "" },
+  ].filter((teaser) => teaser.heading && teaser.text);
 }
 
 export default async function PrayerGroupPage() {
@@ -243,7 +245,7 @@ function FeaturedHomepage({ data, weeklyUpdate }: { data: FeaturedHomepageData; 
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
       <PublicHeader maxWidthClassName="max-w-6xl" nav={homepageNav} />
       <section className="relative"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" /><div className="relative mx-auto grid max-w-6xl gap-9 px-5 pb-14 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-20"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]"><Sparkles aria-hidden="true" size={15} />Welcome to our gathering place</p><h1 className="mt-6 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.045em] text-[#20382e] sm:text-6xl lg:text-7xl">Prayer changes things. <span className="text-[#a85e32]">The Word changes us.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.</p><WeeklyUpdateHeroButton weeklyUpdate={weeklyUpdate} /></div><div className="relative mx-auto w-full max-w-[510px]">{heroChalkboard ? <><div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" /><div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4"><a href={heroChalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger"><img src={heroChalkboard.url} alt={heroChalkboard.altText} className="h-auto w-full rounded-2xl object-contain" /></a>{heroChalkboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{heroChalkboard.caption}</p> : null}<div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p><p className="mt-1 font-extrabold text-[#263f33]">{heroChalkboardTitle}</p></div></div></> : <div className="rounded-[1.75rem] border border-[#284a3b]/10 bg-[#fffdf8] p-8 text-center shadow-xl"><p className="text-sm font-bold text-[#607066]">Chalkboard coming soon</p></div>}</div></div></section>
-      <section id="latest" className="bg-[#244a3a] px-5 py-14 text-white sm:px-8 sm:py-20"><div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start"><div><p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">{date}</p><h2 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">{data.teaching.title}</h2><p className="mt-5 text-base leading-7 text-[#dce8e1]">{description}</p><HomepageTeachingActions slug={data.teaching.slug} hasPublishedDevotional={data.teaching.hasPublishedDevotional} devotionalSlug={data.teaching.devotionalSlug} variant="dark" className="mt-7" /></div><div className="grid gap-4 sm:grid-cols-2">{data.highlights.map((highlight, index) => <HomepageHighlightCard key={highlight.id} highlight={highlight} href={`${teachingPath}#section-${highlight.id}`} index={index} />)}</div></div></section>
+      <section id="latest" className="bg-[#244a3a] px-5 py-14 text-white sm:px-8 sm:py-20"><div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start"><div><p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">{date}</p><h2 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">{data.teaching.title}</h2><p className="mt-5 text-base leading-7 text-[#dce8e1]">{description}</p><HomepageTeachingActions slug={data.teaching.slug} hasPublishedDevotional={data.teaching.hasPublishedDevotional} devotionalSlug={data.teaching.devotionalSlug} variant="dark" className="mt-7" /></div>{data.teasers.length ? <div className="grid gap-4 sm:grid-cols-2">{data.teasers.map((teaser, index) => <HomepageTeaserCard key={teaser.id} teaser={teaser} href={teachingPath} index={index} />)}</div> : null}</div></section>
       <StaticHomepageLowerSections previousGatherings={data.previousGatherings} />
       <EmailUpdatesCta copy="Stay connected with The Prayer Whiteboard. Subscribe to the Weekly Updates, teachings, and devotionals you choose." />
       <PublicFooter />
@@ -252,54 +254,15 @@ function FeaturedHomepage({ data, weeklyUpdate }: { data: FeaturedHomepageData; 
   );
 }
 
-function HomepageHighlightCard({ highlight, href, index }: { highlight: HomepageHighlight; href: string; index: number }) {
-  const value = highlight.content && typeof highlight.content === "object" ? highlight.content as Record<string, unknown> : {};
-  const callout = normalizeCallout(value.callout);
-  const alignment = normalizeHighlightHorizontalAlignment(highlight.highlightHorizontalAlignment);
-  const numberClassName = alignment === "center" ? "mx-auto grid size-9 place-items-center rounded-full bg-[#f1c66f] text-sm font-black text-[#244a3a]" : "grid size-9 place-items-center rounded-full bg-[#f1c66f] text-sm font-black text-[#244a3a]";
-  const readClassName = alignment === "center" ? "mt-4 inline-flex items-center justify-center gap-2 text-sm font-extrabold text-[#f0cb83]" : "mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-[#f0cb83]";
-  const label = getCalloutLabel(callout);
-
+function HomepageTeaserCard({ teaser, href, index }: { teaser: HomepageTeaser; href: string; index: number }) {
   return (
-    <Link href={href} className={`group flex min-h-56 flex-col rounded-3xl border border-white/10 bg-white/[0.07] p-5 text-[#dce8e1] transition hover:-translate-y-0.5 hover:bg-white/[0.11] ${alignment === "center" ? "text-center" : "text-left"}`}>
-      <span className={numberClassName}>{index + 1}</span>
-      {label ? <div className="mt-4 text-xs font-extrabold uppercase tracking-[0.14em] text-[#dce8e1]">{label}</div> : null}
-      {value.showTitle !== false ? <h3 className="mt-4 text-xl font-extrabold text-white">{highlight.title}</h3> : null}
-      <div className="mt-3 space-y-3 text-sm leading-6 text-[#dce8e1]"><HomepageHighlightContent value={value} alignment={alignment} /></div>
-      <span className={readClassName}>Read this section <ArrowRight aria-hidden="true" size={16} /></span>
+    <Link href={href} className="group flex min-h-56 flex-col rounded-3xl border border-white/10 bg-white/[0.07] p-5 text-left text-[#dce8e1] transition hover:-translate-y-0.5 hover:bg-white/[0.11]">
+      <span className="grid size-9 place-items-center rounded-full bg-[#f1c66f] text-sm font-black text-[#244a3a]">{index + 1}</span>
+      <h3 className="mt-4 text-xl font-extrabold text-white">{teaser.heading}</h3>
+      <p className="mt-3 text-sm leading-6 text-[#dce8e1]">{teaser.text}</p>
+      <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-extrabold text-[#f0cb83]">Read the full teaching <ArrowRight aria-hidden="true" size={16} /></span>
     </Link>
   );
-}
-
-function HomepageHighlightContent({ value, alignment }: { value: Record<string, unknown>; alignment: HighlightHorizontalAlignment }) {
-  if (value.format === "bullets" && Array.isArray(value.bullets)) {
-    return (
-      <>
-        <HomepageTextParagraphs text={value.introduction} />
-        <ul className={`${getCalloutBulletListClassName(alignment)} mt-3`}>
-          {value.bullets.map((bullet) => <li key={String(bullet)}>{String(bullet)}</li>)}
-        </ul>
-        <HomepageTextParagraphs text={value.conclusion} className="mt-3" />
-      </>
-    );
-  }
-
-  if (value.format === "scripture") {
-    return (
-      <>
-        <HomepageTextParagraphs text={value.introduction} />
-        <p className="mt-3 font-bold">{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal opacity-80">({String(value.translation)})</span> : null}</p>
-        <div className="mt-2 italic"><HomepageTextParagraphs text={value.quotation} /></div>
-      </>
-    );
-  }
-
-  return <HomepageTextParagraphs text={value.text} className={value.format === "takeaway" ? "font-bold" : undefined} />;
-}
-
-function HomepageTextParagraphs({ text, className }: { text: unknown; className?: string }) {
-  const paragraphs = String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean);
-  return <div className={`space-y-3 ${className ?? ""}`}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{paragraph}</p>)}</div>;
 }
 
 function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive = false }: { previousGatherings: PreviousGathering[]; showFallbackArchive?: boolean }) {

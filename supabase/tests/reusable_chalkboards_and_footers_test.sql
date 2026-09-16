@@ -239,7 +239,7 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', (select id::text from reusable_content_test_ids where key = 'admin_user'), true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-insert into public.teachings (id, title, slug, status, summary, gathering_date, chalkboard_asset_id)
+insert into public.teachings (id, title, slug, status, summary, gathering_date, chalkboard_asset_id, teaser_1_heading, teaser_1_text)
 values (
   (select id from reusable_content_test_ids where key = 'teaching_without_chalkboard'),
   'Publish Without Chalkboard',
@@ -247,7 +247,9 @@ values (
   'draft',
   'This teaching has all publishable content except a chalkboard.',
   '2026-09-15',
-  null
+  null,
+  'Publish without chalkboard teaser',
+  'This teaching can be featured without a chalkboard.'
 );
 
 insert into public.teaching_categories (id, teaching_id, slug, title, sort_order, status)

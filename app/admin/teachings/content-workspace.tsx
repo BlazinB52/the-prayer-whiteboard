@@ -33,7 +33,6 @@ type SectionValues = {
   translation: string;
   quotation: string;
   showTitle: boolean;
-  homepageHighlight: boolean;
   highlightHorizontalAlignment: HighlightHorizontalAlignment;
   callout?: SectionCallout;
 };
@@ -61,10 +60,6 @@ export function ContentWorkspace({
   moveSectionActions: Record<string, { up: () => Promise<ContentActionState>; down: () => Promise<ContentActionState> }>;
   deleteSectionActions: Record<string, () => Promise<ContentActionState>>;
 }) {
-  const allSections = categories.flatMap((category) => category.sections);
-  const selectedSections = allSections.filter((section) => Boolean((section.content && typeof section.content === "object" && (section.content as Record<string, unknown>).homepageHighlight === true)));
-  const totalSelected = selectedSections.length;
-
   return (
     <section className="mt-12 border-t border-[#284a3b]/10 pt-10">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -73,19 +68,6 @@ export function ContentWorkspace({
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">Teaching Content</h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">Organize the teaching into ordered categories and sections. Published teachings update publicly when saved.</p>
         </div>
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-[#284a3b]/10 bg-[#f7f4ee] px-4 py-3">
-        <p className="text-sm font-extrabold text-[#385245]">Homepage highlights: {totalSelected} of 4 selected</p>
-        {totalSelected >= 4 ? <p className="mt-1 text-xs text-[#607066]">Four homepage highlights are already selected. Unselect another section first.</p> : null}
-        {selectedSections.length ? (
-          <div className="mt-3">
-            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#946332]">Future homepage order</p>
-            <ul className="mt-2 list-disc pl-5 text-sm text-[#52645a]">
-              {selectedSections.map((section) => <li key={section.id}>{section.title}</li>)}
-            </ul>
-          </div>
-        ) : null}
       </div>
 
       <div className="mt-8 space-y-6">
@@ -158,14 +140,14 @@ function CategoryRenameForm({ action, title }: { action: Action; title: string }
 }
 
 function SectionAddForm({ categoryId, action }: { categoryId: string; action: Action }) {
-  return <div className="mt-6"><h5 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#946332]">Add section</h5><SectionForm key={`add-section-${categoryId}`} action={action} values={{ title: "", format: "paragraph", mainText: "", introduction: "", conclusion: "", reference: "", translation: "", quotation: "", showTitle: true, homepageHighlight: false, highlightHorizontalAlignment: "left" }} submitLabel="Add section" resetOnSuccess /></div>;
+  return <div className="mt-6"><h5 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[#946332]">Add section</h5><SectionForm key={`add-section-${categoryId}`} action={action} values={{ title: "", format: "paragraph", mainText: "", introduction: "", conclusion: "", reference: "", translation: "", quotation: "", showTitle: true, highlightHorizontalAlignment: "left" }} submitLabel="Add section" resetOnSuccess /></div>;
 }
 
 function SectionPanel({ section, categories, isFirst, isLast, action, moveActions, deleteAction }: { section: Section; categories: Category[]; isFirst: boolean; isLast: boolean; action: Action; moveActions: { up: () => Promise<ContentActionState>; down: () => Promise<ContentActionState> }; deleteAction: () => Promise<ContentActionState> }) {
   const values = sectionValues(section);
-  const formKey = `${section.id}-${values.format}-${values.title}-${values.homepageHighlight}-${values.highlightHorizontalAlignment}-${JSON.stringify(values.callout ?? null)}`;
+  const formKey = `${section.id}-${values.format}-${values.title}-${values.highlightHorizontalAlignment}-${JSON.stringify(values.callout ?? null)}`;
   const detailsRef = useRef<HTMLDetailsElement>(null);
-  return <div className="rounded-xl border border-[#284a3b]/10 bg-white p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Section {section.sort_order} · {values.format}</p>{values.showTitle === false ? <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#946332]">Admin title: {section.title}</p> : null}{values.homepageHighlight ? <span className="mt-2 inline-flex rounded-full bg-[#e4efd3] px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#2f593f]">Homepage highlight</span> : null}</div><div className="flex flex-wrap gap-2"><OperationForm action={moveActions.up} label="Up" disabled={isFirst} /><OperationForm action={moveActions.down} label="Down" disabled={isLast} /><OperationForm action={deleteAction} label="Delete" confirmMessage="Delete this section?" danger /></div></div><div className="mt-4 border-l-2 border-[#f1c66f] pl-4 text-sm leading-6 text-[#52645a]"><SectionPreview content={section.content} title={section.title} highlightHorizontalAlignment={values.highlightHorizontalAlignment} /></div><details ref={detailsRef} className="mt-5"><summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit section</summary><SectionForm key={formKey} action={action} values={values} categories={categories} currentCategoryId={section.category_id} submitLabel="Save section" onSuccess={() => { if (detailsRef.current) detailsRef.current.open = false; }} /></details></div>;
+  return <div className="rounded-xl border border-[#284a3b]/10 bg-white p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Section {section.sort_order} · {values.format}</p>{values.showTitle === false ? <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#946332]">Admin title: {section.title}</p> : null}</div><div className="flex flex-wrap gap-2"><OperationForm action={moveActions.up} label="Up" disabled={isFirst} /><OperationForm action={moveActions.down} label="Down" disabled={isLast} /><OperationForm action={deleteAction} label="Delete" confirmMessage="Delete this section?" danger /></div></div><div className="mt-4 border-l-2 border-[#f1c66f] pl-4 text-sm leading-6 text-[#52645a]"><SectionPreview content={section.content} title={section.title} highlightHorizontalAlignment={values.highlightHorizontalAlignment} /></div><details ref={detailsRef} className="mt-5"><summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit section</summary><SectionForm key={formKey} action={action} values={values} categories={categories} currentCategoryId={section.category_id} submitLabel="Save section" onSuccess={() => { if (detailsRef.current) detailsRef.current.open = false; }} /></details></div>;
 }
 
 function OperationForm({ action, label, disabled = false, confirmMessage, danger = false }: { action: () => Promise<ContentActionState>; label: string; disabled?: boolean; confirmMessage?: string; danger?: boolean }) {
@@ -183,7 +165,6 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
   const [translation, setTranslation] = useState(values.translation);
   const [quotation, setQuotation] = useState(values.quotation);
   const [showTitle, setShowTitle] = useState(values.showTitle !== false);
-  const [homepageHighlight, setHomepageHighlight] = useState(Boolean(values.homepageHighlight));
   const [highlightHorizontalAlignment, setHighlightHorizontalAlignment] = useState<HighlightHorizontalAlignment>(values.highlightHorizontalAlignment);
   const [calloutEnabled, setCalloutEnabled] = useState(Boolean(values.callout?.enabled));
   const [calloutType, setCalloutType] = useState<SectionCalloutType>(values.callout?.type ?? "custom");
@@ -208,7 +189,6 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
       setTranslation("");
       setQuotation("");
       setShowTitle(true);
-      setHomepageHighlight(false);
       setHighlightHorizontalAlignment("left");
       setCalloutEnabled(false);
       setCalloutType("custom");
@@ -300,13 +280,6 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
           <p className="mt-1 text-xs text-[#607066]">Uncheck when the category heading already introduces this section.</p>
         </div>
       </div>
-      <div className="flex items-start gap-3 rounded-xl border border-[#284a3b]/10 bg-[#f7f4ee] px-3 py-2">
-        <input id={`homepageHighlight-${String(values.title || currentCategoryId || "section")}`} type="checkbox" name="homepageHighlight" value="true" checked={homepageHighlight} onChange={(event) => setHomepageHighlight(event.target.checked)} className="mt-1 h-4 w-4 rounded border-[#385245] text-[#244a3a]" disabled={Boolean(!homepageHighlight && categories && categories.flatMap((category) => category.sections).filter((section) => Boolean((section.content && typeof section.content === "object" && (section.content as Record<string, unknown>).homepageHighlight === true))).length >= 4)} />
-        <div>
-          <label htmlFor={`homepageHighlight-${String(values.title || currentCategoryId || "section")}`} className={homepageHighlight ? "block text-sm font-bold text-[#385245]" : "block text-sm font-bold text-[#385245]"}>Feature on homepage when published</label>
-          <p className="mt-1 text-xs text-[#607066]">{!homepageHighlight && categories && categories.flatMap((category) => category.sections).filter((section) => Boolean((section.content && typeof section.content === "object" && (section.content as Record<string, unknown>).homepageHighlight === true))).length >= 4 ? "Four homepage highlights are already selected. Unselect another section first." : "Select up to four sections to appear as homepage teaching highlights."}</p>
-        </div>
-      </div>
       <label className="block text-sm font-bold text-[#385245]">Format<select value={selectedFormat} onChange={(event) => setSelectedFormat(event.target.value as SectionFormat)} className="admin-input"><option value="paragraph">Paragraph</option><option value="bullets">Bullet list</option><option value="scripture">Scripture</option><option value="takeaway">Takeaway or confession</option></select></label>
       {selectedFormat === "scripture" ? (
         <>
@@ -346,7 +319,6 @@ function sectionValues(section: Section): SectionValues {
     translation: typeof value.translation === "string" ? value.translation : "",
     quotation: typeof value.quotation === "string" ? value.quotation : "",
     showTitle: value.showTitle !== false,
-    homepageHighlight: value.homepageHighlight === true,
     highlightHorizontalAlignment: normalizeHighlightHorizontalAlignment(section.highlight_horizontal_alignment),
     callout: normalizeCallout(value.callout),
   };

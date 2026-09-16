@@ -33,7 +33,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
   const { supabase } = await requireAdmin();
   const { data: teaching, error } = await supabase
     .from("teachings")
-    .select("id, title, gathering_date, central_theme, introduction, summary, status, chalkboard_asset_id")
+    .select("id, title, gathering_date, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, status, chalkboard_asset_id")
     .eq("id", id)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -143,6 +143,10 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
             centralTheme: teaching.central_theme ?? "",
             introduction: teaching.introduction ?? "",
             summary: teaching.summary ?? "",
+            teaser1Heading: teaching.teaser_1_heading ?? "",
+            teaser1Text: teaching.teaser_1_text ?? "",
+            teaser2Heading: teaching.teaser_2_heading ?? "",
+            teaser2Text: teaching.teaser_2_text ?? "",
             chalkboardAssetIds: assignedChalkboardIds.length ? assignedChalkboardIds : (teaching.chalkboard_asset_id ? [teaching.chalkboard_asset_id] : []),
             includeFooter: Boolean(footerAssignment?.footer_id),
             footerId: footerAssignment?.footer_id ?? "",

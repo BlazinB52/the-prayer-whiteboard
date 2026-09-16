@@ -33,7 +33,7 @@ export default async function NewTeachingPage() {
         <Link href="/admin/teachings" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Teachings</Link>
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31]">New Teaching</h1>
         <p className="mt-3 text-sm text-[#607066]">Start with private draft metadata. Publishing and content structure will come later.</p>
-        <TeachingForm action={createTeaching} values={{ title: "", gatheringDate: "", centralTheme: "", introduction: "", summary: "", chalkboardAssetIds: [], includeFooter: false, footerId: "" }} chalkboards={chalkboardOptions} footers={footerOptions} />
+        <TeachingForm action={createTeaching} values={{ title: "", gatheringDate: "", centralTheme: "", introduction: "", summary: "", teaser1Heading: "", teaser1Text: "", teaser2Heading: "", teaser2Text: "", chalkboardAssetIds: [], includeFooter: false, footerId: "" }} chalkboards={chalkboardOptions} footers={footerOptions} />
       </div>
     </main>
   );

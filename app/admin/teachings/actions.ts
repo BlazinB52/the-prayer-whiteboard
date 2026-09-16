@@ -9,6 +9,8 @@ const MAX_LENGTHS = {
   centralTheme: 300,
   introduction: 5000,
   summary: 500,
+  teaserHeading: 100,
+  teaserText: 300,
 };
 
 type FormState = { error?: string; saved?: boolean };
@@ -18,16 +20,28 @@ export type DeleteTeachingState = { error?: string };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function fieldLabel(name: string) {
+  const labels: Record<string, string> = {
+    title: "Title",
+    centralTheme: "Central theme",
+    teaser1Heading: "Teaser 1 heading",
+    teaser1Text: "Teaser 1 text",
+    teaser2Heading: "Teaser 2 heading",
+    teaser2Text: "Teaser 2 text",
+  };
+  return labels[name] ?? name;
+}
+
 function readText(formData: FormData, name: string, maxLength: number, required = false) {
   const value = String(formData.get(name) ?? "").trim();
 
   if (required && !value) {
-    return { error: `${name === "title" ? "Title" : name} is required.` };
+    return { error: `${fieldLabel(name)} is required.` };
   }
 
   if (value.length > maxLength) {
     return {
-      error: `${name === "centralTheme" ? "Central theme" : name} must be ${maxLength} characters or fewer.`,
+      error: `${fieldLabel(name)} must be ${maxLength} characters or fewer.`,
     };
   }
 
@@ -66,6 +80,28 @@ function slugify(title: string) {
   return slug || "teaching";
 }
 
+function validateTeasers(formData: FormData) {
+  const teaser1Heading = readText(formData, "teaser1Heading", MAX_LENGTHS.teaserHeading);
+  const teaser1Text = readText(formData, "teaser1Text", MAX_LENGTHS.teaserText);
+  const teaser2Heading = readText(formData, "teaser2Heading", MAX_LENGTHS.teaserHeading);
+  const teaser2Text = readText(formData, "teaser2Text", MAX_LENGTHS.teaserText);
+  const error = [teaser1Heading, teaser1Text, teaser2Heading, teaser2Text].find((field) => field.error)?.error;
+
+  if (error) return { error };
+  if (Boolean(teaser2Heading.value) !== Boolean(teaser2Text.value)) {
+    return { error: "Teaser 2 heading and text must be completed together." };
+  }
+
+  return {
+    value: {
+      teaser_1_heading: teaser1Heading.value || null,
+      teaser_1_text: teaser1Text.value || null,
+      teaser_2_heading: teaser2Heading.value || null,
+      teaser_2_text: teaser2Text.value || null,
+    },
+  };
+}
+
 function validateMetadata(formData: FormData) {
   const fields = {
     title: readText(formData, "title", MAX_LENGTHS.title, true),
@@ -74,8 +110,9 @@ function validateMetadata(formData: FormData) {
     summary: readText(formData, "summary", MAX_LENGTHS.summary),
     gatheringDate: readDate(formData),
   };
+  const teasers = validateTeasers(formData);
 
-  const error = Object.values(fields).find((field) => field.error)?.error;
+  const error = Object.values(fields).find((field) => field.error)?.error ?? teasers.error;
   if (error) {
     return { error };
   }
@@ -87,6 +124,7 @@ function validateMetadata(formData: FormData) {
       introduction: fields.introduction.value || null,
       summary: fields.summary.value || null,
       gathering_date: fields.gatheringDate.value,
+      ...teasers.value!,
     },
   };
 }

@@ -66,3 +66,20 @@ test("older unused management tokens are invalidated before a new token is creat
   assert.match(source, /\.is\("used_at", null\)/);
   assert.match(source, /\.insert\(\{\s*subscriber_id: subscriberId,\s*token_type: tokenType,/s);
 });
+
+test("admin subscribers page searches and paginates server-side", async () => {
+  const source = await readFile("app/admin/subscribers/page.tsx", "utf8");
+  assert.match(source, /const PAGE_SIZE = 25/);
+  assert.match(source, /searchParams/);
+  assert.match(source, /\.select\("id, first_name, email, status, confirmed_at, updated_at, sender_sync_status, sender_sync_error", \{ count: "exact" \}\)/);
+  assert.match(source, /\.range\(from, to\)/);
+  assert.match(source, /\.or\(`first_name\.ilike/);
+  assert.match(source, /Showing \$\{firstShown\}-\$\{lastShown\} of \$\{total\}/);
+});
+
+test("admin subscribers page preserves masked display and normal scrolling", async () => {
+  const source = await readFile("app/admin/subscribers/page.tsx", "utf8");
+  assert.match(source, /maskEmail\(subscriber\.email\)/);
+  assert.match(source, /overflow-x-auto/);
+  assert.doesNotMatch(source, /mt-8 overflow-hidden rounded-2xl/);
+});

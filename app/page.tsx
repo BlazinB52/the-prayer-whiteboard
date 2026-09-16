@@ -148,7 +148,6 @@ async function getPreviousGatherings(): Promise<PreviousGathering[]> {
     .from("teachings")
     .select("id, slug, title, gathering_date")
     .eq("status", "published")
-    .eq("is_featured", false)
     .order("gathering_date", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false });
 
@@ -192,7 +191,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: previousGatherings, error: previousError }] = await Promise.all([
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status, highlight_horizontal_alignment").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
-    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").eq("is_featured", false).order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
+    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
   if (categoriesError || sectionsError || previousError) return null;
 

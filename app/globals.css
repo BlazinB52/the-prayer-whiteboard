@@ -135,6 +135,22 @@ a {
   margin-bottom: 0 !important;
 }
 
+.formatted-link {
+  color: #8a4f2b;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.formatted-link:hover {
+  color: #a85e32;
+}
+
+.formatted-link:focus-visible {
+  border-radius: 0.2rem;
+  outline: 2px solid #a85e32;
+  outline-offset: 2px;
+}
+
 @page {
   margin: 0.75in 0.6in 1in 0.6in;
 }
@@ -302,5 +318,15 @@ a {
   a {
     color: inherit;
     text-decoration: none;
+  }
+
+  .formatted-link {
+    color: #1f2c24 !important;
+    text-decoration: underline !important;
+    text-underline-offset: 0.12em;
+  }
+
+  .formatted-link::after {
+    content: "" !important;
   }
 }

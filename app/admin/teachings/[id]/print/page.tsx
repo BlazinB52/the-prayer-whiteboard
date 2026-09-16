@@ -90,7 +90,7 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">The Prayer Whiteboard</p>
           <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31]">{teaching.title}</h1>
           {teaching.gathering_date ? <p className="mt-4 text-sm font-bold text-[#607066]">{formatDate(teaching.gathering_date)}</p> : null}
-          {teaching.central_theme ? <p className="mt-5 text-lg font-bold text-[#385245]">{formatInlineText(teaching.central_theme)}</p> : null}
+          {teaching.central_theme ? <p className="mt-5 text-lg font-bold text-[#385245]">{formatInlineText(teaching.central_theme, { links: true })}</p> : null}
           {teaching.introduction ? <TextParagraphs text={teaching.introduction} className="mt-5 text-[#52645a]" /> : null}
           {teaching.summary ? <TextParagraphs text={teaching.summary} className="mt-5 text-[#52645a]" /> : null}
         </header>
@@ -184,7 +184,7 @@ function getSectionContentParts(value: Content, alignment: HighlightHorizontalAl
         rest: hasRest ? (
           <>
             <Paragraphs paragraphs={remainingIntroduction} />
-            {bullets.length > 0 ? <ul className={`print-bullet-list mt-3 ${getCalloutBulletListClassName(alignment)}`}>{bullets.map((bullet) => <li key={bullet}>{formatInlineText(bullet)}</li>)}</ul> : null}
+            {bullets.length > 0 ? <ul className={`print-bullet-list mt-3 ${getCalloutBulletListClassName(alignment)}`}>{bullets.map((bullet) => <li key={bullet}>{formatInlineText(bullet, { links: true })}</li>)}</ul> : null}
             <Paragraphs paragraphs={conclusion} className="mt-3" />
           </>
         ) : null,
@@ -197,10 +197,10 @@ function getSectionContentParts(value: Content, alignment: HighlightHorizontalAl
     const hasRest = remainingBullets.length > 0 || (bullets.length > 0 ? conclusion.length > 0 : conclusion.length > 1);
 
     return {
-      first: hasFirst ? (bullets.length > 0 ? <ul className={`print-bullet-list ${getCalloutBulletListClassName(alignment)}`}><li>{formatInlineText(bullets[0])}</li></ul> : <Paragraphs paragraphs={firstConclusion} />) : null,
+      first: hasFirst ? (bullets.length > 0 ? <ul className={`print-bullet-list ${getCalloutBulletListClassName(alignment)}`}><li>{formatInlineText(bullets[0], { links: true })}</li></ul> : <Paragraphs paragraphs={firstConclusion} />) : null,
       rest: hasRest ? (
         <>
-          {remainingBullets.length > 0 ? <ul className={`print-bullet-list ${getCalloutBulletListClassName(alignment)}`}>{remainingBullets.map((bullet) => <li key={bullet}>{formatInlineText(bullet)}</li>)}</ul> : null}
+          {remainingBullets.length > 0 ? <ul className={`print-bullet-list ${getCalloutBulletListClassName(alignment)}`}>{remainingBullets.map((bullet) => <li key={bullet}>{formatInlineText(bullet, { links: true })}</li>)}</ul> : null}
           <Paragraphs paragraphs={bullets.length > 0 ? conclusion : conclusion.slice(1)} className="mt-3" />
         </>
       ) : null,
@@ -254,7 +254,7 @@ function TextParagraphs({ text, className }: { text: unknown; className?: string
 
 function Paragraphs({ paragraphs, className }: { paragraphs: string[]; className?: string }) {
   if (paragraphs.length === 0) return null;
-  return <div className={`space-y-3 ${className ?? ""}`}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{formatInlineText(paragraph)}</p>)}</div>;
+  return <div className={`space-y-3 ${className ?? ""}`}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{formatInlineText(paragraph, { links: true })}</p>)}</div>;
 }
 
 function getParagraphs(text: unknown) {

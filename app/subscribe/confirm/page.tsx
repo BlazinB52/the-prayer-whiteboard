@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { confirmSubscriptionToken } from "@/lib/email-subscriptions";
+import { categoryLabels, confirmationCopy } from "@/lib/subscription-confirmation-view";
 
 export const metadata: Metadata = {
   title: "Confirm Subscription | The Prayer Whiteboard",
@@ -12,7 +13,8 @@ export const metadata: Metadata = {
 export default async function ConfirmSubscriptionPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token = "" } = await searchParams;
   const result = await confirmSubscriptionToken(token);
-  const copy = getCopy(result.status);
+  const copy = confirmationCopy(result.status);
+  const labels = categoryLabels(result.categories);
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">
@@ -22,7 +24,12 @@ export default async function ConfirmSubscriptionPage({ searchParams }: { search
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Email Updates</p>
           <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#243d31]">{copy.title}</h1>
           <p className="mt-4 max-w-2xl leading-7 text-[#52645a]">{copy.body}</p>
-          <Link href={copy.href} className="mt-6 inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#244a3a] px-5 font-extrabold text-white shadow-xl shadow-[#244a3a]/20">
+          {copy.confirmed && labels.length ? (
+            <ul className="mt-4 list-disc space-y-2 pl-6 font-bold leading-7 text-[#243126]">
+              {labels.map((label) => <li key={label}>{label}</li>)}
+            </ul>
+          ) : null}
+          <Link href={copy.href} className="mt-6 inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#244a3a] px-5 font-extrabold !text-white shadow-xl shadow-[#244a3a]/20 transition hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#946332] active:bg-[#193329] active:!text-white visited:!text-white">
             {copy.link}
           </Link>
         </article>
@@ -30,10 +37,4 @@ export default async function ConfirmSubscriptionPage({ searchParams }: { search
       <PublicFooter />
     </main>
   );
-}
-
-function getCopy(status: Awaited<ReturnType<typeof confirmSubscriptionToken>>["status"]) {
-  if (status === "confirmed" || status === "already_confirmed") return { title: "Subscription confirmed.", body: "Your Prayer Whiteboard email preferences are active.", href: "/email-preferences", link: "Manage preferences" };
-  if (status === "expired") return { title: "This confirmation link expired.", body: "For security, confirmation links expire after 72 hours. Please subscribe again to receive a new confirmation email.", href: "/subscribe", link: "Request a new link" };
-  return { title: "This confirmation link is invalid.", body: "Please request a fresh subscription link if you still want to receive Prayer Whiteboard emails.", href: "/subscribe", link: "Subscribe" };
 }

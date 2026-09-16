@@ -301,20 +301,28 @@ async function readToken(token: string, tokenType: "confirmation" | "management"
 }
 
 export async function confirmSubscriptionToken(token: string) {
-  if (!token) return { status: "invalid" as const };
+  if (!token) return { status: "invalid" as const, categories: [] as EmailCategory[] };
   const supabase = getClient();
   const tokenResult = await readToken(token, "confirmation", true);
-  if (tokenResult.status === "used" && tokenResult.subscriberId) return { status: "already_confirmed" as const };
-  if (tokenResult.status !== "valid" || !tokenResult.subscriberId) return { status: tokenResult.status };
+  if (tokenResult.status === "used" && tokenResult.subscriberId) {
+    const { data: activePreferences } = await supabase
+      .from("email_subscription_preferences")
+      .select("category, status")
+      .eq("subscriber_id", tokenResult.subscriberId)
+      .eq("status", "active");
+    const activeCategories = (activePreferences ?? []).map((preference) => preference.category as EmailCategory).filter((category) => EMAIL_CATEGORIES.includes(category));
+    return { status: "already_confirmed" as const, categories: activeCategories };
+  }
+  if (tokenResult.status !== "valid" || !tokenResult.subscriberId) return { status: tokenResult.status, categories: [] as EmailCategory[] };
 
   const { data: preferences, error: prefError } = await supabase
     .from("email_subscription_preferences")
     .select("category, status")
     .eq("subscriber_id", tokenResult.subscriberId)
     .eq("status", "pending");
-  if (prefError) return { status: "invalid" as const };
+  if (prefError) return { status: "invalid" as const, categories: [] as EmailCategory[] };
   const categories = (preferences ?? []).map((preference) => preference.category as EmailCategory).filter((category) => EMAIL_CATEGORIES.includes(category));
-  if (!categories.length) return { status: "invalid" as const };
+  if (!categories.length) return { status: "invalid" as const, categories: [] as EmailCategory[] };
 
   const now = new Date().toISOString();
   const { error: subscriberError } = await supabase.from("email_subscribers").update({
@@ -323,10 +331,10 @@ export async function confirmSubscriptionToken(token: string) {
     unsubscribed_at: null,
     sender_sync_status: "not_configured",
   }).eq("id", tokenResult.subscriberId);
-  if (subscriberError) return { status: "invalid" as const };
+  if (subscriberError) return { status: "invalid" as const, categories: [] as EmailCategory[] };
   await replacePreferences(tokenResult.subscriberId, categories, "active");
   await recordConsentEvent(tokenResult.subscriberId, "double_opt_in_confirmed", categories, await requestMetadata());
-  return { status: "confirmed" as const };
+  return { status: "confirmed" as const, categories };
 }
 
 export async function requestManagementLink(formData: FormData) {

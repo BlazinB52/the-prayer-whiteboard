@@ -16,8 +16,8 @@ export function PublicFooter() {
         <Link href="/devotionals" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f1c66f]">
           Devotionals
         </Link>
-        <Link href="/subscribe" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f1c66f]">
-          Email Updates
+        <Link href="/subscribe" className="inline-flex min-h-10 items-center justify-center rounded-2xl bg-[#f1c66f] px-4 font-extrabold !text-[#1d352b] shadow-lg shadow-black/10 transition hover:bg-[#ffe09a] hover:!text-[#1d352b] focus-visible:!text-[#1d352b] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fffdf8] active:bg-[#e3b85c] active:!text-[#1d352b] visited:!text-[#1d352b]">
+          Subscribe
         </Link>
         <Link href="/privacy" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f1c66f]">
           Privacy

@@ -83,3 +83,26 @@ test("admin subscribers page preserves masked display and normal scrolling", asy
   assert.match(source, /overflow-x-auto/);
   assert.doesNotMatch(source, /mt-8 overflow-hidden rounded-2xl/);
 });
+
+test("public header exposes desktop and mobile Subscribe calls to action", async () => {
+  const source = await readFile("app/public-header.tsx", "utf8");
+  assert.match(source, /href="\/subscribe"/);
+  assert.match(source, /hidden md:inline-flex/);
+  assert.match(source, /md:hidden/);
+  assert.match(source, /Subscribe/);
+  assert.match(source, /!text-white/);
+  assert.match(source, /hover:!text-white/);
+  assert.match(source, /focus-visible:!text-white/);
+  assert.match(source, /active:!text-white/);
+  assert.match(source, /visited:!text-white/);
+});
+
+test("public footer exposes a visible Subscribe call to action", async () => {
+  const source = await readFile("app/public-footer.tsx", "utf8");
+  assert.match(source, /href="\/subscribe"/);
+  assert.match(source, />\s*Subscribe\s*</);
+  assert.match(source, /!text-\[#1d352b\]/);
+  assert.match(source, /hover:!text-\[#1d352b\]/);
+  assert.match(source, /active:!text-\[#1d352b\]/);
+  assert.match(source, /visited:!text-\[#1d352b\]/);
+});

@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 test("admin teaching form exposes homepage teaser fields with counters", async () => {
   const source = await readFile("app/admin/teachings/teaching-form.tsx", "utf8");
   assert.match(source, /Homepage teasers/);
+  assert.match(source, /const showHomepageTeasers = draftValues\.teachingType !== "deep_dive"/);
   assert.match(source, /name="teaser1Heading"/);
   assert.match(source, /name="teaser1Text"/);
   assert.match(source, /name="teaser2Heading"/);
@@ -42,7 +43,7 @@ test("homepage teaser cards link to the full teaching and skip empty teaser pair
 
 test("public structured teaching page only loads published teachings", async () => {
   const source = await readFile("app/teachings/[slug]/page.tsx", "utf8");
-  assert.match(source, /\.from\("teachings"\)\.select\("id, title, gathering_date, central_theme, introduction, summary, status, slug, chalkboard_asset_id"\)\.eq\("slug", slug\)\.eq\("status", "published"\)\.maybeSingle\(\)/);
+  assert.match(source, /\.from\("teachings"\)\.select\("id, title, teaching_type, gathering_date, central_theme, introduction, summary, status, slug, chalkboard_asset_id"\)\.eq\("slug", slug\)\.eq\("status", "published"\)\.maybeSingle\(\)/);
   assert.match(source, /if \(teachingError \|\| !teaching \|\| teaching\.slug !== slug\) notFound\(\)/);
 });
 
@@ -57,8 +58,10 @@ test("section homepage highlight admin UI is removed while legacy JSON is preser
 
 test("teaser migration keeps teaser 1 nullable while publish rpc requires it", async () => {
   const source = await readFile("supabase/migrations/20260916010000_add_teaching_homepage_teasers.sql", "utf8");
+  const deepDiveSource = await readFile("supabase/migrations/20260916020000_add_teaching_deep_dives.sql", "utf8");
   assert.match(source, /teaser_1_heading text/);
   assert.doesNotMatch(source, /teaser_1_heading text not null/i);
+  assert.match(deepDiveSource, /if v_teaching\.teaching_type = 'standard' then[\s\S]*Teaser 1 heading is required before publishing/);
   assert.match(source, /Teaser 1 heading is required before publishing/);
   assert.match(source, /teachings_teaser_2_completeness_check/);
 });

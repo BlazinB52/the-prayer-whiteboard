@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 type TeachingValues = {
   title: string;
+  teachingType: "standard" | "deep_dive";
   gatheringDate: string;
   centralTheme: string;
   introduction: string;
@@ -29,7 +30,7 @@ type FooterOption = { id: string; label: string };
 export function TeachingForm({ values, action, chalkboards = [], footers = [] }: { values: TeachingValues; action: Action; chalkboards?: ChalkboardOption[]; footers?: FooterOption[] }) {
   const router = useRouter();
   const [draftValues, setDraftValues] = useState<TeachingValues>(values);
-  const formKey = [values.title, values.gatheringDate, values.centralTheme, values.introduction, values.summary, values.teaser1Heading, values.teaser1Text, values.teaser2Heading, values.teaser2Text, values.chalkboardAssetIds.join(","), String(values.includeFooter), values.footerId].join("::");
+  const formKey = [values.title, values.teachingType, values.gatheringDate, values.centralTheme, values.introduction, values.summary, values.teaser1Heading, values.teaser1Text, values.teaser2Heading, values.teaser2Text, values.chalkboardAssetIds.join(","), String(values.includeFooter), values.footerId].join("::");
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target;
@@ -46,6 +47,9 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
     const checked = event.target.checked;
     setDraftValues((current) => ({ ...current, includeFooter: checked, footerId: checked ? current.footerId : "" }));
   };
+  const handleTeachingTypeToggle = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setDraftValues((current) => ({ ...current, teachingType: event.target.checked ? "deep_dive" : "standard" }));
+  };
 
   const [state, formAction, isPending] = useActionState(async (previousState: FormState, formData: FormData) => {
     const result = await action(previousState, formData);
@@ -54,6 +58,7 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
     }
     return result;
   }, {});
+  const showHomepageTeasers = draftValues.teachingType !== "deep_dive";
 
   return (
     <form key={formKey} action={formAction} className="mt-8 space-y-6">
@@ -65,6 +70,13 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
         Gathering date
         <input name="gatheringDate" type="date" value={draftValues.gatheringDate} onChange={handleChange} className="admin-input" />
       </label>
+      <div className="flex items-start gap-3 rounded-xl border border-[#284a3b]/10 bg-white/70 px-4 py-3">
+        <input id="teachingTypeDeepDive" type="checkbox" name="teachingType" value="deep_dive" checked={draftValues.teachingType === "deep_dive"} onChange={handleTeachingTypeToggle} className="mt-1 h-4 w-4 rounded border-[#385245] text-[#244a3a]" />
+        <div>
+          <label htmlFor="teachingTypeDeepDive" className="block text-sm font-bold text-[#385245]">Deep Dive teaching</label>
+          <p className="mt-1 text-xs leading-5 text-[#607066]">Deep Dives publish to the Deep Dives collection and do not replace the featured homepage teaching.</p>
+        </div>
+      </div>
       <label className="block text-sm font-bold text-[#385245]">
         Central theme
         <input name="centralTheme" value={draftValues.centralTheme} onChange={handleChange} maxLength={300} className="admin-input" />
@@ -75,18 +87,27 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
       </label>
       <label className="block text-sm font-bold text-[#385245]">
         Short summary
-        <textarea name="summary" value={draftValues.summary} onChange={handleChange} maxLength={500} rows={4} className="admin-input resize-y py-3" />
+        <textarea name="summary" value={draftValues.summary} onChange={handleChange} maxLength={800} rows={4} className="admin-input resize-y py-3" />
       </label>
-      <fieldset className="space-y-4 rounded-xl border border-[#284a3b]/10 bg-white/70 p-4">
-        <div>
-          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Homepage teasers</p>
-          <p className="mt-1 text-xs text-[#607066]">Teaser 1 is required before publication. Teaser 2 is optional, but both fields must be completed if either is used.</p>
-        </div>
-        <TeaserInput label="Teaser 1 heading" name="teaser1Heading" value={draftValues.teaser1Heading} onChange={handleChange} maxLength={100} requiredNote />
-        <TeaserTextarea label="Teaser 1 text" name="teaser1Text" value={draftValues.teaser1Text} onChange={handleChange} maxLength={300} requiredNote />
-        <TeaserInput label="Teaser 2 heading" name="teaser2Heading" value={draftValues.teaser2Heading} onChange={handleChange} maxLength={100} />
-        <TeaserTextarea label="Teaser 2 text" name="teaser2Text" value={draftValues.teaser2Text} onChange={handleChange} maxLength={300} />
-      </fieldset>
+      {showHomepageTeasers ? (
+        <fieldset className="space-y-4 rounded-xl border border-[#284a3b]/10 bg-white/70 p-4">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Homepage teasers</p>
+            <p className="mt-1 text-xs text-[#607066]">Teaser 1 is required before publication. Teaser 2 is optional, but both fields must be completed if either is used.</p>
+          </div>
+          <TeaserInput label="Teaser 1 heading" name="teaser1Heading" value={draftValues.teaser1Heading} onChange={handleChange} maxLength={100} requiredNote />
+          <TeaserTextarea label="Teaser 1 text" name="teaser1Text" value={draftValues.teaser1Text} onChange={handleChange} maxLength={300} requiredNote />
+          <TeaserInput label="Teaser 2 heading" name="teaser2Heading" value={draftValues.teaser2Heading} onChange={handleChange} maxLength={100} />
+          <TeaserTextarea label="Teaser 2 text" name="teaser2Text" value={draftValues.teaser2Text} onChange={handleChange} maxLength={300} />
+        </fieldset>
+      ) : (
+        <>
+          <input type="hidden" name="teaser1Heading" value={draftValues.teaser1Heading} />
+          <input type="hidden" name="teaser1Text" value={draftValues.teaser1Text} />
+          <input type="hidden" name="teaser2Heading" value={draftValues.teaser2Heading} />
+          <input type="hidden" name="teaser2Text" value={draftValues.teaser2Text} />
+        </>
+      )}
       <label className="block text-sm font-bold text-[#385245]">
         Chalkboards
         <span className="mt-2 grid gap-2 rounded-xl border border-[#284a3b]/10 bg-white/70 p-3">

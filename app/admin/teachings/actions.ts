@@ -8,7 +8,7 @@ const MAX_LENGTHS = {
   title: 160,
   centralTheme: 300,
   introduction: 5000,
-  summary: 500,
+  summary: 800,
   teaserHeading: 100,
   teaserText: 300,
 };
@@ -103,6 +103,7 @@ function validateTeasers(formData: FormData) {
 }
 
 function validateMetadata(formData: FormData) {
+  const teachingType = formData.get("teachingType") === "deep_dive" ? "deep_dive" : "standard";
   const fields = {
     title: readText(formData, "title", MAX_LENGTHS.title, true),
     centralTheme: readText(formData, "centralTheme", MAX_LENGTHS.centralTheme),
@@ -124,6 +125,7 @@ function validateMetadata(formData: FormData) {
       introduction: fields.introduction.value || null,
       summary: fields.summary.value || null,
       gathering_date: fields.gatheringDate.value,
+      teaching_type: teachingType,
       ...teasers.value!,
     },
   };
@@ -297,6 +299,7 @@ export async function updateTeaching(
   revalidatePath(`/admin/teachings/${id}/devotional`);
   revalidatePath(`/admin/teachings/${id}/devotional/preview`);
   revalidatePath("/admin/teachings");
+  revalidatePath("/deep-dives");
   revalidatePath(`/teachings/${data.slug}`);
   revalidateTeachingDevotionalPaths(data.slug);
 
@@ -320,7 +323,7 @@ export async function publishAndFeatureTeaching(
 
   const { data: teaching } = await supabase
     .from("teachings")
-    .select("slug")
+    .select("slug, teaching_type")
     .eq("id", id)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -336,10 +339,11 @@ export async function publishAndFeatureTeaching(
   }
 
   revalidatePath("/");
+  revalidatePath("/deep-dives");
   revalidatePath("/admin/teachings");
   revalidatePath(`/teachings/${teaching.slug}`);
   revalidateTeachingDevotionalPaths(teaching.slug);
-  redirect("/admin/teachings?published=1");
+  redirect(teaching.teaching_type === "deep_dive" ? "/admin/teachings?deepDivePublished=1" : "/admin/teachings?published=1");
 }
 
 export async function deleteTeaching(
@@ -387,6 +391,7 @@ export async function deleteTeaching(
   }
 
   revalidatePath("/");
+  revalidatePath("/deep-dives");
   revalidatePath("/admin/teachings");
   revalidatePath(`/admin/teachings/${id}/edit`);
   revalidatePath(`/admin/teachings/${id}/devotional`);
@@ -453,6 +458,7 @@ export async function unpublishTeaching(
   }
 
   revalidatePath("/");
+  revalidatePath("/deep-dives");
   revalidatePath("/admin/teachings");
   revalidatePath(`/admin/teachings/${id}/edit`);
   revalidatePath(`/teachings/${teaching.slug}`);

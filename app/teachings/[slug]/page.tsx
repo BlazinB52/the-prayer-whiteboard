@@ -15,6 +15,7 @@ import { PrintToPdfButton } from "./print-to-pdf-button";
 
 type Content = Record<string, unknown>;
 type Asset = { id: string; alt_text: string; caption: string | null; website_storage_path: string | null; storage_path: string; download_storage_path: string | null; allow_download: boolean };
+type TeachingType = "standard" | "deep_dive";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -30,8 +31,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function StructuredTeachingPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
-  const { data: teaching, error: teachingError } = await supabase.from("teachings").select("id, title, gathering_date, central_theme, introduction, summary, status, slug, chalkboard_asset_id").eq("slug", slug).eq("status", "published").maybeSingle();
+  const { data: teaching, error: teachingError } = await supabase.from("teachings").select("id, title, teaching_type, gathering_date, central_theme, introduction, summary, status, slug, chalkboard_asset_id").eq("slug", slug).eq("status", "published").maybeSingle();
   if (teachingError || !teaching || teaching.slug !== slug) notFound();
+  const teachingType: TeachingType = teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard";
 
   const signer = createServiceRoleClient();
   const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assignments }, { data: footerAssignment }] = await Promise.all([
@@ -56,7 +58,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
     : { data: null };
 
   return (
-    <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">
+    <main className={`min-h-screen text-[#243126] ${teachingType === "deep_dive" ? "bg-[#f4efe4]" : "bg-[#f7f2e8]"}`}>
       <PublicHeader maxWidthClassName="max-w-4xl" end={<Link href="/" className="shrink-0 text-sm font-extrabold text-[#244a3a]">Back to home</Link>} />
       <div className="teaching-print-toolbar sticky top-[73px] z-30 border-b border-[#284a3b]/10 bg-[#f7f2e8]/95 px-5 py-2 backdrop-blur sm:px-8">
         <div className="mx-auto flex max-w-4xl justify-end">
@@ -64,7 +66,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
         </div>
       </div>
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
-        <header className="public-teaching-header border-b border-[#284a3b]/15 pb-8"><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">The Prayer Whiteboard</p><h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{teaching.title}</h1>{teaching.gathering_date ? <p className="mt-4 text-sm font-bold text-[#607066]">{formatDate(teaching.gathering_date)}</p> : null}{teaching.central_theme ? <p className="mt-5 text-lg font-bold text-[#385245]">{formatInlineText(teaching.central_theme, { links: true })}</p> : null}{teaching.introduction ? <TextParagraphs text={teaching.introduction} className="mt-5 text-[#52645a]" /> : null}{teaching.summary ? <TextParagraphs text={teaching.summary} className="mt-5 text-[#52645a]" /> : null}</header>
+        <header className={`public-teaching-header border-b pb-8 ${teachingType === "deep_dive" ? "border-[#20382e]/20" : "border-[#284a3b]/15"}`}><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">{teachingType === "deep_dive" ? "Deep Dive" : "The Prayer Whiteboard"}</p>{teachingType === "deep_dive" ? <Link href="/deep-dives" className="mt-3 inline-flex rounded-full bg-[#20382e] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#f0cb83]">Deep Dives Collection</Link> : null}<h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{teaching.title}</h1>{teaching.gathering_date ? <p className="mt-4 text-sm font-bold text-[#607066]">{formatDate(teaching.gathering_date)}</p> : null}{teaching.central_theme ? <p className="mt-5 text-lg font-bold text-[#385245]">{formatInlineText(teaching.central_theme, { links: true })}</p> : null}{teaching.introduction ? <TextParagraphs text={teaching.introduction} className="mt-5 text-[#52645a]" /> : null}{teaching.summary ? <TextParagraphs text={teaching.summary} className="mt-5 text-[#52645a]" /> : null}</header>
         <div className="mt-8 space-y-8">{assetsWithUrls.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}</div>
         <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2><div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}><PublicSection sectionId={section.id} title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}</div></section>)}</div>
         {footer?.status === "active" ? <ContentFooter content={footer.content} /> : null}

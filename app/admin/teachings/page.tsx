@@ -14,12 +14,12 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-export default async function TeachingsPage({ searchParams }: { searchParams: Promise<{ published?: string; saved?: string; unpublished?: string; deleted?: string }> }) {
+export default async function TeachingsPage({ searchParams }: { searchParams: Promise<{ published?: string; deepDivePublished?: string; saved?: string; unpublished?: string; deleted?: string }> }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
   const { data: teachings, error } = await supabase
     .from("teachings")
-    .select("id, slug, title, gathering_date, status, is_featured, updated_at")
+    .select("id, slug, title, teaching_type, gathering_date, status, is_featured, updated_at")
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -40,6 +40,7 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
 
         {params.saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching saved successfully.</p> : null}
         {params.published === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching published and featured on the homepage.</p> : null}
+        {params.deepDivePublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Deep Dive published to the Deep Dives collection.</p> : null}
         {params.unpublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching unpublished and returned to draft.</p> : null}
         {params.deleted === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching permanently deleted.</p> : null}
 
@@ -49,7 +50,10 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
               <article key={teaching.id} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-lg shadow-[#4d5f52]/8">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <h2 className="text-2xl font-extrabold text-[#243d31]">{teaching.title}</h2>
-                  <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{teaching.status}</span>
+                  <div className="flex flex-wrap gap-2">
+                    {teaching.teaching_type === "deep_dive" ? <span className="rounded-full bg-[#20382e] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#f0cb83]">Deep Dive</span> : null}
+                    <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{teaching.status}</span>
+                  </div>
                 </div>
                 <dl className="mt-6 grid gap-3 text-sm text-[#607066]">
                   <div className="flex justify-between gap-4"><dt>Gathering date</dt><dd className="font-bold text-[#385245]">{formatDate(teaching.gathering_date)}</dd></div>

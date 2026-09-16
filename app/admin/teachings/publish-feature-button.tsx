@@ -13,14 +13,22 @@ const confirmationMessage = [
   "Publish and feature this teaching now?",
 ].join("\n");
 
-export function PublishFeatureButton({ action }: { action: Action }) {
+const deepDiveConfirmationMessage = [
+  "This Deep Dive will become publicly available in the Deep Dives collection.",
+  "It will not replace the featured homepage teaching.",
+  "",
+  "Publish this Deep Dive now?",
+].join("\n");
+
+export function PublishFeatureButton({ action, teachingType = "standard" }: { action: Action; teachingType?: "standard" | "deep_dive" }) {
   const [state, formAction, isPending] = useActionState(action, {});
+  const isDeepDive = teachingType === "deep_dive";
 
   return (
     <form
       action={formAction}
       onSubmit={(event) => {
-        if (!window.confirm(confirmationMessage)) {
+        if (!window.confirm(isDeepDive ? deepDiveConfirmationMessage : confirmationMessage)) {
           event.preventDefault();
         }
       }}
@@ -32,7 +40,7 @@ export function PublishFeatureButton({ action }: { action: Action }) {
         disabled={isPending}
         className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#a85e32] px-5 font-extrabold text-white transition hover:bg-[#8f4f2a] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <span className="!text-white">{isPending ? "Publishing..." : "Publish and Feature on Homepage"}</span>
+        <span className="!text-white">{isPending ? "Publishing..." : isDeepDive ? "Publish Deep Dive" : "Publish and Feature on Homepage"}</span>
       </button>
     </form>
   );

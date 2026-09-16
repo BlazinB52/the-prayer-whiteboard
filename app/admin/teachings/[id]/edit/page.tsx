@@ -33,7 +33,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
   const { supabase } = await requireAdmin();
   const { data: teaching, error } = await supabase
     .from("teachings")
-    .select("id, title, gathering_date, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, status, chalkboard_asset_id")
+    .select("id, title, teaching_type, gathering_date, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, status, chalkboard_asset_id")
     .eq("id", id)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -139,6 +139,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
           action={updateTeaching.bind(null, id)}
           values={{
             title: teaching.title,
+            teachingType: teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard",
             gatheringDate: teaching.gathering_date ?? "",
             centralTheme: teaching.central_theme ?? "",
             introduction: teaching.introduction ?? "",
@@ -162,9 +163,9 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
         </section>
         <section className="mt-8 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-5">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
-          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Feature this teaching on the homepage</h2>
-          <p className="mt-3 text-sm leading-6 text-[#607066]">Publishing makes this teaching public, replaces the current homepage feature without unpublishing it, and keeps the stored gathering date unchanged.</p>
-          <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} />
+          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">{teaching.teaching_type === "deep_dive" ? "Publish this Deep Dive" : "Feature this teaching on the homepage"}</h2>
+          <p className="mt-3 text-sm leading-6 text-[#607066]">{teaching.teaching_type === "deep_dive" ? "Publishing makes this Deep Dive public in the Deep Dives collection without replacing the featured homepage teaching." : "Publishing makes this teaching public, replaces the current homepage feature without unpublishing it, and keeps the stored gathering date unchanged."}</p>
+          <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} teachingType={teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard"} />
         </section>
         {teaching.status === "published" ? (
           <section className="mt-8 rounded-2xl border border-[#a2472c]/20 bg-[#fff8f1] p-5">

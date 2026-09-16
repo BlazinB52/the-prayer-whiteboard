@@ -6,6 +6,7 @@ import {
   ArrowRight,
   CalendarDays,
   HeartHandshake,
+  Layers,
   Sparkles,
 } from "lucide-react";
 import { PublicHeader } from "@/app/public-header";
@@ -21,6 +22,7 @@ const pageUrl = "https://theprayerwhiteboard.com";
 const teachingPath = "/teachings/aliyah-israel-harvest-prayer";
 const homepageNav = [
   { href: "#latest", label: "Latest Teaching" },
+  { href: "/deep-dives", label: "Deep Dives" },
   { href: "/devotionals", label: "Devotionals" },
   { href: "/points-of-agreement", label: "Prayer Guide" },
   { href: "#gatherings", label: "Gatherings" },
@@ -150,6 +152,7 @@ async function getPreviousGatherings(): Promise<PreviousGathering[]> {
     .from("teachings")
     .select("id, slug, title, gathering_date")
     .eq("status", "published")
+    .eq("teaching_type", "standard")
     .order("gathering_date", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false });
 
@@ -182,6 +185,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
     .from("teachings")
     .select("id, slug, title, gathering_date, is_featured, status, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, chalkboard_asset_id")
     .eq("status", "published")
+    .eq("teaching_type", "standard")
     .eq("is_featured", true);
   if (teachingError) return null;
 
@@ -191,7 +195,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   if (!selectedTeaching) return null;
 
   const [{ data: previousGatherings, error: previousError }] = await Promise.all([
-    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
+    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").eq("teaching_type", "standard").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
   if (previousError) return null;
 
@@ -324,7 +328,32 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
           ) : null}
         </div>
       </section>
+      <DeepDivesInvitation />
     </>
+  );
+}
+
+function DeepDivesInvitation() {
+  return (
+    <section className="bg-[#20382e] px-5 py-14 text-[#f8f1df] sm:px-8 sm:py-20">
+      <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.75fr_1.25fr] lg:items-center">
+        <div>
+          <span className="grid size-12 place-items-center rounded-2xl bg-[#f0cb83] text-[#20382e]"><Layers aria-hidden="true" size={25} /></span>
+          <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">Deeper study</p>
+          <h2 className="mt-2 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">Launch Out Into the Deep</h2>
+        </div>
+        <div>
+          <blockquote className="border-l-4 border-[#f0cb83] pl-5 text-xl font-bold leading-8 text-white">
+            <p>&ldquo;Launch out into the deep.&rdquo;</p>
+            <cite className="mt-3 block text-xs not-italic font-extrabold uppercase tracking-[0.18em] text-[#f0cb83]">Luke 5:4</cite>
+          </blockquote>
+          <p className="mt-6 max-w-2xl leading-7 text-[#dce8e1]">Go beyond the shorelines of our weekly gatherings. These deeper teachings are built specifically for those who are hungry for more&mdash;designed to mature your faith, expand your vision, and anchor your understanding in the depths of God&apos;s Word.</p>
+          <Link href="/deep-dives" className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#f0cb83] px-5 font-extrabold text-[#20382e] transition hover:bg-[#f5d58d]">
+            Explore Deep Dives <ArrowRight aria-hidden="true" size={18} />
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -507,6 +536,8 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
           </div>
         </div>
       </section>
+
+      <DeepDivesInvitation />
 
       <EmailUpdatesCta copy="Stay connected with The Prayer Whiteboard. Subscribe to the Weekly Updates, teachings, and devotionals you choose." />
       <PublicFooter />

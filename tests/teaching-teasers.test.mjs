@@ -41,6 +41,14 @@ test("homepage teaser cards link to the full teaching and skip empty teaser pair
   assert.match(source, /Read the full teaching/);
 });
 
+test("homepage retries chalkboard signing and retains a bundled fallback image", async () => {
+  const source = await readFile("app/page.tsx", "utf8");
+  assert.match(source, /CHALKBOARD_SIGNED_URL_TTL_SECONDS = 60 \* 60/);
+  assert.match(source, /retryNullable/);
+  assert.match(source, /data\.chalkboard \?\? fallbackHomepageChalkboard/);
+  assert.match(source, /url: "\/prayergroup\/aliyah-chalkboard\.jpg"/);
+});
+
 test("public structured teaching page only loads published teachings", async () => {
   const source = await readFile("app/teachings/[slug]/page.tsx", "utf8");
   assert.match(source, /\.from\("teachings"\)\.select\("id, title, teaching_type, gathering_date, central_theme, introduction, summary, status, slug, chalkboard_asset_id"\)\.eq\("slug", slug\)\.eq\("status", "published"\)\.maybeSingle\(\)/);

@@ -94,24 +94,53 @@ type PreviousGathering = {
 type HomepageChalkboard = { url: string; altText: string; caption: string | null };
 type CurrentWeeklyUpdate = { id: string; title: string; chalkboard: HomepageChalkboard | null } | null;
 type ServiceRoleClient = NonNullable<ReturnType<typeof createServiceRoleClient>>;
+const CHALKBOARD_SIGNED_URL_TTL_SECONDS = 60 * 60;
+const fallbackHomepageChalkboard: HomepageChalkboard = {
+  url: "/prayergroup/aliyah-chalkboard.jpg",
+  altText: "Chalkboard teaching about Aliyah, Israel, the harvest, and prayer",
+  caption: null,
+};
+
+async function retryNullable<T>(operation: () => Promise<T | null>, attempts = 2): Promise<T | null> {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const result = await operation();
+      if (result !== null) return result;
+    } catch {
+      // A brief Supabase or storage interruption should not remove the homepage image.
+    }
+
+    if (attempt < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+  }
+
+  return null;
+}
 
 async function getSignedChalkboard(assetId: string | null, client?: ServiceRoleClient): Promise<HomepageChalkboard | null> {
   if (!assetId) return null;
   const signer = client ?? createServiceRoleClient();
   if (!signer) return null;
-  const { data: asset, error } = await signer
-    .from("chalkboard_assets")
-    .select("id, alt_text, caption, website_storage_path, storage_path, is_current_version, status")
-    .eq("id", assetId)
-    .eq("is_current_version", true)
-    .eq("status", "active")
-    .maybeSingle();
+  const asset = await retryNullable(async () => {
+    const { data, error } = await signer
+      .from("chalkboard_assets")
+      .select("id, alt_text, caption, website_storage_path, storage_path, is_current_version, status")
+      .eq("id", assetId)
+      .eq("is_current_version", true)
+      .eq("status", "active")
+      .maybeSingle();
+    return error ? null : data;
+  });
 
-  if (error || !asset) return null;
+  if (!asset) return null;
   const paths = [asset.website_storage_path, asset.storage_path].filter((path): path is string => Boolean(path));
   for (const path of paths) {
-    const { data } = await signer.storage.from("chalkboards").createSignedUrl(path, 300);
-    if (data?.signedUrl) return { url: data.signedUrl, altText: asset.alt_text, caption: asset.caption };
+    const signedUrl = await retryNullable(async () => {
+      const { data, error } = await signer.storage.from("chalkboards").createSignedUrl(path, CHALKBOARD_SIGNED_URL_TTL_SECONDS);
+      return error ? null : data?.signedUrl ?? null;
+    });
+    if (signedUrl) return { url: signedUrl, altText: asset.alt_text, caption: asset.caption };
   }
   return null;
 }
@@ -243,8 +272,12 @@ function FeaturedHomepage({ data, weeklyUpdate }: { data: FeaturedHomepageData; 
   const teachingPath = `/teachings/${data.teaching.slug}`;
   const date = data.teaching.gathering_date ? new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${data.teaching.gathering_date}T00:00:00Z`)) : "Latest gathering";
   const description = data.teaching.central_theme || data.teaching.summary || data.teaching.introduction || "";
-  const heroChalkboard = weeklyUpdate?.chalkboard ?? data.chalkboard;
-  const heroChalkboardTitle = weeklyUpdate?.chalkboard ? weeklyUpdate.title : data.teaching.title;
+  const heroChalkboard = weeklyUpdate?.chalkboard ?? data.chalkboard ?? fallbackHomepageChalkboard;
+  const heroChalkboardTitle = weeklyUpdate?.chalkboard
+    ? weeklyUpdate.title
+    : data.chalkboard
+      ? data.teaching.title
+      : "Aliyah · Israel · The Harvest · Prayer";
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">

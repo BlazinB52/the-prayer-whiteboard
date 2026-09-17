@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { parseDevotionalText } from "@/lib/devotional-import";
 import { findDevotionalPublishBlocker, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
 
@@ -12,8 +13,10 @@ const MAX_LENGTHS = {
   reading: 12000,
   short: 3000,
 };
+const MAX_IMPORT_FILE_SIZE = 250_000;
 
 export type DevotionalFormState = { error?: string; saved?: boolean };
+export type DevotionalImportState = { error?: string };
 export type DevotionalPublishState = { error?: string };
 
 function readText(formData: FormData, name: string, maxLength: number, required = false) {
@@ -149,6 +152,90 @@ export async function updateDevotionalDay(teachingId: string, dayNumber: number,
   if (error) return { error: `Day ${dayNumber} could not be saved.` };
   revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
   return { saved: true };
+}
+
+export async function importDevotionalText(teachingId: string, previousState: DevotionalImportState, formData: FormData): Promise<DevotionalImportState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+  const teaching = await getTeaching(supabase, teachingId);
+  if (!teaching) return { error: "This teaching could not be found." };
+
+  const file = formData.get("devotionalFile");
+  if (!(file instanceof File) || !file.name) {
+    return { error: "Choose a devotional text file to import." };
+  }
+  if (file.size > MAX_IMPORT_FILE_SIZE) {
+    return { error: "The devotional text file must be 250 KB or smaller." };
+  }
+
+  let imported;
+  try {
+    imported = parseDevotionalText(await file.text());
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "The devotional text file could not be parsed." };
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("teaching_devotionals")
+    .select("id, teaching_id, slug, status")
+    .eq("teaching_id", teaching.id)
+    .maybeSingle();
+
+  if (existingError) return { error: "This devotional could not be checked before import." };
+  if (existing?.status === "published") {
+    return { error: "Unpublish this devotional before replacing it with an import." };
+  }
+
+  let devotionalId = existing?.id as string | undefined;
+  if (devotionalId) {
+    const { error } = await supabase
+      .from("teaching_devotionals")
+      .update({
+        title: imported.title,
+        introduction: imported.introduction || null,
+        slug: existing?.slug || teaching.slug,
+        status: "draft",
+        published_at: null,
+      })
+      .eq("id", devotionalId)
+      .eq("teaching_id", teaching.id);
+    if (error) return { error: "The devotional series information could not be imported." };
+  } else {
+    const { data, error } = await supabase
+      .from("teaching_devotionals")
+      .insert({
+        teaching_id: teaching.id,
+        slug: teaching.slug,
+        title: imported.title,
+        introduction: imported.introduction || null,
+        status: "draft",
+        published_at: null,
+      })
+      .select("id")
+      .single();
+    if (error || !data) return { error: "The devotional could not be created from the import." };
+    devotionalId = data.id as string;
+  }
+
+  const { error: daysError } = await supabase
+    .from("teaching_devotional_days")
+    .upsert(
+      imported.days.map((day) => ({
+        devotional_id: devotionalId,
+        day_number: day.day_number,
+        title: day.title,
+        anchor_scriptures: day.anchor_scriptures,
+        devotional_reading: day.devotional_reading,
+        confession: day.confession,
+        journal_prompt: day.journal_prompt,
+        prayer_activation: day.prayer_activation,
+      })),
+      { onConflict: "devotional_id,day_number" },
+    );
+
+  if (daysError) return { error: "The devotional days could not be imported." };
+  revalidateDevotionalPaths(teaching.id, teaching.slug, existing?.slug || teaching.slug);
+  redirect(`/admin/teachings/${teaching.id}/devotional?imported=1`);
 }
 
 export async function publishDevotional(teachingId: string, previousState: DevotionalPublishState): Promise<DevotionalPublishState> {

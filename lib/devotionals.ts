@@ -27,12 +27,37 @@ export type DevotionalDay = {
   prayer_activation: string | null;
 };
 
+export type DevotionalTextBlock =
+  | { type: "paragraph"; text: string }
+  | { type: "bullet-list"; items: string[] };
+
 export function splitParagraphs(value: string | null | undefined) {
   return String(value ?? "")
     .replace(/\r\n?/g, "\n")
     .split("\n")
     .map((paragraph) => paragraph.trim())
     .filter(Boolean);
+}
+
+export function splitDevotionalTextBlocks(value: string | null | undefined): DevotionalTextBlock[] {
+  const blocks: DevotionalTextBlock[] = [];
+
+  for (const line of splitParagraphs(value)) {
+    const bullet = line.match(/^(?:-\s+|\u2022\s*)(.+)$/);
+    if (!bullet) {
+      blocks.push({ type: "paragraph", text: line });
+      continue;
+    }
+
+    const previous = blocks.at(-1);
+    if (previous?.type === "bullet-list") {
+      previous.items.push(bullet[1].trim());
+    } else {
+      blocks.push({ type: "bullet-list", items: [bullet[1].trim()] });
+    }
+  }
+
+  return blocks;
 }
 
 export function normalizeScriptureLines(value: FormDataEntryValue | null) {

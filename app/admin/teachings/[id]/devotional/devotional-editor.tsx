@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { DEVOTIONAL_DAY_NUMBERS, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines, scripturesToTextareaValue, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
-import type { DevotionalFormState } from "../../devotional-actions";
+import type { DevotionalFormState, DevotionalImportState } from "../../devotional-actions";
 
 const anchorScriptureLimitLabel = formatAnchorScriptureLengthLimit();
 
 type Action = (state: DevotionalFormState, formData: FormData) => Promise<DevotionalFormState>;
+type ImportAction = (state: DevotionalImportState, formData: FormData) => Promise<DevotionalImportState>;
 
 type DayValues = {
   title: string;
@@ -126,4 +127,30 @@ export function DevotionalDayForms({ days, actions }: { days: DevotionalDay[]; a
 
 export function DevotionalPreviewLink({ href }: { href: string }) {
   return <Link href={href} className="admin-secondary-button inline-flex items-center justify-center">Preview Saved Content</Link>;
+}
+
+export function DevotionalImportForm({ action, hasPublishedDevotional }: { action: ImportAction; hasPublishedDevotional: boolean }) {
+  const [state, formAction, isPending] = useActionState(action, {});
+
+  return (
+    <form
+      action={formAction}
+      onSubmit={(event) => {
+        if (hasPublishedDevotional) return;
+        if (!window.confirm("Import this text file and replace the current draft devotional content?")) {
+          event.preventDefault();
+        }
+      }}
+      className="mt-5 space-y-4"
+    >
+      <label className="block text-sm font-bold text-[#385245]">
+        Devotional text file
+        <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">Use a plain .txt file with a title, Day 1 through Day 7 headings, Anchor Scriptures, The Spiritual Mechanic, Today&apos;s Confession, 5-Minute Journal Prompt, and Prayer Activation Exercise.</span>
+        <input name="devotionalFile" type="file" accept=".txt,text/plain" required disabled={hasPublishedDevotional || isPending} className="admin-input py-2" />
+      </label>
+      {hasPublishedDevotional ? <p role="alert" className="text-sm font-bold text-[#a2472c]">Unpublish this devotional before importing replacement text.</p> : null}
+      {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
+      <button type="submit" disabled={hasPublishedDevotional || isPending} className="admin-secondary-button">{isPending ? "Importing..." : "Import Text File"}</button>
+    </form>
+  );
 }

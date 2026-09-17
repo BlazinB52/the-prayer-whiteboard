@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
+import { DevotionalTextBlock } from "@/app/devotional-text-block";
 import { PublicFooter } from "@/app/public-footer";
-import { formatInlineText } from "@/app/formatted-text";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { DEVOTIONAL_DAY_NUMBERS, splitParagraphs, type DevotionalDay } from "@/lib/devotionals";
@@ -73,7 +73,7 @@ export default async function DevotionalOverviewPage({ params }: { params: Promi
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">7-Day Devotional</p>
           <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{devotional.title}</h1>
           <p className="mt-4 text-sm font-bold text-[#607066]">For {teaching.title}</p>
-          <TextBlock text={devotional.introduction} className="mt-6 text-lg leading-8 text-[#52645a]" />
+          <DevotionalTextBlock text={devotional.introduction} className="mt-6 text-lg leading-8 text-[#52645a]" />
         </header>
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           {DEVOTIONAL_DAY_NUMBERS.map((dayNumber) => {
@@ -94,10 +94,4 @@ export default async function DevotionalOverviewPage({ params }: { params: Promi
       <ReturnToTop />
     </main>
   );
-}
-
-function TextBlock({ text, className }: { text?: string | null; className?: string }) {
-  const paragraphs = splitParagraphs(text);
-  if (!paragraphs.length) return null;
-  return <div className={`space-y-4 ${className ?? ""}`}>{paragraphs.map((paragraph) => <p key={paragraph}>{formatInlineText(paragraph)}</p>)}</div>;
 }

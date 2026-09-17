@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatInlineText } from "@/app/formatted-text";
-import { DEVOTIONAL_DAY_NUMBERS, splitParagraphs, type DevotionalDay } from "@/lib/devotionals";
+import { DevotionalTextBlock } from "@/app/devotional-text-block";
+import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -51,7 +51,7 @@ export default async function AdminDevotionalPreviewPage({ params }: { params: P
           <h1 className="mt-3 text-4xl font-extrabold leading-tight text-[#243d31] sm:text-6xl">{devotional.title}</h1>
           <p className="mt-4 text-sm font-bold text-[#607066]">Teaching: {teaching.title}</p>
           <p className="mt-2 text-sm font-bold text-[#607066]">Saved status: {devotional.status}</p>
-          <TextBlock text={devotional.introduction} className="mt-6 text-lg leading-8 text-[#52645a]" />
+          <DevotionalTextBlock text={devotional.introduction} className="mt-6 text-lg leading-8 text-[#52645a]" emptyText="Not saved." />
         </header>
         <div className="mt-10 space-y-8">
           {DEVOTIONAL_DAY_NUMBERS.map((dayNumber) => (
@@ -69,20 +69,14 @@ function DevotionalDayPreview({ dayNumber, day }: { dayNumber: number; day?: Dev
       <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Day {dayNumber}</p>
       <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">{day?.title || "Untitled day"}</h2>
       <Field title="Anchor Scriptures">{day?.anchor_scriptures?.length ? <ul className="list-disc space-y-1 pl-5">{day.anchor_scriptures.map((scripture) => <li key={scripture}>{scripture}</li>)}</ul> : <p>Not saved.</p>}</Field>
-      <Field title="Devotional Reading"><TextBlock text={day?.devotional_reading} /></Field>
-      <Field title="Today's Confession"><TextBlock text={day?.confession} /></Field>
-      <Field title="5-Minute Journal Prompt"><TextBlock text={day?.journal_prompt} /></Field>
-      <Field title="Prayer Activation Exercise"><TextBlock text={day?.prayer_activation} /></Field>
+      <Field title="Devotional Reading"><DevotionalTextBlock text={day?.devotional_reading} emptyText="Not saved." /></Field>
+      <Field title="Today's Confession"><DevotionalTextBlock text={day?.confession} emptyText="Not saved." /></Field>
+      <Field title="5-Minute Journal Prompt"><DevotionalTextBlock text={day?.journal_prompt} emptyText="Not saved." /></Field>
+      <Field title="Prayer Activation Exercise"><DevotionalTextBlock text={day?.prayer_activation} emptyText="Not saved." /></Field>
     </section>
   );
 }
 
 function Field({ title, children }: { title: string; children: ReactNode }) {
   return <div className="mt-5"><h3 className="text-sm font-extrabold text-[#385245]">{title}</h3><div className="mt-2 leading-7 text-[#52645a]">{children}</div></div>;
-}
-
-function TextBlock({ text, className }: { text?: string | null; className?: string }) {
-  const paragraphs = splitParagraphs(text);
-  if (!paragraphs.length) return <p className={className}>Not saved.</p>;
-  return <div className={`space-y-3 ${className ?? ""}`}>{paragraphs.map((paragraph) => <p key={paragraph}>{formatInlineText(paragraph)}</p>)}</div>;
 }

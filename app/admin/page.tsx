@@ -13,31 +13,43 @@ const tools = [
     title: "Teachings",
     description: "Create and organize published teachings.",
     status: "Available",
+    href: "/admin/teachings",
+  },
+  {
+    title: "Devotionals",
+    description: "Import and publish 7-day devotional series.",
+    status: "Available",
+    href: "/admin/devotionals",
   },
   {
     title: "Chalkboards",
     description: "Manage the visual teaching assets.",
     status: "Available",
+    href: "/admin/chalkboards",
   },
   {
     title: "Points of Agreement",
     description: "Curate the Prayer & Intercession Guide.",
     status: "Available",
+    href: "/admin/points-of-agreement",
   },
   {
     title: "Weekly Updates",
     description: "Publish the current weekly update and manage archives.",
     status: "Available",
+    href: "/admin/weekly-updates",
   },
   {
     title: "Footers",
     description: "Manage reusable footer text for teachings and Weekly Updates.",
     status: "Available",
+    href: "/admin/footers",
   },
   {
     title: "Email Subscribers",
     description: "View opt-in status, category preferences, and Sender sync state.",
     status: "Available",
+    href: "/admin/subscribers",
   },
   {
     title: "Homepage Settings",
@@ -79,48 +91,27 @@ export default async function AdminDashboardPage() {
 
         <section className="py-10">
           <div className="grid gap-5 sm:grid-cols-2">
-            {tools.map((tool) => (
-              <article
-                key={tool.title}
-                className="min-h-44 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-lg shadow-[#4d5f52]/8"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <h2 className="text-2xl font-extrabold text-[#243d31]">
-                    {tool.title === "Teachings" ? (
-                      <Link href="/admin/teachings" className="transition hover:text-[#a85e32]">
-                        {tool.title}
-                      </Link>
-                    ) : tool.title === "Chalkboards" ? (
-                      <Link href="/admin/chalkboards" className="transition hover:text-[#a85e32]">
-                        {tool.title}
-                      </Link>
-                    ) : tool.title === "Points of Agreement" ? (
-                      <Link href="/admin/points-of-agreement" className="transition hover:text-[#a85e32]">
-                        {tool.title}
-                      </Link>
-                    ) : tool.title === "Weekly Updates" ? (
-                      <Link href="/admin/weekly-updates" className="transition hover:text-[#a85e32]">
-                        {tool.title}
-                      </Link>
-                    ) : tool.title === "Footers" ? (
-                      <Link href="/admin/footers" className="transition hover:text-[#a85e32]">
-                        {tool.title}
-                      </Link>
-                    ) : tool.title === "Email Subscribers" ? (
-                      <Link href="/admin/subscribers" className="transition hover:text-[#a85e32]">
-                        {tool.title}
-                      </Link>
-                    ) : (
-                      tool.title
-                    )}
-                  </h2>
-                  <span className="shrink-0 rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">
-                    {tool.status}
-                  </span>
-                </div>
-                <p className="mt-5 max-w-sm leading-7 text-[#607066]">{tool.description}</p>
-              </article>
-            ))}
+            {tools.map((tool) => {
+              const card = (
+                <article className="min-h-44 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-lg shadow-[#4d5f52]/8 transition hover:-translate-y-0.5 hover:border-[#a85e32]/30">
+                  <div className="flex items-start justify-between gap-4">
+                    <h2 className="text-2xl font-extrabold text-[#243d31]">{tool.title}</h2>
+                    <span className="shrink-0 rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">
+                      {tool.status}
+                    </span>
+                  </div>
+                  <p className="mt-5 max-w-sm leading-7 text-[#607066]">{tool.description}</p>
+                </article>
+              );
+
+              return tool.href ? (
+                <Link key={tool.title} href={tool.href} className="block focus-visible:rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#a85e32]">
+                  {card}
+                </Link>
+              ) : (
+                <div key={tool.title}>{card}</div>
+              );
+            })}
           </div>
         </section>
       </div>

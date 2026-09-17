@@ -3,11 +3,11 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
+import { DevotionalTextBlock } from "@/app/devotional-text-block";
 import { PublicFooter } from "@/app/public-footer";
-import { formatInlineText } from "@/app/formatted-text";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
-import { splitParagraphs, type DevotionalDay } from "@/lib/devotionals";
+import type { DevotionalDay } from "@/lib/devotionals";
 import { createClient } from "@/lib/supabase/server";
 
 function parseDayNumber(value: string) {
@@ -96,10 +96,10 @@ export default async function DevotionalDayPage({ params }: { params: Promise<{ 
           <DevotionalField title="Anchor Scriptures">
             <ul className="list-disc space-y-2 pl-6">{(day as DevotionalDay).anchor_scriptures.map((scripture) => <li key={scripture}>{scripture}</li>)}</ul>
           </DevotionalField>
-          <DevotionalField title="Devotional Reading"><TextBlock text={day.devotional_reading} /></DevotionalField>
-          <DevotionalField title="Today's Confession"><TextBlock text={day.confession} /></DevotionalField>
-          <DevotionalField title="5-Minute Journal Prompt"><TextBlock text={day.journal_prompt} /></DevotionalField>
-          <DevotionalField title="Prayer Activation Exercise"><TextBlock text={day.prayer_activation} /></DevotionalField>
+          <DevotionalField title="Devotional Reading"><DevotionalTextBlock text={day.devotional_reading} /></DevotionalField>
+          <DevotionalField title="Today's Confession"><DevotionalTextBlock text={day.confession} /></DevotionalField>
+          <DevotionalField title="5-Minute Journal Prompt"><DevotionalTextBlock text={day.journal_prompt} /></DevotionalField>
+          <DevotionalField title="Prayer Activation Exercise"><DevotionalTextBlock text={day.prayer_activation} /></DevotionalField>
         </div>
         <nav className="mt-12 flex flex-col gap-3 border-t border-[#284a3b]/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
           {dayNumber > 1 ? <Link href={`/teachings/${slug}/devotional/day/${dayNumber - 1}`} className="inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]"><ArrowLeft aria-hidden="true" size={18} /> Previous day</Link> : <span />}
@@ -118,9 +118,4 @@ export default async function DevotionalDayPage({ params }: { params: Promise<{ 
 
 function DevotionalField({ title, children }: { title: string; children: ReactNode }) {
   return <section className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6"><h2 className="text-xl font-extrabold text-[#243d31]">{title}</h2><div className="mt-4 text-base leading-8 text-[#52645a]">{children}</div></section>;
-}
-
-function TextBlock({ text }: { text?: string | null }) {
-  const paragraphs = splitParagraphs(text);
-  return <div className="space-y-4">{paragraphs.map((paragraph) => <p key={paragraph}>{formatInlineText(paragraph)}</p>)}</div>;
 }

@@ -62,7 +62,7 @@ export default async function PointsOfAgreementPage() {
           <div className="mt-8 space-y-5 sm:mt-10 sm:space-y-6">
             {publicPoints.map((point, index) => (
               <section key={`${point.display_order}-${point.point_of_agreement}`} className="rounded-[1.5rem] border border-[#284a3b]/20 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/10 sm:p-8">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#946332]">
+                <p className="text-sm font-black uppercase leading-snug tracking-[0.1em] text-[#875624] sm:text-base">
                   FOCUS {index + 1}: {point.point_of_agreement}
                 </p>
                 <GuideField label="SCRIPTURE" value={point.scripture} variant="scripture" />

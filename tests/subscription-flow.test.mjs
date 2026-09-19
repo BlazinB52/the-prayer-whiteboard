@@ -45,6 +45,17 @@ test("already-confirmed 5787 signup preserves its slug through Sender group reso
   assert.match(senderGroups, /\[SENDER_MASTER_DEVOTIONAL_GROUP_ID, seriesGroupId\]/);
 });
 
+test("devotional signup success copy displays the title without a duplicate prefix", async () => {
+  const source = await readFile("app/subscribe/subscribe-form.tsx", "utf8");
+
+  assert.match(source, /title\.replace\(\/\^7-Day Devotional:\\s\*\/i, ""\)/);
+  assert.match(source, /You&.*signed up for \{devotionalTitle\}\./);
+  assert.match(source, /Once confirmed, you&.*signed up for \{devotionalTitle\}\./);
+  assert.doesNotMatch(source, /signed up for the 7-Day Devotional:/);
+  assert.match(source, /Your email preferences have been updated\./);
+  assert.match(source, /Once confirmed, you&.*receive the email updates you selected\./);
+});
+
 test("devotional Sender sync happens only after confirmation or for an already-confirmed subscriber", async () => {
   const source = await readFile("lib/email-subscriptions.ts", "utf8");
   const confirmedBranch = source.match(/if \(existing\?\.status === "confirmed"\)[\s\S]*?let subscriberId/)?.[0] ?? "";

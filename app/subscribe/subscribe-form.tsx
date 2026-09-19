@@ -10,6 +10,7 @@ const initialState: SubscribeState = {};
 
 export function SubscribeForm({ devotional }: { devotional: { slug: string; title: string } | null }) {
   const [state, action, pending] = useActionState(submitSubscription, initialState);
+  const devotionalTitle = devotional?.title.replace(/^7-Day Devotional:\s*/i, "") ?? null;
   const [selected, setSelected] = useState<Record<EmailCategory, boolean>>({
     weekly_updates: false,
     teachings: false,
@@ -24,8 +25,8 @@ export function SubscribeForm({ devotional }: { devotional: { slug: string; titl
         <p className="mt-3 leading-7">
           {devotional
             ? state.alreadyConfirmed
-              ? <>Your preferences have been updated, and you&rsquo;re signed up for the 7-Day Devotional: {devotional.title}.</>
-              : <>Check your email and confirm your subscription. Once confirmed, you&rsquo;ll be signed up for the 7-Day Devotional: {devotional.title}, along with any other updates you selected.</>
+              ? <>You&rsquo;re signed up for {devotionalTitle}.</>
+              : <>Check your email and confirm your subscription. Once confirmed, you&rsquo;ll be signed up for {devotionalTitle}.</>
             : state.alreadyConfirmed
               ? "Your email preferences have been updated."
               : <>Check your email and confirm your subscription. Once confirmed, you&rsquo;ll receive the email updates you selected.</>}

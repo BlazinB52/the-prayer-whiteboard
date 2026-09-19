@@ -18,24 +18,20 @@ export function SubscribeForm({ devotional }: { devotional: { slug: string; titl
   });
   const allSelected = useMemo(() => EMAIL_CATEGORIES.every((category) => selected[category]), [selected]);
 
-  if (state.submitted) {
-    return (
-      <div role="status" className="rounded-2xl border border-[#326048]/20 bg-[#e7efe9] p-5 text-[#244a3a]">
-        <h2 className="text-2xl font-extrabold">{state.alreadyConfirmed ? <>You&rsquo;re all set.</> : "One more step."}</h2>
-        <p className="mt-3 leading-7">
-          {devotional
-            ? state.alreadyConfirmed
-              ? <>You&rsquo;re signed up for {devotionalTitle}.</>
-              : <>Check your email and confirm your subscription. Once confirmed, you&rsquo;ll be signed up for {devotionalTitle}.</>
-            : state.alreadyConfirmed
-              ? "Your email preferences have been updated."
-              : <>Check your email and confirm your subscription. Once confirmed, you&rsquo;ll receive the email updates you selected.</>}
-        </p>
-      </div>
-    );
-  }
-
-  return (
+  const result = state.submitted ? (
+    <div role="status" className="rounded-2xl border border-[#326048]/20 bg-[#e7efe9] p-5 text-[#244a3a]">
+      <h2 className="text-2xl font-extrabold">{state.alreadyConfirmed ? <>You&rsquo;re all set.</> : "One more step."}</h2>
+      <p className="mt-3 leading-7">
+        {devotional
+          ? state.alreadyConfirmed
+            ? <>You&rsquo;re signed up for {devotionalTitle}.</>
+            : <>Check your email and confirm your subscription. Once confirmed, you&rsquo;ll be signed up for {devotionalTitle}.</>
+          : state.alreadyConfirmed
+            ? "Your email preferences have been updated."
+            : <>Check your email and confirm your subscription. Once confirmed, you&rsquo;ll receive the email updates you selected.</>}
+      </p>
+    </div>
+  ) : (
     <form action={action} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-xl shadow-[#4d5f52]/8 sm:p-7">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block text-sm font-bold text-[#385245]">
@@ -93,5 +89,22 @@ export function SubscribeForm({ devotional }: { devotional: { slug: string; titl
         After you subscribe, we will send one confirmation email. You will not receive these updates unless you confirm your subscription.
       </p>
     </form>
+  );
+
+  return (
+    <>
+      <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#243d31] sm:text-6xl">
+        {state.submitted ? "Your Email Preferences" : "Choose Your Email Updates"}
+      </h1>
+      <p className="mt-5 max-w-2xl text-base leading-7 text-[#52645a]">
+        Subscribe to the Prayer Whiteboard emails you want to receive. Choose Weekly Updates, new teachings, 7-Day Devotionals, or all of them.
+      </p>
+      {devotional ? (
+        <p className="mt-4 max-w-2xl rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold leading-6 text-[#385245]">
+          You are starting <span className="text-[#243d31]">{devotional.title}</span>. Devotionals is preselected and includes this current 7-Day Devotional plus future 7-day devotional series. You can also choose Weekly Updates and Teachings below.
+        </p>
+      ) : null}
+      <div className="mt-8">{result}</div>
+    </>
   );
 }

@@ -56,6 +56,12 @@ test("devotional signup success copy displays the title without a duplicate pref
   assert.match(source, /Once confirmed, you&.*receive the email updates you selected\./);
 });
 
+test("subscribe heading reflects the existing submission result state", async () => {
+  const source = await readFile("app/subscribe/subscribe-form.tsx", "utf8");
+
+  assert.match(source, /state\.submitted \? "Your Email Preferences" : "Choose Your Email Updates"/);
+});
+
 test("devotional Sender sync happens only after confirmation or for an already-confirmed subscriber", async () => {
   const source = await readFile("lib/email-subscriptions.ts", "utf8");
   const confirmedBranch = source.match(/if \(existing\?\.status === "confirmed"\)[\s\S]*?let subscriberId/)?.[0] ?? "";

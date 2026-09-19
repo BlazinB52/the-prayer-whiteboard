@@ -21,16 +21,13 @@ type DevotionalRow = Pick<
 >;
 
 type TeachingRow = PublicDevotionalSeries["teaching"] & { id: string };
-type DevotionalWithTeachingRow = DevotionalRow & {
-  teaching: PublicDevotionalSeries["teaching"] | PublicDevotionalSeries["teaching"][];
-};
 
 export function getDevotionalPath(series: Pick<PublicDevotionalSeries, "slug">) {
   return `/devotionals/${series.slug}`;
 }
 
 export function getDevotionalStartPath(series: Pick<PublicDevotionalSeries, "slug">) {
-  return `${getDevotionalPath(series)}/start`;
+  return `/subscribe?category=devotionals&devotional=${encodeURIComponent(series.slug)}`;
 }
 
 export function getDevotionalReadPath(series: Pick<PublicDevotionalSeries, "teaching">) {
@@ -104,23 +101,74 @@ export async function getPublishedDevotionalSeriesBySlug(slug: string): Promise<
   );
   const { data: devotional, error: devotionalError } = await supabase
     .from("teaching_devotionals")
-    .select("id, teaching_id, slug, title, introduction, published_at, teaching:teachings!inner(slug, title, gathering_date, summary, central_theme)")
+    .select("id, teaching_id, slug, title, introduction, published_at")
     .eq("slug", slug)
     .eq("status", "published")
-    .eq("teachings.status", "published")
     .maybeSingle();
 
   if (devotionalError || !devotional) return null;
 
-  const devotionalRow = devotional as unknown as DevotionalWithTeachingRow;
-  const teaching = Array.isArray(devotionalRow.teaching)
-    ? devotionalRow.teaching[0]
-    : devotionalRow.teaching;
+  const { data: assignments, error: assignmentError } = await supabase
+    .from("teaching_devotional_assignments")
+    .select("teaching_id")
+    .eq("devotional_id", devotional.id);
+
+  if (assignmentError || !assignments?.length) return null;
+
+  const { data: teachings, error: teachingError } = await supabase
+    .from("teachings")
+    .select("id, slug, title, gathering_date, summary, central_theme")
+    .eq("status", "published")
+    .in("id", assignments.map((assignment) => assignment.teaching_id));
+
+  if (teachingError || !teachings?.length) return null;
+
+  const teaching = teachings.find((item) => item.id === devotional.teaching_id) ?? teachings[0];
 
   if (!teaching) return null;
 
   return {
-    ...devotionalRow,
+    ...devotional,
+    teaching: {
+      slug: teaching.slug,
+      title: teaching.title,
+      gathering_date: teaching.gathering_date,
+      summary: teaching.summary,
+      central_theme: teaching.central_theme,
+    },
+  };
+}
+
+export async function getPublishedDevotionalSeriesByTeachingSlug(slug: string): Promise<PublicDevotionalSeries | null> {
+  const supabase = await createClient();
+  const { data: teaching, error: teachingError } = await supabase
+    .from("teachings")
+    .select("id, slug, title, gathering_date, summary, central_theme")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
+
+  if (teachingError || !teaching) return null;
+
+  const { data: assignment, error: assignmentError } = await supabase
+    .from("teaching_devotional_assignments")
+    .select("devotional_id")
+    .eq("teaching_id", teaching.id)
+    .maybeSingle();
+
+  if (assignmentError || !assignment) return null;
+
+  const { data: devotional, error: devotionalError } = await supabase
+    .from("teaching_devotionals")
+    .select("id, teaching_id, slug, title, introduction, published_at")
+    .eq("id", assignment.devotional_id)
+    .eq("status", "published")
+    .maybeSingle();
+
+  if (devotionalError || !devotional) return null;
+
+  return {
+    ...devotional,
     teaching: {
       slug: teaching.slug,
       title: teaching.title,

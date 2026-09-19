@@ -6,6 +6,7 @@ import { requestSubscription } from "@/lib/email-subscriptions";
 export type SubscribeState = {
   error?: string;
   submitted?: boolean;
+  alreadyConfirmed?: boolean;
 };
 
 export async function submitSubscription(_previousState: SubscribeState, formData: FormData): Promise<SubscribeState> {

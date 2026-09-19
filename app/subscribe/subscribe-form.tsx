@@ -8,21 +8,23 @@ import { EMAIL_CATEGORIES, EMAIL_CATEGORY_LABELS, type EmailCategory } from "@/l
 
 const initialState: SubscribeState = {};
 
-export function SubscribeForm() {
+export function SubscribeForm({ devotional }: { devotional: { slug: string; title: string } | null }) {
   const [state, action, pending] = useActionState(submitSubscription, initialState);
   const [selected, setSelected] = useState<Record<EmailCategory, boolean>>({
-    weekly_updates: true,
-    teachings: true,
-    devotionals: true,
+    weekly_updates: false,
+    teachings: false,
+    devotionals: Boolean(devotional),
   });
   const allSelected = useMemo(() => EMAIL_CATEGORIES.every((category) => selected[category]), [selected]);
 
   if (state.submitted) {
     return (
       <div role="status" className="rounded-2xl border border-[#326048]/20 bg-[#e7efe9] p-5 text-[#244a3a]">
-        <h2 className="text-2xl font-extrabold">Almost done.</h2>
+        <h2 className="text-2xl font-extrabold">{state.alreadyConfirmed ? "Preferences updated." : "Almost done."}</h2>
         <p className="mt-3 leading-7">
-          Check your inbox for a confirmation email from The Prayer Whiteboard. If you do not see it soon, please check Junk, Spam, or Promotions.
+          {state.alreadyConfirmed
+            ? "Your new choices have been added to your existing confirmed subscriptions."
+            : "Check your inbox for a confirmation email from The Prayer Whiteboard. If you do not see it soon, please check Junk, Spam, or Promotions."}
         </p>
       </div>
     );
@@ -44,6 +46,7 @@ export function SubscribeForm() {
         Website
         <input name="website" tabIndex={-1} autoComplete="off" />
       </label>
+      {devotional ? <input type="hidden" name="devotionalSlug" value={devotional.slug} /> : null}
       <fieldset className="mt-6">
         <legend className="text-sm font-extrabold text-[#385245]">Choose email updates</legend>
         <button
@@ -62,7 +65,10 @@ export function SubscribeForm() {
                 checked={selected[category]}
                 onChange={(event) => setSelected((current) => ({ ...current, [category]: event.target.checked }))}
               />
-              {EMAIL_CATEGORY_LABELS[category]}
+              <span>
+                {EMAIL_CATEGORY_LABELS[category]}
+                {category === "devotionals" ? <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">The current 7-Day Devotional and future 7-day devotional series.</span> : null}
+              </span>
             </label>
           ))}
         </div>

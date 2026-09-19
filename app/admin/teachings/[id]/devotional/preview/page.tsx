@@ -24,10 +24,17 @@ export default async function AdminDevotionalPreviewPage({ params }: { params: P
     .maybeSingle();
   if (!teaching) notFound();
 
+  const { data: assignment } = await supabase
+    .from("teaching_devotional_assignments")
+    .select("devotional_id")
+    .eq("teaching_id", teaching.id)
+    .maybeSingle();
+  if (!assignment) notFound();
+
   const { data: devotional } = await supabase
     .from("teaching_devotionals")
     .select("id, slug, title, introduction, status")
-    .eq("teaching_id", teaching.id)
+    .eq("id", assignment.devotional_id)
     .maybeSingle();
   if (!devotional) notFound();
 

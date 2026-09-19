@@ -3,7 +3,9 @@ import "server-only";
 import crypto from "node:crypto";
 import { headers } from "next/headers";
 import { EMAIL_CATEGORIES, type EmailCategory, type PreferenceView } from "@/lib/email-categories";
+import { getDevotionalSenderGroupIds } from "@/lib/devotional-sender-groups";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "@/lib/subscription-email-content";
+import { syncSubscriberToSenderGroups } from "@/lib/sender-subscriber-groups";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -16,6 +18,8 @@ type Preference = {
   category: EmailCategory;
   status: "pending" | "active" | "disabled";
 };
+
+type DevotionalContext = { slug: string; title: string };
 
 function getClient() {
   const supabase = createServiceRoleClient();
@@ -104,6 +108,56 @@ async function replacePreferences(subscriberId: string, categories: EmailCategor
   }));
   const { error } = await supabase.from("email_subscription_preferences").upsert(rows, { onConflict: "subscriber_id,category" });
   if (error) throw new Error("Subscription preferences could not be saved.");
+}
+
+async function readDevotionalContext(formData: FormData, categories: EmailCategory[]): Promise<{ value: DevotionalContext | null }> {
+  if (!categories.includes("devotionals")) return { value: null };
+  const slug = String(formData.get("devotionalSlug") ?? "").trim();
+  if (!slug) return { value: null };
+
+  const supabase = getClient();
+  const { data, error } = await supabase
+    .from("teaching_devotionals")
+    .select("slug, title")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
+
+  if (error || !data) return { value: null };
+  return { value: { slug: data.slug as string, title: data.title as string } };
+}
+
+function devotionalContextFromMetadata(metadata: unknown): DevotionalContext | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const devotional = (metadata as { devotional?: unknown }).devotional;
+  if (!devotional || typeof devotional !== "object") return null;
+  const slug = (devotional as { slug?: unknown }).slug;
+  const title = (devotional as { title?: unknown }).title;
+  return typeof slug === "string" && typeof title === "string" ? { slug, title } : null;
+}
+
+async function syncConfirmedDevotionalSubscriber(input: { subscriberId: string; email: string; firstName: string; devotionalSlug?: string | null }) {
+  const supabase = getClient();
+  await supabase.from("email_subscribers").update({ sender_sync_status: "pending", sender_sync_error: null }).eq("id", input.subscriberId);
+  const result = await syncSubscriberToSenderGroups({
+    email: input.email,
+    firstName: input.firstName,
+    groupIds: getDevotionalSenderGroupIds(input.devotionalSlug),
+  });
+
+  if (result.ok) {
+    await supabase.from("email_subscribers").update({
+      ...(result.subscriberId ? { sender_contact_id: result.subscriberId } : {}),
+      sender_sync_status: "synced",
+      sender_sync_error: null,
+    }).eq("id", input.subscriberId);
+    return;
+  }
+
+  await supabase.from("email_subscribers").update({
+    sender_sync_status: "failed",
+    sender_sync_error: result.error.slice(0, 300),
+  }).eq("id", input.subscriberId);
 }
 
 async function createAccessToken(subscriberId: string, tokenType: "confirmation" | "management") {
@@ -234,6 +288,7 @@ async function deliverPreferenceManagementEmail(input: { subscriberId: string; f
 export async function requestSubscription(formData: FormData) {
   const fields = validateSubscriberFields(formData);
   if (fields.error || !fields.value) return { error: fields.error ?? "Subscription could not be submitted." };
+  const devotionalContext = await readDevotionalContext(formData, fields.value.categories);
 
   const supabase = getClient();
   const { data: existing, error: existingError } = await supabase
@@ -243,6 +298,45 @@ export async function requestSubscription(formData: FormData) {
     .maybeSingle();
   if (existingError) return { error: "Subscription could not be submitted." };
   if (existing?.status === "suppressed") return { submitted: true };
+
+  const consentMetadata = {
+    ...(await requestMetadata()),
+    source: devotionalContext.value ? "devotional_start" : "general_subscribe",
+    devotional: devotionalContext.value,
+  };
+
+  if (existing?.status === "confirmed") {
+    const { data: activePreferences, error: preferenceError } = await supabase
+      .from("email_subscription_preferences")
+      .select("category")
+      .eq("subscriber_id", existing.id)
+      .eq("status", "active");
+    if (preferenceError) return { error: "Subscription preferences could not be saved." };
+
+    const activeCategories = (activePreferences ?? [])
+      .map((preference) => preference.category as EmailCategory)
+      .filter((category) => EMAIL_CATEGORIES.includes(category));
+    const categories = [...new Set([...activeCategories, ...fields.value.categories])];
+    const { error: subscriberError } = await supabase.from("email_subscribers").update({
+      first_name: fields.value.firstName,
+      email: fields.value.email,
+      sender_sync_status: "not_configured",
+      sender_sync_error: null,
+    }).eq("id", existing.id);
+    if (subscriberError) return { error: "Subscription could not be submitted." };
+
+    await replacePreferences(existing.id, categories, "active");
+    await recordConsentEvent(existing.id, "preference_changed", categories, consentMetadata);
+    if (fields.value.categories.includes("devotionals")) {
+      await syncConfirmedDevotionalSubscriber({
+        subscriberId: existing.id,
+        email: fields.value.email,
+        firstName: fields.value.firstName,
+        devotionalSlug: devotionalContext.value?.slug,
+      });
+    }
+    return { submitted: true, alreadyConfirmed: true };
+  }
 
   let subscriberId = existing?.id ?? null;
   const subscriberPayload = {
@@ -263,10 +357,9 @@ export async function requestSubscription(formData: FormData) {
   if (!subscriberId) return { error: "Subscription could not be submitted." };
 
   await replacePreferences(subscriberId, fields.value.categories, "pending");
+  await recordConsentEvent(subscriberId, existing?.status === "unsubscribed" ? "resubscribed" : "subscription_requested", fields.value.categories, consentMetadata);
   if (await hasRecentSuccessfulDelivery(subscriberId, "confirmation")) return { submitted: true };
   const access = await createAccessToken(subscriberId, "confirmation");
-  const metadata = await requestMetadata();
-  await recordConsentEvent(subscriberId, existing?.status === "unsubscribed" ? "resubscribed" : "subscription_requested", fields.value.categories, metadata);
   const delivery = await deliverConfirmationEmail({
     subscriberId,
     firstName: fields.value.firstName,
@@ -325,6 +418,20 @@ export async function confirmSubscriptionToken(token: string) {
   if (!categories.length) return { status: "invalid" as const, categories: [] as EmailCategory[] };
 
   const now = new Date().toISOString();
+  const { data: subscriber } = await supabase
+    .from("email_subscribers")
+    .select("email, first_name")
+    .eq("id", tokenResult.subscriberId)
+    .maybeSingle();
+  const { data: requestEvent } = await supabase
+    .from("email_consent_events")
+    .select("metadata")
+    .eq("subscriber_id", tokenResult.subscriberId)
+    .in("event_type", ["subscription_requested", "resubscribed"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const devotionalContext = devotionalContextFromMetadata(requestEvent?.metadata);
   const { error: subscriberError } = await supabase.from("email_subscribers").update({
     status: "confirmed",
     confirmed_at: now,
@@ -334,6 +441,14 @@ export async function confirmSubscriptionToken(token: string) {
   if (subscriberError) return { status: "invalid" as const, categories: [] as EmailCategory[] };
   await replacePreferences(tokenResult.subscriberId, categories, "active");
   await recordConsentEvent(tokenResult.subscriberId, "double_opt_in_confirmed", categories, await requestMetadata());
+  if (categories.includes("devotionals") && subscriber) {
+    await syncConfirmedDevotionalSubscriber({
+      subscriberId: tokenResult.subscriberId,
+      email: subscriber.email,
+      firstName: subscriber.first_name,
+      devotionalSlug: devotionalContext?.slug,
+    });
+  }
   return { status: "confirmed" as const, categories };
 }
 

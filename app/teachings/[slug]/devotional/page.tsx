@@ -7,56 +7,26 @@ import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { DEVOTIONAL_DAY_NUMBERS, splitParagraphs, type DevotionalDay } from "@/lib/devotionals";
+import { getPublishedDevotionalSeriesByTeachingSlug } from "@/lib/public-devotionals";
 import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const supabase = await createClient();
-  const { data: teaching } = await supabase
-    .from("teachings")
-    .select("id, slug, title")
-    .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle();
-
-  if (!teaching) return { title: "Teaching | The Whiteboard", robots: { index: false, follow: false } };
-
-  const { data: devotional } = await supabase
-    .from("teaching_devotionals")
-    .select("title, introduction")
-    .eq("teaching_id", teaching.id)
-    .eq("status", "published")
-    .maybeSingle();
-
+  const devotional = await getPublishedDevotionalSeriesByTeachingSlug(slug);
   if (!devotional) return { title: "Teaching | The Whiteboard", robots: { index: false, follow: false } };
 
   return {
     title: `${devotional.title} | 7-Day Devotional`,
-    description: splitParagraphs(devotional.introduction)[0] ?? `A 7-Day Devotional for ${teaching.title}.`,
+    description: splitParagraphs(devotional.introduction)[0] ?? `A 7-Day Devotional for ${devotional.teaching.title}.`,
   };
 }
 
 export default async function DevotionalOverviewPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const devotional = await getPublishedDevotionalSeriesByTeachingSlug(slug);
+  if (!devotional) notFound();
+
   const supabase = await createClient();
-  const { data: teaching, error: teachingError } = await supabase
-    .from("teachings")
-    .select("id, slug, title")
-    .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle();
-
-  if (teachingError || !teaching || teaching.slug !== slug) notFound();
-
-  const { data: devotional, error: devotionalError } = await supabase
-    .from("teaching_devotionals")
-    .select("id, title, introduction, status")
-    .eq("teaching_id", teaching.id)
-    .eq("status", "published")
-    .maybeSingle();
-
-  if (devotionalError || !devotional) notFound();
-
   const { data: days, error: daysError } = await supabase
     .from("teaching_devotional_days")
     .select("id, day_number, title, anchor_scriptures")
@@ -72,7 +42,7 @@ export default async function DevotionalOverviewPage({ params }: { params: Promi
         <header className="border-b border-[#284a3b]/15 pb-8">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">7-Day Devotional</p>
           <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{devotional.title}</h1>
-          <p className="mt-4 text-sm font-bold text-[#607066]">For {teaching.title}</p>
+          <p className="mt-4 text-sm font-bold text-[#607066]">For {devotional.teaching.title}</p>
           <DevotionalTextBlock text={devotional.introduction} className="mt-6 text-lg leading-8 text-[#52645a]" />
         </header>
         <div className="mt-8 grid gap-4 sm:grid-cols-2">

@@ -3,9 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
-import { createDevotional, importDevotionalText, publishDevotional, unpublishDevotional, updateDevotionalDay, updateDevotionalSeries } from "../../devotional-actions";
+import { assignExistingDevotional, createDevotional, importDevotionalText, publishDevotional, removeDevotionalAssignment, unpublishDevotional, updateDevotionalDay, updateDevotionalSeries } from "../../devotional-actions";
 import { PublishDevotionalButton, UnpublishDevotionalButton } from "../../devotional-buttons";
 import { CreateDevotionalForm } from "./create-devotional-form";
+import { DevotionalAssignmentForm } from "./devotional-assignment-form";
 import { DevotionalDayForms, DevotionalImportForm, DevotionalPreviewLink, DevotionalSeriesForm } from "./devotional-editor";
 
 export const metadata: Metadata = {
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function AdminDevotionalPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string; imported?: string; published?: string; unpublished?: string }> }) {
+export default async function AdminDevotionalPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ assigned?: string; removed?: string; created?: string; imported?: string; published?: string; unpublished?: string }> }) {
   const [{ id }, messages] = await Promise.all([params, searchParams]);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) notFound();
 
@@ -27,11 +28,18 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
 
   if (teachingError || !teaching) notFound();
 
-  const { data: devotional } = await supabase
-    .from("teaching_devotionals")
-    .select("id, teaching_id, slug, title, introduction, status, published_at")
+  const [{ data: assignment }, { data: devotionals }] = await Promise.all([
+    supabase
+    .from("teaching_devotional_assignments")
+    .select("devotional_id")
     .eq("teaching_id", teaching.id)
-    .maybeSingle();
+    .maybeSingle(),
+    supabase
+      .from("teaching_devotionals")
+      .select("id, teaching_id, slug, title, introduction, status, published_at")
+      .order("title", { ascending: true }),
+  ]);
+  const devotional = (devotionals ?? []).find((item) => item.id === assignment?.devotional_id) ?? null;
 
   const { data: days } = devotional
     ? await supabase
@@ -61,9 +69,18 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
         </header>
 
         {messages.created === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional created as a draft.</p> : null}
+        {messages.assigned === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional assigned to this teaching.</p> : null}
+        {messages.removed === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional association removed. The devotional content was not deleted.</p> : null}
         {messages.imported === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional text imported as a draft.</p> : null}
         {messages.published === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional published.</p> : null}
         {messages.unpublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional unpublished and returned to draft.</p> : null}
+
+        <DevotionalAssignmentForm
+          devotionals={(devotionals ?? []).map((item) => ({ id: item.id, title: item.title, status: item.status }))}
+          currentDevotionalId={devotional?.id ?? null}
+          assignAction={assignExistingDevotional.bind(null, teaching.id)}
+          removeAction={removeDevotionalAssignment.bind(null, teaching.id)}
+        />
 
         <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
           <h2 className="text-2xl font-extrabold text-[#243d31]">Import From Text File</h2>

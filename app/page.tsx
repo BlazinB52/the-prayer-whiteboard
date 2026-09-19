@@ -181,6 +181,7 @@ async function getPreviousGatherings(): Promise<PreviousGathering[]> {
     .from("teachings")
     .select("id, slug, title, gathering_date")
     .eq("status", "published")
+    .eq("teaching_type", "standard")
     .order("gathering_date", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false });
 
@@ -193,17 +194,24 @@ async function getPreviousGatherings(): Promise<PreviousGathering[]> {
 async function getPublishedDevotionalSlugsByTeachingId(teachingIds: string[]) {
   if (!teachingIds.length) return new Map<string, string>();
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("teaching_devotionals")
-    .select("teaching_id, slug")
-    .eq("status", "published")
+  const { data: assignments, error: assignmentsError } = await supabase
+    .from("teaching_devotional_assignments")
+    .select("teaching_id, devotional_id")
     .in("teaching_id", teachingIds);
 
-  if (error) return new Map<string, string>();
-  return new Map((data ?? []).flatMap((devotional) => {
-    const teachingId = devotional.teaching_id as string | null;
-    const devotionalSlug = devotional.slug as string | null;
-    return teachingId && devotionalSlug ? [[teachingId, devotionalSlug]] : [];
+  if (assignmentsError || !assignments?.length) return new Map<string, string>();
+  const devotionalIds = [...new Set(assignments.map((assignment) => assignment.devotional_id))];
+  const { data: devotionals, error: devotionalsError } = await supabase
+    .from("teaching_devotionals")
+    .select("id, slug")
+    .eq("status", "published")
+    .in("id", devotionalIds);
+
+  if (devotionalsError) return new Map<string, string>();
+  const slugsByDevotionalId = new Map((devotionals ?? []).map((devotional) => [devotional.id, devotional.slug]));
+  return new Map(assignments.flatMap((assignment) => {
+    const devotionalSlug = slugsByDevotionalId.get(assignment.devotional_id);
+    return devotionalSlug ? [[assignment.teaching_id, devotionalSlug]] : [];
   }));
 }
 
@@ -223,7 +231,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   if (!selectedTeaching) return null;
 
   const [{ data: previousGatherings, error: previousError }] = await Promise.all([
-    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
+    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").eq("teaching_type", "standard").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
   if (previousError) return null;
 

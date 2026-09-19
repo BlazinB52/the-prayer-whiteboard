@@ -18,6 +18,7 @@ const MAX_IMPORT_FILE_SIZE = 250_000;
 export type DevotionalFormState = { error?: string; saved?: boolean };
 export type DevotionalImportState = { error?: string };
 export type DevotionalPublishState = { error?: string };
+export type DevotionalAssignmentState = { error?: string };
 
 function readText(formData: FormData, name: string, maxLength: number, required = false) {
   const value = String(formData.get(name) ?? "").trim();
@@ -37,6 +38,28 @@ async function getTeaching(supabase: Awaited<ReturnType<typeof requireAdmin>>["s
   return data;
 }
 
+async function getAssignedDevotional(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], teachingId: string) {
+  const { data: assignment, error: assignmentError } = await supabase
+    .from("teaching_devotional_assignments")
+    .select("devotional_id")
+    .eq("teaching_id", teachingId)
+    .maybeSingle();
+  if (assignmentError || !assignment) return { devotional: null, error: assignmentError };
+
+  const { data: devotional, error } = await supabase
+    .from("teaching_devotionals")
+    .select("id, teaching_id, slug, title, introduction, status, published_at")
+    .eq("id", assignment.devotional_id)
+    .maybeSingle();
+  return { devotional, error };
+}
+
+async function saveAssignment(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], teachingId: string, devotionalId: string) {
+  return supabase
+    .from("teaching_devotional_assignments")
+    .upsert({ teaching_id: teachingId, devotional_id: devotionalId }, { onConflict: "teaching_id" });
+}
+
 function revalidateDevotionalPaths(teachingId: string, teachingSlug: string, devotionalSlug = teachingSlug) {
   revalidatePath("/");
   revalidatePath("/devotionals");
@@ -44,6 +67,7 @@ function revalidateDevotionalPaths(teachingId: string, teachingSlug: string, dev
   revalidatePath(`/devotionals/${devotionalSlug}`);
   revalidatePath(`/devotionals/${devotionalSlug}/start`);
   revalidatePath("/admin/teachings");
+  revalidatePath("/admin/devotionals");
   revalidatePath(`/admin/teachings/${teachingId}/edit`);
   revalidatePath(`/admin/teachings/${teachingId}/devotional`);
   revalidatePath(`/admin/teachings/${teachingId}/devotional/preview`);
@@ -60,6 +84,11 @@ export async function createDevotional(teachingId: string, previousState: Devoti
   const teaching = await getTeaching(supabase, teachingId);
   if (!teaching) return { error: "This teaching could not be found." };
 
+  const { devotional: assigned } = await getAssignedDevotional(supabase, teaching.id);
+  if (assigned) {
+    redirect(`/admin/teachings/${teaching.id}/devotional`);
+  }
+
   const { data: existing } = await supabase
     .from("teaching_devotionals")
     .select("id")
@@ -67,16 +96,63 @@ export async function createDevotional(teachingId: string, previousState: Devoti
     .maybeSingle();
 
   if (existing) {
-    redirect(`/admin/teachings/${teaching.id}/devotional`);
+    const { error } = await saveAssignment(supabase, teaching.id, existing.id);
+    if (error) return { error: "This devotional could not be assigned." };
+    revalidateDevotionalPaths(teaching.id, teaching.slug);
+    redirect(`/admin/teachings/${teaching.id}/devotional?assigned=1`);
   }
 
-  const { error } = await supabase
+  const { data: created, error } = await supabase
     .from("teaching_devotionals")
-    .insert({ teaching_id: teaching.id, slug: teaching.slug, title: `${teaching.title} 7-Day Devotional`, status: "draft", published_at: null });
+    .insert({ teaching_id: teaching.id, slug: teaching.slug, title: `${teaching.title} 7-Day Devotional`, status: "draft", published_at: null })
+    .select("id")
+    .single();
 
-  if (error) return { error: "This devotional could not be created." };
+  if (error || !created) return { error: "This devotional could not be created." };
+  const { error: assignmentError } = await saveAssignment(supabase, teaching.id, created.id);
+  if (assignmentError) {
+    await supabase.from("teaching_devotionals").delete().eq("id", created.id);
+    return { error: "This devotional could not be assigned." };
+  }
   revalidateDevotionalPaths(teaching.id, teaching.slug);
   redirect(`/admin/teachings/${teaching.id}/devotional?created=1`);
+}
+
+export async function assignExistingDevotional(teachingId: string, previousState: DevotionalAssignmentState, formData: FormData): Promise<DevotionalAssignmentState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+  const teaching = await getTeaching(supabase, teachingId);
+  if (!teaching) return { error: "This teaching could not be found." };
+
+  const devotionalId = String(formData.get("devotionalId") ?? "");
+  if (!UUID_PATTERN.test(devotionalId)) return { error: "Choose a devotional to assign." };
+  const { data: devotional } = await supabase
+    .from("teaching_devotionals")
+    .select("id, slug")
+    .eq("id", devotionalId)
+    .maybeSingle();
+  if (!devotional) return { error: "This devotional could not be found." };
+
+  const { error } = await saveAssignment(supabase, teaching.id, devotional.id);
+  if (error) return { error: "This devotional could not be assigned." };
+  revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
+  redirect(`/admin/teachings/${teaching.id}/devotional?assigned=1`);
+}
+
+export async function removeDevotionalAssignment(teachingId: string, previousState: DevotionalAssignmentState): Promise<DevotionalAssignmentState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+  const teaching = await getTeaching(supabase, teachingId);
+  if (!teaching) return { error: "This teaching could not be found." };
+  const { devotional } = await getAssignedDevotional(supabase, teaching.id);
+
+  const { error } = await supabase
+    .from("teaching_devotional_assignments")
+    .delete()
+    .eq("teaching_id", teaching.id);
+  if (error) return { error: "This devotional assignment could not be removed." };
+  revalidateDevotionalPaths(teaching.id, teaching.slug, devotional?.slug || teaching.slug);
+  redirect(`/admin/teachings/${teaching.id}/devotional?removed=1`);
 }
 
 export async function updateDevotionalSeries(teachingId: string, previousState: DevotionalFormState, formData: FormData): Promise<DevotionalFormState> {
@@ -90,19 +166,14 @@ export async function updateDevotionalSeries(teachingId: string, previousState: 
   if (title.error) return title;
   if (introduction.error) return introduction;
 
-  const { data: devotional } = await supabase
-    .from("teaching_devotionals")
-    .select("id, teaching_id, slug")
-    .eq("teaching_id", teaching.id)
-    .maybeSingle();
+  const { devotional } = await getAssignedDevotional(supabase, teaching.id);
 
   if (!devotional) return { error: "Create the devotional before saving series information." };
 
   const { error } = await supabase
     .from("teaching_devotionals")
     .update({ title: title.value, introduction: introduction.value || null })
-    .eq("id", devotional.id)
-    .eq("teaching_id", teaching.id);
+    .eq("id", devotional.id);
 
   if (error) return { error: "The devotional series information could not be saved." };
   revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
@@ -128,11 +199,7 @@ export async function updateDevotionalDay(teachingId: string, dayNumber: number,
   if (anchorScriptures.length > 20) return { error: "Anchor Scriptures must include 20 references or fewer." };
   if (anchorScriptures.some((scripture) => scripture.length > MAX_ANCHOR_SCRIPTURE_LENGTH)) return { error: `Each anchor Scripture must be ${formatAnchorScriptureLengthLimit()} characters or fewer.` };
 
-  const { data: devotional } = await supabase
-    .from("teaching_devotionals")
-    .select("id, teaching_id, slug")
-    .eq("teaching_id", teaching.id)
-    .maybeSingle();
+  const { devotional } = await getAssignedDevotional(supabase, teaching.id);
 
   if (!devotional) return { error: "Create the devotional before saving day content." };
 
@@ -175,13 +242,24 @@ export async function importDevotionalText(teachingId: string, previousState: De
     return { error: error instanceof Error ? error.message : "The devotional text file could not be parsed." };
   }
 
-  const { data: existing, error: existingError } = await supabase
-    .from("teaching_devotionals")
-    .select("id, teaching_id, slug, status")
-    .eq("teaching_id", teaching.id)
-    .maybeSingle();
+  const assignedResult = await getAssignedDevotional(supabase, teaching.id);
+  if (assignedResult.error) return { error: "This devotional could not be checked before import." };
+  let existing = assignedResult.devotional;
 
-  if (existingError) return { error: "This devotional could not be checked before import." };
+  if (!existing) {
+    const { data: owned, error: ownedError } = await supabase
+      .from("teaching_devotionals")
+      .select("id, teaching_id, slug, title, introduction, status, published_at")
+      .eq("teaching_id", teaching.id)
+      .maybeSingle();
+    if (ownedError) return { error: "This devotional could not be checked before import." };
+    existing = owned;
+    if (existing) {
+      const { error } = await saveAssignment(supabase, teaching.id, existing.id);
+      if (error) return { error: "This devotional could not be assigned before import." };
+    }
+  }
+
   if (existing?.status === "published") {
     return { error: "Unpublish this devotional before replacing it with an import." };
   }
@@ -197,8 +275,7 @@ export async function importDevotionalText(teachingId: string, previousState: De
         status: "draft",
         published_at: null,
       })
-      .eq("id", devotionalId)
-      .eq("teaching_id", teaching.id);
+      .eq("id", devotionalId);
     if (error) return { error: "The devotional series information could not be imported." };
   } else {
     const { data, error } = await supabase
@@ -215,6 +292,11 @@ export async function importDevotionalText(teachingId: string, previousState: De
       .single();
     if (error || !data) return { error: "The devotional could not be created from the import." };
     devotionalId = data.id as string;
+    const { error: assignmentError } = await saveAssignment(supabase, teaching.id, devotionalId);
+    if (assignmentError) {
+      await supabase.from("teaching_devotionals").delete().eq("id", devotionalId);
+      return { error: "The imported devotional could not be assigned." };
+    }
   }
 
   const { error: daysError } = await supabase
@@ -244,11 +326,7 @@ export async function publishDevotional(teachingId: string, previousState: Devot
   const teaching = await getTeaching(supabase, teachingId);
   if (!teaching) return { error: "This teaching could not be found." };
 
-  const { data: devotional } = await supabase
-    .from("teaching_devotionals")
-    .select("id, teaching_id, slug, title, introduction, status, published_at")
-    .eq("teaching_id", teaching.id)
-    .maybeSingle();
+  const { devotional } = await getAssignedDevotional(supabase, teaching.id);
 
   if (!devotional) return { error: "Create the devotional before publishing." };
 
@@ -265,8 +343,7 @@ export async function publishDevotional(teachingId: string, previousState: Devot
   const { error } = await supabase
     .from("teaching_devotionals")
     .update({ slug: devotional.slug || teaching.slug, status: "published", published_at: new Date().toISOString() })
-    .eq("id", devotional.id)
-    .eq("teaching_id", teaching.id);
+    .eq("id", devotional.id);
 
   if (error) return { error: "This devotional could not be published." };
   revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
@@ -279,19 +356,14 @@ export async function unpublishDevotional(teachingId: string, previousState: Dev
   const teaching = await getTeaching(supabase, teachingId);
   if (!teaching) return { error: "This teaching could not be found." };
 
-  const { data: devotional } = await supabase
-    .from("teaching_devotionals")
-    .select("id, teaching_id, slug")
-    .eq("teaching_id", teaching.id)
-    .maybeSingle();
+  const { devotional } = await getAssignedDevotional(supabase, teaching.id);
 
   if (!devotional) return { error: "This devotional could not be found." };
 
   const { error } = await supabase
     .from("teaching_devotionals")
     .update({ status: "draft", published_at: null })
-    .eq("id", devotional.id)
-    .eq("teaching_id", teaching.id);
+    .eq("id", devotional.id);
 
   if (error) return { error: "This devotional could not be unpublished." };
   revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);

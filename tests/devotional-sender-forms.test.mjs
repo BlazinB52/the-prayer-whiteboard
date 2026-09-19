@@ -10,16 +10,18 @@ test("each published devotional slug selects its own Sender form", () => {
   assert.equal(getDevotionalSenderFormId("unmapped-devotional"), null);
 });
 
-test("slug and generic signup routes resolve a devotional before selecting its form", async () => {
-  const [slugRoute, genericRoute, universalScript] = await Promise.all([
+test("legacy Sender forms remain configured while public start routes use unified signup", async () => {
+  const [slugRoute, genericRoute, universalScript, senderForm] = await Promise.all([
     readFile("app/devotionals/[slug]/start/page.tsx", "utf8"),
     readFile("app/devotionals/start/page.tsx", "utf8"),
     readFile("app/sender-universal-script.tsx", "utf8"),
+    readFile("app/devotionals/start/subscription-form.tsx", "utf8"),
   ]);
 
   assert.match(slugRoute, /getPublishedDevotionalSeriesBySlug\(slug\)/);
-  assert.match(slugRoute, /getDevotionalSenderFormId\(series\.slug\)/);
+  assert.match(slugRoute, /redirect\(getDevotionalStartPath\(series\)\)/);
   assert.match(genericRoute, /getPublishedDevotionalSeries\(\)/);
-  assert.match(genericRoute, /getDevotionalSenderFormId\(series\.slug\)/);
+  assert.match(genericRoute, /redirect\(getDevotionalStartPath\(series\)\)/);
   assert.match(universalScript, /sender\('7fbd75617e6215'\)/);
+  assert.match(senderForm, /data-sender-form-id=\{formId\}/);
 });

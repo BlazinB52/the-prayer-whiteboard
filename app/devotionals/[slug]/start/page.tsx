@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { DevotionalSubscriptionPageView } from "@/app/devotionals/subscription-page-view";
+import { notFound, redirect } from "next/navigation";
 import {
-  getDevotionalPath,
-  getDevotionalSignupCopy,
+  getDevotionalStartPath,
   getPublishedDevotionalSeriesBySlug,
 } from "@/lib/public-devotionals";
-import { getDevotionalSenderFormId } from "@/lib/devotional-sender-forms";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -25,15 +22,5 @@ export default async function DevotionalSubscriptionPage({ params }: { params: P
   const series = await getPublishedDevotionalSeriesBySlug(slug);
 
   if (!series) notFound();
-  const senderFormId = getDevotionalSenderFormId(series.slug);
-  if (!senderFormId) notFound();
-
-  return (
-    <DevotionalSubscriptionPageView
-      backHref={getDevotionalPath(series)}
-      backLabel="Devotional"
-      senderFormId={senderFormId}
-      subscriptionCopy={getDevotionalSignupCopy(series)}
-    />
-  );
+  redirect(getDevotionalStartPath(series));
 }

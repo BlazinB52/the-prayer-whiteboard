@@ -8,6 +8,7 @@ import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import type { DevotionalDay } from "@/lib/devotionals";
+import { getPublishedDevotionalSeriesByTeachingSlug } from "@/lib/public-devotionals";
 import { createClient } from "@/lib/supabase/server";
 
 function parseDayNumber(value: string) {
@@ -20,25 +21,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const dayNumber = parseDayNumber(dayNumberParam);
   if (!dayNumber) return { title: "Teaching | The Whiteboard", robots: { index: false, follow: false } };
 
-  const supabase = await createClient();
-  const { data: teaching } = await supabase
-    .from("teachings")
-    .select("id, title")
-    .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle();
-
-  if (!teaching) return { title: "Teaching | The Whiteboard", robots: { index: false, follow: false } };
-
-  const { data: devotional } = await supabase
-    .from("teaching_devotionals")
-    .select("id, title")
-    .eq("teaching_id", teaching.id)
-    .eq("status", "published")
-    .maybeSingle();
-
+  const devotional = await getPublishedDevotionalSeriesByTeachingSlug(slug);
   if (!devotional) return { title: "Teaching | The Whiteboard", robots: { index: false, follow: false } };
 
+  const supabase = await createClient();
   const { data: day } = await supabase
     .from("teaching_devotional_days")
     .select("title")
@@ -55,25 +41,10 @@ export default async function DevotionalDayPage({ params }: { params: Promise<{ 
   const dayNumber = parseDayNumber(dayNumberParam);
   if (!dayNumber) notFound();
 
+  const devotional = await getPublishedDevotionalSeriesByTeachingSlug(slug);
+  if (!devotional) notFound();
+
   const supabase = await createClient();
-  const { data: teaching, error: teachingError } = await supabase
-    .from("teachings")
-    .select("id, slug, title")
-    .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle();
-
-  if (teachingError || !teaching || teaching.slug !== slug) notFound();
-
-  const { data: devotional, error: devotionalError } = await supabase
-    .from("teaching_devotionals")
-    .select("id, title")
-    .eq("teaching_id", teaching.id)
-    .eq("status", "published")
-    .maybeSingle();
-
-  if (devotionalError || !devotional) notFound();
-
   const { data: day, error: dayError } = await supabase
     .from("teaching_devotional_days")
     .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
@@ -90,7 +61,7 @@ export default async function DevotionalDayPage({ params }: { params: Promise<{ 
         <header className="border-b border-[#284a3b]/15 pb-8">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Day {dayNumber} of 7</p>
           <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-5xl">{day.title}</h1>
-          <p className="mt-4 text-sm font-bold text-[#607066]">{devotional.title} for {teaching.title}</p>
+          <p className="mt-4 text-sm font-bold text-[#607066]">{devotional.title} for {devotional.teaching.title}</p>
         </header>
         <div className="mt-8 space-y-8">
           <DevotionalField title="Anchor Scriptures">

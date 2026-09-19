@@ -3,6 +3,46 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { categoryLabels, confirmationCopy } from "../lib/subscription-confirmation-view.ts";
 
+test("devotional CTAs use the unified subscription page with devotional context", async () => {
+  const [publicDevotionals, subscribePage, subscribeForm, slugStart, genericStart] = await Promise.all([
+    readFile("lib/public-devotionals.ts", "utf8"),
+    readFile("app/subscribe/page.tsx", "utf8"),
+    readFile("app/subscribe/subscribe-form.tsx", "utf8"),
+    readFile("app/devotionals/[slug]/start/page.tsx", "utf8"),
+    readFile("app/devotionals/start/page.tsx", "utf8"),
+  ]);
+
+  assert.match(publicDevotionals, /\/subscribe\?category=devotionals&devotional=/);
+  assert.match(subscribePage, /getPublishedDevotionalSeriesBySlug\(requestedSlug\)/);
+  assert.match(subscribeForm, /devotionals: Boolean\(devotional\)/);
+  assert.match(subscribeForm, /weekly_updates: false/);
+  assert.match(subscribeForm, /teachings: false/);
+  assert.match(slugStart, /redirect\(getDevotionalStartPath\(series\)\)/);
+  assert.match(genericStart, /redirect\(getDevotionalStartPath\(series\)\)/);
+});
+
+test("confirmed subscribers add preferences without another confirmation", async () => {
+  const source = await readFile("lib/email-subscriptions.ts", "utf8");
+  const confirmedBranch = source.match(/if \(existing\?\.status === "confirmed"\)[\s\S]*?let subscriberId/)?.[0] ?? "";
+  assert.match(confirmedBranch, /status\", \"active\"/);
+  assert.match(confirmedBranch, /new Set\(\[\.\.\.activeCategories, \.\.\.fields\.value\.categories\]\)/);
+  assert.match(confirmedBranch, /alreadyConfirmed: true/);
+  assert.doesNotMatch(confirmedBranch, /createAccessToken|deliverConfirmationEmail/);
+});
+
+test("devotional Sender sync happens only after confirmation or for an already-confirmed subscriber", async () => {
+  const source = await readFile("lib/email-subscriptions.ts", "utf8");
+  const confirmedBranch = source.match(/if \(existing\?\.status === "confirmed"\)[\s\S]*?let subscriberId/)?.[0] ?? "";
+  const pendingBranch = source.match(/let subscriberId[\s\S]*?export async function confirmSubscriptionToken/)?.[0] ?? "";
+  const confirmation = source.match(/export async function confirmSubscriptionToken[\s\S]*?export async function requestManagementLink/)?.[0] ?? "";
+
+  assert.match(confirmedBranch, /fields\.value\.categories\.includes\("devotionals"\)[\s\S]*?syncConfirmedDevotionalSubscriber/);
+  assert.doesNotMatch(pendingBranch, /syncConfirmedDevotionalSubscriber/);
+  assert.match(confirmation, /categories\.includes\("devotionals"\)[\s\S]*?syncConfirmedDevotionalSubscriber/);
+  assert.match(source, /sender_sync_status: "failed"/);
+  assert.match(source, /sender_sync_status: "synced"/);
+});
+
 test("confirmation result copy lists one active category", () => {
   const copy = confirmationCopy("confirmed");
   assert.equal(copy.title, "Subscription confirmed!");

@@ -46,6 +46,17 @@ test("devotional admin page includes text import action", async () => {
   assert.match(source, /Import From Text File/);
 });
 
+test("devotional admin index lists devotional records without teaching-only cards", async () => {
+  const source = await readFile("app/admin/devotionals/page.tsx", "utf8");
+  assert.match(source, /\.from\("teaching_devotionals"\)/);
+  assert.match(source, /devotionals\.map\(\(devotional\)/);
+  assert.match(source, /Used by/);
+  assert.match(source, /Preview devotional/);
+  assert.match(source, /Create New Devotional/);
+  assert.doesNotMatch(source, /Edit teaching/);
+  assert.doesNotMatch(source, /no devotional(?!s)/i);
+});
+
 test("devotional text groups dash and bullet-prefixed lines into lists", () => {
   assert.deepEqual(splitDevotionalTextBlocks(`Opening paragraph.
 - First item

@@ -8,10 +8,12 @@ import { DevotionalSubscriptionForm } from "./start/subscription-form";
 export function DevotionalSubscriptionPageView({
   backHref,
   backLabel = "Devotionals",
+  senderFormId,
   subscriptionCopy,
 }: {
   backHref: string;
   backLabel?: string;
+  senderFormId: string;
   subscriptionCopy: string;
 }) {
   return (
@@ -34,7 +36,7 @@ export function DevotionalSubscriptionPageView({
             <p className="whitespace-pre-line text-lg leading-8 text-[#52645a]">
               {subscriptionCopy}
             </p>
-            <DevotionalSubscriptionForm />
+            <DevotionalSubscriptionForm formId={senderFormId} />
             <p className="mt-5 text-sm leading-6 text-[#607066]">
               We use your email only to send Prayer Whiteboard devotional series you&apos;ve subscribed to. You can unsubscribe at any time.
             </p>

@@ -2,8 +2,6 @@
 
 import { useEffect } from "react";
 
-const SENDER_FORM_ID = "dyPEr6";
-
 declare global {
   interface Window {
     senderForms?: {
@@ -13,10 +11,10 @@ declare global {
   }
 }
 
-export function DevotionalSubscriptionForm() {
+export function DevotionalSubscriptionForm({ formId }: { formId: string }) {
   useEffect(() => {
     const renderSenderForm = () => {
-      window.senderForms?.render?.(SENDER_FORM_ID);
+      window.senderForms?.render?.(formId);
     };
 
     if (window.senderFormsLoaded) {
@@ -29,13 +27,13 @@ export function DevotionalSubscriptionForm() {
     return () => {
       window.removeEventListener("onSenderFormsLoaded", renderSenderForm);
     };
-  }, []);
+  }, [formId]);
 
   return (
     <div className="mt-7 max-w-full overflow-hidden">
       <div
         className="sender-form-field max-w-full"
-        data-sender-form-id={SENDER_FORM_ID}
+        data-sender-form-id={formId}
         style={{ textAlign: "left" }}
       />
     </div>

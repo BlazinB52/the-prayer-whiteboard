@@ -181,7 +181,6 @@ async function getPreviousGatherings(): Promise<PreviousGathering[]> {
     .from("teachings")
     .select("id, slug, title, gathering_date")
     .eq("status", "published")
-    .eq("teaching_type", "standard")
     .order("gathering_date", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false });
 
@@ -224,7 +223,7 @@ async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
   if (!selectedTeaching) return null;
 
   const [{ data: previousGatherings, error: previousError }] = await Promise.all([
-    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").eq("teaching_type", "standard").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
+    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
   if (previousError) return null;
 

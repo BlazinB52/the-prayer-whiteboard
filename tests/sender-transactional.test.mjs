@@ -211,8 +211,10 @@ test("new access tokens replace older unused access tokens for the same subscrib
   assert.match(source, /\.is\("used_at", null\)/);
 });
 
-test("existing Sender devotional embedded form remains unchanged", async () => {
+test("Sender devotional embed explicitly renders its selected form after client navigation", async () => {
   const source = await readFile("app/devotionals/start/subscription-form.tsx", "utf8");
-  assert.match(source, /SENDER_FORM_ID = "dyPEr6"/);
-  assert.match(source, /senderForms\?\.render\?\.\(SENDER_FORM_ID\)/);
+  assert.match(source, /DevotionalSubscriptionForm\(\{ formId \}/);
+  assert.match(source, /senderForms\?\.render\?\.\(formId\)/);
+  assert.match(source, /data-sender-form-id=\{formId\}/);
+  assert.match(source, /\[formId\]/);
 });

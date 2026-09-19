@@ -30,6 +30,21 @@ test("confirmed subscribers add preferences without another confirmation", async
   assert.doesNotMatch(confirmedBranch, /createAccessToken|deliverConfirmationEmail/);
 });
 
+test("already-confirmed 5787 signup preserves its slug through Sender group resolution", async () => {
+  const [subscribeForm, subscriptions, senderGroups] = await Promise.all([
+    readFile("app/subscribe/subscribe-form.tsx", "utf8"),
+    readFile("lib/email-subscriptions.ts", "utf8"),
+    readFile("lib/devotional-sender-groups.ts", "utf8"),
+  ]);
+  const confirmedBranch = subscriptions.match(/if \(existing\?\.status === "confirmed"\)[\s\S]*?let subscriberId/)?.[0] ?? "";
+
+  assert.match(subscribeForm, /name="devotionalSlug" value=\{devotional\.slug\}/);
+  assert.match(subscriptions, /getPublishedDevotionalSeriesBySlug\(slug\)/);
+  assert.match(confirmedBranch, /devotionalSlug: devotionalContext\.value\?\.slug/);
+  assert.match(senderGroups, /"5787-the-year-of-the-spoken-word-and-divine-rest": "bWzpxx"/);
+  assert.match(senderGroups, /\[SENDER_MASTER_DEVOTIONAL_GROUP_ID, seriesGroupId\]/);
+});
+
 test("devotional Sender sync happens only after confirmation or for an already-confirmed subscriber", async () => {
   const source = await readFile("lib/email-subscriptions.ts", "utf8");
   const confirmedBranch = source.match(/if \(existing\?\.status === "confirmed"\)[\s\S]*?let subscriberId/)?.[0] ?? "";

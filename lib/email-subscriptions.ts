@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { headers } from "next/headers";
 import { EMAIL_CATEGORIES, type EmailCategory, type PreferenceView } from "@/lib/email-categories";
 import { getDevotionalSenderGroupIds } from "@/lib/devotional-sender-groups";
+import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "@/lib/subscription-email-content";
 import { syncSubscriberToSenderGroups } from "@/lib/sender-subscriber-groups";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
@@ -115,16 +116,9 @@ async function readDevotionalContext(formData: FormData, categories: EmailCatego
   const slug = String(formData.get("devotionalSlug") ?? "").trim();
   if (!slug) return { value: null };
 
-  const supabase = getClient();
-  const { data, error } = await supabase
-    .from("teaching_devotionals")
-    .select("slug, title")
-    .eq("slug", slug)
-    .eq("status", "published")
-    .maybeSingle();
-
-  if (error || !data) return { value: null };
-  return { value: { slug: data.slug as string, title: data.title as string } };
+  const devotional = await getPublishedDevotionalSeriesBySlug(slug);
+  if (!devotional) return { value: null };
+  return { value: { slug: devotional.slug, title: devotional.title } };
 }
 
 function devotionalContextFromMetadata(metadata: unknown): DevotionalContext | null {

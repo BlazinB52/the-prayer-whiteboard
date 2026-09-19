@@ -20,11 +20,15 @@ export function SubscribeForm({ devotional }: { devotional: { slug: string; titl
   if (state.submitted) {
     return (
       <div role="status" className="rounded-2xl border border-[#326048]/20 bg-[#e7efe9] p-5 text-[#244a3a]">
-        <h2 className="text-2xl font-extrabold">{state.alreadyConfirmed ? "Preferences updated." : "Almost done."}</h2>
+        <h2 className="text-2xl font-extrabold">{state.alreadyConfirmed ? <>You&rsquo;re all set.</> : "One more step."}</h2>
         <p className="mt-3 leading-7">
-          {state.alreadyConfirmed
-            ? "Your new choices have been added to your existing confirmed subscriptions."
-            : "Check your inbox for a confirmation email from The Prayer Whiteboard. If you do not see it soon, please check Junk, Spam, or Promotions."}
+          {devotional
+            ? state.alreadyConfirmed
+              ? <>Your preferences have been updated, and you&rsquo;re signed up for the 7-Day Devotional: {devotional.title}.</>
+              : <>Check your email and confirm your subscription. Once confirmed, you&rsquo;ll be signed up for the 7-Day Devotional: {devotional.title}, along with any other updates you selected.</>
+            : state.alreadyConfirmed
+              ? "Your email preferences have been updated."
+              : <>Check your email and confirm your subscription. Once confirmed, you&rsquo;ll receive the email updates you selected.</>}
         </p>
       </div>
     );

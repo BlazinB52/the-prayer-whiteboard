@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { categoryLabels, confirmationCopy } from "../lib/subscription-confirmation-view.ts";
+import { hasConfirmedSubscriptionState } from "../lib/subscription-status.ts";
 
 test("devotional CTAs use the unified subscription page with devotional context", async () => {
   const [publicDevotionals, subscribePage, subscribeForm, slugStart, genericStart] = await Promise.all([
@@ -23,7 +24,7 @@ test("devotional CTAs use the unified subscription page with devotional context"
 
 test("confirmed subscribers add preferences without another confirmation", async () => {
   const source = await readFile("lib/email-subscriptions.ts", "utf8");
-  const confirmedBranch = source.match(/if \(existing\?\.status === "confirmed"\)[\s\S]*?let subscriberId/)?.[0] ?? "";
+  const confirmedBranch = source.match(/if \(existing && existingIsConfirmed\)[\s\S]*?let subscriberId/)?.[0] ?? "";
   assert.match(confirmedBranch, /status\", \"active\"/);
   assert.match(confirmedBranch, /new Set\(\[\.\.\.activeCategories, \.\.\.fields\.value\.categories\]\)/);
   assert.match(confirmedBranch, /alreadyConfirmed: true/);
@@ -36,13 +37,21 @@ test("already-confirmed 5787 signup preserves its slug through Sender group reso
     readFile("lib/email-subscriptions.ts", "utf8"),
     readFile("lib/devotional-sender-groups.ts", "utf8"),
   ]);
-  const confirmedBranch = subscriptions.match(/if \(existing\?\.status === "confirmed"\)[\s\S]*?let subscriberId/)?.[0] ?? "";
+  const confirmedBranch = subscriptions.match(/if \(existing && existingIsConfirmed\)[\s\S]*?let subscriberId/)?.[0] ?? "";
 
   assert.match(subscribeForm, /name="devotionalSlug" value=\{devotional\.slug\}/);
   assert.match(subscriptions, /getPublishedDevotionalSeriesBySlug\(slug\)/);
   assert.match(confirmedBranch, /devotionalSlug: devotionalContext\.value\?\.slug/);
   assert.match(senderGroups, /"5787-the-year-of-the-spoken-word-and-divine-rest": "bWzpxx"/);
   assert.match(senderGroups, /\[SENDER_MASTER_DEVOTIONAL_GROUP_ID, seriesGroupId\]/);
+});
+
+test("a previously confirmed devotional subscriber is not sent through double opt-in again", () => {
+  assert.equal(hasConfirmedSubscriptionState("confirmed", null), true);
+  assert.equal(hasConfirmedSubscriptionState("pending", "legacy_devotional_imported"), true);
+  assert.equal(hasConfirmedSubscriptionState("pending", "double_opt_in_confirmed"), true);
+  assert.equal(hasConfirmedSubscriptionState("pending", null), false);
+  assert.equal(hasConfirmedSubscriptionState("unsubscribed", "double_opt_in_confirmed"), false);
 });
 
 test("devotional signup success copy displays the title without a duplicate prefix", async () => {
@@ -64,7 +73,7 @@ test("subscribe heading reflects the existing submission result state", async ()
 
 test("devotional Sender sync happens only after confirmation or for an already-confirmed subscriber", async () => {
   const source = await readFile("lib/email-subscriptions.ts", "utf8");
-  const confirmedBranch = source.match(/if \(existing\?\.status === "confirmed"\)[\s\S]*?let subscriberId/)?.[0] ?? "";
+  const confirmedBranch = source.match(/if \(existing && existingIsConfirmed\)[\s\S]*?let subscriberId/)?.[0] ?? "";
   const pendingBranch = source.match(/let subscriberId[\s\S]*?export async function confirmSubscriptionToken/)?.[0] ?? "";
   const confirmation = source.match(/export async function confirmSubscriptionToken[\s\S]*?export async function requestManagementLink/)?.[0] ?? "";
 

@@ -6,6 +6,7 @@ import { EMAIL_CATEGORIES, type EmailCategory, type PreferenceView } from "@/lib
 import { getDevotionalSenderGroupIds } from "@/lib/devotional-sender-groups";
 import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "@/lib/subscription-email-content";
+import { hasConfirmedSubscriptionState, type ConfirmationEvidence, type SubscriberStatus } from "@/lib/subscription-status";
 import { syncSubscriberToSenderGroups } from "@/lib/sender-subscriber-groups";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
@@ -119,6 +120,23 @@ async function readDevotionalContext(formData: FormData, categories: EmailCatego
   const devotional = await getPublishedDevotionalSeriesBySlug(slug);
   if (!devotional) return { value: null };
   return { value: { slug: devotional.slug, title: devotional.title } };
+}
+
+async function subscriberIsConfirmed(subscriber: { id: string; status: SubscriberStatus }) {
+  if (subscriber.status !== "pending") return hasConfirmedSubscriptionState(subscriber.status, null);
+
+  const supabase = getClient();
+  const { data, error } = await supabase
+    .from("email_consent_events")
+    .select("event_type")
+    .eq("subscriber_id", subscriber.id)
+    .in("event_type", ["double_opt_in_confirmed", "legacy_devotional_imported", "unsubscribed"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error("Subscriber confirmation state could not be read.");
+
+  return hasConfirmedSubscriptionState(subscriber.status, (data?.event_type as ConfirmationEvidence) ?? null);
 }
 
 function devotionalContextFromMetadata(metadata: unknown): DevotionalContext | null {
@@ -292,6 +310,9 @@ export async function requestSubscription(formData: FormData) {
     .maybeSingle();
   if (existingError) return { error: "Subscription could not be submitted." };
   if (existing?.status === "suppressed") return { submitted: true };
+  const existingIsConfirmed = existing
+    ? await subscriberIsConfirmed({ id: existing.id, status: existing.status as SubscriberStatus })
+    : false;
 
   const consentMetadata = {
     ...(await requestMetadata()),
@@ -299,7 +320,7 @@ export async function requestSubscription(formData: FormData) {
     devotional: devotionalContext.value,
   };
 
-  if (existing?.status === "confirmed") {
+  if (existing && existingIsConfirmed) {
     const { data: activePreferences, error: preferenceError } = await supabase
       .from("email_subscription_preferences")
       .select("category")
@@ -314,6 +335,8 @@ export async function requestSubscription(formData: FormData) {
     const { error: subscriberError } = await supabase.from("email_subscribers").update({
       first_name: fields.value.firstName,
       email: fields.value.email,
+      status: "confirmed",
+      unsubscribed_at: null,
       sender_sync_status: "not_configured",
       sender_sync_error: null,
     }).eq("id", existing.id);

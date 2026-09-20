@@ -51,12 +51,7 @@ export default async function WeeklyUpdatePage() {
       </div>
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
         <header className="border-b border-[#284a3b]/15 pb-8">
-          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Weekly Update</p>
-          <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{data.title}</h1>
-          {data.published_at ? <p className="mt-4 text-sm font-bold text-[#607066]">{new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(new Date(data.published_at))}</p> : null}
-        </header>
-        <div className="mt-10">
-          <div className="mb-10 flex justify-center">
+          <div className="mb-8 flex justify-center">
             <Image
               src="/images/whiteboard-sword-logo-with-tagline.png"
               alt="The Prayer Whiteboard sword logo with tagline"
@@ -66,6 +61,11 @@ export default async function WeeklyUpdatePage() {
               priority
             />
           </div>
+          <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Weekly Update</p>
+          <h1 className="mt-3 text-[32px] font-extrabold leading-[1.08] tracking-normal text-[#243d31] sm:text-[40px] lg:text-[48px]">{data.title}</h1>
+          {data.published_at ? <p className="mt-4 text-sm font-bold text-[#607066]">{new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(new Date(data.published_at))}</p> : null}
+        </header>
+        <div className="mt-10">
           <WeeklyUpdateContent body={data.body_markdown} blocks={data.converted_content} />
           {footer?.status === "active" ? <ContentFooter content={footer.content} /> : null}
         </div>

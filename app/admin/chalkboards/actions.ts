@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { Metadata, Sharp } from "sharp";
+import { chalkboardStoragePaths, extensionForChalkboardFile, parseIncomingChalkboardPath, validChalkboardAssetGroupId } from "@/lib/chalkboard-upload-paths";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 const BUCKET = "chalkboards";
@@ -12,8 +13,7 @@ const WEBSITE_WIDTH = 1080;
 const WEBSITE_HEIGHT = 1440;
 const DOWNLOAD_WIDTH = 2160;
 const DOWNLOAD_HEIGHT = 2880;
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const INCOMING_PATH_PATTERN = /^library\/(\d{8})\/([^/]+)\/([0-9a-f-]{36})\/v1\/incoming\.(jpg|jpeg|png|webp)$/i;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export type ChalkboardActionState = { error?: string; saved?: boolean; deleted?: boolean; path?: string; token?: string; assetGroupId?: string };
 type UploadActionState = ChalkboardActionState & { canonicalName?: string };
@@ -30,7 +30,7 @@ type FinalizeInput = {
 };
 
 function validId(value: string) {
-  return UUID_PATTERN.test(value);
+  return validChalkboardAssetGroupId(value);
 }
 
 function cleanText(value: string, maxLength: number) {
@@ -74,20 +74,6 @@ function buildNames(chalkboardDate: string, chalkboardTitle: string) {
   };
 }
 
-function extensionForFile(fileName: string) {
-  const extension = fileName.toLowerCase().split(".").pop();
-  return extension === "jpg" || extension === "jpeg" || extension === "png" || extension === "webp" ? extension : null;
-}
-
-function safePaths(storageSlug: string, assetGroupId: string) {
-  const base = `library/${storageSlug}/${assetGroupId}/v1`;
-  return {
-    incoming: `${base}/incoming`,
-    website: `${base}/website.webp`,
-    download: `${base}/download.png`,
-  };
-}
-
 async function loadSharp() {
   const sharp = (await import("sharp")).default;
   return sharp;
@@ -101,12 +87,12 @@ async function removeObjects(supabase: Awaited<ReturnType<typeof requireAdmin>>[
 export async function createChalkboardUploadTarget(chalkboardDate: string, chalkboardTitle: string, fileName: string): Promise<UploadActionState> {
   const names = buildNames(chalkboardDate, chalkboardTitle);
   if (!names) return { error: "Enter a valid chalkboard date and title." };
-  const extension = extensionForFile(fileName);
+  const extension = extensionForChalkboardFile(fileName);
   if (!extension) return { error: "Choose a JPEG, PNG, or WebP image." };
 
   const { supabase } = await requireAdmin();
   const assetGroupId = crypto.randomUUID();
-  const path = `${safePaths(names.storageSlug, assetGroupId).incoming}.${extension}`;
+  const path = `${chalkboardStoragePaths(names.storageSlug, assetGroupId).incoming}.${extension}`;
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
   if (error || !data) return { error: "The secure upload destination could not be created." };
   return { path, token: data.token, assetGroupId, canonicalName: names.canonicalName };
@@ -114,8 +100,8 @@ export async function createChalkboardUploadTarget(chalkboardDate: string, chalk
 
 export async function cleanupChalkboardUpload(assetGroupId: string, incomingPath: string) {
   if (!validId(assetGroupId)) return;
-  const match = INCOMING_PATH_PATTERN.exec(incomingPath);
-  if (!match || match[3].toLowerCase() !== assetGroupId.toLowerCase()) return;
+  const parsedPath = parseIncomingChalkboardPath(incomingPath);
+  if (!parsedPath || parsedPath.assetGroupId.toLowerCase() !== assetGroupId.toLowerCase()) return;
   const { supabase } = await requireAdmin();
   await removeObjects(supabase, [incomingPath]);
 }
@@ -128,13 +114,13 @@ export async function finalizeChalkboardUpload(input: FinalizeInput): Promise<Up
   if (!altText) return { error: "Alternative text is required and must be 500 characters or fewer." };
   if (caption.length > 500) return { error: "Caption must be 500 characters or fewer." };
 
-  const match = INCOMING_PATH_PATTERN.exec(input.incomingPath);
-  if (!match || match[1] !== names.dateKey || match[2] !== names.storageSlug || match[3].toLowerCase() !== input.assetGroupId.toLowerCase()) {
+  const parsedPath = parseIncomingChalkboardPath(input.incomingPath);
+  if (!parsedPath || parsedPath.storageSlug !== names.storageSlug || parsedPath.assetGroupId.toLowerCase() !== input.assetGroupId.toLowerCase()) {
     return { error: "The secure upload path is invalid." };
   }
 
   const { supabase } = await requireAdmin();
-  const paths = safePaths(names.storageSlug, input.assetGroupId);
+  const paths = chalkboardStoragePaths(names.storageSlug, input.assetGroupId);
   const { data: source, error: downloadError } = await supabase.storage.from(BUCKET).download(input.incomingPath);
   if (downloadError || !source) return { error: "The uploaded image could not be read from private storage." };
   const sourceBuffer = Buffer.from(await source.arrayBuffer());

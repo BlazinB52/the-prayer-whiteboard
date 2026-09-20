@@ -15,8 +15,11 @@ export function PasswordRecoveryForm() {
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") ?? "").trim();
     const supabase = createClient();
+    const siteOrigin = process.env.NODE_ENV === "production"
+      ? "https://theprayerwhiteboard.com"
+      : window.location.origin;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/admin/reset-password`,
+      redirectTo: `${siteOrigin}/auth/callback?next=/update-password`,
     });
 
     setPending(false);

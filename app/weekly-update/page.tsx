@@ -62,7 +62,7 @@ export default async function WeeklyUpdatePage() {
             />
           </div>
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Weekly Update</p>
-          <h1 className="mt-3 text-[32px] font-extrabold leading-[1.08] tracking-normal text-[#243d31] sm:text-[40px] lg:text-[48px]">{data.title}</h1>
+          <h1 className="mt-3 text-[32px] font-extrabold leading-[1.08] tracking-normal text-[#243d31] sm:text-[40px] lg:text-[32px]">{data.title}</h1>
           {data.published_at ? <p className="mt-4 text-sm font-bold text-[#607066]">{new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(new Date(data.published_at))}</p> : null}
         </header>
         <div className="mt-10">

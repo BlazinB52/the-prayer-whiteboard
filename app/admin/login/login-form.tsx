@@ -1,10 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export function LoginForm() {
+export function LoginForm({ passwordReset = false }: { passwordReset?: boolean }) {
   const router = useRouter();
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,6 +33,11 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+      {passwordReset ? (
+        <p role="status" className="rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#244a3a]">
+          Your password has been updated. Sign in with your new password.
+        </p>
+      ) : null}
       <label className="block text-sm font-bold text-[#385245]">
         Email
         <input
@@ -43,7 +49,12 @@ export function LoginForm() {
         />
       </label>
       <label className="block text-sm font-bold text-[#385245]">
-        Password
+        <span className="flex items-center justify-between gap-4">
+          <span>Password</span>
+          <Link href="/admin/forgot-password" className="text-xs font-extrabold text-[#946332] underline-offset-4 hover:underline">
+            Forgot password?
+          </Link>
+        </span>
         <input
           name="password"
           type="password"

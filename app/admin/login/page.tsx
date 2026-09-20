@@ -9,7 +9,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function AdminLoginPage() {
+export default async function AdminLoginPage({ searchParams }: { searchParams: Promise<{ reset?: string }> }) {
+  const { reset } = await searchParams;
   const user = await getAuthorizedUser();
 
   if (user) {
@@ -47,7 +48,7 @@ export default async function AdminLoginPage() {
               <p className="mt-3 text-sm leading-6 text-[#607066]">
                 Use your administrator credentials to continue.
               </p>
-              <LoginForm />
+              <LoginForm passwordReset={reset === "success"} />
             </div>
           </div>
         </section>

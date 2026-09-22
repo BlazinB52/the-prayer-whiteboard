@@ -42,8 +42,8 @@ test("already-confirmed 5787 signup preserves its slug through Sender group reso
   assert.match(subscribeForm, /name="devotionalSlug" value=\{devotional\.slug\}/);
   assert.match(subscriptions, /getPublishedDevotionalSeriesBySlug\(slug\)/);
   assert.match(confirmedBranch, /devotionalSlug: devotionalContext\.value\?\.slug/);
-  assert.match(senderGroups, /"5787-the-year-of-the-spoken-word-and-divine-rest": "bWzpxx"/);
-  assert.match(senderGroups, /\[SENDER_MASTER_DEVOTIONAL_GROUP_ID, seriesGroupId\]/);
+  assert.match(senderGroups, /process\.env\.SENDER_DEVOTIONAL_MASTER_GROUP_ID/);
+  assert.match(senderGroups, /process\.env\.SENDER_DEVOTIONAL_SERIES_GROUP_IDS/);
 });
 
 test("a previously confirmed devotional subscriber is not sent through double opt-in again", () => {

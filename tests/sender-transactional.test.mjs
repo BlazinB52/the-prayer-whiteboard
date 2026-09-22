@@ -190,7 +190,6 @@ test("Sender API keys are not referenced by client components", async () => {
     "app/subscribe/subscribe-form.tsx",
     "app/email-preferences/preference-request-form.tsx",
     "app/email-preferences/manage/preference-management-form.tsx",
-    "app/devotionals/start/subscription-form.tsx",
   ];
   const contents = await Promise.all(files.map((file) => readFile(file, "utf8")));
   assert.equal(contents.some((content) => content.includes("SENDER_API_KEY") || content.includes("SENDER_API_TOKEN")), false);
@@ -211,10 +210,36 @@ test("new access tokens replace older unused access tokens for the same subscrib
   assert.match(source, /\.is\("used_at", null\)/);
 });
 
-test("Sender devotional embed explicitly renders its selected form after client navigation", async () => {
-  const source = await readFile("app/devotionals/start/subscription-form.tsx", "utf8");
-  assert.match(source, /DevotionalSubscriptionForm\(\{ formId \}/);
-  assert.match(source, /senderForms\?\.render\?\.\(formId\)/);
-  assert.match(source, /data-sender-form-id=\{formId\}/);
-  assert.match(source, /\[formId\]/);
+test("a Sender suppression rejection parks the subscriber instead of retrying delivery", async () => {
+  const source = await readFile("lib/email-subscriptions.ts", "utf8");
+  assert.match(source, /suppression list\/i\.test/);
+  assert.match(source, /status: "suppressed"/);
+  assert.match(source, /suppressed_at: new Date\(\)\.toISOString\(\)/);
+  assert.match(source, /if \(isSuppressionRejection\(result\)\) await markSubscriberSuppressed\(subscriberId\)/);
+});
+
+test("legacy Sender embedded forms and the universal script are fully removed", async () => {
+  const layout = await readFile("app/layout.tsx", "utf8");
+  assert.equal(layout.includes("SenderUniversalScript"), false);
+
+  for (const path of [
+    "app/sender-universal-script.tsx",
+    "app/devotionals/subscription-page-view.tsx",
+    "app/devotionals/start/subscription-form.tsx",
+    "lib/devotional-sender-forms.ts",
+  ]) {
+    await assert.rejects(readFile(path, "utf8"), /ENOENT/, `${path} should no longer exist`);
+  }
+});
+
+test("public devotional start routes redirect into the unified signup flow", async () => {
+  const [slugRoute, genericRoute] = await Promise.all([
+    readFile("app/devotionals/[slug]/start/page.tsx", "utf8"),
+    readFile("app/devotionals/start/page.tsx", "utf8"),
+  ]);
+
+  assert.match(slugRoute, /getPublishedDevotionalSeriesBySlug\(slug\)/);
+  assert.match(slugRoute, /redirect\(getDevotionalStartPath\(series\)\)/);
+  assert.match(genericRoute, /getPublishedDevotionalSeries\(\)/);
+  assert.match(genericRoute, /redirect\(getDevotionalStartPath\(series\)\)/);
 });

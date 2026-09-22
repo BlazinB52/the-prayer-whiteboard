@@ -228,7 +228,22 @@ async function createDeliveryEvent(subscriberId: string, messageType: "confirmat
   return data.id as string;
 }
 
-async function updateDeliveryEvent(deliveryEventId: string, result: Awaited<ReturnType<typeof sendSenderTransactionalEmail>>) {
+// Sender rejects addresses it has suppressed (prior bounce or spam complaint).
+// Retrying those never succeeds, so the subscriber is parked in 'suppressed'.
+function isSuppressionRejection(result: Awaited<ReturnType<typeof sendSenderTransactionalEmail>>) {
+  if (result.ok || result.reason !== "rejected") return false;
+  return /suppression list/i.test(result.rejection?.errorMessage ?? result.message);
+}
+
+async function markSubscriberSuppressed(subscriberId: string) {
+  const supabase = getClient();
+  await supabase.from("email_subscribers").update({
+    status: "suppressed",
+    suppressed_at: new Date().toISOString(),
+  }).eq("id", subscriberId);
+}
+
+async function updateDeliveryEvent(subscriberId: string, deliveryEventId: string, result: Awaited<ReturnType<typeof sendSenderTransactionalEmail>>) {
   const supabase = getClient();
   if (result.ok) {
     await supabase.from("email_delivery_events").update({
@@ -245,6 +260,7 @@ async function updateDeliveryEvent(deliveryEventId: string, result: Awaited<Retu
     error: result.reason,
     metadata: senderDiagnostic ? { ...((deliveryEvent?.metadata as Record<string, unknown> | null) ?? {}), senderDiagnostic } : deliveryEvent?.metadata,
   }).eq("id", deliveryEventId);
+  if (isSuppressionRejection(result)) await markSubscriberSuppressed(subscriberId);
 }
 
 async function hasRecentSuccessfulDelivery(subscriberId: string, messageType: "confirmation" | "management") {
@@ -275,7 +291,7 @@ async function deliverConfirmationEmail(input: { subscriberId: string; firstName
     html: email.html,
     text: email.text,
   });
-  await updateDeliveryEvent(deliveryEventId, result);
+  await updateDeliveryEvent(input.subscriberId, deliveryEventId, result);
   return result;
 }
 
@@ -293,7 +309,7 @@ async function deliverPreferenceManagementEmail(input: { subscriberId: string; f
     html: email.html,
     text: email.text,
   });
-  await updateDeliveryEvent(deliveryEventId, result);
+  await updateDeliveryEvent(input.subscriberId, deliveryEventId, result);
   return result;
 }
 
@@ -385,6 +401,7 @@ export async function requestSubscription(formData: FormData) {
     token: access.token,
     expiresAt: access.expiresAt,
   });
+  if (isSuppressionRejection(delivery)) return { submitted: true };
   if (!delivery.ok) return { error: "Your subscription was saved, but the confirmation email could not be sent. Please try again in a few minutes." };
 
   return { submitted: true };

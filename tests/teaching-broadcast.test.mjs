@@ -97,3 +97,12 @@ test("per-recipient failures are stored in the single ledger row", async () => {
   assert.match(source, /MAX_RECORDED_FAILURES/);
   assert.match(source, /error: failedCount \? \{ sentCount, failedCount, failures \} : null/);
 });
+
+test("service_role can read the content tables the broadcasts re-read", async () => {
+  const grants = await readFile("supabase/migrations/20260922030000_grant_broadcast_content_reads.sql", "utf8");
+
+  assert.match(grants, /grant select on public\.weekly_updates to service_role;/);
+  assert.match(grants, /grant select on public\.teachings to service_role;/);
+  // Read-only: broadcasts must never write to content tables.
+  assert.equal(/grant[^;]*(insert|update|delete)[^;]*on public\.(teachings|weekly_updates)/.test(grants), false);
+});

@@ -1,11 +1,11 @@
 import "server-only";
 
+import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { buildWeeklyUpdateEmail } from "@/lib/weekly-update-email-content";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
-const PAGE_SIZE = 100;
 const THROTTLE_MS = 120;
 const MAX_RECORDED_FAILURES = 25;
 
@@ -13,8 +13,6 @@ export type BroadcastOutcome =
   | { status: "duplicate" }
   | { status: "not_publishable" }
   | { status: "sent" | "partial" | "failed"; recipientCount: number; sentCount: number; failedCount: number };
-
-type Recipient = { id: string; firstName: string; email: string };
 
 function getClient() {
   const supabase = createServiceRoleClient();
@@ -40,31 +38,6 @@ async function claimBroadcast(weeklyUpdateId: string) {
   return data.id as string;
 }
 
-async function loadRecipients(): Promise<Recipient[]> {
-  const supabase = getClient();
-  const recipients: Recipient[] = [];
-  for (let page = 0; ; page += 1) {
-    const from = page * PAGE_SIZE;
-    const { data, error } = await supabase
-      .from("email_subscription_preferences")
-      .select("subscriber_id, email_subscribers!inner(id, first_name, email, status)")
-      .eq("category", "weekly_updates")
-      .eq("status", "active")
-      .eq("email_subscribers.status", "confirmed")
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) throw new Error(`Recipient lookup failed: ${error.message}`);
-    if (!data?.length) break;
-
-    for (const row of data as unknown as { email_subscribers: { id: string; first_name: string; email: string } }[]) {
-      const subscriber = row.email_subscribers;
-      if (subscriber?.email) recipients.push({ id: subscriber.id, firstName: subscriber.first_name, email: subscriber.email });
-    }
-
-    if (data.length < PAGE_SIZE) break;
-  }
-  return recipients;
-}
-
 export async function broadcastWeeklyUpdate(weeklyUpdateId: string): Promise<BroadcastOutcome> {
   const supabase = getClient();
 
@@ -81,7 +54,7 @@ export async function broadcastWeeklyUpdate(weeklyUpdateId: string): Promise<Bro
   const broadcastId = await claimBroadcast(weeklyUpdateId);
   if (!broadcastId) return { status: "duplicate" };
 
-  const recipients = await loadRecipients();
+  const recipients = await loadConfirmedRecipients("weekly_updates");
   await supabase.from("email_broadcast_events").update({ recipient_count: recipients.length }).eq("id", broadcastId);
 
   const base = siteUrl();

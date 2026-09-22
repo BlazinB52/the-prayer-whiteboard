@@ -84,9 +84,13 @@ test("a broadcast is claimed before sending so repeat webhooks cannot double-sen
 });
 
 test("only confirmed weekly update subscribers receive a broadcast", async () => {
-  const source = await readFile("lib/weekly-update-broadcast.ts", "utf8");
+  const [broadcast, recipients] = await Promise.all([
+    readFile("lib/weekly-update-broadcast.ts", "utf8"),
+    readFile("lib/broadcast-recipients.ts", "utf8"),
+  ]);
 
-  assert.match(source, /\.eq\("category", "weekly_updates"\)/);
-  assert.match(source, /\.eq\("status", "active"\)/);
-  assert.match(source, /\.eq\("email_subscribers\.status", "confirmed"\)/);
+  assert.match(broadcast, /loadConfirmedRecipients\("weekly_updates"\)/);
+  assert.match(recipients, /\.eq\("category", category\)/);
+  assert.match(recipients, /\.eq\("status", "active"\)/);
+  assert.match(recipients, /\.eq\("email_subscribers\.status", "confirmed"\)/);
 });

@@ -2,7 +2,7 @@ import { EMAIL_CATEGORY_LABELS, type EmailCategory } from "./email-categories.ts
 
 const BRAND = "The Prayer Whiteboard";
 
-function escapeHtml(value: string) {
+export function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -11,12 +11,12 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
-function button(label: string, href: string) {
+export function button(label: string, href: string) {
   const safeHref = escapeHtml(href);
   return `<a href="${safeHref}" style="display:inline-block;border-radius:14px;background:#244a3a;color:#ffffff;font-weight:800;text-decoration:none;padding:14px 22px;">${escapeHtml(label)}</a>`;
 }
 
-function shell(title: string, body: string) {
+export function shell(title: string, body: string) {
   return `<!doctype html>
 <html>
   <body style="margin:0;background:#f7f2e8;color:#243126;font-family:Arial,Helvetica,sans-serif;">
@@ -39,11 +39,11 @@ function shell(title: string, body: string) {
 </html>`;
 }
 
-function greeting(firstName: string) {
+export function greeting(firstName: string) {
   return firstName ? `Hi ${escapeHtml(firstName)},` : "Hello,";
 }
 
-function textGreeting(firstName: string) {
+export function textGreeting(firstName: string) {
   return firstName ? `Hi ${firstName},` : "Hello,";
 }
 

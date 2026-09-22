@@ -3,6 +3,7 @@ import "server-only";
 import crypto from "node:crypto";
 import { headers } from "next/headers";
 import { EMAIL_CATEGORIES, type EmailCategory, type PreferenceView } from "@/lib/email-categories";
+import { enrollSubscriberInDevotional, pauseDevotionalEnrollments } from "@/lib/devotional-enrollment";
 import { getSenderGroupIdsForCategories } from "@/lib/devotional-sender-groups";
 import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "@/lib/subscription-email-content";
@@ -152,6 +153,13 @@ function devotionalContextFromMetadata(metadata: unknown): DevotionalContext | n
 // never created in Sender.
 async function syncConfirmedSubscriber(input: { subscriberId: string; email: string; firstName: string; categories: EmailCategory[]; devotionalSlug?: string | null }) {
   const supabase = getClient();
+
+  // Daily pacing is tracked in Supabase, so confirming devotionals enrolls the
+  // subscriber at day 1 rather than relying on a Sender automation.
+  if (input.categories.includes("devotionals") && input.devotionalSlug) {
+    await enrollSubscriberInDevotional(input.subscriberId, input.devotionalSlug);
+  }
+
   const groupIds = getSenderGroupIdsForCategories(input.categories, input.devotionalSlug);
   if (!groupIds.length) return;
 
@@ -254,6 +262,7 @@ async function markSubscriberSuppressed(subscriberId: string) {
     status: "suppressed",
     suppressed_at: new Date().toISOString(),
   }).eq("id", subscriberId);
+  await pauseDevotionalEnrollments(subscriberId);
 }
 
 async function updateDeliveryEvent(subscriberId: string, deliveryEventId: string, result: Awaited<ReturnType<typeof sendSenderTransactionalEmail>>) {
@@ -556,6 +565,8 @@ export async function savePreferences(formData: FormData) {
     sender_sync_status: "not_configured",
   }).eq("id", tokenResult.subscriberId);
   if (error) return { error: "Preferences could not be saved." };
+  // Dropping devotionals must stop the daily pacing, not just the group sync.
+  if (!categories.includes("devotionals")) await pauseDevotionalEnrollments(tokenResult.subscriberId);
   await replacePreferences(tokenResult.subscriberId, categories, "active");
   await recordConsentEvent(tokenResult.subscriberId, fields.value.unsubscribeAll ? "unsubscribed" : "preference_changed", categories, await requestMetadata());
   return { saved: true, unsubscribed: fields.value.unsubscribeAll };

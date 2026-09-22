@@ -1,37 +1,22 @@
 import "server-only";
 
+import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { buildDevotionalDayEmail } from "@/lib/devotional-email-content";
+import { devotionalDayForDate, devotionalTimeZone } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
-const SEND_INTERVAL_HOURS = 20;
 const THROTTLE_MS = 150;
-// Bounded so a run cannot exceed the function timeout; the next run drains more.
-const MAX_PER_RUN = 40;
+const MAX_RECORDED_FAILURES = 25;
 
-export type DevotionalRunSummary = {
-  due: number;
-  sent: number;
-  failed: number;
-  completed: number;
-  paused: number;
-  skipped: number;
-};
-
-type Enrollment = {
-  id: string;
-  subscriber_id: string;
-  series_slug: string;
-  current_day: number;
-  email_subscribers: { id: string; first_name: string; email: string; status: string } | null;
-};
-
-type SeriesContent = {
-  devotionalId: string;
-  teachingSlug: string;
-  totalDays: number;
-};
+export type DevotionalRunResult =
+  | { status: "no_teaching" }
+  | { status: "no_devotional" }
+  | { status: "outside_window" }
+  | { status: "no_day_content"; dayNumber: number }
+  | { status: "duplicate"; dayNumber: number }
+  | { status: "sent" | "failed"; dayNumber: number; recipientCount: number; sentCount: number; failedCount: number };
 
 function getClient() {
   const supabase = createServiceRoleClient();
@@ -41,136 +26,126 @@ function getClient() {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function loadDueEnrollments(): Promise<Enrollment[]> {
+// Claiming the ledger row first is the idempotency guard: the unique
+// (teaching_id, day_number) index rejects a second blast for the same day.
+async function claimDay(teachingId: string, dayNumber: number) {
   const supabase = getClient();
-  const cutoff = new Date(Date.now() - SEND_INTERVAL_HOURS * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
-    .from("email_devotional_enrollments")
-    .select("id, subscriber_id, series_slug, current_day, email_subscribers!inner(id, first_name, email, status)")
-    .eq("status", "active")
-    .or(`last_sent_at.is.null,last_sent_at.lt.${cutoff}`)
-    .order("last_sent_at", { ascending: true, nullsFirst: true })
-    .limit(MAX_PER_RUN);
-  if (error) throw new Error(`Due enrollment lookup failed: ${error.message}`);
-  return (data ?? []) as unknown as Enrollment[];
+    .from("email_devotional_broadcast_ledger")
+    .insert({ teaching_id: teachingId, day_number: dayNumber, status: "sending" })
+    .select("id")
+    .single();
+  if (error) {
+    if (error.code === "23505") return null;
+    throw new Error(`Devotional day could not be claimed: ${error.message}`);
+  }
+  return data.id as string;
 }
 
-// Cached per run so a series shared by many subscribers is resolved once.
-async function loadSeriesContent(seriesSlug: string, cache: Map<string, SeriesContent | null>) {
-  if (cache.has(seriesSlug)) return cache.get(seriesSlug) ?? null;
-
+async function resolveDevotional(teachingId: string) {
   const supabase = getClient();
-  const { data: devotional } = await supabase
-    .from("teaching_devotionals")
-    .select("id, teaching_id, status")
-    .eq("slug", seriesSlug)
-    .eq("status", "published")
+  const { data: assignment } = await supabase
+    .from("teaching_devotional_assignments")
+    .select("devotional_id")
+    .eq("teaching_id", teachingId)
     .maybeSingle();
-  if (!devotional) {
-    cache.set(seriesSlug, null);
-    return null;
-  }
 
-  const [{ data: teaching }, { count }] = await Promise.all([
-    supabase.from("teachings").select("slug").eq("id", devotional.teaching_id).maybeSingle(),
-    supabase.from("teaching_devotional_days").select("id", { count: "exact", head: true }).eq("devotional_id", devotional.id),
-  ]);
-  if (!teaching?.slug || !count) {
-    cache.set(seriesSlug, null);
-    return null;
-  }
-
-  const content: SeriesContent = { devotionalId: devotional.id, teachingSlug: teaching.slug, totalDays: count };
-  cache.set(seriesSlug, content);
-  return content;
+  const devotionalId = assignment?.devotional_id ?? null;
+  const query = supabase.from("teaching_devotionals").select("id, slug, status").eq("status", "published");
+  const { data: devotional } = devotionalId
+    ? await query.eq("id", devotionalId).maybeSingle()
+    : await query.eq("teaching_id", teachingId).maybeSingle();
+  return devotional ?? null;
 }
 
-export async function processDevotionalQueue(): Promise<DevotionalRunSummary> {
+export async function processDevotionalQueue(now = new Date()): Promise<DevotionalRunResult> {
   const supabase = getClient();
-  const enrollments = await loadDueEnrollments();
-  const summary: DevotionalRunSummary = { due: enrollments.length, sent: 0, failed: 0, completed: 0, paused: 0, skipped: 0 };
-  const seriesCache = new Map<string, SeriesContent | null>();
+
+  // The most recently published teaching drives the schedule.
+  const { data: teaching, error: teachingError } = await supabase
+    .from("teachings")
+    .select("id, slug, published_at, status")
+    .eq("status", "published")
+    .not("published_at", "is", null)
+    .order("published_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (teachingError) throw new Error(`Teaching lookup failed: ${teachingError.message}`);
+  if (!teaching?.published_at) return { status: "no_teaching" };
+
+  const devotional = await resolveDevotional(teaching.id);
+  if (!devotional) return { status: "no_devotional" };
+
+  const { count: totalDays } = await supabase
+    .from("teaching_devotional_days")
+    .select("id", { count: "exact", head: true })
+    .eq("devotional_id", devotional.id);
+  if (!totalDays) return { status: "no_devotional" };
+
+  const dayNumber = devotionalDayForDate({
+    publishedAt: teaching.published_at,
+    now,
+    totalDays,
+    timeZone: devotionalTimeZone(),
+  });
+  if (!dayNumber) return { status: "outside_window" };
+
+  const { data: day } = await supabase
+    .from("teaching_devotional_days")
+    .select("day_number, title, anchor_scriptures, devotional_reading")
+    .eq("devotional_id", devotional.id)
+    .eq("day_number", dayNumber)
+    .maybeSingle();
+  if (!day) return { status: "no_day_content", dayNumber };
+
+  const ledgerId = await claimDay(teaching.id, dayNumber);
+  if (!ledgerId) return { status: "duplicate", dayNumber };
+
+  const recipients = await loadConfirmedRecipients("devotionals");
+  await supabase.from("email_devotional_broadcast_ledger").update({ recipient_count: recipients.length }).eq("id", ledgerId);
+
   const base = siteUrl();
+  const dayUrl = `${base}/teachings/${teaching.slug}/devotional/day/${dayNumber}`;
   const preferencesUrl = `${base}/email-preferences`;
 
-  for (const enrollment of enrollments) {
-    const subscriber = enrollment.email_subscribers;
+  let sentCount = 0;
+  const failures: { subscriberId: string; reason: string }[] = [];
 
-    // An unsubscribed or suppressed subscriber must stop receiving days.
-    if (!subscriber || subscriber.status !== "confirmed") {
-      await supabase.from("email_devotional_enrollments").update({ status: "paused" }).eq("id", enrollment.id);
-      summary.paused += 1;
-      continue;
-    }
-
-    const series = await loadSeriesContent(enrollment.series_slug, seriesCache);
-    if (!series) {
-      summary.skipped += 1;
-      continue;
-    }
-
-    if (enrollment.current_day > series.totalDays) {
-      await supabase.from("email_devotional_enrollments").update({ status: "completed" }).eq("id", enrollment.id);
-      summary.completed += 1;
-      continue;
-    }
-
-    const { data: day } = await supabase
-      .from("teaching_devotional_days")
-      .select("day_number, title, anchor_scriptures, devotional_reading")
-      .eq("devotional_id", series.devotionalId)
-      .eq("day_number", enrollment.current_day)
-      .maybeSingle();
-    if (!day) {
-      summary.skipped += 1;
-      continue;
-    }
-
+  for (const recipient of recipients) {
     const email = buildDevotionalDayEmail({
       dayNumber: day.day_number,
-      totalDays: series.totalDays,
+      totalDays,
       title: day.title,
       anchorScriptures: day.anchor_scriptures ?? [],
       devotionalReading: day.devotional_reading,
-      dayUrl: `${base}/teachings/${series.teachingSlug}/devotional/day/${day.day_number}`,
+      dayUrl,
       preferencesUrl,
     });
 
-    let ok = false;
     try {
       const result = await sendSenderTransactionalEmail({
-        toEmail: subscriber.email,
-        toName: subscriber.first_name,
+        toEmail: recipient.email,
+        toName: recipient.firstName,
         subject: email.subject,
         html: email.html,
         text: email.text,
       });
-      ok = result.ok;
+      if (result.ok) sentCount += 1;
+      else if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: result.reason });
     } catch {
-      // One bad recipient must not abandon the rest of the queue.
-      ok = false;
-    }
-
-    if (ok) {
-      const nextDay = enrollment.current_day + 1;
-      await supabase.from("email_devotional_enrollments").update({
-        current_day: nextDay,
-        last_sent_at: new Date().toISOString(),
-        status: nextDay > series.totalDays ? "completed" : "active",
-      }).eq("id", enrollment.id);
-      summary.sent += 1;
-      if (nextDay > series.totalDays) summary.completed += 1;
-    } else {
-      // current_day is not advanced, so the same day is retried on the next run
-      // rather than skipped. last_sent_at moves so the retry waits a full cycle.
-      await supabase.from("email_devotional_enrollments")
-        .update({ last_sent_at: new Date().toISOString() })
-        .eq("id", enrollment.id);
-      summary.failed += 1;
+      // One bad recipient must not abandon the rest of the list.
+      if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: "exception" });
     }
 
     await sleep(THROTTLE_MS);
   }
 
-  return summary;
+  const failedCount = recipients.length - sentCount;
+  const status = failedCount && !sentCount ? "failed" : "sent";
+  await supabase.from("email_devotional_broadcast_ledger").update({
+    status,
+    error: failedCount ? { sentCount, failedCount, failures } : null,
+  }).eq("id", ledgerId);
+
+  return { status, dayNumber, recipientCount: recipients.length, sentCount, failedCount };
 }

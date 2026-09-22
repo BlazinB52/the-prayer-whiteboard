@@ -25,8 +25,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const summary = await processDevotionalQueue();
-    return NextResponse.json(summary, { status: 200 });
+    // The day number is derived from today's date relative to the most recent
+    // published teaching, so the run needs no per-subscriber state.
+    const result = await processDevotionalQueue();
+    return NextResponse.json(result, { status: 200 });
   } catch {
     return NextResponse.json({ error: "Devotional run failed." }, { status: 500 });
   }

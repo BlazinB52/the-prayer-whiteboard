@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getDevotionalSenderGroupIds } from "../lib/devotional-sender-groups.ts";
+import { getDevotionalSenderGroupIds, getSenderGroupIdsForCategories } from "../lib/devotional-sender-groups.ts";
 import { syncSenderSubscriberGroups } from "../lib/sender-subscriber-groups-core.ts";
 
 test("devotional slugs map to the master and correct series groups", () => {
@@ -14,11 +14,31 @@ test("devotional slugs map to the master and correct series groups", () => {
   assert.deepEqual(getDevotionalSenderGroupIds(), ["bo98N3"]);
 });
 
-test("devotional group ids are absent when the environment is unconfigured", () => {
+test("every selected category maps to its own Sender group", () => {
+  process.env.SENDER_DEVOTIONAL_MASTER_GROUP_ID = "bo98N3";
+  process.env.SENDER_DEVOTIONAL_SERIES_GROUP_IDS = "beyond-the-garden:e30QBQ";
+  process.env.SENDER_WEEKLY_UPDATES_GROUP_ID = "egVDK9";
+  process.env.SENDER_TEACHINGS_GROUP_ID = "elVkLl";
+
+  assert.deepEqual(getSenderGroupIdsForCategories(["weekly_updates"]), ["egVDK9"]);
+  assert.deepEqual(getSenderGroupIdsForCategories(["teachings"]), ["elVkLl"]);
+  assert.deepEqual(getSenderGroupIdsForCategories(["devotionals"], "beyond-the-garden"), ["bo98N3", "e30QBQ"]);
+  assert.deepEqual(
+    getSenderGroupIdsForCategories(["weekly_updates", "teachings", "devotionals"], "beyond-the-garden"),
+    ["egVDK9", "elVkLl", "bo98N3", "e30QBQ"],
+  );
+  assert.deepEqual(getSenderGroupIdsForCategories([]), []);
+  assert.deepEqual(getSenderGroupIdsForCategories(["unknown_category"]), []);
+});
+
+test("category group ids are absent when the environment is unconfigured", () => {
   delete process.env.SENDER_DEVOTIONAL_MASTER_GROUP_ID;
   delete process.env.SENDER_DEVOTIONAL_SERIES_GROUP_IDS;
+  delete process.env.SENDER_WEEKLY_UPDATES_GROUP_ID;
+  delete process.env.SENDER_TEACHINGS_GROUP_ID;
 
   assert.deepEqual(getDevotionalSenderGroupIds("beyond-the-garden"), []);
+  assert.deepEqual(getSenderGroupIdsForCategories(["weekly_updates", "devotionals"]), []);
 });
 
 test("new Sender subscribers are created with all groups and automation enabled", async () => {

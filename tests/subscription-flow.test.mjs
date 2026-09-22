@@ -71,17 +71,29 @@ test("subscribe heading reflects the existing submission result state", async ()
   assert.match(source, /state\.submitted \? "Your Email Preferences" : "Choose Your Email Updates"/);
 });
 
-test("devotional Sender sync happens only after confirmation or for an already-confirmed subscriber", async () => {
+test("Sender group sync happens only after confirmation or for an already-confirmed subscriber", async () => {
   const source = await readFile("lib/email-subscriptions.ts", "utf8");
   const confirmedBranch = source.match(/if \(existing && existingIsConfirmed\)[\s\S]*?let subscriberId/)?.[0] ?? "";
   const pendingBranch = source.match(/let subscriberId[\s\S]*?export async function confirmSubscriptionToken/)?.[0] ?? "";
   const confirmation = source.match(/export async function confirmSubscriptionToken[\s\S]*?export async function requestManagementLink/)?.[0] ?? "";
 
-  assert.match(confirmedBranch, /fields\.value\.categories\.includes\("devotionals"\)[\s\S]*?syncConfirmedDevotionalSubscriber/);
-  assert.doesNotMatch(pendingBranch, /syncConfirmedDevotionalSubscriber/);
-  assert.match(confirmation, /categories\.includes\("devotionals"\)[\s\S]*?syncConfirmedDevotionalSubscriber/);
+  assert.match(confirmedBranch, /await syncConfirmedSubscriber\(\{[\s\S]*?categories,/);
+  // The double opt-in gate: an unconfirmed subscriber is never sent to Sender.
+  assert.doesNotMatch(pendingBranch, /syncConfirmedSubscriber/);
+  assert.match(confirmation, /await syncConfirmedSubscriber\(\{[\s\S]*?categories,/);
   assert.match(source, /sender_sync_status: "failed"/);
   assert.match(source, /sender_sync_status: "synced"/);
+});
+
+test("every selected category is synced to Sender and sync failures are recorded", async () => {
+  const source = await readFile("lib/email-subscriptions.ts", "utf8");
+  const sync = source.match(/async function syncConfirmedSubscriber[\s\S]*?\n}/)?.[0] ?? "";
+
+  assert.match(sync, /getSenderGroupIdsForCategories\(input\.categories, input\.devotionalSlug\)/);
+  assert.match(sync, /if \(!groupIds\.length\) return;/);
+  assert.match(sync, /message_type: "preference_sync"/);
+  assert.match(sync, /status: "failed"/);
+  assert.match(sync, /metadata: \{ categories: input\.categories, groupIds \}/);
 });
 
 test("confirmation result copy lists one active category", () => {

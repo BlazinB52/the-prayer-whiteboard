@@ -3,7 +3,7 @@ import "server-only";
 import crypto from "node:crypto";
 import { headers } from "next/headers";
 import { EMAIL_CATEGORIES, type EmailCategory, type PreferenceView } from "@/lib/email-categories";
-import { getDevotionalSenderGroupIds } from "@/lib/devotional-sender-groups";
+import { getSenderGroupIdsForCategories } from "@/lib/devotional-sender-groups";
 import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "@/lib/subscription-email-content";
 import { hasConfirmedSubscriptionState, type ConfirmationEvidence, type SubscriberStatus } from "@/lib/subscription-status";
@@ -148,13 +148,18 @@ function devotionalContextFromMetadata(metadata: unknown): DevotionalContext | n
   return typeof slug === "string" && typeof title === "string" ? { slug, title } : null;
 }
 
-async function syncConfirmedDevotionalSubscriber(input: { subscriberId: string; email: string; firstName: string; devotionalSlug?: string | null }) {
+// Group sync runs only for confirmed subscribers, so an unconfirmed address is
+// never created in Sender.
+async function syncConfirmedSubscriber(input: { subscriberId: string; email: string; firstName: string; categories: EmailCategory[]; devotionalSlug?: string | null }) {
   const supabase = getClient();
+  const groupIds = getSenderGroupIdsForCategories(input.categories, input.devotionalSlug);
+  if (!groupIds.length) return;
+
   await supabase.from("email_subscribers").update({ sender_sync_status: "pending", sender_sync_error: null }).eq("id", input.subscriberId);
   const result = await syncSubscriberToSenderGroups({
     email: input.email,
     firstName: input.firstName,
-    groupIds: getDevotionalSenderGroupIds(input.devotionalSlug),
+    groupIds,
   });
 
   if (result.ok) {
@@ -170,6 +175,14 @@ async function syncConfirmedDevotionalSubscriber(input: { subscriberId: string; 
     sender_sync_status: "failed",
     sender_sync_error: result.error.slice(0, 300),
   }).eq("id", input.subscriberId);
+  await supabase.from("email_delivery_events").insert({
+    subscriber_id: input.subscriberId,
+    provider: "sender",
+    message_type: "preference_sync",
+    status: "failed",
+    error: result.error.slice(0, 300),
+    metadata: { categories: input.categories, groupIds },
+  });
 }
 
 async function createAccessToken(subscriberId: string, tokenType: "confirmation" | "management") {
@@ -360,14 +373,13 @@ export async function requestSubscription(formData: FormData) {
 
     await replacePreferences(existing.id, categories, "active");
     await recordConsentEvent(existing.id, "preference_changed", categories, consentMetadata);
-    if (fields.value.categories.includes("devotionals")) {
-      await syncConfirmedDevotionalSubscriber({
-        subscriberId: existing.id,
-        email: fields.value.email,
-        firstName: fields.value.firstName,
-        devotionalSlug: devotionalContext.value?.slug,
-      });
-    }
+    await syncConfirmedSubscriber({
+      subscriberId: existing.id,
+      email: fields.value.email,
+      firstName: fields.value.firstName,
+      categories,
+      devotionalSlug: devotionalContext.value?.slug,
+    });
     return { submitted: true, alreadyConfirmed: true };
   }
 
@@ -475,11 +487,12 @@ export async function confirmSubscriptionToken(token: string) {
   if (subscriberError) return { status: "invalid" as const, categories: [] as EmailCategory[] };
   await replacePreferences(tokenResult.subscriberId, categories, "active");
   await recordConsentEvent(tokenResult.subscriberId, "double_opt_in_confirmed", categories, await requestMetadata());
-  if (categories.includes("devotionals") && subscriber) {
-    await syncConfirmedDevotionalSubscriber({
+  if (subscriber) {
+    await syncConfirmedSubscriber({
       subscriberId: tokenResult.subscriberId,
       email: subscriber.email,
       firstName: subscriber.first_name,
+      categories,
       devotionalSlug: devotionalContext?.slug,
     });
   }

@@ -10,13 +10,15 @@ export type PublicDevotionalSeries = Pick<
   "id" | "teaching_id" | "title" | "introduction" | "published_at"
 > & {
   slug: string;
+  // Null for a standalone series. Since 20260923020000 a devotional is public
+  // on its own status alone, so a teaching is context, not a precondition.
   teaching: {
     slug: string;
     title: string;
     gathering_date: string | null;
     summary: string | null;
     central_theme: string | null;
-  };
+  } | null;
 };
 
 type DevotionalRow = Pick<
@@ -24,7 +26,11 @@ type DevotionalRow = Pick<
   "id" | "teaching_id" | "title" | "introduction" | "published_at"
 > & { slug: string };
 
-type TeachingRow = PublicDevotionalSeries["teaching"] & { id: string };
+type TeachingRow = NonNullable<PublicDevotionalSeries["teaching"]> & { id: string };
+
+export type PublicDevotionalSeriesWithTeaching = PublicDevotionalSeries & {
+  teaching: NonNullable<PublicDevotionalSeries["teaching"]>;
+};
 
 type AssignmentRow = { teaching_id: string; devotional_id: string };
 
@@ -36,16 +42,18 @@ export function getDevotionalStartPath(series: Pick<PublicDevotionalSeries, "slu
   return `/subscribe?category=devotionals&devotional=${encodeURIComponent(series.slug)}`;
 }
 
-export function getDevotionalReadPath(series: Pick<PublicDevotionalSeries, "teaching">) {
-  return `/teachings/${series.teaching.slug}/devotional`;
+// A standalone series has no teaching page to read, so callers fall back to the
+// devotional's own page.
+export function getDevotionalReadPath(series: Pick<PublicDevotionalSeries, "slug" | "teaching">) {
+  return series.teaching ? `/teachings/${series.teaching.slug}/devotional` : `/devotionals/${series.slug}`;
 }
 
-export function getDevotionalDescription(series: Pick<PublicDevotionalSeries, "introduction" | "teaching">) {
+export function getDevotionalDescription(series: Pick<PublicDevotionalSeries, "title" | "introduction" | "teaching">) {
   return (
     splitParagraphs(series.introduction)[0] ||
-    series.teaching.summary ||
-    series.teaching.central_theme ||
-    `A 7-day devotional for ${series.teaching.title}.`
+    series.teaching?.summary ||
+    series.teaching?.central_theme ||
+    (series.teaching ? `A 7-day devotional for ${series.teaching.title}.` : `A 7-day devotional: ${series.title}.`)
   );
 }
 
@@ -81,19 +89,24 @@ export async function getPublishedDevotionalSeries(): Promise<PublicDevotionalSe
     .in("devotional_id", devotionalRows.map((devotional) => devotional.id))
     .order("created_at", { ascending: true });
 
-  if (assignmentError || !assignments?.length) return [];
+  if (assignmentError) return [];
 
-  const assignmentRows = assignments as AssignmentRow[];
-  const { data: teachings, error: teachingError } = await supabase
-    .from("teachings")
-    .select("id, slug, title, gathering_date, summary, central_theme")
-    .eq("status", "published")
-    .in("id", [...new Set(assignmentRows.map((assignment) => assignment.teaching_id))]);
+  // No assignments at all is now an ordinary case: every published series may
+  // be standalone. The teaching lookup is skipped rather than bailing out.
+  const assignmentRows = (assignments ?? []) as AssignmentRow[];
+  const teachingIds = [...new Set(assignmentRows.map((assignment) => assignment.teaching_id))];
+  const { data: teachings, error: teachingError } = teachingIds.length
+    ? await supabase
+      .from("teachings")
+      .select("id, slug, title, gathering_date, summary, central_theme")
+      .eq("status", "published")
+      .in("id", teachingIds)
+    : { data: [], error: null };
 
-  if (teachingError || !teachings?.length) return [];
+  if (teachingError) return [];
 
   const teachingsById = new Map(
-    (teachings as TeachingRow[]).map((teaching) => [teaching.id, teaching]),
+    ((teachings ?? []) as TeachingRow[]).map((teaching) => [teaching.id, teaching]),
   );
 
   // Published teachings per devotional, kept in assignment order.
@@ -106,26 +119,27 @@ export async function getPublishedDevotionalSeries(): Promise<PublicDevotionalSe
     teachingsByDevotionalId.set(assignment.devotional_id, current);
   }
 
-  return devotionalRows.flatMap((devotional) => {
+  return devotionalRows.map((devotional) => {
     const assignedTeachings = teachingsByDevotionalId.get(devotional.id) ?? [];
-    // One entry per devotional, as before. A devotional may now be shared by
-    // several published teachings, so prefer the legacy owner when it is one of
-    // them and fall back to the earliest assignment. teaching_id being null is
-    // simply a miss here, never an error. A devotional reaching no published
-    // teaching stays unlisted, exactly as an unmatched one always did.
-    const teaching = assignedTeachings.find((item) => item.id === devotional.teaching_id) ?? assignedTeachings[0];
-    if (!teaching) return [];
+    // One entry per devotional. A devotional may be shared by several published
+    // teachings, so prefer the legacy owner when it is one of them and fall back
+    // to the earliest assignment. A series reaching no published teaching is
+    // still listed, as a standalone one, because since 20260923020000 its own
+    // published status is what makes it public.
+    const teaching = assignedTeachings.find((item) => item.id === devotional.teaching_id) ?? assignedTeachings[0] ?? null;
 
-    return [{
+    return {
       ...devotional,
-      teaching: {
-        slug: teaching.slug,
-        title: teaching.title,
-        gathering_date: teaching.gathering_date,
-        summary: teaching.summary,
-        central_theme: teaching.central_theme,
-      },
-    }];
+      teaching: teaching
+        ? {
+          slug: teaching.slug,
+          title: teaching.title,
+          gathering_date: teaching.gathering_date,
+          summary: teaching.summary,
+          central_theme: teaching.central_theme,
+        }
+        : null,
+    };
   });
 }
 
@@ -149,33 +163,41 @@ export async function getPublishedDevotionalSeriesBySlug(slug: string): Promise<
     .select("teaching_id")
     .eq("devotional_id", devotional.id);
 
-  if (assignmentError || !assignments?.length) return null;
+  if (assignmentError) return null;
 
-  const { data: teachings, error: teachingError } = await supabase
-    .from("teachings")
-    .select("id, slug, title, gathering_date, summary, central_theme")
-    .eq("status", "published")
-    .in("id", assignments.map((assignment) => assignment.teaching_id));
+  // A standalone series resolves with no teaching rather than 404ing. Its own
+  // published status, checked above, is what makes it public.
+  const teachingIds = (assignments ?? []).map((assignment) => assignment.teaching_id);
+  const { data: teachings, error: teachingError } = teachingIds.length
+    ? await supabase
+      .from("teachings")
+      .select("id, slug, title, gathering_date, summary, central_theme")
+      .eq("status", "published")
+      .in("id", teachingIds)
+    : { data: [], error: null };
 
-  if (teachingError || !teachings?.length) return null;
+  if (teachingError) return null;
 
-  const teaching = teachings.find((item) => item.id === devotional.teaching_id) ?? teachings[0];
-
-  if (!teaching) return null;
+  const teaching = (teachings ?? []).find((item) => item.id === devotional.teaching_id) ?? (teachings ?? [])[0] ?? null;
 
   return {
     ...devotional,
-    teaching: {
-      slug: teaching.slug,
-      title: teaching.title,
-      gathering_date: teaching.gathering_date,
-      summary: teaching.summary,
-      central_theme: teaching.central_theme,
-    },
+    teaching: teaching
+      ? {
+        slug: teaching.slug,
+        title: teaching.title,
+        gathering_date: teaching.gathering_date,
+        summary: teaching.summary,
+        central_theme: teaching.central_theme,
+      }
+      : null,
   };
 }
 
-export async function getPublishedDevotionalSeriesByTeachingSlug(slug: string): Promise<PublicDevotionalSeries | null> {
+// Reached through a teaching, so the teaching is always present. The narrowed
+// return type keeps the teaching-scoped pages free of null checks they can
+// never hit.
+export async function getPublishedDevotionalSeriesByTeachingSlug(slug: string): Promise<PublicDevotionalSeriesWithTeaching | null> {
   const supabase = await createClient();
   const { data: teaching, error: teachingError } = await supabase
     .from("teachings")

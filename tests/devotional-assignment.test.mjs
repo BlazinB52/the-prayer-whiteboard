@@ -66,5 +66,49 @@ test("the public devotional list resolves teachings through assignments, not the
   // It may still be read as a tie-breaker when one devotional is shared by
   // several published teachings, but not to resolve the teaching itself.
   assert.doesNotMatch(listing, /teachingsById\.get\(devotional\.teaching_id\)/);
-  assert.doesNotMatch(listing, /\.in\("id", teachingIds\)/);
+  // The teaching ids fed to that lookup come from the assignment rows.
+  assert.match(listing, /teachingIds = \[\.\.\.new Set\(assignmentRows\.map\(/);
+  assert.doesNotMatch(listing, /teachingIds = devotionalRows\.map/);
+
+  // A series with no published teaching is still listed, as a standalone one.
+  assert.match(listing, /\?\? null;/);
+  assert.doesNotMatch(listing, /if \(!teaching\) return \[\];/);
+});
+
+test("a published devotional is publicly readable without a teaching assignment", async () => {
+  const migration = await readFile("supabase/migrations/20260923020000_publish_devotionals_without_assignment.sql", "utf8");
+
+  const devotionalPolicy = migration.match(/create policy "Public can read published teaching devotionals"[\s\S]*?\);/)?.[0] ?? "";
+  assert.notEqual(devotionalPolicy, "", "the devotional select policy should be replaced");
+  // The devotional's own status is the only gate now.
+  assert.match(devotionalPolicy, /status = 'published'\s*\n?\s*or public\.is_authenticated_admin\(\)/);
+  assert.doesNotMatch(devotionalPolicy, /teaching_devotional_assignments/);
+
+  const dayPolicy = migration.match(/create policy "Public can read published teaching devotional days"[\s\S]*?\);/)?.[0] ?? "";
+  assert.notEqual(dayPolicy, "", "the day select policy should be replaced");
+  assert.match(dayPolicy, /from public\.teaching_devotionals d[\s\S]*?d\.status = 'published'/);
+  assert.doesNotMatch(dayPolicy, /teaching_devotional_assignments/);
+
+  // The public lookups must stop treating a missing teaching as a 404.
+  const publicDevotionals = await readFile("lib/public-devotionals.ts", "utf8");
+  assert.match(publicDevotionals, /teaching: \{[\s\S]*?\} \| null;/);
+  assert.doesNotMatch(publicDevotionals, /if \(assignmentError \|\| !assignments\?\.length\) return null;/);
+});
+
+test("the standalone editor can publish and unpublish on its own", async () => {
+  const [page, actions] = await Promise.all([
+    readFile("app/admin/devotionals/[id]/page.tsx", "utf8"),
+    readFile("app/admin/teachings/devotional-actions.ts", "utf8"),
+  ]);
+
+  assert.match(page, /PublishDevotionalButton action=\{publishStandaloneDevotional\.bind\(null, devotional\.id\)\}/);
+  assert.match(page, /UnpublishDevotionalButton action=\{unpublishStandaloneDevotional\.bind\(null, devotional\.id\)\}/);
+
+  const publishAction = actions.match(/export async function publishStandaloneDevotional[\s\S]*?\n}/)?.[0] ?? "";
+  // The same completeness gate the teaching-scoped publish uses.
+  assert.match(publishAction, /findDevotionalPublishBlocker\(devotional, days \?\? \[\]\)/);
+  // A published row must carry a real slug, so one is derived when missing.
+  assert.match(publishAction, /slugifyDevotionalTitle\(devotional\.title/);
+  assert.match(publishAction, /error\.code !== "23505"/);
+  assert.match(actions, /export async function unpublishStandaloneDevotional/);
 });

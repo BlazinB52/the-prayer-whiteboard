@@ -123,8 +123,8 @@ function FeaturedDevotional({ series }: { series: PublicDevotionalSeries }) {
       <p className="mt-4 max-w-2xl whitespace-pre-line text-sm font-bold leading-6 text-[#385245] sm:text-base sm:leading-7">
         {getDevotionalSignupCopy(series)}
       </p>
-      <Link href={getDevotionalReadPath(series)} className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-[#9d5a2f] underline-offset-4 transition hover:text-[#a85e32] hover:underline">
-        Prefer to read online? Open the devotional <ArrowRight aria-hidden="true" size={17} />
+      <Link href={series.teaching ? getDevotionalReadPath(series) : `/devotionals/${series.slug}/day/1`} className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-[#9d5a2f] underline-offset-4 transition hover:text-[#a85e32] hover:underline">
+        {series.teaching ? "Prefer to read online? Open the devotional" : "Prefer to read online? Start with day one"} <ArrowRight aria-hidden="true" size={17} />
       </Link>
     </div>
   );

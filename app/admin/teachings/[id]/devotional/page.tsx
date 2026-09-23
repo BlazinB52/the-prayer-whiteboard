@@ -65,7 +65,7 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
             </div>
             <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{devotional?.status ?? "not created"}</span>
           </div>
-          <p className="mt-3 text-sm leading-6 text-[#607066]">Devotional publishing is independent from teaching publishing. Public readers can see it only when both are published.</p>
+          <p className="mt-3 text-sm leading-6 text-[#607066]">Devotional publishing is independent from teaching publishing. Once published, the devotional is readable at its own web address even if this teaching is still a draft.</p>
         </header>
 
         {messages.created === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional created as a draft.</p> : null}

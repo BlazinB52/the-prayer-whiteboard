@@ -12,7 +12,7 @@ export function PublishDevotionalButton({ action }: { action: Action }) {
     <form
       action={formAction}
       onSubmit={(event) => {
-        if (!window.confirm("Publish this 7-Day Devotional now? It will become public only while the teaching is also published.")) {
+        if (!window.confirm("Publish this 7-Day Devotional now? It will become publicly readable at its own web address, whether or not a teaching is attached.")) {
           event.preventDefault();
         }
       }}

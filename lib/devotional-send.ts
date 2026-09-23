@@ -11,9 +11,6 @@ const THROTTLE_MS = 150;
 const MAX_RECORDED_FAILURES = 25;
 
 export type DevotionalRunResult =
-  // The series exists and today's day content is ready, but no published
-  // teaching is assigned to it, so there is no ledger key and no public day URL.
-  | { status: "no_teaching" }
   | { status: "no_devotional" }
   | { status: "outside_window" }
   | { status: "no_day_content"; dayNumber: number }
@@ -45,12 +42,11 @@ async function claimDay(devotionalId: string, dayNumber: number, teachingId: str
   return data.id as string;
 }
 
-// Neither the ledger key nor the day URL needs a teaching any more. This
-// lookup is now purely a public-visibility check: the RLS policies on
-// teaching_devotionals and teaching_devotional_days only expose a published
-// series that is assigned to a published teaching, so a series failing this
-// test would be mailed as a link its readers cannot open. The teaching it
-// returns is recorded in the ledger as context.
+// Nothing in the send depends on a teaching any more. The ledger is keyed on
+// the series, the day URL is built from the series slug, and since
+// 20260923020000 a published series is publicly readable on its own. This
+// lookup only supplies the teaching recorded alongside the ledger row as
+// historical context, and returns null for a standalone series.
 async function resolveAssignedTeaching(devotionalId: string) {
   const supabase = getClient();
   const { data: assignments } = await supabase
@@ -116,9 +112,7 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
   if (!day) return { status: "no_day_content", dayNumber };
 
   const teaching = await resolveAssignedTeaching(devotional.id);
-  if (!teaching) return { status: "no_teaching" };
-
-  const ledgerId = await claimDay(devotional.id, dayNumber, teaching.id);
+  const ledgerId = await claimDay(devotional.id, dayNumber, teaching?.id ?? null);
   if (!ledgerId) return { status: "duplicate", dayNumber };
 
   const recipients = await loadConfirmedRecipients("devotionals");

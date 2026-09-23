@@ -585,3 +585,67 @@ export async function importStandaloneDevotionalText(devotionalId: string, previ
   revalidateStandaloneDevotionalPaths(devotional.id, devotional.slug);
   redirect(`/admin/devotionals/${devotional.id}?imported=1`);
 }
+
+export async function publishStandaloneDevotional(devotionalId: string, previousState: DevotionalPublishState): Promise<DevotionalPublishState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+  const devotional = await getDevotionalById(supabase, devotionalId);
+  if (!devotional) return { error: "This devotional could not be found." };
+
+  const { data: days, error: daysError } = await supabase
+    .from("teaching_devotional_days")
+    .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
+    .eq("devotional_id", devotional.id)
+    .order("day_number", { ascending: true });
+
+  if (daysError) return { error: "Devotional days could not be checked." };
+  const blocker = findDevotionalPublishBlocker(devotional, days ?? []);
+  if (blocker) return { error: blocker };
+
+  // teaching_devotionals_published_slug_check requires a real slug on a
+  // published row. A standalone devotional is given one at creation, but an
+  // older record may predate that, so derive one here rather than failing.
+  const existingSlug = (devotional.slug ?? "").trim();
+  if (existingSlug) {
+    const { error } = await supabase
+      .from("teaching_devotionals")
+      .update({ status: "published", published_at: new Date().toISOString() })
+      .eq("id", devotional.id);
+    if (error) return { error: "This devotional could not be published." };
+    revalidateStandaloneDevotionalPaths(devotional.id, existingSlug);
+    redirect(`/admin/devotionals/${devotional.id}?published=1`);
+  }
+
+  const baseSlug = slugifyDevotionalTitle(devotional.title || "devotional");
+  for (let suffix = 0; suffix < PROVISIONAL_SLUG_ATTEMPTS; suffix += 1) {
+    const slug = suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`;
+    const { error } = await supabase
+      .from("teaching_devotionals")
+      .update({ slug, status: "published", published_at: new Date().toISOString() })
+      .eq("id", devotional.id);
+
+    if (!error) {
+      revalidateStandaloneDevotionalPaths(devotional.id, slug);
+      redirect(`/admin/devotionals/${devotional.id}?published=1`);
+    }
+    if (error.code !== "23505") return { error: "This devotional could not be published." };
+  }
+
+  return { error: "A web address for this devotional is already in use. Please rename it and try again." };
+}
+
+export async function unpublishStandaloneDevotional(devotionalId: string, previousState: DevotionalPublishState): Promise<DevotionalPublishState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+  const devotional = await getDevotionalById(supabase, devotionalId);
+  if (!devotional) return { error: "This devotional could not be found." };
+
+  const { error } = await supabase
+    .from("teaching_devotionals")
+    .update({ status: "draft", published_at: null })
+    .eq("id", devotional.id);
+
+  if (error) return { error: "This devotional could not be unpublished." };
+  revalidateStandaloneDevotionalPaths(devotional.id, devotional.slug);
+  redirect(`/admin/devotionals/${devotional.id}?unpublished=1`);
+}

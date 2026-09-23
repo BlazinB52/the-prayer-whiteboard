@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DevotionalDayForms, DevotionalImportForm, DevotionalPreviewLink, DevotionalSeriesForm } from "@/app/admin/teachings/[id]/devotional/devotional-editor";
-import { importStandaloneDevotionalText, updateStandaloneDevotionalDay, updateStandaloneDevotionalSeries } from "@/app/admin/teachings/devotional-actions";
+import { importStandaloneDevotionalText, publishStandaloneDevotional, unpublishStandaloneDevotional, updateStandaloneDevotionalDay, updateStandaloneDevotionalSeries } from "@/app/admin/teachings/devotional-actions";
+import { PublishDevotionalButton, UnpublishDevotionalButton } from "@/app/admin/teachings/devotional-buttons";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
 
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export default async function AdminStandaloneDevotionalPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string; imported?: string }> }) {
+export default async function AdminStandaloneDevotionalPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string; imported?: string; published?: string; unpublished?: string }> }) {
   const [{ id }, messages] = await Promise.all([params, searchParams]);
   if (!UUID_PATTERN.test(id)) notFound();
 
@@ -65,6 +66,8 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
 
         {messages.created === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional created as a draft. Write the seven days below, or import them from a text file.</p> : null}
         {messages.imported === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional text imported as a draft.</p> : null}
+        {messages.published === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional published.</p> : null}
+        {messages.unpublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional unpublished and returned to draft.</p> : null}
 
         <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
           <h2 className="text-2xl font-extrabold text-[#243d31]">Teaching Association</h2>
@@ -81,10 +84,9 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
             </>
           ) : (
             <p className="mt-3 text-sm leading-6 text-[#607066]">
-              This devotional is not attached to any teaching yet, so it stays private and cannot be published. Open a
-              teaching under <Link href="/admin/teachings" className="font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Teachings</Link>, go to
-              its devotional page, and choose this devotional under &quot;Use Existing Devotional&quot;. You can keep writing the
-              content here in the meantime.
+              This devotional is not attached to any teaching. It can still be published and read on its own. To tie it to
+              a teaching, open one under <Link href="/admin/teachings" className="font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Teachings</Link>, go to
+              its devotional page, and choose this devotional under &quot;Use Existing Devotional&quot;.
             </p>
           )}
         </section>
@@ -104,6 +106,16 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
             <DevotionalPreviewLink href={`/admin/devotionals/${devotional.id}/preview`} />
           </div>
           <DevotionalSeriesForm devotional={devotional as TeachingDevotional} action={updateStandaloneDevotionalSeries.bind(null, devotional.id)} />
+          <div className="mt-6 flex flex-col gap-3 border-t border-[#284a3b]/10 pt-5 sm:flex-row">
+            {devotional.status === "published"
+              ? <UnpublishDevotionalButton action={unpublishStandaloneDevotional.bind(null, devotional.id)} />
+              : <PublishDevotionalButton action={publishStandaloneDevotional.bind(null, devotional.id)} />}
+          </div>
+          <p className="mt-4 text-sm leading-6 text-[#607066]">
+            {devotional.status === "published"
+              ? <>This devotional is public on its own at <Link href={`/devotionals/${devotional.slug}`} className="font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">/devotionals/{devotional.slug}</Link>, whether or not a teaching is attached.</>
+              : "Publishing makes this devotional public on its own. A teaching is optional."}
+          </p>
         </section>
 
         <section className="mt-8">

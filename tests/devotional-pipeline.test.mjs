@@ -104,7 +104,7 @@ test("the run is driven by the most recently published devotional series", async
 
 test("a day is claimed in the ledger before any send", async () => {
   const source = await readFile("lib/devotional-send.ts", "utf8");
-  const claimIndex = source.indexOf("await claimDay(devotional.id, dayNumber, teaching.id)");
+  const claimIndex = source.indexOf("await claimDay(devotional.id, dayNumber, teaching?.id ?? null)");
   const sendIndex = source.indexOf("sendSenderTransactionalEmail(");
 
   assert.match(source, /error\.code === "23505"/);

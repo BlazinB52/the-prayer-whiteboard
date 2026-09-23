@@ -47,7 +47,7 @@ export default async function PublicDevotionalPage({ params }: { params: Promise
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">
             {series.title}
           </h1>
-          <p className="mt-4 text-sm font-bold text-[#607066]">For {series.teaching.title}</p>
+          {series.teaching ? <p className="mt-4 text-sm font-bold text-[#607066]">For {series.teaching.title}</p> : null}
           <p className="mt-6 text-lg leading-8 text-[#52645a]">{formatInlineText(description)}</p>
           <Link href={getDevotionalStartPath(series)} className="mt-5 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold !text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white visited:!text-white sm:w-auto">
             {getDevotionalStartLabel(series)} <ArrowRight aria-hidden="true" size={19} />
@@ -56,9 +56,15 @@ export default async function PublicDevotionalPage({ params }: { params: Promise
             {getDevotionalSignupCopy(series)}
           </p>
         </header>
-        <Link href={getDevotionalReadPath(series)} className="mt-8 inline-flex items-center gap-2 text-sm font-extrabold text-[#9d5a2f] underline-offset-4 transition hover:text-[#a85e32] hover:underline">
-          Prefer to read online? Open the devotional <ArrowRight aria-hidden="true" size={17} />
-        </Link>
+        {series.teaching ? (
+          <Link href={getDevotionalReadPath(series)} className="mt-8 inline-flex items-center gap-2 text-sm font-extrabold text-[#9d5a2f] underline-offset-4 transition hover:text-[#a85e32] hover:underline">
+            Prefer to read online? Open the devotional <ArrowRight aria-hidden="true" size={17} />
+          </Link>
+        ) : (
+          <Link href={`/devotionals/${series.slug}/day/1`} className="mt-8 inline-flex items-center gap-2 text-sm font-extrabold text-[#9d5a2f] underline-offset-4 transition hover:text-[#a85e32] hover:underline">
+            Prefer to read online? Start with day one <ArrowRight aria-hidden="true" size={17} />
+          </Link>
+        )}
       </article>
       <PublicFooter />
       <ReturnToTop />

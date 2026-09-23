@@ -7,6 +7,7 @@ import { getSenderGroupIdsForCategories } from "@/lib/devotional-sender-groups";
 import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "@/lib/subscription-email-content";
 import { hasConfirmedSubscriptionState, type ConfirmationEvidence, type SubscriberStatus } from "@/lib/subscription-status";
+import { reactivateSenderSubscriber } from "@/lib/sender-reactivation";
 import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
 import { syncSubscriberToSenderGroups } from "@/lib/sender-subscriber-groups";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
@@ -325,7 +326,14 @@ export async function requestSubscription(formData: FormData) {
     .eq("normalized_email", fields.value.normalizedEmail)
     .maybeSingle();
   if (existingError) return { error: "Subscription could not be submitted." };
-  if (existing?.status === "suppressed") return { submitted: true };
+  // A suppressed address is a hard stop on Sender's side, not just ours — retrying
+  // the same rejected send would only repeat the rejection. Clear the Sender-side
+  // block first; only then is it safe to treat this like a fresh signup below,
+  // which requires the person to re-confirm through double opt-in again.
+  if (existing?.status === "suppressed") {
+    const reactivation = await reactivateSenderSubscriber(fields.value.email);
+    if (!reactivation.ok) return { submitted: true };
+  }
   const existingIsConfirmed = existing
     ? await subscriberIsConfirmed({ id: existing.id, status: existing.status as SubscriberStatus })
     : false;
@@ -378,6 +386,7 @@ export async function requestSubscription(formData: FormData) {
     status: "pending",
     confirmed_at: null,
     unsubscribed_at: null,
+    suppressed_at: null,
     sender_sync_status: "not_configured",
   };
   const subscriberResult = subscriberId
@@ -389,7 +398,8 @@ export async function requestSubscription(formData: FormData) {
   if (!subscriberId) return { error: "Subscription could not be submitted." };
 
   await replacePreferences(subscriberId, fields.value.categories, "pending");
-  await recordConsentEvent(subscriberId, existing?.status === "unsubscribed" ? "resubscribed" : "subscription_requested", fields.value.categories, consentMetadata);
+  const isResubscribe = existing?.status === "unsubscribed" || existing?.status === "suppressed";
+  await recordConsentEvent(subscriberId, isResubscribe ? "resubscribed" : "subscription_requested", fields.value.categories, consentMetadata);
   if (await hasRecentSuccessfulDelivery(subscriberId, "confirmation")) return { submitted: true };
   const access = await createAccessToken(subscriberId, "confirmation");
   const delivery = await deliverConfirmationEmail({

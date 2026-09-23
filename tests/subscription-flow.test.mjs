@@ -85,6 +85,31 @@ test("Sender group sync happens only after confirmation or for an already-confir
   assert.match(source, /sender_sync_status: "synced"/);
 });
 
+test("a suppressed subscriber is offered a real path back in instead of a silent no-op", async () => {
+  const source = await readFile("lib/email-subscriptions.ts", "utf8");
+  const suppressedBranch = source.match(/if \(existing\?\.status === "suppressed"\)[\s\S]*?const existingIsConfirmed/)?.[0] ?? "";
+
+  assert.match(suppressedBranch, /await reactivateSenderSubscriber\(fields\.value\.email\)/);
+  // A failed reactivation attempt still returns the same generic response as
+  // every other existing-subscriber path, so the response never confirms or
+  // denies whether an address is on file.
+  assert.match(suppressedBranch, /if \(!reactivation\.ok\) return \{ submitted: true \}/);
+  // A successful reactivation falls through to the pending-signup branch below
+  // rather than jumping straight back to 'confirmed' — Sender's own guidance is
+  // to have fresh consent before reactivating, and falling through re-runs the
+  // real double opt-in flow.
+  assert.doesNotMatch(suppressedBranch, /status: "confirmed"/);
+  assert.match(source, /suppressed_at: null,/);
+  assert.match(source, /existing\?\.status === "unsubscribed" \|\| existing\?\.status === "suppressed"/);
+});
+
+test("Sender reactivation targets the transactional channel this app actually sends through", async () => {
+  const source = await readFile("lib/sender-reactivation-core.ts", "utf8");
+  assert.match(source, /method: "PATCH"/);
+  assert.match(source, /\/v2\/subscribers\/\$\{encodeURIComponent\(email\)\}/);
+  assert.match(source, /transactional_email_status: "ACTIVE"/);
+});
+
 test("every selected category is synced to Sender and sync failures are recorded", async () => {
   const source = await readFile("lib/email-subscriptions.ts", "utf8");
   const sync = source.match(/async function syncConfirmedSubscriber[\s\S]*?\n}/)?.[0] ?? "";

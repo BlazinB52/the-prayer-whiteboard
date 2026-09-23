@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 
 type FormState = { error?: string; saved?: boolean; deleted?: boolean };
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
@@ -19,8 +20,8 @@ export function FooterForm({ action, internalTitle = "", content = "", submitLab
   return (
     <form action={formAction} className="space-y-4">
       <label className="block text-sm font-bold text-[#385245]">Internal title<input name="internalTitle" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={160} className="admin-input" /></label>
-      <label className="block text-sm font-bold text-[#385245]">Displayed content<textarea name="content" value={body} onChange={(event) => setBody(event.target.value)} required maxLength={5000} rows={6} className="admin-input resize-y py-3" /></label>
-      <p className="text-xs leading-5 text-[#607066]">Paragraph breaks are preserved. Full HTTP or HTTPS links are rendered as links on public pages.</p>
+      <FormattedTextarea label="Displayed content" name="content" value={body} onValueChange={setBody} required maxLength={5000} rows={6} />
+      <p className="text-xs leading-5 text-[#607066]">Paragraph breaks are preserved. Use the formatting controls for emphasis, bullets, and HTTP or HTTPS links.</p>
       {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
       {state.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Footer saved.</p> : null}
       <button type="submit" disabled={pending} className="admin-primary-button"><span>{pending ? "Saving..." : submitLabel}</span></button>

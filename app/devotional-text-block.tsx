@@ -19,12 +19,12 @@ export function DevotionalTextBlock({
         if (block.type === "bullet-list") {
           return (
             <ul key={`list-${index}`} className="list-disc space-y-0 pl-6 leading-7">
-              {block.items.map((item, itemIndex) => <li key={`${itemIndex}-${item}`}>{formatInlineText(item)}</li>)}
+              {block.items.map((item, itemIndex) => <li key={`${itemIndex}-${item}`}>{formatInlineText(item, { links: true })}</li>)}
             </ul>
           );
         }
 
-        return <p key={`paragraph-${index}`}>{formatInlineText(block.text)}</p>;
+        return <p key={`paragraph-${index}`}>{formatInlineText(block.text, { links: true })}</p>;
       })}
     </div>
   );

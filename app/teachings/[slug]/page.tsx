@@ -8,7 +8,7 @@ import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { ContentFooter } from "@/app/content-footer";
 import { EmailUpdatesCta } from "@/app/email-updates-cta";
-import { formatInlineText } from "@/app/formatted-text";
+import { FormattedTextBlocks, formatInlineText } from "@/app/formatted-text";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { PrintToPdfButton } from "./print-to-pdf-button";
@@ -112,6 +112,6 @@ function SectionContent({ value, isCallout = false, alignment = "left" }: { valu
   return <TextParagraphs text={value.text} className={value.format === "takeaway" ? "font-bold text-[#385245]" : undefined} />;
 }
 
-function TextParagraphs({ text, className }: { text: unknown; className?: string }) { const paragraphs = String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean); return <div className={`space-y-3 ${className ?? ""}`}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{formatInlineText(paragraph, { links: true })}</p>)}</div>; }
+function TextParagraphs({ text, className }: { text: unknown; className?: string }) { return <FormattedTextBlocks text={text} links className={`space-y-3 ${className ?? ""}`} listClassName="list-disc space-y-2 pl-6" />; }
 function getParagraphs(text: unknown) { return String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean); }
 function formatDate(value: string) { return new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`)); }

@@ -1,8 +1,9 @@
 ﻿"use client";
 
-import { useActionState, useId, useRef, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
-import { createStoredLink, findStoredLinkAtSelection, formatInlineText, normalizeSafeLinkUrl, removeStoredLink, replaceRangeWithStoredLink } from "@/app/formatted-text";
+import { FormattedTextBlocks, formatInlineText } from "@/app/formatted-text";
+import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 import type { ContentActionState, SectionFormat } from "./content-actions";
 import { CalloutSection, getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, getPresetDefaults, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment, type SectionCallout, type SectionCalloutStyle, type SectionCalloutType, type SectionContentValue } from "./callout-utils";
 
@@ -36,15 +37,6 @@ type SectionValues = {
   showTitle: boolean;
   highlightHorizontalAlignment: HighlightHorizontalAlignment;
   callout?: SectionCallout;
-};
-
-type LinkEditorState = {
-  start: number;
-  end: number;
-  text: string;
-  url: string;
-  isExisting: boolean;
-  error?: string;
 };
 
 export function ContentWorkspace({
@@ -163,135 +155,6 @@ function SectionPanel({ section, categories, isFirst, isLast, action, moveAction
 function OperationForm({ action, label, disabled = false, confirmMessage, danger = false }: { action: () => Promise<ContentActionState>; label: string; disabled?: boolean; confirmMessage?: string; danger?: boolean }) {
   const [state, runAction, pending] = useActionState(async () => action(), {});
   return <form action={runAction} onSubmit={(event) => { if (confirmMessage && !window.confirm(confirmMessage)) event.preventDefault(); }}><button type="submit" disabled={disabled || pending} className={danger ? "admin-danger-button" : "admin-secondary-button"}><span>{pending ? "Saving..." : label}</span></button>{state.saved ? <p className="mt-2 text-xs font-bold text-[#326048]">Saved.</p> : null}{state.error ? <p className="mt-2 text-xs font-bold text-[#a2472c]">{state.error}</p> : null}</form>;
-}
-
-function FormattedTextarea({ label, help, name, value, onValueChange, rows, maxLength }: { label: string; help?: string; name: string; value: string; onValueChange: (value: string) => void; rows: number; maxLength?: number }) {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fieldId = useId();
-  const [linkEditor, setLinkEditor] = useState<LinkEditorState | null>(null);
-
-  const restoreSelection = (start: number, end: number) => {
-    window.setTimeout(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(start, end);
-    }, 0);
-  };
-
-  const replaceSelection = (replacement: string, selectionOffset = 0, selectionLength = replacement.length) => {
-    const textarea = textareaRef.current;
-    const start = textarea?.selectionStart ?? value.length;
-    const end = textarea?.selectionEnd ?? value.length;
-    const nextValue = `${value.slice(0, start)}${replacement}${value.slice(end)}`;
-    onValueChange(nextValue);
-    restoreSelection(start + selectionOffset, start + selectionOffset + selectionLength);
-  };
-
-  const applyEmphasis = (marker: "*" | "**") => {
-    const textarea = textareaRef.current;
-    const start = textarea?.selectionStart ?? value.length;
-    const end = textarea?.selectionEnd ?? value.length;
-    const selectedText = value.slice(start, end);
-    const fallbackText = marker === "**" ? "bold text" : "italic text";
-    const labelText = selectedText || fallbackText;
-    replaceSelection(`${marker}${labelText}${marker}`, marker.length, labelText.length);
-  };
-
-  const openLinkEditor = () => {
-    const textarea = textareaRef.current;
-    const selectionStart = textarea?.selectionStart ?? value.length;
-    const selectionEnd = textarea?.selectionEnd ?? value.length;
-    const existingLink = findStoredLinkAtSelection(value, selectionStart, selectionEnd);
-
-    if (existingLink) {
-      setLinkEditor({
-        start: existingLink.start,
-        end: existingLink.end,
-        text: existingLink.text,
-        url: existingLink.url,
-        isExisting: true,
-      });
-      return;
-    }
-
-    setLinkEditor({
-      start: selectionStart,
-      end: selectionEnd,
-      text: value.slice(selectionStart, selectionEnd),
-      url: "",
-      isExisting: false,
-    });
-  };
-
-  const confirmLink = () => {
-    if (!linkEditor) return;
-    if (!linkEditor.text.trim()) {
-      setLinkEditor({ ...linkEditor, error: "Enter the text to display." });
-      return;
-    }
-    if (!normalizeSafeLinkUrl(linkEditor.url)) {
-      setLinkEditor({ ...linkEditor, error: "Enter a full web address beginning with http:// or https://." });
-      return;
-    }
-
-    const nextValue = replaceRangeWithStoredLink(value, linkEditor.start, linkEditor.end, linkEditor.text, linkEditor.url);
-    if (!nextValue) {
-      setLinkEditor({ ...linkEditor, error: "Enter a valid link." });
-      return;
-    }
-
-    const inserted = createStoredLink(linkEditor.text, linkEditor.url) ?? "";
-    onValueChange(nextValue);
-    setLinkEditor(null);
-    restoreSelection(linkEditor.start, linkEditor.start + inserted.length);
-  };
-
-  const removeLink = () => {
-    if (!linkEditor) return;
-    const nextValue = removeStoredLink(value, linkEditor.start, linkEditor.end);
-    onValueChange(nextValue);
-    setLinkEditor(null);
-    restoreSelection(linkEditor.start, linkEditor.start + linkEditor.text.length);
-  };
-
-  return (
-    <div>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <label htmlFor={fieldId} className="block text-sm font-bold text-[#385245]">
-          {label}
-          {help ? <span className="mt-1 block text-xs font-normal text-[#607066]">{help}</span> : null}
-        </label>
-        <div className="flex flex-wrap gap-1" aria-label={`${label} formatting`}>
-          <button type="button" onClick={() => applyEmphasis("**")} className="rounded-lg border border-[#284a3b]/15 bg-white px-3 py-1 text-xs font-black text-[#385245] transition hover:border-[#a85e32]/40 hover:text-[#a85e32]">B</button>
-          <button type="button" onClick={() => applyEmphasis("*")} className="rounded-lg border border-[#284a3b]/15 bg-white px-3 py-1 text-xs font-black italic text-[#385245] transition hover:border-[#a85e32]/40 hover:text-[#a85e32]">I</button>
-          <button type="button" onClick={openLinkEditor} className="rounded-lg border border-[#284a3b]/15 bg-white px-3 py-1 text-xs font-black text-[#385245] transition hover:border-[#a85e32]/40 hover:text-[#a85e32]">Link</button>
-        </div>
-      </div>
-      <textarea
-        ref={textareaRef}
-        id={fieldId}
-        name={name}
-        value={value}
-        onChange={(event) => onValueChange(event.target.value)}
-        rows={rows}
-        maxLength={maxLength}
-        className="admin-input resize-y py-3"
-      />
-      {linkEditor ? (
-        <div className="mt-3 rounded-xl border border-[#284a3b]/10 bg-[#f7f4ee] p-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Text to display<input value={linkEditor.text} onChange={(event) => setLinkEditor({ ...linkEditor, text: event.target.value, error: undefined })} className="admin-input normal-case tracking-normal" /></label>
-            <label className="block text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Web address<input value={linkEditor.url} onChange={(event) => setLinkEditor({ ...linkEditor, url: event.target.value, error: undefined })} placeholder="https://example.com" className="admin-input normal-case tracking-normal" /></label>
-          </div>
-          {linkEditor.error ? <p className="mt-2 text-sm font-bold text-[#a2472c]">{linkEditor.error}</p> : null}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={confirmLink} className="admin-secondary-button"><span>{linkEditor.isExisting ? "Update link" : "Add link"}</span></button>
-            {linkEditor.isExisting ? <button type="button" onClick={removeLink} className="admin-danger-button"><span>Remove link</span></button> : null}
-            <button type="button" onClick={() => setLinkEditor(null)} className="admin-secondary-button"><span>Cancel</span></button>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
 }
 
 function SectionForm({ action, values, categories, currentCategoryId, submitLabel, resetOnSuccess = false, onSuccess }: { action: Action; values: SectionValues; categories?: Category[]; currentCategoryId?: string; submitLabel: string; resetOnSuccess?: boolean; onSuccess?: () => void }) {
@@ -430,7 +293,7 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
       ) : selectedFormat === "bullets" ? (
         <>
           <FormattedTextarea label="Introductory text" help="Optional text displayed before the bullet list." name="introduction" value={introduction} onValueChange={setIntroduction} rows={3} maxLength={12000} />
-          <FormattedTextarea label="Bullet items" help="Enter one item per line. Bullet symbols are added automatically." name="mainText" value={mainText} onValueChange={setMainText} rows={5} maxLength={12000} />
+          <FormattedTextarea label="Bullet items" help="Enter one item per line. Bullet symbols are added automatically." name="mainText" value={mainText} onValueChange={setMainText} rows={5} maxLength={12000} bullets={false} />
           <FormattedTextarea label="Concluding text" help="Optional text displayed after the bullet list." name="conclusion" value={conclusion} onValueChange={setConclusion} rows={3} maxLength={12000} />
         </>
       ) : (
@@ -551,6 +414,5 @@ function SectionPreview({ content, title, highlightHorizontalAlignment }: { cont
 }
 
 function TextParagraphs({ text }: { text: unknown }) {
-  const paragraphs = String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean);
-  return <>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{formatInlineText(paragraph, { links: true })}</p>)}</>;
+  return <FormattedTextBlocks text={text} links className="space-y-3" listClassName="list-disc space-y-1 pl-5" />;
 }

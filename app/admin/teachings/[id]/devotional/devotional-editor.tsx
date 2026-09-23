@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
+import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 import { DEVOTIONAL_DAY_NUMBERS, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines, scripturesToTextareaValue, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import type { DevotionalFormState, DevotionalImportState } from "../../devotional-actions";
 
@@ -43,10 +44,7 @@ export function DevotionalSeriesForm({ devotional, action }: { devotional: Teach
         Devotional title <span className="text-[#a2472c]">*</span>
         <input name="title" value={values.title} onChange={(event) => setValues((current) => ({ ...current, title: event.target.value }))} maxLength={180} required className="admin-input" />
       </label>
-      <label className="block text-sm font-bold text-[#385245]">
-        Introduction
-        <textarea name="introduction" value={values.introduction} onChange={(event) => setValues((current) => ({ ...current, introduction: event.target.value }))} maxLength={8000} rows={7} className="admin-input resize-y py-3" />
-      </label>
+      <FormattedTextarea label="Introduction" name="introduction" value={values.introduction} onValueChange={(value) => setValues((current) => ({ ...current, introduction: value }))} maxLength={8000} rows={7} />
       {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
       {state.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Series information saved.</p> : null}
       <button type="submit" disabled={isPending} className="admin-primary-button">{isPending ? "Saving..." : "Save Series Information"}</button>
@@ -90,22 +88,10 @@ export function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: numbe
           Anchor Scriptures <span className="block text-xs font-normal text-[#607066]">Enter one Scripture passage per line. Each passage may include the reference and complete Scripture text, up to {anchorScriptureLimitLabel} characters.</span>
           <textarea name="anchorScriptures" value={values.anchorScriptures} onChange={(event) => updateValue("anchorScriptures", event.target.value)} rows={4} className="admin-input resize-y py-3" />
         </label>
-        <label className="block text-sm font-bold text-[#385245]">
-          Devotional Reading
-          <textarea name="devotionalReading" value={values.devotionalReading} onChange={(event) => updateValue("devotionalReading", event.target.value)} maxLength={12000} rows={9} className="admin-input resize-y py-3" />
-        </label>
-        <label className="block text-sm font-bold text-[#385245]">
-          Today&apos;s Confession
-          <textarea name="confession" value={values.confession} onChange={(event) => updateValue("confession", event.target.value)} maxLength={3000} rows={4} className="admin-input resize-y py-3" />
-        </label>
-        <label className="block text-sm font-bold text-[#385245]">
-          5-Minute Journal Prompt
-          <textarea name="journalPrompt" value={values.journalPrompt} onChange={(event) => updateValue("journalPrompt", event.target.value)} maxLength={3000} rows={4} className="admin-input resize-y py-3" />
-        </label>
-        <label className="block text-sm font-bold text-[#385245]">
-          Prayer Activation Exercise
-          <textarea name="prayerActivation" value={values.prayerActivation} onChange={(event) => updateValue("prayerActivation", event.target.value)} maxLength={3000} rows={4} className="admin-input resize-y py-3" />
-        </label>
+        <FormattedTextarea label="Devotional Reading" name="devotionalReading" value={values.devotionalReading} onValueChange={(value) => updateValue("devotionalReading", value)} maxLength={12000} rows={9} />
+        <FormattedTextarea label="Today's Confession" name="confession" value={values.confession} onValueChange={(value) => updateValue("confession", value)} maxLength={3000} rows={4} />
+        <FormattedTextarea label="5-Minute Journal Prompt" name="journalPrompt" value={values.journalPrompt} onValueChange={(value) => updateValue("journalPrompt", value)} maxLength={3000} rows={4} />
+        <FormattedTextarea label="Prayer Activation Exercise" name="prayerActivation" value={values.prayerActivation} onValueChange={(value) => updateValue("prayerActivation", value)} maxLength={3000} rows={4} />
         {clientError ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{clientError}</p> : null}
         {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
         {state.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Day {dayNumber} saved.</p> : null}

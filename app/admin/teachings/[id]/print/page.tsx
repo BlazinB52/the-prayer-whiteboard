@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { ContentFooter } from "@/app/content-footer";
-import { formatInlineText } from "@/app/formatted-text";
+import { FormattedTextBlocks, formatInlineText } from "@/app/formatted-text";
 import { getChalkboardPreviewUrl } from "../../../chalkboards/actions";
 import { getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment } from "../../callout-utils";
 import { PrintButton } from "./print-button";
@@ -254,7 +254,7 @@ function TextParagraphs({ text, className }: { text: unknown; className?: string
 
 function Paragraphs({ paragraphs, className }: { paragraphs: string[]; className?: string }) {
   if (paragraphs.length === 0) return null;
-  return <div className={`space-y-3 ${className ?? ""}`}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{formatInlineText(paragraph, { links: true })}</p>)}</div>;
+  return <FormattedTextBlocks text={paragraphs.join("\n")} links className={`space-y-3 ${className ?? ""}`} listClassName="print-bullet-list list-disc space-y-2 pl-6" />;
 }
 
 function getParagraphs(text: unknown) {

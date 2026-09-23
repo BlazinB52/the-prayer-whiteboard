@@ -4,7 +4,7 @@ import type { WeeklyUpdateBlock, WeeklyUpdateInline } from "@/lib/weekly-update-
 
 function renderChildren(children: WeeklyUpdateInline[]) {
   return children.map((child, index) => {
-    let node: ReactNode = formatInlineText(child.text);
+    let node: ReactNode = formatInlineText(child.text, { links: true });
     if (child.bold) node = <strong>{node}</strong>;
     if (child.italic) node = <em>{node}</em>;
     return <span key={`${index}-${child.text.slice(0, 16)}`}>{node}</span>;
@@ -52,20 +52,20 @@ export function WeeklyUpdateContent({ body, blocks }: { body?: string; blocks?: 
     <div className="weekly-update-content space-y-6 text-[#52645a]">
       {textBlocks.map((block, index) => {
         if (/^---+$/.test(block)) return <hr key={index} className="border-[#284a3b]/15" />;
-        if (block.startsWith("### ")) return <h3 key={index} className="pt-2 text-2xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(4))}</h3>;
-        if (block.startsWith("## ")) return <h2 key={index} className="pt-4 text-3xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(3))}</h2>;
-        if (block.startsWith("# ")) return <h2 key={index} className="pt-4 text-3xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(2))}</h2>;
+        if (block.startsWith("### ")) return <h3 key={index} className="pt-2 text-2xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(4), { links: true })}</h3>;
+        if (block.startsWith("## ")) return <h2 key={index} className="pt-4 text-3xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(3), { links: true })}</h2>;
+        if (block.startsWith("# ")) return <h2 key={index} className="pt-4 text-3xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(2), { links: true })}</h2>;
         if (block.split("\n").every((line) => /^[-*]\s+/.test(line.trim()))) {
           return (
             <ul key={index} className="list-disc space-y-2 pl-6 leading-7">
-              {block.split("\n").map((line) => <li key={line}>{formatInlineText(line.trim().replace(/^[-*]\s+/, ""))}</li>)}
+              {block.split("\n").map((line) => <li key={line}>{formatInlineText(line.trim().replace(/^[-*]\s+/, ""), { links: true })}</li>)}
             </ul>
           );
         }
         if (block.split("\n").every((line) => line.trim().startsWith(">"))) {
-          return <blockquote key={index} className="border-l-4 border-[#c99450] pl-5 text-lg font-bold leading-8 text-[#385245]">{formatInlineText(block.split("\n").map((line) => line.trim().replace(/^>\s?/, "")).join(" "))}</blockquote>;
+          return <blockquote key={index} className="border-l-4 border-[#c99450] pl-5 text-lg font-bold leading-8 text-[#385245]">{formatInlineText(block.split("\n").map((line) => line.trim().replace(/^>\s?/, "")).join(" "), { links: true })}</blockquote>;
         }
-        return <p key={index} className="whitespace-pre-wrap leading-8">{formatInlineText(block)}</p>;
+        return <p key={index} className="whitespace-pre-wrap leading-8">{formatInlineText(block, { links: true })}</p>;
       })}
     </div>
   );

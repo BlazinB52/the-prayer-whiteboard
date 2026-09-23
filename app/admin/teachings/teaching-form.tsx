@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
+import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 
 type TeachingValues = {
   title: string;
@@ -81,14 +82,8 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
         Central theme
         <input name="centralTheme" value={draftValues.centralTheme} onChange={handleChange} maxLength={300} className="admin-input" />
       </label>
-      <label className="block text-sm font-bold text-[#385245]">
-        Introduction
-        <textarea name="introduction" value={draftValues.introduction} onChange={handleChange} maxLength={5000} rows={6} className="admin-input resize-y py-3" />
-      </label>
-      <label className="block text-sm font-bold text-[#385245]">
-        Short summary
-        <textarea name="summary" value={draftValues.summary} onChange={handleChange} maxLength={800} rows={4} className="admin-input resize-y py-3" />
-      </label>
+      <FormattedTextarea label="Introduction" name="introduction" value={draftValues.introduction} onValueChange={(value) => setDraftValues((current) => ({ ...current, introduction: value }))} maxLength={5000} rows={6} />
+      <FormattedTextarea label="Short summary" name="summary" value={draftValues.summary} onValueChange={(value) => setDraftValues((current) => ({ ...current, summary: value }))} maxLength={800} rows={4} />
       {showHomepageTeasers ? (
         <fieldset className="space-y-4 rounded-xl border border-[#284a3b]/10 bg-white/70 p-4">
           <div>

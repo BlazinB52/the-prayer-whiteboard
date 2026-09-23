@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { formatInlineText } from "@/app/formatted-text";
+import { FormattedTextBlocks, formatInlineText } from "@/app/formatted-text";
 
 export type SectionCalloutType = "our-prayer" | "application-for-believers" | "custom";
 export type SectionCalloutStyle = "filled" | "outline" | "soft";
@@ -86,8 +86,7 @@ export function getCalloutBulletListClassName(alignment: HighlightHorizontalAlig
 }
 
 function TextParagraphs({ text, className }: { text: unknown; className?: string }) {
-  const paragraphs = String(text ?? "").replace(/\r\n?/g, "\n").split("\n").map((paragraph) => paragraph.trim()).filter(Boolean);
-  return <div className={className ?? "space-y-3"}>{paragraphs.map((paragraph, index) => <p key={`${index}-${paragraph.slice(0, 20)}`} className="whitespace-pre-wrap">{formatInlineText(paragraph, { links: true })}</p>)}</div>;
+  return <FormattedTextBlocks text={text} links className={className ?? "space-y-3"} listClassName="list-disc space-y-2 pl-6" />;
 }
 
 function renderSectionBody({ value, title }: { value: SectionContentValue; title?: string }) {

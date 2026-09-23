@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 
-// Backfills confirmed subscribers into their Weekly Updates / Teachings Sender
-// groups. Those two categories were never synced before the per-category sync
-// landed, so historical subscribers exist in Supabase but in no Sender group.
+// Backfills confirmed subscribers into their Weekly Updates / Teachings /
+// Devotionals Sender groups. None of the three were reliably synced before
+// the "sync every confirmed category" fix (149c973, 2026-09-21) landed, and
+// the Sender devotional group id env vars weren't even set in Production
+// until that same day — so any subscriber confirmed before then can exist in
+// Supabase with an active preference but in no matching Sender group.
 //
-// Devotionals are intentionally excluded: they were already synced at
-// confirmation time. Sender group adds are additive, so passing only the
-// backfilled groups never removes a subscriber's existing devotional groups.
+// This is safe to re-run: Sender group adds are additive (POST
+// /subscribers/groups/{id}), so re-adding an already-member subscriber is a
+// harmless no-op and never removes them from any other group.
 //
 // Dry run:  node --env-file=.env.local scripts/backfill-sender-groups.mjs
 // Apply:    APPLY_BACKFILL=true node --env-file=.env.local scripts/backfill-sender-groups.mjs
@@ -15,7 +18,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSenderGroupIdsForCategories } from "../lib/devotional-sender-groups.ts";
 import { syncSenderSubscriberGroups } from "../lib/sender-subscriber-groups-core.ts";
 
-const BACKFILL_CATEGORIES = ["weekly_updates", "teachings"];
+const BACKFILL_CATEGORIES = ["weekly_updates", "teachings", "devotionals"];
 const PAGE_SIZE = 100;
 const THROTTLE_MS = 250;
 

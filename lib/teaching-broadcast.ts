@@ -2,6 +2,7 @@ import "server-only";
 
 import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { siteUrl } from "@/lib/email-subscriptions";
+import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
 import { buildTeachingEmail } from "@/lib/teaching-email-content";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
@@ -84,8 +85,9 @@ export async function broadcastTeaching(teachingId: string): Promise<TeachingBro
       });
       if (result.ok) {
         sentCount += 1;
-      } else if (failures.length < MAX_RECORDED_FAILURES) {
-        failures.push({ subscriberId: recipient.id, reason: result.reason });
+      } else {
+        if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: result.reason });
+        if (isSuppressionRejection(result)) await markSubscriberSuppressed(recipient.id);
       }
     } catch {
       // One bad recipient must not abandon the rest of the list.

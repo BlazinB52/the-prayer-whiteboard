@@ -211,11 +211,21 @@ test("new access tokens replace older unused access tokens for the same subscrib
 });
 
 test("a Sender suppression rejection parks the subscriber instead of retrying delivery", async () => {
-  const source = await readFile("lib/email-subscriptions.ts", "utf8");
+  const source = await readFile("lib/sender-suppression.ts", "utf8");
   assert.match(source, /suppression list\/i\.test/);
   assert.match(source, /status: "suppressed"/);
   assert.match(source, /suppressed_at: new Date\(\)\.toISOString\(\)/);
-  assert.match(source, /if \(isSuppressionRejection\(result\)\) await markSubscriberSuppressed\(subscriberId\)/);
+
+  const confirmationSource = await readFile("lib/email-subscriptions.ts", "utf8");
+  assert.match(confirmationSource, /if \(isSuppressionRejection\(result\)\) await markSubscriberSuppressed\(subscriberId\)/);
+});
+
+test("every broadcast sender parks a suppressed recipient instead of retrying them forever", async () => {
+  for (const file of ["lib/devotional-send.ts", "lib/teaching-broadcast.ts", "lib/weekly-update-broadcast.ts"]) {
+    const source = await readFile(file, "utf8");
+    assert.match(source, /import \{ isSuppressionRejection, markSubscriberSuppressed \} from "@\/lib\/sender-suppression"/, `${file} imports the shared suppression helpers`);
+    assert.match(source, /if \(isSuppressionRejection\(result\)\) await markSubscriberSuppressed\(recipient\.id\)/, `${file} marks a suppressed recipient`);
+  }
 });
 
 test("legacy Sender embedded forms and the universal script are fully removed", async () => {

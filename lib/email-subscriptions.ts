@@ -7,6 +7,7 @@ import { getSenderGroupIdsForCategories } from "@/lib/devotional-sender-groups";
 import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "@/lib/subscription-email-content";
 import { hasConfirmedSubscriptionState, type ConfirmationEvidence, type SubscriberStatus } from "@/lib/subscription-status";
+import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
 import { syncSubscriberToSenderGroups } from "@/lib/sender-subscriber-groups";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
@@ -240,21 +241,6 @@ async function createDeliveryEvent(subscriberId: string, messageType: "confirmat
   if (error) throw new Error("Email delivery record could not be created.");
   await supabase.from("email_subscribers").update({ sender_sync_status: "pending", sender_sync_error: null }).eq("id", subscriberId);
   return data.id as string;
-}
-
-// Sender rejects addresses it has suppressed (prior bounce or spam complaint).
-// Retrying those never succeeds, so the subscriber is parked in 'suppressed'.
-function isSuppressionRejection(result: Awaited<ReturnType<typeof sendSenderTransactionalEmail>>) {
-  if (result.ok || result.reason !== "rejected") return false;
-  return /suppression list/i.test(result.rejection?.errorMessage ?? result.message);
-}
-
-async function markSubscriberSuppressed(subscriberId: string) {
-  const supabase = getClient();
-  await supabase.from("email_subscribers").update({
-    status: "suppressed",
-    suppressed_at: new Date().toISOString(),
-  }).eq("id", subscriberId);
 }
 
 async function updateDeliveryEvent(subscriberId: string, deliveryEventId: string, result: Awaited<ReturnType<typeof sendSenderTransactionalEmail>>) {

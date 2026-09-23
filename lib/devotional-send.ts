@@ -4,6 +4,7 @@ import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
 import { devotionalDayForWeekday, devotionalTimeZone } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
+import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -144,8 +145,12 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
         html: email.html,
         text: email.text,
       });
-      if (result.ok) sentCount += 1;
-      else if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: result.reason });
+      if (result.ok) {
+        sentCount += 1;
+      } else {
+        if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: result.reason });
+        if (isSuppressionRejection(result)) await markSubscriberSuppressed(recipient.id);
+      }
     } catch {
       // One bad recipient must not abandon the rest of the list.
       if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: "exception" });

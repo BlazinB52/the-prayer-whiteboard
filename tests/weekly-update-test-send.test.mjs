@@ -91,3 +91,30 @@ test("the comment-stripping helper does not hide real code", () => {
   assert.equal(code.includes('const b = "email_broadcast_events";'), true, "string literals must survive");
   assert.equal(code.split("email_broadcast_events").length - 1, 1, "only the comment occurrence is removed");
 });
+
+test("the admin panel exposes the test send form without touching publish controls", async () => {
+  const [page, form] = await Promise.all([
+    readFile("app/admin/weekly-updates/page.tsx", "utf8"),
+    readFile("app/admin/weekly-updates/test-send-form.tsx", "utf8"),
+  ]);
+
+  assert.match(page, /import \{ WeeklyUpdateTestSendForm \} from "\.\/test-send-form";/);
+  assert.match(page, /<WeeklyUpdateTestSendForm weeklyUpdateId=\{update\.id\} \/>/);
+
+  assert.match(form, /^"use client";/);
+  assert.match(form, /"\/api\/admin\/weekly-update\/test-send"/);
+  assert.match(form, /method: "POST"/);
+  // The form must not be able to publish, archive, or broadcast.
+  for (const forbidden of ["publishWeeklyUpdate", "archiveWeeklyUpdate", "is_current", "email_broadcast_events"]) {
+    assert.equal(form.includes(forbidden), false, `${forbidden} must not appear in the test send form`);
+  }
+});
+
+test("the test send form requires an address before it can submit", async () => {
+  const form = await readFile("app/admin/weekly-updates/test-send-form.tsx", "utf8");
+
+  assert.match(form, /type="email"/);
+  assert.match(form, /required/);
+  assert.match(form, /disabled=\{pending \|\| !email\.trim\(\)\}/);
+  assert.match(form, /role="alert"/);
+});

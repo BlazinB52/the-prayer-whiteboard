@@ -62,14 +62,24 @@ export default async function AdminDevotionalsPage() {
             <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31]">Devotionals</h1>
             <p className="mt-3 text-sm text-[#607066]">Create, import, preview, and publish 7-day devotionals for teachings.</p>
           </div>
-          <Link href="/admin/teachings" className="admin-primary-button inline-flex items-center justify-center"><span>Create New Devotional</span></Link>
+          <Link href="/admin/devotionals/new" className="admin-primary-button inline-flex items-center justify-center"><span>Create New Devotional</span></Link>
         </header>
 
         {devotionals?.length ? (
           <section className="grid gap-5 py-10 sm:grid-cols-2">
             {devotionals.map((devotional) => {
               const associatedTeachings = teachingAssociationsByDevotionalId.get(devotional.id) ?? [];
-              const managementTeachingId = associatedTeachings[0]?.id ?? devotional.teaching_id;
+              // Falls back to the legacy owner column, which is nullable since
+              // 20260923000000. With no teaching at either level the devotional
+              // is standalone and is managed through its own route rather than
+              // through a teaching that does not exist.
+              const managementTeachingId = associatedTeachings[0]?.id ?? devotional.teaching_id ?? null;
+              const manageHref = managementTeachingId
+                ? `/admin/teachings/${managementTeachingId}/devotional`
+                : `/admin/devotionals/${devotional.id}`;
+              const previewHref = managementTeachingId
+                ? `/admin/teachings/${managementTeachingId}/devotional/preview`
+                : `/admin/devotionals/${devotional.id}/preview`;
               return (
                 <article key={devotional.id} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-lg shadow-[#4d5f52]/8">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -86,8 +96,8 @@ export default async function AdminDevotionalsPage() {
                     ) : <p className="mt-2 text-sm text-[#607066]">No associated teaching</p>}
                   </div>
                   <div className="mt-6 flex flex-wrap items-center gap-4">
-                    <Link href={`/admin/teachings/${managementTeachingId}/devotional`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Manage devotional</Link>
-                    <Link href={`/admin/teachings/${managementTeachingId}/devotional/preview`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Preview devotional</Link>
+                    <Link href={manageHref} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Manage devotional</Link>
+                    <Link href={previewHref} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Preview devotional</Link>
                     {devotional.status === "published" && devotional.slug ? <Link href={`/devotionals/${devotional.slug}`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">View public devotional</Link> : null}
                   </div>
                 </article>
@@ -97,8 +107,8 @@ export default async function AdminDevotionalsPage() {
         ) : (
           <section className="max-w-2xl py-16">
             <h2 className="text-2xl font-extrabold text-[#243d31]">No devotionals yet</h2>
-            <p className="mt-4 leading-7 text-[#607066]">Choose a teaching to create its first 7-day devotional.</p>
-            <Link href="/admin/teachings" className="admin-primary-button mt-6 inline-flex items-center justify-center"><span>Create New Devotional</span></Link>
+            <p className="mt-4 leading-7 text-[#607066]">Create a 7-day devotional on its own, then attach it to a teaching whenever you are ready.</p>
+            <Link href="/admin/devotionals/new" className="admin-primary-button mt-6 inline-flex items-center justify-center"><span>Create New Devotional</span></Link>
           </section>
         )}
       </div>

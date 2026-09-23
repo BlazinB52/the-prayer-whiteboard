@@ -27,6 +27,63 @@ function readText(formData: FormData, name: string, maxLength: number, required 
   return { value };
 }
 
+// Shared day-field validation, used by both the teaching-scoped and the
+// standalone day editors.
+function readDayFields(formData: FormData) {
+  const title = readText(formData, "title", MAX_LENGTHS.title);
+  const devotionalReading = readText(formData, "devotionalReading", MAX_LENGTHS.reading);
+  const confession = readText(formData, "confession", MAX_LENGTHS.short);
+  const journalPrompt = readText(formData, "journalPrompt", MAX_LENGTHS.short);
+  const prayerActivation = readText(formData, "prayerActivation", MAX_LENGTHS.short);
+  const textError = [title, devotionalReading, confession, journalPrompt, prayerActivation].find((field) => field.error)?.error;
+  if (textError) return { error: textError };
+
+  const anchorScriptures = normalizeScriptureLines(formData.get("anchorScriptures"));
+  if (anchorScriptures.length > 20) return { error: "Anchor Scriptures must include 20 references or fewer." };
+  if (anchorScriptures.some((scripture) => scripture.length > MAX_ANCHOR_SCRIPTURE_LENGTH)) return { error: `Each anchor Scripture must be ${formatAnchorScriptureLengthLimit()} characters or fewer.` };
+
+  return {
+    values: {
+      title: title.value || "",
+      anchor_scriptures: anchorScriptures,
+      devotional_reading: devotionalReading.value || null,
+      confession: confession.value || null,
+      journal_prompt: journalPrompt.value || null,
+      prayer_activation: prayerActivation.value || null,
+    },
+  };
+}
+
+// Shared import-file reading, used by both import actions.
+async function readImportedDevotionalFile(formData: FormData) {
+  const file = formData.get("devotionalFile");
+  if (!(file instanceof File) || !file.name) {
+    return { error: "Choose a devotional text file to import." };
+  }
+  if (file.size > MAX_IMPORT_FILE_SIZE) {
+    return { error: "The devotional text file must be 250 KB or smaller." };
+  }
+
+  try {
+    return { imported: parseDevotionalText(await file.text()) };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "The devotional text file could not be parsed." };
+  }
+}
+
+function slugifyDevotionalTitle(title: string) {
+  const slug = title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80)
+    .replace(/-+$/, "");
+
+  return slug || "devotional";
+}
+
 async function getTeaching(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], teachingId: string) {
   if (!UUID_PATTERN.test(teachingId)) return null;
   const { data } = await supabase
@@ -89,11 +146,15 @@ export async function createDevotional(teachingId: string, previousState: Devoti
     redirect(`/admin/teachings/${teaching.id}/devotional`);
   }
 
-  const { data: existing } = await supabase
+  // `unique (teaching_id)` is gone, so this lookup can legitimately match more
+  // than one row and maybeSingle() would error instead of returning one.
+  const { data: ownedRows } = await supabase
     .from("teaching_devotionals")
     .select("id")
     .eq("teaching_id", teaching.id)
-    .maybeSingle();
+    .order("created_at", { ascending: true })
+    .limit(1);
+  const existing = ownedRows?.[0] ?? null;
 
   if (existing) {
     const { error } = await saveAssignment(supabase, teaching.id, existing.id);
@@ -187,17 +248,8 @@ export async function updateDevotionalDay(teachingId: string, dayNumber: number,
   if (!teaching) return { error: "This teaching could not be found." };
   if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) return { error: "Day number must be between 1 and 7." };
 
-  const title = readText(formData, "title", MAX_LENGTHS.title);
-  const devotionalReading = readText(formData, "devotionalReading", MAX_LENGTHS.reading);
-  const confession = readText(formData, "confession", MAX_LENGTHS.short);
-  const journalPrompt = readText(formData, "journalPrompt", MAX_LENGTHS.short);
-  const prayerActivation = readText(formData, "prayerActivation", MAX_LENGTHS.short);
-  const textError = [title, devotionalReading, confession, journalPrompt, prayerActivation].find((field) => field.error)?.error;
-  if (textError) return { error: textError };
-
-  const anchorScriptures = normalizeScriptureLines(formData.get("anchorScriptures"));
-  if (anchorScriptures.length > 20) return { error: "Anchor Scriptures must include 20 references or fewer." };
-  if (anchorScriptures.some((scripture) => scripture.length > MAX_ANCHOR_SCRIPTURE_LENGTH)) return { error: `Each anchor Scripture must be ${formatAnchorScriptureLengthLimit()} characters or fewer.` };
+  const day = readDayFields(formData);
+  if (day.error) return { error: day.error };
 
   const { devotional } = await getAssignedDevotional(supabase, teaching.id);
 
@@ -208,12 +260,7 @@ export async function updateDevotionalDay(teachingId: string, dayNumber: number,
     .upsert({
       devotional_id: devotional.id,
       day_number: dayNumber,
-      title: title.value || "",
-      anchor_scriptures: anchorScriptures,
-      devotional_reading: devotionalReading.value || null,
-      confession: confession.value || null,
-      journal_prompt: journalPrompt.value || null,
-      prayer_activation: prayerActivation.value || null,
+      ...day.values,
     }, { onConflict: "devotional_id,day_number" });
 
   if (error) return { error: `Day ${dayNumber} could not be saved.` };
@@ -227,33 +274,25 @@ export async function importDevotionalText(teachingId: string, previousState: De
   const teaching = await getTeaching(supabase, teachingId);
   if (!teaching) return { error: "This teaching could not be found." };
 
-  const file = formData.get("devotionalFile");
-  if (!(file instanceof File) || !file.name) {
-    return { error: "Choose a devotional text file to import." };
-  }
-  if (file.size > MAX_IMPORT_FILE_SIZE) {
-    return { error: "The devotional text file must be 250 KB or smaller." };
-  }
-
-  let imported;
-  try {
-    imported = parseDevotionalText(await file.text());
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : "The devotional text file could not be parsed." };
-  }
+  const file = await readImportedDevotionalFile(formData);
+  if (file.error || !file.imported) return { error: file.error ?? "The devotional text file could not be parsed." };
+  const imported = file.imported;
 
   const assignedResult = await getAssignedDevotional(supabase, teaching.id);
   if (assignedResult.error) return { error: "This devotional could not be checked before import." };
   let existing = assignedResult.devotional;
 
   if (!existing) {
-    const { data: owned, error: ownedError } = await supabase
+    // Same as createDevotional: teaching_id is no longer unique, so take the
+    // oldest owned row rather than asking maybeSingle() for at most one.
+    const { data: ownedRows, error: ownedError } = await supabase
       .from("teaching_devotionals")
       .select("id, teaching_id, slug, title, introduction, status, published_at")
       .eq("teaching_id", teaching.id)
-      .maybeSingle();
+      .order("created_at", { ascending: true })
+      .limit(1);
     if (ownedError) return { error: "This devotional could not be checked before import." };
-    existing = owned;
+    existing = ownedRows?.[0] ?? null;
     if (existing) {
       const { error } = await saveAssignment(supabase, teaching.id, existing.id);
       if (error) return { error: "This devotional could not be assigned before import." };
@@ -368,4 +407,181 @@ export async function unpublishDevotional(teachingId: string, previousState: Dev
   if (error) return { error: "This devotional could not be unpublished." };
   revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
   redirect(`/admin/teachings/${teaching.id}/devotional?unpublished=1`);
+}
+
+// ---------------------------------------------------------------------------
+// Standalone devotionals
+//
+// These act on a devotional id directly instead of a teaching id, so they work
+// for a devotional that has no teaching context at all. A standalone devotional
+// stores teaching_id as null and is invisible to the public until it is
+// assigned to a published teaching through teaching_devotional_assignments.
+// ---------------------------------------------------------------------------
+
+const PROVISIONAL_SLUG_ATTEMPTS = 100;
+
+function revalidateStandaloneDevotionalPaths(devotionalId: string, devotionalSlug?: string | null) {
+  revalidatePath("/admin/devotionals");
+  revalidatePath(`/admin/devotionals/${devotionalId}`);
+  revalidatePath(`/admin/devotionals/${devotionalId}/preview`);
+  if (devotionalSlug) {
+    revalidatePath("/devotionals");
+    revalidatePath(`/devotionals/${devotionalSlug}`);
+    revalidatePath(`/devotionals/${devotionalSlug}/start`);
+  }
+}
+
+async function getDevotionalById(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], devotionalId: string) {
+  if (!UUID_PATTERN.test(devotionalId)) return null;
+  const { data } = await supabase
+    .from("teaching_devotionals")
+    .select("id, teaching_id, slug, title, introduction, status, published_at")
+    .eq("id", devotionalId)
+    .maybeSingle();
+  return data;
+}
+
+export async function createStandaloneDevotional(previousState: DevotionalFormState, formData: FormData): Promise<DevotionalFormState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+
+  const title = readText(formData, "title", MAX_LENGTHS.title, true);
+  if (title.error || !title.value) return { error: title.error ?? "A devotional title is required." };
+  const introduction = readText(formData, "introduction", MAX_LENGTHS.introduction);
+  if (introduction.error) return introduction;
+  const titleValue = title.value;
+
+  // Provisional slug only. It is derived from the title now and can be replaced
+  // before publishing; the partial unique index ignores blank slugs but still
+  // rejects duplicate real ones, so retry on 23505 the way createTeaching does.
+  const baseSlug = slugifyDevotionalTitle(titleValue);
+  let createdId: string | null = null;
+  let createdSlug: string | null = null;
+
+  for (let suffix = 0; suffix < PROVISIONAL_SLUG_ATTEMPTS; suffix += 1) {
+    const slug = suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`;
+    const { data, error } = await supabase
+      .from("teaching_devotionals")
+      .insert({
+        teaching_id: null,
+        slug,
+        title: titleValue,
+        introduction: introduction.value || null,
+        status: "draft",
+        published_at: null,
+      })
+      .select("id, slug")
+      .single();
+
+    if (!error && data) {
+      createdId = data.id as string;
+      createdSlug = data.slug as string;
+      break;
+    }
+
+    if (error?.code !== "23505") {
+      return { error: "This devotional could not be created." };
+    }
+  }
+
+  if (!createdId) {
+    return { error: "This devotional title is already in use. Please choose another title." };
+  }
+
+  revalidateStandaloneDevotionalPaths(createdId, createdSlug);
+  redirect(`/admin/devotionals/${createdId}?created=1`);
+}
+
+export async function updateStandaloneDevotionalSeries(devotionalId: string, previousState: DevotionalFormState, formData: FormData): Promise<DevotionalFormState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+  const devotional = await getDevotionalById(supabase, devotionalId);
+  if (!devotional) return { error: "This devotional could not be found." };
+
+  const title = readText(formData, "title", MAX_LENGTHS.title, true);
+  const introduction = readText(formData, "introduction", MAX_LENGTHS.introduction);
+  if (title.error) return title;
+  if (introduction.error) return introduction;
+
+  const { error } = await supabase
+    .from("teaching_devotionals")
+    .update({ title: title.value, introduction: introduction.value || null })
+    .eq("id", devotional.id);
+
+  if (error) return { error: "The devotional series information could not be saved." };
+  revalidateStandaloneDevotionalPaths(devotional.id, devotional.slug);
+  return { saved: true };
+}
+
+export async function updateStandaloneDevotionalDay(devotionalId: string, dayNumber: number, previousState: DevotionalFormState, formData: FormData): Promise<DevotionalFormState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+  if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) return { error: "Day number must be between 1 and 7." };
+
+  const day = readDayFields(formData);
+  if (day.error) return { error: day.error };
+
+  const devotional = await getDevotionalById(supabase, devotionalId);
+  if (!devotional) return { error: "This devotional could not be found." };
+
+  const { error } = await supabase
+    .from("teaching_devotional_days")
+    .upsert({
+      devotional_id: devotional.id,
+      day_number: dayNumber,
+      ...day.values,
+    }, { onConflict: "devotional_id,day_number" });
+
+  if (error) return { error: `Day ${dayNumber} could not be saved.` };
+  revalidateStandaloneDevotionalPaths(devotional.id, devotional.slug);
+  return { saved: true };
+}
+
+export async function importStandaloneDevotionalText(devotionalId: string, previousState: DevotionalImportState, formData: FormData): Promise<DevotionalImportState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+  const devotional = await getDevotionalById(supabase, devotionalId);
+  if (!devotional) return { error: "This devotional could not be found." };
+
+  if (devotional.status === "published") {
+    return { error: "Unpublish this devotional before replacing it with an import." };
+  }
+
+  const file = await readImportedDevotionalFile(formData);
+  if (file.error || !file.imported) return { error: file.error ?? "The devotional text file could not be parsed." };
+  const imported = file.imported;
+
+  // The existing slug is deliberately left alone. It is already a working
+  // public identifier and rewriting it here would break any link to it.
+  const { error: seriesError } = await supabase
+    .from("teaching_devotionals")
+    .update({
+      title: imported.title,
+      introduction: imported.introduction || null,
+      status: "draft",
+      published_at: null,
+    })
+    .eq("id", devotional.id);
+
+  if (seriesError) return { error: "The devotional series information could not be imported." };
+
+  const { error: daysError } = await supabase
+    .from("teaching_devotional_days")
+    .upsert(
+      imported.days.map((day) => ({
+        devotional_id: devotional.id,
+        day_number: day.day_number,
+        title: day.title,
+        anchor_scriptures: day.anchor_scriptures,
+        devotional_reading: day.devotional_reading,
+        confession: day.confession,
+        journal_prompt: day.journal_prompt,
+        prayer_activation: day.prayer_activation,
+      })),
+      { onConflict: "devotional_id,day_number" },
+    );
+
+  if (daysError) return { error: "The devotional days could not be imported." };
+  revalidateStandaloneDevotionalPaths(devotional.id, devotional.slug);
+  redirect(`/admin/devotionals/${devotional.id}?imported=1`);
 }

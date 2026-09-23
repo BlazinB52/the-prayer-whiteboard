@@ -2,10 +2,14 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { splitParagraphs, type TeachingDevotional } from "./devotionals";
 import { createClient } from "./supabase/server";
 
+// Every row reached through this module is already published, and
+// teaching_devotionals_published_slug_check guarantees a published row has a
+// real slug, so the public projection narrows slug back to a plain string.
 export type PublicDevotionalSeries = Pick<
   TeachingDevotional,
-  "id" | "teaching_id" | "slug" | "title" | "introduction" | "published_at"
+  "id" | "teaching_id" | "title" | "introduction" | "published_at"
 > & {
+  slug: string;
   teaching: {
     slug: string;
     title: string;
@@ -17,8 +21,8 @@ export type PublicDevotionalSeries = Pick<
 
 type DevotionalRow = Pick<
   TeachingDevotional,
-  "id" | "teaching_id" | "slug" | "title" | "introduction" | "published_at"
->;
+  "id" | "teaching_id" | "title" | "introduction" | "published_at"
+> & { slug: string };
 
 type TeachingRow = PublicDevotionalSeries["teaching"] & { id: string };
 
@@ -77,7 +81,9 @@ export async function getPublishedDevotionalSeries(): Promise<PublicDevotionalSe
   );
 
   return devotionalRows.flatMap((devotional) => {
-    const teaching = teachingsById.get(devotional.teaching_id);
+    // A standalone devotional has no legacy teaching_id at all. It is skipped
+    // here exactly as an unmatched one always was.
+    const teaching = devotional.teaching_id ? teachingsById.get(devotional.teaching_id) : undefined;
     if (!teaching) return [];
 
     return [{

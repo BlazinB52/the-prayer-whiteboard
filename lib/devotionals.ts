@@ -7,8 +7,12 @@ export type DevotionalStatus = "draft" | "published";
 
 export type TeachingDevotional = {
   id: string;
-  teaching_id: string;
-  slug: string;
+  // Both are nullable since 20260923000000_decouple_devotional_ownership.
+  // teaching_id is a legacy/backup reference only; the authoritative teaching
+  // mapping lives in teaching_devotional_assignments. slug stays empty until a
+  // devotional is ready for a public URL, and publishing requires a real one.
+  teaching_id: string | null;
+  slug: string | null;
   title: string;
   introduction: string | null;
   status: DevotionalStatus;

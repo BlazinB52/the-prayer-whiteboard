@@ -26,6 +26,8 @@ type DevotionalRow = Pick<
 
 type TeachingRow = PublicDevotionalSeries["teaching"] & { id: string };
 
+type AssignmentRow = { teaching_id: string; devotional_id: string };
+
 export function getDevotionalPath(series: Pick<PublicDevotionalSeries, "slug">) {
   return `/devotionals/${series.slug}`;
 }
@@ -67,12 +69,26 @@ export async function getPublishedDevotionalSeries(): Promise<PublicDevotionalSe
   if (devotionalError || !devotionals?.length) return [];
 
   const devotionalRows = devotionals as DevotionalRow[];
-  const teachingIds = devotionalRows.map((devotional) => devotional.teaching_id);
+
+  // teaching_devotional_assignments is the authoritative teaching mapping, so
+  // resolve through it rather than through teaching_devotionals.teaching_id.
+  // That column is a legacy backup reference and is null for any devotional
+  // authored standalone, which would otherwise drop those series from this list
+  // even once they are assigned to a published teaching and published.
+  const { data: assignments, error: assignmentError } = await supabase
+    .from("teaching_devotional_assignments")
+    .select("teaching_id, devotional_id")
+    .in("devotional_id", devotionalRows.map((devotional) => devotional.id))
+    .order("created_at", { ascending: true });
+
+  if (assignmentError || !assignments?.length) return [];
+
+  const assignmentRows = assignments as AssignmentRow[];
   const { data: teachings, error: teachingError } = await supabase
     .from("teachings")
     .select("id, slug, title, gathering_date, summary, central_theme")
     .eq("status", "published")
-    .in("id", teachingIds);
+    .in("id", [...new Set(assignmentRows.map((assignment) => assignment.teaching_id))]);
 
   if (teachingError || !teachings?.length) return [];
 
@@ -80,10 +96,24 @@ export async function getPublishedDevotionalSeries(): Promise<PublicDevotionalSe
     (teachings as TeachingRow[]).map((teaching) => [teaching.id, teaching]),
   );
 
+  // Published teachings per devotional, kept in assignment order.
+  const teachingsByDevotionalId = new Map<string, TeachingRow[]>();
+  for (const assignment of assignmentRows) {
+    const teaching = teachingsById.get(assignment.teaching_id);
+    if (!teaching) continue;
+    const current = teachingsByDevotionalId.get(assignment.devotional_id) ?? [];
+    current.push(teaching);
+    teachingsByDevotionalId.set(assignment.devotional_id, current);
+  }
+
   return devotionalRows.flatMap((devotional) => {
-    // A standalone devotional has no legacy teaching_id at all. It is skipped
-    // here exactly as an unmatched one always was.
-    const teaching = devotional.teaching_id ? teachingsById.get(devotional.teaching_id) : undefined;
+    const assignedTeachings = teachingsByDevotionalId.get(devotional.id) ?? [];
+    // One entry per devotional, as before. A devotional may now be shared by
+    // several published teachings, so prefer the legacy owner when it is one of
+    // them and fall back to the earliest assignment. teaching_id being null is
+    // simply a miss here, never an error. A devotional reaching no published
+    // teaching stays unlisted, exactly as an unmatched one always did.
+    const teaching = assignedTeachings.find((item) => item.id === devotional.teaching_id) ?? assignedTeachings[0];
     if (!teaching) return [];
 
     return [{

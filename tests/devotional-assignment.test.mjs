@@ -51,3 +51,20 @@ test("assignment migration backfills ownership without a recursive public policy
   assert.match(assignmentPolicy, /from public\.teachings t/);
   assert.doesNotMatch(assignmentPolicy, /from public\.teaching_devotionals|join public\.teaching_devotionals/);
 });
+
+test("the public devotional list resolves teachings through assignments, not the legacy column", async () => {
+  const publicDevotionals = await readFile("lib/public-devotionals.ts", "utf8");
+  const listing = publicDevotionals.match(/export async function getPublishedDevotionalSeries\(\)[\s\S]*?\n}/)?.[0] ?? "";
+
+  assert.notEqual(listing, "", "getPublishedDevotionalSeries should be present");
+  assert.match(listing, /from\("teaching_devotional_assignments"\)/);
+  assert.match(listing, /select\("teaching_id, devotional_id"\)/);
+  assert.match(listing, /\.in\("devotional_id",/);
+  assert.match(listing, /from\("teachings"\)[\s\S]*?\.eq\("status", "published"\)/);
+
+  // The teaching must never be looked up by the legacy owner column again.
+  // It may still be read as a tie-breaker when one devotional is shared by
+  // several published teachings, but not to resolve the teaching itself.
+  assert.doesNotMatch(listing, /teachingsById\.get\(devotional\.teaching_id\)/);
+  assert.doesNotMatch(listing, /\.in\("id", teachingIds\)/);
+});

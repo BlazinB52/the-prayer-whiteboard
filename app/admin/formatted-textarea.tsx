@@ -157,7 +157,7 @@ export function FormattedTextarea({
       {linkEditor ? (
         <div className="mt-3 rounded-xl border border-[#284a3b]/10 bg-[#f7f4ee] p-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Text to display<input value={linkEditor.text} onChange={(event) => setLinkEditor({ ...linkEditor, text: event.target.value, error: undefined })} className="admin-input normal-case tracking-normal" /></label>
+            <label className="block text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Text to display<input value={linkEditor.text} onChange={(event) => setLinkEditor({ ...linkEditor, text: event.target.value, error: undefined })} maxLength={50} className="admin-input normal-case tracking-normal" /><span className="mt-1 block text-xs font-normal normal-case tracking-normal text-[#607066]">{linkEditor.text.length}/50</span></label>
             <label className="block text-xs font-bold uppercase tracking-[0.12em] text-[#607066]">Web address<input value={linkEditor.url} onChange={(event) => setLinkEditor({ ...linkEditor, url: event.target.value, error: undefined })} placeholder="https://example.com" className="admin-input normal-case tracking-normal" /></label>
           </div>
           {linkEditor.error ? <p className="mt-2 text-sm font-bold text-[#a2472c]">{linkEditor.error}</p> : null}

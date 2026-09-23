@@ -40,6 +40,13 @@ export function firstSentence(text: string | null | undefined) {
   return firstBlock;
 }
 
+// The day link is resolved from the devotional's own slug rather than from a
+// parent teaching's, so a series that is shared between teachings, or that has
+// no teaching at all, still produces one stable URL.
+export function devotionalDayUrl(baseUrl: string, devotionalSlug: string, dayNumber: number) {
+  return `${baseUrl.replace(/\/+$/, "")}/devotionals/${encodeURIComponent(devotionalSlug)}/day/${dayNumber}`;
+}
+
 export function buildDevotionalDayEmail(input: {
   dayNumber: number;
   totalDays?: number;

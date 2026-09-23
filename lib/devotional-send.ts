@@ -1,8 +1,8 @@
 import "server-only";
 
 import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
-import { buildDevotionalDayEmail } from "@/lib/devotional-email-content";
-import { devotionalDayForDate, devotionalTimeZone } from "@/lib/devotional-schedule";
+import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
+import { devotionalDayForWeekday, devotionalTimeZone } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
@@ -11,6 +11,8 @@ const THROTTLE_MS = 150;
 const MAX_RECORDED_FAILURES = 25;
 
 export type DevotionalRunResult =
+  // The series exists and today's day content is ready, but no published
+  // teaching is assigned to it, so there is no ledger key and no public day URL.
   | { status: "no_teaching" }
   | { status: "no_devotional" }
   | { status: "outside_window" }
@@ -27,12 +29,13 @@ function getClient() {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Claiming the ledger row first is the idempotency guard: the unique
-// (teaching_id, day_number) index rejects a second blast for the same day.
-async function claimDay(teachingId: string, dayNumber: number) {
+// (devotional_id, day_number) index rejects a second blast for the same day of
+// the same series. The teaching is recorded alongside it as context only.
+async function claimDay(devotionalId: string, dayNumber: number, teachingId: string | null) {
   const supabase = getClient();
   const { data, error } = await supabase
     .from("email_devotional_broadcast_ledger")
-    .insert({ teaching_id: teachingId, day_number: dayNumber, status: "sending" })
+    .insert({ devotional_id: devotionalId, teaching_id: teachingId, day_number: dayNumber, status: "sending" })
     .select("id")
     .single();
   if (error) {
@@ -42,38 +45,52 @@ async function claimDay(teachingId: string, dayNumber: number) {
   return data.id as string;
 }
 
-async function resolveDevotional(teachingId: string) {
+// Neither the ledger key nor the day URL needs a teaching any more. This
+// lookup is now purely a public-visibility check: the RLS policies on
+// teaching_devotionals and teaching_devotional_days only expose a published
+// series that is assigned to a published teaching, so a series failing this
+// test would be mailed as a link its readers cannot open. The teaching it
+// returns is recorded in the ledger as context.
+async function resolveAssignedTeaching(devotionalId: string) {
   const supabase = getClient();
-  const { data: assignment } = await supabase
+  const { data: assignments } = await supabase
     .from("teaching_devotional_assignments")
-    .select("devotional_id")
-    .eq("teaching_id", teachingId)
-    .maybeSingle();
+    .select("teaching_id")
+    .eq("devotional_id", devotionalId)
+    .order("created_at", { ascending: true });
 
-  const devotionalId = assignment?.devotional_id ?? null;
-  const query = supabase.from("teaching_devotionals").select("id, slug, status").eq("status", "published");
-  const { data: devotional } = devotionalId
-    ? await query.eq("id", devotionalId).maybeSingle()
-    : await query.eq("teaching_id", teachingId).maybeSingle();
-  return devotional ?? null;
+  const teachingIds = (assignments ?? []).map((assignment) => assignment.teaching_id);
+  if (!teachingIds.length) return null;
+
+  const { data: teachings } = await supabase
+    .from("teachings")
+    .select("id, slug, status")
+    .eq("status", "published")
+    .in("id", teachingIds);
+
+  // Keep assignment order so a shared series always mails the same teaching.
+  for (const teachingId of teachingIds) {
+    const teaching = (teachings ?? []).find((item) => item.id === teachingId);
+    if (teaching) return teaching;
+  }
+  return null;
 }
 
 export async function processDevotionalQueue(now = new Date()): Promise<DevotionalRunResult> {
   const supabase = getClient();
 
-  // The most recently published teaching drives the schedule.
-  const { data: teaching, error: teachingError } = await supabase
-    .from("teachings")
-    .select("id, slug, published_at, status")
+  // The most recently published series drives the run. It is read straight off
+  // teaching_devotionals, so a series authored standalone is eligible on the
+  // same terms as one that started life inside a teaching.
+  const { data: devotional, error: devotionalError } = await supabase
+    .from("teaching_devotionals")
+    .select("id, slug, status, published_at, updated_at")
     .eq("status", "published")
-    .not("published_at", "is", null)
-    .order("published_at", { ascending: false })
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (teachingError) throw new Error(`Teaching lookup failed: ${teachingError.message}`);
-  if (!teaching?.published_at) return { status: "no_teaching" };
-
-  const devotional = await resolveDevotional(teaching.id);
+  if (devotionalError) throw new Error(`Devotional lookup failed: ${devotionalError.message}`);
   if (!devotional) return { status: "no_devotional" };
 
   const { count: totalDays } = await supabase
@@ -82,8 +99,8 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
     .eq("devotional_id", devotional.id);
   if (!totalDays) return { status: "no_devotional" };
 
-  const dayNumber = devotionalDayForDate({
-    publishedAt: teaching.published_at,
+  // Today's weekday alone decides the day number.
+  const dayNumber = devotionalDayForWeekday({
     now,
     totalDays,
     timeZone: devotionalTimeZone(),
@@ -98,14 +115,17 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
     .maybeSingle();
   if (!day) return { status: "no_day_content", dayNumber };
 
-  const ledgerId = await claimDay(teaching.id, dayNumber);
+  const teaching = await resolveAssignedTeaching(devotional.id);
+  if (!teaching) return { status: "no_teaching" };
+
+  const ledgerId = await claimDay(devotional.id, dayNumber, teaching.id);
   if (!ledgerId) return { status: "duplicate", dayNumber };
 
   const recipients = await loadConfirmedRecipients("devotionals");
   await supabase.from("email_devotional_broadcast_ledger").update({ recipient_count: recipients.length }).eq("id", ledgerId);
 
   const base = siteUrl();
-  const dayUrl = `${base}/teachings/${teaching.slug}/devotional/day/${dayNumber}`;
+  const dayUrl = devotionalDayUrl(base, devotional.slug, dayNumber);
   const preferencesUrl = `${base}/email-preferences`;
 
   let sentCount = 0;

@@ -25,8 +25,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    // The day number is derived from today's date relative to the most recent
-    // published teaching, so the run needs no per-subscriber state.
+    // The day number comes from today's weekday in DEVOTIONAL_TIME_ZONE alone
+    // (Wednesday is day 1 through Tuesday is day 7), so the run needs neither a
+    // parent teaching's publish date nor any per-subscriber state.
     const result = await processDevotionalQueue();
     return NextResponse.json(result, { status: 200 });
   } catch {

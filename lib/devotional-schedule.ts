@@ -1,50 +1,57 @@
-// Devotional days are paced off the teaching's publish date rather than any
-// per-subscriber counter:
+// Devotional days are pinned to the day of the week. They are not paced off a
+// parent teaching's publish date and not off a per-subscriber counter:
 //
-//   Saturday   gathering
-//   Sunday     weekly update published (noon)
-//   Tuesday    teaching published (noon)
-//   Wednesday  devotional day 1
+//   Wednesday  day 1
+//   Thursday   day 2
+//   Friday     day 3
+//   Saturday   day 4
+//   Sunday     day 5
+//   Monday     day 6
+//   Tuesday    day 7
 //
-// So the day number is the whole-calendar-day delta from the teaching's
-// published_at. One day after publication is day 1.
-//
-// The delta is measured in calendar days in a fixed zone, not 24-hour spans, so
-// a teaching published at noon still advances the day at local midnight.
+// The weekday is read in DEVOTIONAL_TIME_ZONE rather than in the cron host's
+// zone, so the morning run lands on the intended slot no matter where it fires
+// from. The default is the ministry's own zone, because an unset variable
+// silently falling back to UTC would shift the slot for any run close to
+// midnight local time.
 
-export const DEFAULT_DEVOTIONAL_TIME_ZONE = "UTC";
+export const DEFAULT_DEVOTIONAL_TIME_ZONE = "America/Chicago";
+
+export const DEVOTIONAL_TOTAL_DAYS = 7;
 
 export function devotionalTimeZone() {
   return (process.env.DEVOTIONAL_TIME_ZONE ?? "").trim() || DEFAULT_DEVOTIONAL_TIME_ZONE;
 }
 
-function calendarDayNumber(date: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const get = (type: string) => Number(parts.find((part) => part.type === type)?.value ?? "0");
-  // Days since epoch in the target zone; the time of day is deliberately dropped.
-  return Math.floor(Date.UTC(get("year"), get("month") - 1, get("day")) / 86_400_000);
+const DAY_NUMBER_BY_WEEKDAY: Record<string, number> = {
+  Wednesday: 1,
+  Thursday: 2,
+  Friday: 3,
+  Saturday: 4,
+  Sunday: 5,
+  Monday: 6,
+  Tuesday: 7,
+};
+
+export function devotionalWeekdayName(now: Date, timeZone = DEFAULT_DEVOTIONAL_TIME_ZONE) {
+  return new Intl.DateTimeFormat("en-US", { timeZone, weekday: "long" }).format(now);
 }
 
-export function calendarDaysBetween(from: Date, to: Date, timeZone = DEFAULT_DEVOTIONAL_TIME_ZONE) {
-  return calendarDayNumber(to, timeZone) - calendarDayNumber(from, timeZone);
-}
-
-// Returns the day number due today, or null when today falls outside the series.
-export function devotionalDayForDate(input: {
-  publishedAt: string | Date;
+// Returns the day number due this morning, or null when the weekday maps past
+// the end of a shorter series.
+export function devotionalDayForWeekday(input: {
   now: Date;
-  totalDays: number;
   timeZone?: string;
+  totalDays?: number;
 }) {
-  const publishedAt = input.publishedAt instanceof Date ? input.publishedAt : new Date(input.publishedAt);
-  if (Number.isNaN(publishedAt.getTime()) || input.totalDays < 1) return null;
+  if (Number.isNaN(input.now.getTime())) return null;
 
-  const dayNumber = calendarDaysBetween(publishedAt, input.now, input.timeZone ?? DEFAULT_DEVOTIONAL_TIME_ZONE);
-  if (dayNumber < 1 || dayNumber > input.totalDays) return null;
+  const totalDays = input.totalDays ?? DEVOTIONAL_TOTAL_DAYS;
+  if (totalDays < 1) return null;
+
+  const weekday = devotionalWeekdayName(input.now, input.timeZone ?? DEFAULT_DEVOTIONAL_TIME_ZONE);
+  const dayNumber = DAY_NUMBER_BY_WEEKDAY[weekday];
+  if (!dayNumber || dayNumber > totalDays) return null;
+
   return dayNumber;
 }

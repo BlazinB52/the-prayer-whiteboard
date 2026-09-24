@@ -65,7 +65,7 @@ export default async function PublicDevotionalDayPage({ params }: { params: Prom
         <header className="border-b border-[#284a3b]/15 pb-8">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Day {dayNumber} of 7</p>
           <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-5xl">{day.title}</h1>
-          <p className="mt-4 text-sm font-bold text-[#607066]">{series.teaching ? `${series.title} for ${series.teaching.title}` : series.title}</p>
+          <p className="mt-4 text-sm font-bold text-[#607066]">{series.title}</p>
         </header>
         <div className="mt-8 space-y-8">
           <DevotionalField title="Anchor Scriptures">

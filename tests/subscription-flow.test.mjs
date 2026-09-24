@@ -31,6 +31,13 @@ test("confirmed subscribers add preferences without another confirmation", async
   assert.doesNotMatch(confirmedBranch, /createAccessToken|deliverConfirmationEmail/);
 });
 
+test("the already-confirmed merge branch backfills a missing confirmed_at instead of leaving it null", async () => {
+  const source = await readFile("lib/email-subscriptions.ts", "utf8");
+  const confirmedBranch = source.match(/if \(existing && existingIsConfirmed\)[\s\S]*?let subscriberId/)?.[0] ?? "";
+  assert.match(confirmedBranch, /confirmed_at: existing\.confirmed_at \?\? new Date\(\)\.toISOString\(\)/);
+  assert.match(source, /\.select\("id, status, confirmed_at"\)/);
+});
+
 test("already-confirmed 5787 signup preserves its slug through Sender group resolution", async () => {
   const [subscribeForm, subscriptions, senderGroups] = await Promise.all([
     readFile("app/subscribe/subscribe-form.tsx", "utf8"),

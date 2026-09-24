@@ -240,7 +240,12 @@ async function createDeliveryEvent(subscriberId: string, messageType: "confirmat
     metadata,
   }).select("id").single();
   if (error) throw new Error("Email delivery record could not be created.");
-  await supabase.from("email_subscribers").update({ sender_sync_status: "pending", sender_sync_error: null }).eq("id", subscriberId);
+  // A management-link request never triggers a Sender group sync, so resetting
+  // sender_sync_status here would strand it at 'pending' forever — nothing else
+  // in that flow ever moves it back to 'synced' or 'failed'.
+  if (messageType !== "management") {
+    await supabase.from("email_subscribers").update({ sender_sync_status: "pending", sender_sync_error: null }).eq("id", subscriberId);
+  }
   return data.id as string;
 }
 
@@ -322,7 +327,7 @@ export async function requestSubscription(formData: FormData) {
   const supabase = getClient();
   const { data: existing, error: existingError } = await supabase
     .from("email_subscribers")
-    .select("id, status")
+    .select("id, status, confirmed_at")
     .eq("normalized_email", fields.value.normalizedEmail)
     .maybeSingle();
   if (existingError) return { error: "Subscription could not be submitted." };
@@ -356,10 +361,15 @@ export async function requestSubscription(formData: FormData) {
       .map((preference) => preference.category as EmailCategory)
       .filter((category) => EMAIL_CATEGORIES.includes(category));
     const categories = [...new Set([...activeCategories, ...fields.value.categories])];
+    // This branch treats the subscriber as already confirmed on evidence other
+    // than a fresh confirmation click (a prior click, or a legacy import), which
+    // can leave confirmed_at unset. Backfill it here rather than leave a
+    // subscriber sitting in status 'confirmed' with no confirmed_at at all.
     const { error: subscriberError } = await supabase.from("email_subscribers").update({
       first_name: fields.value.firstName,
       email: fields.value.email,
       status: "confirmed",
+      confirmed_at: existing.confirmed_at ?? new Date().toISOString(),
       unsubscribed_at: null,
       sender_sync_status: "not_configured",
       sender_sync_error: null,

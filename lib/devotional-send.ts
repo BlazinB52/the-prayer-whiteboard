@@ -81,7 +81,7 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
   // same terms as one that started life inside a teaching.
   const { data: devotional, error: devotionalError } = await supabase
     .from("teaching_devotionals")
-    .select("id, slug, status, published_at, updated_at")
+    .select("id, slug, title, status, published_at, updated_at")
     .eq("status", "published")
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("updated_at", { ascending: false })
@@ -106,7 +106,7 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
 
   const { data: day } = await supabase
     .from("teaching_devotional_days")
-    .select("day_number, title, anchor_scriptures, devotional_reading")
+    .select("day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
     .eq("devotional_id", devotional.id)
     .eq("day_number", dayNumber)
     .maybeSingle();
@@ -120,7 +120,10 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
   await supabase.from("email_devotional_broadcast_ledger").update({ recipient_count: recipients.length }).eq("id", ledgerId);
 
   const base = siteUrl();
-  const dayUrl = devotionalDayUrl(base, devotional.slug, dayNumber);
+  // The email reads through to the assigned teaching when there is one, since
+  // that is the fuller page for this devotional's content; a standalone series
+  // has no teaching page, so it falls back to the devotional's own day URL.
+  const readUrl = teaching ? `${base}/teachings/${teaching.slug}` : devotionalDayUrl(base, devotional.slug, dayNumber);
   const preferencesUrl = `${base}/email-preferences`;
 
   let sentCount = 0;
@@ -131,9 +134,13 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
       dayNumber: day.day_number,
       totalDays,
       title: day.title,
+      seriesTitle: devotional.title,
       anchorScriptures: day.anchor_scriptures ?? [],
       devotionalReading: day.devotional_reading,
-      dayUrl,
+      confession: day.confession,
+      journalPrompt: day.journal_prompt,
+      prayerActivation: day.prayer_activation,
+      readUrl,
       preferencesUrl,
     });
 

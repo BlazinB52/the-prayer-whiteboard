@@ -136,16 +136,18 @@ test("the ledger enforces one blast per devotional day, not per teaching day", a
   assert.match(send, /insert\(\{ devotional_id: devotionalId, teaching_id: teachingId, day_number: dayNumber/);
 });
 
-test("the day link is built from the devotional slug, not a teaching slug", async () => {
+test("the email reads through to the assigned teaching, falling back to the devotional's own day URL", async () => {
   const [emailContent, send] = await Promise.all([
     readFile("lib/devotional-email-content.ts", "utf8"),
     readFile("lib/devotional-send.ts", "utf8"),
   ]);
 
+  // devotionalDayUrl still exists: the public day page still routes off the
+  // devotional's own slug, and a standalone series (no assigned teaching) has
+  // no teaching page for the email to fall back on.
   assert.match(emailContent, /export function devotionalDayUrl\(/);
   assert.match(emailContent, /\/devotionals\/\$\{encodeURIComponent\(devotionalSlug\)\}\/day\/\$\{dayNumber\}/);
-  assert.match(send, /devotionalDayUrl\(base, devotional\.slug, dayNumber\)/);
-  assert.equal(send.includes("/teachings/${teaching.slug}/devotional/day/"), false);
+  assert.match(send, /teaching \? `\$\{base\}\/teachings\/\$\{teaching\.slug\}` : devotionalDayUrl\(base, devotional\.slug, dayNumber\)/);
 });
 
 test("the devotional day link has a public route to land on", async () => {

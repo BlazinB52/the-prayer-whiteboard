@@ -1,0 +1,14 @@
+-- Fixes a gap in 20260924000000: that migration revoked execute on
+-- check_rate_limit() from public/anon/authenticated but relied on this
+-- project's default privileges to leave service_role able to call it. That
+-- assumption held on the local dev stack but not on the linked production
+-- project, where service_role had no explicit execute grant on the new
+-- function and got "permission denied for function check_rate_limit"
+-- (verified via a direct RPC call against production after the prior
+-- migration landed). lib/rate-limit.ts fails open on that error, so nothing
+-- broke, but the new rate limiting was not actually active.
+--
+-- The function is security definer owned by its creator, so it runs with
+-- that owner's table privileges regardless of the caller's own grants on
+-- rate_limit_buckets — service_role only needs EXECUTE, not table access.
+grant execute on function public.check_rate_limit(text, integer, integer) to service_role;

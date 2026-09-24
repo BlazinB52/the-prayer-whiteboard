@@ -388,7 +388,7 @@ function DeepDivesInvitation() {
             <cite className="mt-3 block text-xs not-italic font-extrabold uppercase tracking-[0.18em] text-[#f0cb83]">Luke 5:4</cite>
           </blockquote>
           <p className="mt-6 max-w-2xl leading-7 text-[#dce8e1]">Go beyond the shorelines of our weekly gatherings. These deeper teachings are built specifically for those who are hungry for more&mdash;designed to mature your faith, expand your vision, and anchor your understanding in the depths of God&apos;s Word.</p>
-          <Link href="/deep-dives" className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#f0cb83] px-5 font-extrabold text-[#20382e] transition hover:bg-[#f5d58d]">
+          <Link href="/deep-dives" className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#f0cb83] px-5 font-extrabold !text-[#10271f] transition hover:bg-[#f5d58d]">
             Explore Deep Dives <ArrowRight aria-hidden="true" size={18} />
           </Link>
         </div>

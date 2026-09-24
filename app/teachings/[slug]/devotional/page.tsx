@@ -42,7 +42,6 @@ export default async function DevotionalOverviewPage({ params }: { params: Promi
         <header className="border-b border-[#284a3b]/15 pb-8">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">7-Day Devotional</p>
           <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{devotional.title}</h1>
-          <p className="mt-4 text-sm font-bold text-[#607066]">For {devotional.teaching.title}</p>
           <DevotionalTextBlock text={devotional.introduction} className="mt-6 text-lg leading-8 text-[#52645a]" />
         </header>
         <div className="mt-8 grid gap-4 sm:grid-cols-2">

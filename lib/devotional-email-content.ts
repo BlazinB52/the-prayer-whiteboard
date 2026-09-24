@@ -74,7 +74,7 @@ export function buildDevotionalDayEmail(input: {
                 ${textFieldHtml("Today's Confession", input.confession)}
                 ${textFieldHtml("5-Minute Journal Prompt", input.journalPrompt)}
                 ${textFieldHtml("Prayer Activation Exercise", input.prayerActivation)}
-                <p style="margin:22px 0 20px;">${button("Read the Full Teaching", input.readUrl)}</p>
+                <p style="margin:22px 0 20px;text-align:center;">${button("Read the Full Teaching", input.readUrl)}</p>
                 ${hasMoreDays ? `<p style="margin:0 0 20px;text-align:center;color:#8a9a90;font-size:13px;">Tomorrow: Day ${input.dayNumber + 1} of ${escapeHtml(input.seriesTitle)}</p>` : ""}
                 <hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:0 0 16px;" />
                 <p style="margin:0 0 6px;text-align:center;color:#243d31;font-size:13px;font-weight:800;">The Prayer Whiteboard</p>

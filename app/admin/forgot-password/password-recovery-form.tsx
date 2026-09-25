@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { getPasswordRecoveryRedirect } from "@/lib/password-recovery";
 import { createClient } from "@/lib/supabase/client";
 
 export function PasswordRecoveryForm() {
@@ -19,7 +20,7 @@ export function PasswordRecoveryForm() {
       ? "https://theprayerwhiteboard.com"
       : window.location.origin;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteOrigin}/auth/callback?next=/update-password`,
+      redirectTo: getPasswordRecoveryRedirect(siteOrigin),
     });
 
     setPending(false);

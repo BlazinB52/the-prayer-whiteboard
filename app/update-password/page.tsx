@@ -15,7 +15,7 @@ export default async function UpdatePasswordPage() {
   const user = await getAuthorizedUser();
 
   if (!user) {
-    redirect("/admin/login?error=recovery");
+    redirect("/admin/reset-password?error=invalid");
   }
 
   return (

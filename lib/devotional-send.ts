@@ -168,10 +168,16 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
 
   const failedCount = recipients.length - sentCount;
   const status = failedCount && !sentCount ? "failed" : "sent";
-  await supabase.from("email_devotional_broadcast_ledger").update({
+  // error is not-null in production even though it isn't declared that way in
+  // the migration (schema drift), so a fully successful run must still write
+  // something — writing null here silently failed the update and left the row
+  // stuck on 'sending' forever, which then blocked every future day sharing
+  // its day_number under the idempotency guard.
+  const { error: ledgerUpdateError } = await supabase.from("email_devotional_broadcast_ledger").update({
     status,
-    error: failedCount ? { sentCount, failedCount, failures } : null,
+    error: failedCount ? { sentCount, failedCount, failures } : {},
   }).eq("id", ledgerId);
+  if (ledgerUpdateError) throw new Error(`Devotional ledger could not be finalized: ${ledgerUpdateError.message}`);
 
   return { status, dayNumber, recipientCount: recipients.length, sentCount, failedCount };
 }

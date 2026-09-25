@@ -164,7 +164,11 @@ test("the whole confirmed devotional list receives the day, throttled", async ()
 
   assert.match(source, /loadConfirmedRecipients\("devotionals"\)/);
   assert.match(source, /await sleep\(THROTTLE_MS\);/);
-  assert.match(source, /error: failedCount \? \{ sentCount, failedCount, failures \} : null/);
+  // error is not-null in production (schema drift from the migration file), so
+  // a clean run must still write a non-null value or the update silently fails
+  // and leaves the row stuck on 'sending' forever.
+  assert.match(source, /error: failedCount \? \{ sentCount, failedCount, failures \} : \{\}/);
+  assert.match(source, /if \(ledgerUpdateError\) throw new Error/);
 });
 
 test("the cron route still authenticates with a timing-safe bearer check", async () => {

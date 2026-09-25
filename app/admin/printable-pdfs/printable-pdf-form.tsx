@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useRef, useState } from "react";
+import { startTransition, useActionState, useMemo, useRef, useState } from "react";
 import { removePrintablePdfLink, savePrintablePdfLink } from "./actions";
 
 type FormState = { error?: string; saved?: boolean; removed?: boolean };
@@ -83,7 +83,14 @@ export function PrintablePdfManager({ teachings, assignments }: { teachings: Tea
         </div>
 
         {teachings.length ? (
-          <form action={saveFormAction} className="mt-4 grid gap-4 lg:grid-cols-[minmax(16rem,0.9fr)_minmax(20rem,1.6fr)_auto] lg:items-end">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              const formData = new FormData(event.currentTarget);
+              startTransition(() => saveFormAction(formData));
+            }}
+            className="mt-4 grid gap-4 lg:grid-cols-[minmax(16rem,0.9fr)_minmax(20rem,1.6fr)_auto] lg:items-end"
+          >
             {editingTeachingId ? <input type="hidden" name="teachingId" value={selectedTeachingId} /> : null}
             <label className="block text-sm font-bold text-[#385245]">
               Teaching

@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 
+const printablePdf = await import("../lib/printable-pdf-links.ts");
+
 test("admin dashboard removes Calendar and adds Teaching PDF Links", async () => {
   const dashboard = await readFile("app/admin/page.tsx", "utf8");
   assert.doesNotMatch(dashboard, /title:\s*"Calendar"/);
@@ -27,8 +29,15 @@ test("teaching selection submits the teaching UUID through FormData", async () =
   assert.match(manager, /name=\{editingTeachingId \? undefined : "teachingId"\}/);
   assert.match(manager, /<option key=\{teaching\.id\} value=\{teaching\.id\}>/);
   assert.match(manager, /type="hidden" name="teachingId" value=\{selectedTeachingId\}/);
-  assert.match(actions, /const teachingId = String\(formData\.get\("teachingId"\) \?\? ""\)\.trim\(\)/);
+  assert.match(actions, /validateTeachingId\(formData\.get\("teachingId"\)\)/);
   assert.doesNotMatch(manager, /savePrintablePdfLink\(selectedTeachingId/);
+});
+
+test("runtime teaching UUID validation accepts the traced Supabase UUID", () => {
+  const teachingId = "79cd2b0d-cdda-48be-a92a-a6def963744e";
+  assert.deepEqual(printablePdf.validateTeachingId(teachingId), { value: teachingId });
+  assert.deepEqual(printablePdf.validateTeachingId(""), { error: "Teaching selection was not submitted." });
+  assert.deepEqual(printablePdf.validateTeachingId("not-a-uuid"), { error: "Teaching ID is invalid." });
 });
 
 test("the teaching dropdown is not filtered by teaching status or type", async () => {
@@ -40,21 +49,28 @@ test("the teaching dropdown is not filtered by teaching status or type", async (
 
 test("save verifies and assigns the exact selected teaching ID", async () => {
   const actions = await readFile("app/admin/printable-pdfs/actions.ts", "utf8");
+  assert.match(actions, /validateTeachingId\(formData\.get\("teachingId"\)\)/);
   assert.match(actions, /from\("teachings"\)[\s\S]*?\.select\("id"\)[\s\S]*?\.eq\("id", teachingId\)[\s\S]*?\.maybeSingle\(\)/);
-  assert.match(actions, /if \(teachingError \|\| !teaching\) \{\s*return \{ error: "Teaching could not be found\." \};/);
+  assert.match(actions, /if \(teachingError\)[\s\S]*?Teaching lookup failed:/);
+  assert.match(actions, /if \(!teaching\) \{\s*return \{ error: "Teaching could not be found\." \};/);
   assert.match(actions, /from\("teaching_printable_pdf_links"\)[\s\S]*?\.upsert\(\{ teaching_id: teachingId, printable_pdf_url: url\.value \}, \{ onConflict: "teaching_id" \}\)/);
 });
 
 test("save rejects a nonexistent or invalid teaching UUID", async () => {
   const actions = await readFile("app/admin/printable-pdfs/actions.ts", "utf8");
-  assert.match(actions, /if \(!UUID_PATTERN\.test\(teachingId\)\) \{\s*return \{ error: "Teaching could not be found\." \};/);
-  assert.match(actions, /if \(teachingError \|\| !teaching\) \{\s*return \{ error: "Teaching could not be found\." \};/);
+  assert.match(actions, /Teaching ID is invalid\./);
+  assert.match(actions, /if \(!teaching\) \{\s*return \{ error: "Teaching could not be found\." \};/);
+  assert.equal(printablePdf.getTeachingLookupErrorCategory("42501"), "authorization error");
+  assert.equal(printablePdf.getTeachingLookupErrorCategory("PGRST116"), "database response error");
+  assert.equal(printablePdf.getTeachingLookupErrorCategory(undefined), "database query error");
 });
 
 test("failed saves preserve form values and successful saves reset them", async () => {
   const manager = await readFile("app/admin/printable-pdfs/printable-pdf-form.tsx", "utf8");
   assert.match(manager, /value=\{selectedTeachingId\}/);
   assert.match(manager, /value=\{printablePdfUrl\}/);
+  assert.match(manager, /event\.preventDefault\(\)/);
+  assert.match(manager, /startTransition\(\(\) => saveFormAction\(formData\)\)/);
   assert.match(manager, /if \(result\.saved\) \{\s*setSelectedTeachingId\(""\);\s*setEditingTeachingId\(null\);\s*setPrintablePdfUrl\(""\);\s*\}/);
   assert.doesNotMatch(manager, /if \(result\.error\)[\s\S]{0,160}setSelectedTeachingId\(""\)/);
 });
@@ -79,7 +95,7 @@ test("printable PDF deletion requires confirmation and removes only the assignme
   const actions = await readFile("app/admin/printable-pdfs/actions.ts", "utf8");
   assert.match(manager, /window\.confirm\("Remove this printable PDF link\?/);
   assert.match(manager, /does not delete the teaching or the PDF from OneDrive/);
-  assert.match(actions, /from\("teaching_printable_pdf_links"\)[\s\S]*?\.delete\(\)[\s\S]*?\.eq\("teaching_id", teachingId\)/);
+  assert.match(actions, /from\("teaching_printable_pdf_links"\)[\s\S]*?\.delete\(\)[\s\S]*?\.eq\("teaching_id", teachingIdResult\.value\)/);
 });
 
 test("printable PDF URL validation rejects unsafe and malformed URLs", async () => {

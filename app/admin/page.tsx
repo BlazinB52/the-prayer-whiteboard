@@ -52,14 +52,15 @@ const tools = [
     href: "/admin/subscribers",
   },
   {
+    title: "Teaching PDF Links",
+    description: "Assign printable PDF links to existing teachings.",
+    status: "Available",
+    href: "/admin/printable-pdfs",
+  },
+  {
     title: "Homepage Settings",
     description: "Shape the public Whiteboard experience.",
     status: "Coming next",
-  },
-  {
-    title: "Calendar",
-    description: "Plan future gatherings and publishing dates.",
-    status: "Planned for later",
   },
 ];
 

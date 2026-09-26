@@ -1,9 +1,10 @@
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import { isValidUuid } from "./uuid.ts";
+
 const STORAGE_SLUG_PATTERN = /^\d{8}_[a-z0-9](?:[a-z0-9-]{0,79})$/;
 const INCOMING_PATH_PATTERN = /^library\/([^/]+)\/([0-9a-f-]{36})\/v1\/incoming\.(jpg|jpeg|png|webp)$/i;
 
 export function validChalkboardAssetGroupId(value: string) {
-  return UUID_PATTERN.test(value);
+  return isValidUuid(value);
 }
 
 export function extensionForChalkboardFile(fileName: string) {

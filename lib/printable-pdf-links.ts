@@ -1,9 +1,11 @@
-export const PRINTABLE_PDF_URL_MAX_LENGTH = 2048;
+import { isValidUuid } from "./uuid.ts";
+
 export const PRINTABLE_PDF_TITLE_MAX_LENGTH = 200;
+export const PRINTABLE_PDF_BUCKET = "printable-pdfs";
+export const PRINTABLE_PDF_MAX_BYTES = 26_214_400; // 25 MiB, matches the bucket's file_size_limit
+const PDF_MAGIC_BYTES = [0x25, 0x50, 0x44, 0x46, 0x2d]; // "%PDF-"
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-const FORBIDDEN_PROTOCOLS = new Set(["javascript:", "data:", "file:"]);
+const STORAGE_PATH_PATTERN = /^([0-9a-f-]{36})\.pdf$/i;
 
 export function validatePrintablePdfId(value: unknown) {
   const id = typeof value === "string" ? value.trim() : "";
@@ -12,7 +14,7 @@ export function validatePrintablePdfId(value: unknown) {
     return { error: "Printable PDF record was not submitted." };
   }
 
-  if (!UUID_PATTERN.test(id)) {
+  if (!isValidUuid(id)) {
     return { error: "Printable PDF record ID is invalid." };
   }
 
@@ -33,35 +35,34 @@ export function validatePrintablePdfTitle(value: unknown) {
   return { value: title };
 }
 
-export function validatePrintablePdfUrl(value: string) {
-  const url = value.trim();
+export function printablePdfStoragePath(uploadId: string) {
+  return `${uploadId}.pdf`;
+}
 
-  if (!url) {
-    return { error: "Printable PDF URL is required." };
+export function isValidPrintablePdfStoragePath(path: string) {
+  const match = STORAGE_PATH_PATTERN.exec(path);
+  return Boolean(match && isValidUuid(match[1]));
+}
+
+export function isValidPdfMagicBytes(bytes: Uint8Array) {
+  if (bytes.length < PDF_MAGIC_BYTES.length) return false;
+  return PDF_MAGIC_BYTES.every((byte, index) => bytes[index] === byte);
+}
+
+type PublicUrlClient = {
+  storage: {
+    from(bucket: string): {
+      getPublicUrl(path: string): { data: { publicUrl: string } };
+    };
+  };
+};
+
+export function resolvePrintablePdfHref(
+  link: { storage_path: string | null; printable_pdf_url: string | null },
+  supabase: PublicUrlClient,
+) {
+  if (link.storage_path) {
+    return supabase.storage.from(PRINTABLE_PDF_BUCKET).getPublicUrl(link.storage_path).data.publicUrl;
   }
-
-  if (url.length > PRINTABLE_PDF_URL_MAX_LENGTH) {
-    return { error: "Printable PDF URL must be 2,048 characters or fewer." };
-  }
-
-  if (/[<>"\s]/.test(url)) {
-    return { error: "Printable PDF URL must be a plain URL without spaces or HTML." };
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    return { error: "Printable PDF URL must be a valid URL." };
-  }
-
-  if (FORBIDDEN_PROTOCOLS.has(parsed.protocol) || parsed.protocol !== "https:") {
-    return { error: "Printable PDF URL must start with https://." };
-  }
-
-  if (!parsed.hostname.includes(".")) {
-    return { error: "Printable PDF URL must include a valid host." };
-  }
-
-  return { value: parsed.toString() };
+  return link.printable_pdf_url!;
 }

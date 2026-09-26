@@ -3,6 +3,7 @@ import { FileText } from "lucide-react";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
+import { resolvePrintablePdfHref } from "@/lib/printable-pdf-links";
 import { createClient } from "@/lib/supabase/server";
 
 const pdfNavigation = [
@@ -20,10 +21,11 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://theprayerwhiteboard.com/pdf" },
 };
 
-type PrintablePdfLink = {
+type PrintablePdfLinkRow = {
   id: string;
   title: string;
-  printable_pdf_url: string;
+  storage_path: string | null;
+  printable_pdf_url: string | null;
   created_at: string;
 };
 
@@ -35,10 +37,16 @@ export default async function PrintablePdfLinksPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("printable_pdf_links")
-    .select("id, title, printable_pdf_url, created_at")
+    .select("id, title, storage_path, printable_pdf_url, created_at")
     .order("created_at", { ascending: false })
     .order("title", { ascending: true });
-  const links = (data as PrintablePdfLink[] | null) ?? [];
+  const rows = (data as PrintablePdfLinkRow[] | null) ?? [];
+  const links = rows.map((link) => ({
+    id: link.id,
+    title: link.title,
+    href: resolvePrintablePdfHref(link, supabase),
+    created_at: link.created_at,
+  }));
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">
@@ -61,7 +69,7 @@ export default async function PrintablePdfLinksPage() {
               {links.map((link) => (
                 <article key={link.id} className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 px-4 py-4">
                   <h2 className="min-w-0 font-extrabold text-[#243d31]">{link.title}</h2>
-                  <a href={link.printable_pdf_url} target="_blank" rel="noopener noreferrer" className="row-span-2 self-center font-bold text-[#946332] underline underline-offset-2 hover:text-[#a85e32]">View PDF</a>
+                  <a href={link.href} target="_blank" rel="noopener noreferrer" className="row-span-2 self-center font-bold text-[#946332] underline underline-offset-2 hover:text-[#a85e32]">View PDF</a>
                   <time dateTime={link.created_at} className="text-sm text-[#607066]">{formatDate(link.created_at)}</time>
                 </article>
               ))}
@@ -84,7 +92,7 @@ export default async function PrintablePdfLinksPage() {
                         <time dateTime={link.created_at}>{formatDate(link.created_at)}</time>
                       </td>
                       <td className="whitespace-nowrap px-4 py-4">
-                        <a href={link.printable_pdf_url} target="_blank" rel="noopener noreferrer" className="font-bold text-[#946332] underline underline-offset-2 hover:text-[#a85e32]">View PDF</a>
+                        <a href={link.href} target="_blank" rel="noopener noreferrer" className="font-bold text-[#946332] underline underline-offset-2 hover:text-[#a85e32]">View PDF</a>
                       </td>
                     </tr>
                   ))}

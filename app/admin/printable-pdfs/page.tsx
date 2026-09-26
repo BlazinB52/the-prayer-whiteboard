@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { resolvePrintablePdfHref } from "@/lib/printable-pdf-links";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { PrintablePdfManager } from "./printable-pdf-form";
 
@@ -11,7 +12,8 @@ export const metadata: Metadata = {
 type PrintablePdfLinkRow = {
   id: string;
   title: string;
-  printable_pdf_url: string;
+  storage_path: string | null;
+  printable_pdf_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -21,9 +23,19 @@ export default async function AdminPrintablePdfsPage() {
 
   const { data: links, error: linksError } = await supabase
     .from("printable_pdf_links")
-    .select("id, title, printable_pdf_url, created_at, updated_at")
+    .select("id, title, storage_path, printable_pdf_url, created_at, updated_at")
     .order("created_at", { ascending: false })
     .order("title", { ascending: true });
+
+  const rows = (links as PrintablePdfLinkRow[] | null) ?? [];
+  const managerLinks = rows.map((link) => ({
+    id: link.id,
+    title: link.title,
+    href: resolvePrintablePdfHref(link, supabase),
+    isStorageBacked: link.storage_path !== null,
+    created_at: link.created_at,
+    updated_at: link.updated_at,
+  }));
 
   return (
     <main className="admin-shell">
@@ -37,7 +49,7 @@ export default async function AdminPrintablePdfsPage() {
         {linksError ? (
           <p className="mt-6 text-sm font-bold text-[#a2472c]">Printable PDF links could not be loaded.</p>
         ) : (
-          <PrintablePdfManager links={(links as PrintablePdfLinkRow[] | null) ?? []} />
+          <PrintablePdfManager links={managerLinks} />
         )}
       </div>
     </main>

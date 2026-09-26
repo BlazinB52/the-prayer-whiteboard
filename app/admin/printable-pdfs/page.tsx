@@ -12,10 +12,8 @@ export const metadata: Metadata = {
 type PrintablePdfLinkRow = {
   id: string;
   title: string;
-  storage_path: string | null;
-  printable_pdf_url: string | null;
+  storage_path: string;
   created_at: string;
-  updated_at: string;
 };
 
 export default async function AdminPrintablePdfsPage() {
@@ -23,7 +21,7 @@ export default async function AdminPrintablePdfsPage() {
 
   const { data: links, error: linksError } = await supabase
     .from("printable_pdf_links")
-    .select("id, title, storage_path, printable_pdf_url, created_at, updated_at")
+    .select("id, title, storage_path, created_at")
     .order("created_at", { ascending: false })
     .order("title", { ascending: true });
 
@@ -31,10 +29,8 @@ export default async function AdminPrintablePdfsPage() {
   const managerLinks = rows.map((link) => ({
     id: link.id,
     title: link.title,
-    href: resolvePrintablePdfHref(link, supabase),
-    isStorageBacked: link.storage_path !== null,
+    href: resolvePrintablePdfHref(link.storage_path, supabase),
     created_at: link.created_at,
-    updated_at: link.updated_at,
   }));
 
   return (

@@ -11,147 +11,133 @@ type PrintablePdfLink = {
   id: string;
   title: string;
   href: string;
-  isStorageBacked: boolean;
   created_at: string;
-  updated_at: string;
 };
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(value));
 }
 
+// A hung request (network stall, an unresponsive endpoint) should never
+// leave the form stuck on a spinner forever — each step below is bounded so
+// it eventually surfaces a clear, retryable error instead.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out. Please try again.`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
   const router = useRouter();
-  const formSectionRef = useRef<HTMLElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingHref, setEditingHref] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [search, setSearch] = useState("");
   const [pending, startTransition] = useTransition();
+  const [phase, setPhase] = useState<"idle" | "uploading" | "saving">("idle");
   const [saveState, setSaveState] = useState<FormState>({});
   const visibleLinks = links.filter((link) => link.title.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
-
-  function editLink(link: PrintablePdfLink) {
-    setEditingId(link.id);
-    setEditingHref(link.href);
-    setTitle(link.title);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setSaveState({});
-    formSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    window.setTimeout(() => titleInputRef.current?.focus(), 250);
-  }
-
-  function cancelEdit() {
-    setEditingId(null);
-    setEditingHref(null);
-    setTitle("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setSaveState({});
-  }
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const file = form.get("pdfFile");
-    const hasFile = file instanceof File && file.size > 0;
 
-    if (!editingId && !hasFile) {
+    if (!(file instanceof File) || !file.size) {
       setSaveState({ error: "Choose a PDF file." });
       return;
     }
 
     setSaveState({});
     startTransition(async () => {
-      let storagePath: string | null = null;
-
-      if (hasFile) {
-        const target = await createPrintablePdfUploadTarget();
+      try {
+        setPhase("uploading");
+        const target = await withTimeout(createPrintablePdfUploadTarget(), 15_000, "Creating the upload destination");
         if (target.error || !target.path || !target.token) {
           setSaveState({ error: target.error ?? "The secure upload destination could not be created." });
           return;
         }
 
         const supabase = createClient();
-        const { error: uploadError } = await supabase.storage
-          .from("printable-pdfs")
-          .uploadToSignedUrl(target.path, target.token, file as File, {
+        const { error: uploadError } = await withTimeout(
+          supabase.storage.from("printable-pdfs").uploadToSignedUrl(target.path, target.token, file, {
             cacheControl: "public, max-age=31536000, immutable",
-          });
+          }),
+          120_000,
+          "Uploading the PDF",
+        );
         if (uploadError) {
           await cleanupPrintablePdfUpload(target.path);
           setSaveState({ error: "The PDF could not be uploaded. Please try again." });
           return;
         }
 
-        storagePath = target.path;
+        setPhase("saving");
+        const saveForm = new FormData();
+        saveForm.set("title", title);
+        saveForm.set("storagePath", target.path);
+
+        const result = await withTimeout(savePrintablePdfLink({}, saveForm), 30_000, "Saving the PDF link");
+        if (result.error) {
+          await cleanupPrintablePdfUpload(target.path);
+          setSaveState({ error: result.error });
+          return;
+        }
+
+        setTitle("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setSaveState({ saved: true });
+        router.refresh();
+      } catch (error) {
+        setSaveState({ error: error instanceof Error ? error.message : "Something went wrong. Please try again." });
+      } finally {
+        setPhase("idle");
       }
-
-      const saveForm = new FormData();
-      saveForm.set("title", title);
-      if (editingId) saveForm.set("id", editingId);
-      if (storagePath) saveForm.set("storagePath", storagePath);
-
-      const result = await savePrintablePdfLink({}, saveForm);
-      if (result.error) {
-        if (storagePath) await cleanupPrintablePdfUpload(storagePath);
-        setSaveState({ error: result.error });
-        return;
-      }
-
-      setEditingId(null);
-      setEditingHref(null);
-      setTitle("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      setSaveState({ saved: true });
-      router.refresh();
     });
   }
 
+  const statusLabel = phase === "uploading" ? "Uploading PDF..." : phase === "saving" ? "Saving..." : "Save PDF Link";
+
   return (
     <>
-      <section ref={formSectionRef} className="scroll-mt-24 border-b border-[#284a3b]/10 py-7">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-extrabold text-[#243d31]">{editingId ? "Edit PDF link" : "Add PDF link"}</h2>
-          {editingId ? <span className="text-xs font-extrabold uppercase tracking-wide text-[#946332]">Edit mode</span> : null}
-        </div>
+      <section className="border-b border-[#284a3b]/10 py-7">
+        <h2 className="text-xl font-extrabold text-[#243d31]">Add PDF link</h2>
 
-        <form onSubmit={submit} className="mt-4 grid gap-4 lg:grid-cols-[minmax(16rem,0.9fr)_minmax(20rem,1.6fr)_auto] lg:items-end">
-          <label className="block text-sm font-bold text-[#385245]">
-            Title
-            <input
-              ref={titleInputRef}
-              name="title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              maxLength={200}
-              required
-              className="admin-input"
-            />
-          </label>
+        <form onSubmit={submit} className="mt-4 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-bold text-[#385245]">
+              Title
+              <input
+                ref={titleInputRef}
+                name="title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                maxLength={200}
+                required
+                className="admin-input"
+              />
+            </label>
 
-          <label className="block text-sm font-bold text-[#385245]">
-            {editingId ? "Replace PDF file" : "PDF file"}
-            <input ref={fileInputRef} name="pdfFile" type="file" accept="application/pdf" className="admin-input py-2" />
-            {editingId ? (
-              <span className="mt-1 block text-xs font-normal text-[#607066]">
-                Leave blank to keep the current file.{" "}
-                <a href={editingHref ?? undefined} target="_blank" rel="noopener noreferrer" className="font-bold text-[#946332] underline underline-offset-2">
-                  View current PDF
-                </a>
-              </span>
-            ) : (
+            <label className="block text-sm font-bold text-[#385245]">
+              PDF file
+              <input ref={fileInputRef} name="pdfFile" type="file" accept="application/pdf" required className="admin-input py-2" />
               <span className="mt-1 block text-xs font-normal text-[#607066]">PDF only, up to 25 MB.</span>
-            )}
-          </label>
-
-          <div className="flex flex-wrap gap-2">
-            <button type="submit" disabled={pending} className="admin-primary-button">
-              {pending ? "Saving..." : "Save PDF Link"}
-            </button>
-            {editingId ? <button type="button" onClick={cancelEdit} className="admin-secondary-button">Cancel Edit</button> : null}
+            </label>
           </div>
+
+          <button type="submit" disabled={pending} className="admin-primary-button">
+            {statusLabel}
+          </button>
         </form>
 
         {saveState.saved ? <p role="status" className="mt-3 text-sm font-bold text-[#326048]">PDF link saved.</p> : null}
@@ -194,10 +180,7 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
                       <a href={link.href} target="_blank" rel="noopener noreferrer" className="font-bold text-[#946332] underline underline-offset-2 hover:text-[#a85e32]">View PDF</a>
                     </td>
                     <td className="px-3 py-3">
-                      <div className="flex items-center gap-4">
-                        <button type="button" onClick={() => editLink(link)} className="font-bold text-[#385245] underline underline-offset-2 hover:text-[#a85e32]">Edit</button>
-                        <DeletePdfLinkButton id={link.id} isStorageBacked={link.isStorageBacked} />
-                      </div>
+                      <DeletePdfLinkButton id={link.id} />
                     </td>
                   </tr>
                 ))}
@@ -212,21 +195,17 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
   );
 }
 
-function DeletePdfLinkButton({ id, isStorageBacked }: { id: string; isStorageBacked: boolean }) {
+function DeletePdfLinkButton({ id }: { id: string }) {
   const [state, formAction, pending] = useActionState(
     (previousState: FormState) => removePrintablePdfLink(id, previousState),
     {},
   );
 
-  const confirmMessage = isStorageBacked
-    ? "Remove this printable PDF link?\n\nThis permanently deletes the stored PDF file as well as the website listing."
-    : "Remove this printable PDF link?\n\nThis removes only the website listing. It does not delete the PDF from OneDrive or any other storage provider.";
-
   return (
     <form
       action={formAction}
       onSubmit={(event) => {
-        if (!window.confirm(confirmMessage)) {
+        if (!window.confirm("Remove this printable PDF link?\n\nThis permanently deletes the stored PDF file as well as the website listing.")) {
           event.preventDefault();
         }
       }}

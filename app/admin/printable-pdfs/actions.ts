@@ -15,6 +15,8 @@ type PrintablePdfState = { error?: string; saved?: boolean; removed?: boolean };
 type UploadTargetState = { error?: string; path?: string; token?: string };
 type AdminSupabaseClient = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
 
+const VERIFY_FETCH_TIMEOUT_MS = 15_000;
+
 function revalidatePrintablePdfPaths() {
   revalidatePath("/admin");
   revalidatePath("/admin/printable-pdfs");
@@ -39,12 +41,17 @@ export async function cleanupPrintablePdfUpload(path: string) {
 // bytes over HTTP (the bucket is public, so a plain Range request works),
 // instead of supabase.storage.download(), which would pull the whole file
 // through the Next.js server's memory and defeat the point of uploading
-// directly from the browser to storage.
+// directly from the browser to storage. Bounded by an explicit timeout so a
+// slow or unresponsive fetch can never leave the save action hanging
+// forever — it fails with a clear error the admin can retry instead.
 async function verifyUploadedPdf(supabase: AdminSupabaseClient, path: string) {
   const { data } = supabase.storage.from(PRINTABLE_PDF_BUCKET).getPublicUrl(path);
   let response: Response;
   try {
-    response = await fetch(data.publicUrl, { headers: { Range: "bytes=0-4" } });
+    response = await fetch(data.publicUrl, {
+      headers: { Range: "bytes=0-4" },
+      signal: AbortSignal.timeout(VERIFY_FETCH_TIMEOUT_MS),
+    });
   } catch {
     return false;
   }
@@ -76,65 +83,24 @@ export async function savePrintablePdfLink(_: PrintablePdfState, formData: FormD
     return { error: title.error ?? "Title is invalid." };
   }
 
-  const { supabase } = await requireAdmin();
-  const rawId = formData.get("id");
   const rawStoragePath = formData.get("storagePath");
-  const storagePath = typeof rawStoragePath === "string" && rawStoragePath ? rawStoragePath : null;
-
-  if (storagePath && !isValidPrintablePdfStoragePath(storagePath)) {
-    return { error: "The uploaded file reference is invalid." };
+  const storagePath = typeof rawStoragePath === "string" ? rawStoragePath : "";
+  if (!storagePath || !isValidPrintablePdfStoragePath(storagePath)) {
+    return { error: "A PDF file is required." };
   }
 
-  if (storagePath && !(await verifyUploadedPdf(supabase, storagePath))) {
+  const { supabase } = await requireAdmin();
+
+  if (!(await verifyUploadedPdf(supabase, storagePath))) {
     await removeStorageObject(supabase, storagePath);
     return { error: "The uploaded file is not a valid PDF." };
   }
 
-  if (rawId) {
-    const id = validatePrintablePdfId(rawId);
-    if (id.error || !id.value) {
-      if (storagePath) await removeStorageObject(supabase, storagePath);
-      return { error: id.error ?? "Printable PDF record ID is invalid." };
-    }
+  const { error } = await supabase.from("printable_pdf_links").insert({ title: title.value, storage_path: storagePath });
 
-    const { data: existing, error: fetchError } = await supabase
-      .from("printable_pdf_links")
-      .select("storage_path")
-      .eq("id", id.value)
-      .maybeSingle();
-
-    if (fetchError || !existing) {
-      if (storagePath) await removeStorageObject(supabase, storagePath);
-      return { error: "Printable PDF link could not be found." };
-    }
-
-    const update: { title: string; storage_path?: string; printable_pdf_url?: null } = { title: title.value };
-    if (storagePath) {
-      update.storage_path = storagePath;
-      update.printable_pdf_url = null;
-    }
-
-    const { error } = await supabase.from("printable_pdf_links").update(update).eq("id", id.value);
-
-    if (error) {
-      if (storagePath) await removeStorageObject(supabase, storagePath);
-      return { error: "Printable PDF link could not be saved." };
-    }
-
-    if (storagePath && existing.storage_path && existing.storage_path !== storagePath) {
-      await removeStorageObject(supabase, existing.storage_path);
-    }
-  } else {
-    if (!storagePath) {
-      return { error: "A PDF file is required." };
-    }
-
-    const { error } = await supabase.from("printable_pdf_links").insert({ title: title.value, storage_path: storagePath });
-
-    if (error) {
-      await removeStorageObject(supabase, storagePath);
-      return { error: "Printable PDF link could not be saved." };
-    }
+  if (error) {
+    await removeStorageObject(supabase, storagePath);
+    return { error: "Printable PDF link could not be saved." };
   }
 
   revalidatePrintablePdfPaths();

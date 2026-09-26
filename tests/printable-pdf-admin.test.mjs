@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const printablePdf = await import("../lib/printable-pdf-links.ts");
 const legacyMigrationPath = "supabase/migrations/20260925020000_refactor_printable_pdf_links.sql";
 const storageMigrationPath = "supabase/migrations/20260926000000_add_printable_pdf_storage.sql";
+const dropLegacyMigrationPath = "supabase/migrations/20260926010000_drop_legacy_printable_pdf_links.sql";
 
 test("printable PDF title validation enforces the admin contract", () => {
   assert.deepEqual(printablePdf.validatePrintablePdfTitle("  Prayer Guide  "), { value: "Prayer Guide" });
@@ -32,7 +33,7 @@ test("magic byte check only accepts a real PDF header", () => {
   assert.equal(printablePdf.isValidPdfMagicBytes(tooShort), false);
 });
 
-test("resolvePrintablePdfHref prefers storage_path over a legacy URL", () => {
+test("resolvePrintablePdfHref builds a public storage URL from a storage path", () => {
   const fakeClient = {
     storage: {
       from(bucket) {
@@ -46,67 +47,72 @@ test("resolvePrintablePdfHref prefers storage_path over a legacy URL", () => {
   };
 
   assert.equal(
-    printablePdf.resolvePrintablePdfHref({ storage_path: "abc.pdf", printable_pdf_url: "https://1drv.ms/old" }, fakeClient),
+    printablePdf.resolvePrintablePdfHref("abc.pdf", fakeClient),
     "https://example.supabase.co/storage/v1/object/public/printable-pdfs/abc.pdf",
-  );
-  assert.equal(
-    printablePdf.resolvePrintablePdfHref({ storage_path: null, printable_pdf_url: "https://1drv.ms/old" }, fakeClient),
-    "https://1drv.ms/old",
   );
 });
 
-test("admin actions implement the signed-upload, verify, and cleanup flow", async () => {
+test("admin actions only support create, verify-before-save, and delete-with-storage-cleanup", async () => {
   const actions = await readFile("app/admin/printable-pdfs/actions.ts", "utf8");
   assert.match(actions, /export async function createPrintablePdfUploadTarget/);
   assert.match(actions, /createSignedUploadUrl\(path\)/);
   assert.match(actions, /export async function cleanupPrintablePdfUpload/);
   assert.match(actions, /isValidPrintablePdfStoragePath\(path\)/);
   assert.match(actions, /headers: \{ Range: "bytes=0-4" \}/);
+  assert.match(actions, /signal: AbortSignal\.timeout\(VERIFY_FETCH_TIMEOUT_MS\)/);
   assert.doesNotMatch(actions, /storage\.from\([^)]*\)\.download\(/);
   assert.match(actions, /isValidPdfMagicBytes\(/);
   assert.match(actions, /A PDF file is required\./);
-  assert.match(actions, /update\.storage_path = storagePath;[\s\S]*?update\.printable_pdf_url = null;/);
-  assert.match(actions, /existing\.storage_path && existing\.storage_path !== storagePath/);
+  assert.match(actions, /export async function savePrintablePdfLink/);
+  assert.doesNotMatch(actions, /formData\.get\("id"\)/);
+  assert.doesNotMatch(actions, /\.update\(/);
   assert.match(actions, /export async function removePrintablePdfLink/);
   assert.match(actions, /existing\?\.storage_path/);
 });
 
-test("admin form uploads directly to storage with an immutable cache header", async () => {
+test("admin form is create-only, uploads with an immutable cache header, and never hangs silently", async () => {
   const manager = await readFile("app/admin/printable-pdfs/printable-pdf-form.tsx", "utf8");
   assert.match(manager, /type="file" accept="application\/pdf"/);
   assert.doesNotMatch(manager, /type="url"/);
   assert.match(manager, /createPrintablePdfUploadTarget\(\)/);
-  assert.match(manager, /uploadToSignedUrl\(target\.path, target\.token, file as File/);
+  assert.match(manager, /uploadToSignedUrl\(target\.path, target\.token, file/);
   assert.match(manager, /cacheControl: "public, max-age=31536000, immutable"/);
   assert.match(manager, /cleanupPrintablePdfUpload\(target\.path\)/);
-  assert.match(manager, /cleanupPrintablePdfUpload\(storagePath\)/);
   assert.match(manager, /Choose a PDF file\./);
-  assert.match(manager, /Leave blank to keep the current file/);
+  assert.match(manager, /function withTimeout/);
+  assert.match(manager, /"Uploading the PDF"/);
+  assert.match(manager, /"Saving the PDF link"/);
+  assert.doesNotMatch(manager, /editingId|Edit PDF link|Cancel Edit|Replace/i);
 });
 
-test("admin list warns before deleting a stored file, not just a legacy link", async () => {
+test("admin list has only View and Delete actions, no Edit", async () => {
   const manager = await readFile("app/admin/printable-pdfs/printable-pdf-form.tsx", "utf8");
   assert.match(manager, /This permanently deletes the stored PDF file as well as the website listing\./);
-  assert.match(manager, /This removes only the website listing\. It does not delete the PDF from OneDrive or any other storage provider\./);
-  assert.match(manager, /isStorageBacked/);
+  assert.doesNotMatch(manager, />Edit</);
   assert.match(manager, /Search PDF title/);
   assert.match(manager, /<th scope="col" className="px-3 py-3">Title<\/th>/);
-  assert.match(manager, /Edit/);
-  assert.match(manager, /Delete/);
+  assert.match(manager, /"Delete"/);
 });
 
-test("admin and public pages resolve a href instead of trusting the raw URL column", async () => {
+test("admin form's Title and PDF file fields are equal-structure grid siblings, not end-aligned", async () => {
+  const manager = await readFile("app/admin/printable-pdfs/printable-pdf-form.tsx", "utf8");
+  assert.match(manager, /<div className="grid gap-4 sm:grid-cols-2">/);
+  assert.doesNotMatch(manager, /grid[^"]*items-end/);
+});
+
+test("admin and public pages resolve a href from storage_path only, no legacy URL column", async () => {
   const adminPage = await readFile("app/admin/printable-pdfs/page.tsx", "utf8");
   const publicPage = await readFile("app/pdf/page.tsx", "utf8");
   for (const page of [adminPage, publicPage]) {
-    assert.match(page, /select\("id, title, storage_path, printable_pdf_url/);
-    assert.match(page, /resolvePrintablePdfHref\(link, supabase\)/);
+    assert.match(page, /select\("id, title, storage_path, created_at/);
+    assert.doesNotMatch(page, /printable_pdf_url/);
+    assert.match(page, /resolvePrintablePdfHref\(link\.storage_path, supabase\)/);
   }
   assert.match(adminPage, /\.order\("created_at", \{ ascending: false \}\)/);
   assert.match(publicPage, /\.order\("created_at", \{ ascending: false \}\)/);
 });
 
-test("new storage migration creates a public bucket and a one-source check", async () => {
+test("storage migration creates a public bucket and (at that point) a one-source check", async () => {
   const migration = await readFile(storageMigrationPath, "utf8");
   assert.match(migration, /insert into storage\.buckets[\s\S]*?'printable-pdfs'[\s\S]*?true,[\s\S]*?26214400/);
   assert.match(migration, /array\['application\/pdf'\]/);
@@ -115,6 +121,15 @@ test("new storage migration creates a public bucket and a one-source check", asy
   assert.match(migration, /add column storage_path text unique/);
   assert.match(migration, /alter column printable_pdf_url drop not null/);
   assert.match(migration, /check \(num_nonnulls\(storage_path, printable_pdf_url\) = 1\)/);
+});
+
+test("drop-legacy migration removes the OneDrive rows and the coexistence columns", async () => {
+  const migration = await readFile(dropLegacyMigrationPath, "utf8");
+  assert.match(migration, /delete from public\.printable_pdf_links where printable_pdf_url is not null/);
+  assert.match(migration, /drop constraint printable_pdf_links_one_source_check/);
+  assert.match(migration, /drop constraint printable_pdf_links_url_check/);
+  assert.match(migration, /drop column printable_pdf_url/);
+  assert.match(migration, /alter column storage_path set not null/);
 });
 
 test("forward migration renames the table and preserves legacy values before removing teaching_id", async () => {

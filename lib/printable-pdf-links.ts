@@ -57,12 +57,6 @@ type PublicUrlClient = {
   };
 };
 
-export function resolvePrintablePdfHref(
-  link: { storage_path: string | null; printable_pdf_url: string | null },
-  supabase: PublicUrlClient,
-) {
-  if (link.storage_path) {
-    return supabase.storage.from(PRINTABLE_PDF_BUCKET).getPublicUrl(link.storage_path).data.publicUrl;
-  }
-  return link.printable_pdf_url!;
+export function resolvePrintablePdfHref(storagePath: string, supabase: PublicUrlClient) {
+  return supabase.storage.from(PRINTABLE_PDF_BUCKET).getPublicUrl(storagePath).data.publicUrl;
 }

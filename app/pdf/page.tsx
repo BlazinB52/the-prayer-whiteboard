@@ -24,8 +24,7 @@ export const metadata: Metadata = {
 type PrintablePdfLinkRow = {
   id: string;
   title: string;
-  storage_path: string | null;
-  printable_pdf_url: string | null;
+  storage_path: string;
   created_at: string;
 };
 
@@ -37,14 +36,14 @@ export default async function PrintablePdfLinksPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("printable_pdf_links")
-    .select("id, title, storage_path, printable_pdf_url, created_at")
+    .select("id, title, storage_path, created_at")
     .order("created_at", { ascending: false })
     .order("title", { ascending: true });
   const rows = (data as PrintablePdfLinkRow[] | null) ?? [];
   const links = rows.map((link) => ({
     id: link.id,
     title: link.title,
-    href: resolvePrintablePdfHref(link, supabase),
+    href: resolvePrintablePdfHref(link.storage_path, supabase),
     created_at: link.created_at,
   }));
 

@@ -10,12 +10,26 @@ import {
   validatePrintablePdfId,
   validatePrintablePdfTitle,
 } from "@/lib/printable-pdf-links";
+import {
+  findOrphanedPrintablePdfStorageFiles,
+  normalizePrintablePdfCleanupSelection,
+  printablePdfCleanupBucket,
+  type PrintablePdfCleanupFile,
+  type PrintablePdfStorageObject,
+} from "@/lib/printable-pdf-storage-cleanup";
 
 type PrintablePdfState = { error?: string; saved?: boolean; removed?: boolean };
 type UploadTargetState = { error?: string; path?: string; token?: string };
+export type PrintablePdfCleanupScanState = { error?: string; scannedAt?: string; files?: PrintablePdfCleanupFile[] };
+export type PrintablePdfCleanupDeleteState = {
+  error?: string;
+  deleted: string[];
+  skipped: { path: string; reason: string }[];
+};
 type AdminSupabaseClient = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
 
 const VERIFY_FETCH_TIMEOUT_MS = 15_000;
+const STORAGE_LIST_PAGE_SIZE = 100;
 
 function revalidatePrintablePdfPaths() {
   revalidatePath("/admin");
@@ -75,6 +89,94 @@ async function verifyUploadedPdf(supabase: AdminSupabaseClient, path: string) {
 
 async function removeStorageObject(supabase: AdminSupabaseClient, path: string) {
   await supabase.storage.from(PRINTABLE_PDF_BUCKET).remove([path]);
+}
+
+async function loadReferencedPrintablePdfStoragePaths(supabase: AdminSupabaseClient) {
+  const { data, error } = await supabase.from("printable_pdf_links").select("storage_path").not("storage_path", "is", null);
+  if (error) throw new Error("Printable PDF references could not be loaded.");
+
+  return new Set(((data as { storage_path: string | null }[] | null) ?? []).map((row) => row.storage_path).filter((path): path is string => Boolean(path)));
+}
+
+async function listPrintablePdfStorageObjects(supabase: AdminSupabaseClient) {
+  const objects: PrintablePdfStorageObject[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await supabase.storage.from(printablePdfCleanupBucket()).list("", {
+      limit: STORAGE_LIST_PAGE_SIZE,
+      offset,
+      sortBy: { column: "name", order: "asc" },
+    });
+
+    if (error) throw new Error("Printable PDF storage could not be scanned.");
+
+    const page = (data ?? []) as PrintablePdfStorageObject[];
+    objects.push(...page);
+    if (page.length < STORAGE_LIST_PAGE_SIZE) break;
+    offset += STORAGE_LIST_PAGE_SIZE;
+  }
+
+  return objects;
+}
+
+export async function scanPrintablePdfStorageCleanup(): Promise<PrintablePdfCleanupScanState> {
+  const { supabase } = await requireAdmin();
+
+  try {
+    const [referencedPaths, objects] = await Promise.all([
+      loadReferencedPrintablePdfStoragePaths(supabase),
+      listPrintablePdfStorageObjects(supabase),
+    ]);
+
+    return {
+      scannedAt: new Date().toISOString(),
+      files: findOrphanedPrintablePdfStorageFiles(objects, referencedPaths),
+    };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Printable PDF storage could not be scanned." };
+  }
+}
+
+export async function deleteOrphanedPrintablePdfStorageFiles(paths: string[]): Promise<PrintablePdfCleanupDeleteState> {
+  const { supabase } = await requireAdmin();
+  const { validPaths, rejectedPaths } = normalizePrintablePdfCleanupSelection(paths);
+  const result: PrintablePdfCleanupDeleteState = {
+    deleted: [],
+    skipped: rejectedPaths.map((path) => ({ path, reason: "Invalid printable PDF storage path." })),
+  };
+
+  if (!validPaths.length) {
+    return result.skipped.length ? result : { ...result, error: "Select at least one orphaned PDF file to delete." };
+  }
+
+  try {
+    const [referencedPaths, objects] = await Promise.all([
+      loadReferencedPrintablePdfStoragePaths(supabase),
+      listPrintablePdfStorageObjects(supabase),
+    ]);
+    const orphanedNow = new Set(findOrphanedPrintablePdfStorageFiles(objects, referencedPaths).map((file) => file.path));
+
+    for (const path of validPaths) {
+      if (!orphanedNow.has(path)) {
+        result.skipped.push({ path, reason: "Skipped because it is referenced, recent, missing, or no longer eligible." });
+        continue;
+      }
+
+      const { error } = await supabase.storage.from(printablePdfCleanupBucket()).remove([path]);
+      if (error) {
+        result.skipped.push({ path, reason: "Supabase Storage did not delete this file." });
+        continue;
+      }
+
+      result.deleted.push(path);
+    }
+
+    revalidatePath("/admin/printable-pdfs");
+    return result;
+  } catch (error) {
+    return { ...result, error: error instanceof Error ? error.message : "Selected files could not be deleted." };
+  }
 }
 
 export async function savePrintablePdfLink(_: PrintablePdfState, formData: FormData): Promise<PrintablePdfState> {

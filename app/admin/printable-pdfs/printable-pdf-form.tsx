@@ -3,7 +3,16 @@
 import { useActionState, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { cleanupPrintablePdfUpload, createPrintablePdfUploadTarget, removePrintablePdfLink, savePrintablePdfLink } from "./actions";
+import {
+  cleanupPrintablePdfUpload,
+  createPrintablePdfUploadTarget,
+  deleteOrphanedPrintablePdfStorageFiles,
+  removePrintablePdfLink,
+  savePrintablePdfLink,
+  scanPrintablePdfStorageCleanup,
+  type PrintablePdfCleanupDeleteState,
+  type PrintablePdfCleanupScanState,
+} from "./actions";
 
 type FormState = { error?: string; saved?: boolean; removed?: boolean };
 
@@ -16,6 +25,31 @@ type PrintablePdfLink = {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(value));
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "Unknown";
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function formatBytes(value: number | null) {
+  if (value === null) return "Unknown";
+  if (value < 1024) return `${value} B`;
+  const units = ["KB", "MB", "GB"];
+  let size = value / 1024;
+  let unitIndex = 0;
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+  return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatAge(ageMs: number) {
+  const hours = Math.floor(ageMs / (60 * 60 * 1000));
+  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  const days = Math.floor(hours / 24);
+  return `${days} ${days === 1 ? "day" : "days"}`;
 }
 
 // A hung request (network stall, an unresponsive endpoint) should never
@@ -191,7 +225,136 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
           <p className="mt-6 text-sm text-[#607066]">No PDF links match that title search.</p>
         )}
       </section>
+
+      <PrintablePdfStorageCleanup />
     </>
+  );
+}
+
+function PrintablePdfStorageCleanup() {
+  const [pending, startTransition] = useTransition();
+  const [scanState, setScanState] = useState<PrintablePdfCleanupScanState>({});
+  const [deleteState, setDeleteState] = useState<PrintablePdfCleanupDeleteState | null>(null);
+  const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
+  const files = scanState.files ?? [];
+  const selectedSet = new Set(selectedPaths);
+
+  function scan() {
+    setDeleteState(null);
+    startTransition(async () => {
+      const result = await scanPrintablePdfStorageCleanup();
+      setScanState(result);
+      setSelectedPaths([]);
+    });
+  }
+
+  function togglePath(path: string, checked: boolean) {
+    setSelectedPaths((current) => (checked ? Array.from(new Set([...current, path])) : current.filter((value) => value !== path)));
+  }
+
+  function deleteSelected() {
+    if (!selectedPaths.length) return;
+    if (
+      !window.confirm(
+        "Permanently delete the selected orphaned PDF files from Supabase Storage?\n\nThese files are not referenced by any Printable PDF Link record.\n\nThis action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await deleteOrphanedPrintablePdfStorageFiles(selectedPaths);
+      setDeleteState(result);
+      setSelectedPaths([]);
+      const refreshed = await scanPrintablePdfStorageCleanup();
+      setScanState(refreshed);
+    });
+  }
+
+  return (
+    <section className="border-t border-[#284a3b]/10 py-7">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-xl font-extrabold text-[#243d31]">Storage Cleanup</h2>
+          <p className="mt-1 text-sm text-[#607066]">Find unreferenced printable PDF files that are older than the safety window.</p>
+        </div>
+        <button type="button" onClick={scan} disabled={pending} className="admin-secondary-button">
+          {pending ? "Working..." : "Scan for orphaned PDFs"}
+        </button>
+      </div>
+
+      {scanState.error ? <p role="alert" className="mt-4 text-sm font-bold text-[#a2472c]">{scanState.error}</p> : null}
+
+      {scanState.scannedAt && !scanState.error ? (
+        files.length ? (
+          <div className="mt-5">
+            <div className="overflow-x-auto border-y border-[#284a3b]/10">
+              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+                <thead className="bg-[#eee7da] text-xs font-extrabold uppercase tracking-wide text-[#385245]">
+                  <tr>
+                    <th scope="col" className="w-12 px-3 py-3">Select</th>
+                    <th scope="col" className="px-3 py-3">Storage path</th>
+                    <th scope="col" className="px-3 py-3">Size</th>
+                    <th scope="col" className="px-3 py-3">Uploaded</th>
+                    <th scope="col" className="px-3 py-3">Age</th>
+                    <th scope="col" className="px-3 py-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#284a3b]/10 bg-[#fffdf8]">
+                  {files.map((file) => (
+                    <tr key={file.path}>
+                      <td className="px-3 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedSet.has(file.path)}
+                          onChange={(event) => togglePath(file.path, event.target.checked)}
+                          aria-label={`Select ${file.path}`}
+                          className="h-4 w-4 accent-[#946332]"
+                        />
+                      </td>
+                      <td className="px-3 py-3 font-mono text-xs text-[#243d31]">{file.path}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-[#607066]">{formatBytes(file.size)}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-[#607066]">{formatDateTime(file.updatedAt ?? file.createdAt)}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-[#607066]">{formatAge(file.ageMs)}</td>
+                      <td className="whitespace-nowrap px-3 py-3 font-bold text-[#326048]">Orphaned</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <button type="button" onClick={deleteSelected} disabled={pending || !selectedPaths.length} className="admin-danger-button mt-4 disabled:opacity-60">
+              Delete Selected
+            </button>
+          </div>
+        ) : (
+          <p role="status" className="mt-4 text-sm font-bold text-[#326048]">No orphaned printable PDF files found.</p>
+        )
+      ) : null}
+
+      {deleteState ? (
+        <div className="mt-4 space-y-2 text-sm">
+          {deleteState.deleted.length ? (
+            <p role="status" className="font-bold text-[#326048]">
+              Deleted {deleteState.deleted.length} orphaned {deleteState.deleted.length === 1 ? "file" : "files"}.
+            </p>
+          ) : null}
+          {deleteState.error ? <p role="alert" className="font-bold text-[#a2472c]">{deleteState.error}</p> : null}
+          {deleteState.skipped.length ? (
+            <div className="text-[#a2472c]">
+              <p className="font-bold">{deleteState.skipped.length} {deleteState.skipped.length === 1 ? "file was" : "files were"} not deleted.</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                {deleteState.skipped.map((item) => (
+                  <li key={`${item.path}-${item.reason}`}>
+                    <span className="font-mono text-xs">{item.path}</span>: {item.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
   );
 }
 

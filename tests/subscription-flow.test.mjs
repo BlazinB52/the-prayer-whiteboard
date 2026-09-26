@@ -212,8 +212,8 @@ test("admin subscribers page preserves masked display and normal scrolling", asy
 test("public header exposes desktop and mobile Subscribe calls to action", async () => {
   const source = await readFile("app/public-header.tsx", "utf8");
   assert.match(source, /href="\/subscribe"/);
-  assert.match(source, /hidden md:inline-flex/);
-  assert.match(source, /md:hidden/);
+  assert.match(source, /hidden lg:inline-flex/);
+  assert.match(source, /lg:hidden/);
   assert.match(source, /Subscribe/);
   assert.match(source, /!text-white/);
   assert.match(source, /hover:!text-white/);

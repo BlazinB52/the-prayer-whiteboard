@@ -1,33 +1,36 @@
 export const PRINTABLE_PDF_URL_MAX_LENGTH = 2048;
+export const PRINTABLE_PDF_TITLE_MAX_LENGTH = 200;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const FORBIDDEN_PROTOCOLS = new Set(["javascript:", "data:", "file:"]);
 
-export function validateTeachingId(value: unknown) {
-  const teachingId = typeof value === "string" ? value.trim() : "";
+export function validatePrintablePdfId(value: unknown) {
+  const id = typeof value === "string" ? value.trim() : "";
 
-  if (!teachingId) {
-    return { error: "Teaching selection was not submitted." };
+  if (!id) {
+    return { error: "Printable PDF record was not submitted." };
   }
 
-  if (!UUID_PATTERN.test(teachingId)) {
-    return { error: "Teaching ID is invalid." };
+  if (!UUID_PATTERN.test(id)) {
+    return { error: "Printable PDF record ID is invalid." };
   }
 
-  return { value: teachingId };
+  return { value: id };
 }
 
-export function getTeachingLookupErrorCategory(code: string | undefined) {
-  if (code === "42501" || code === "PGRST301") {
-    return "authorization error";
+export function validatePrintablePdfTitle(value: unknown) {
+  const title = typeof value === "string" ? value.trim() : "";
+
+  if (!title) {
+    return { error: "Title is required." };
   }
 
-  if (code?.startsWith("PGRST")) {
-    return "database response error";
+  if (title.length > PRINTABLE_PDF_TITLE_MAX_LENGTH) {
+    return { error: `Title must be ${PRINTABLE_PDF_TITLE_MAX_LENGTH} characters or fewer.` };
   }
 
-  return "database query error";
+  return { value: title };
 }
 
 export function validatePrintablePdfUrl(value: string) {

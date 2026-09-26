@@ -52,8 +52,8 @@ const tools = [
     href: "/admin/subscribers",
   },
   {
-    title: "Teaching PDF Links",
-    description: "Assign printable PDF links to existing teachings.",
+    title: "Printable PDF Links",
+    description: "Manage printable resources for the public PDF library.",
     status: "Available",
     href: "/admin/printable-pdfs",
   },

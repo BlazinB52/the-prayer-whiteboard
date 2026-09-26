@@ -2,21 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/supabase/admin";
-import { getTeachingLookupErrorCategory, validatePrintablePdfUrl, validateTeachingId } from "@/lib/printable-pdf-links";
+import { validatePrintablePdfId, validatePrintablePdfTitle, validatePrintablePdfUrl } from "@/lib/printable-pdf-links";
 
 type PrintablePdfState = { error?: string; saved?: boolean; removed?: boolean };
 
 function revalidatePrintablePdfPaths() {
   revalidatePath("/admin");
   revalidatePath("/admin/printable-pdfs");
+  revalidatePath("/pdf");
 }
 
 export async function savePrintablePdfLink(_: PrintablePdfState, formData: FormData): Promise<PrintablePdfState> {
-  const teachingIdResult = validateTeachingId(formData.get("teachingId"));
-  if (teachingIdResult.error || !teachingIdResult.value) {
-    return { error: teachingIdResult.error ?? "Teaching ID is invalid." };
+  const title = validatePrintablePdfTitle(formData.get("title"));
+  if (title.error || !title.value) {
+    return { error: title.error ?? "Title is invalid." };
   }
-  const teachingId = teachingIdResult.value;
 
   const url = validatePrintablePdfUrl(String(formData.get("printablePdfUrl") ?? ""));
   if (url.error || !url.value) {
@@ -24,44 +24,53 @@ export async function savePrintablePdfLink(_: PrintablePdfState, formData: FormD
   }
 
   const { supabase } = await requireAdmin();
-  const { data: teaching, error: teachingError } = await supabase
-    .from("teachings")
-    .select("id")
-    .eq("id", teachingId)
-    .maybeSingle();
+  const rawId = formData.get("id");
 
-  if (teachingError) {
-    return { error: `Teaching lookup failed: ${getTeachingLookupErrorCategory(teachingError.code)}.` };
-  }
+  if (rawId) {
+    const id = validatePrintablePdfId(rawId);
+    if (id.error || !id.value) {
+      return { error: id.error ?? "Printable PDF record ID is invalid." };
+    }
 
-  if (!teaching) {
-    return { error: "Teaching could not be found." };
-  }
+    const { data, error } = await supabase
+      .from("printable_pdf_links")
+      .update({ title: title.value, printable_pdf_url: url.value })
+      .eq("id", id.value)
+      .select("id")
+      .maybeSingle();
 
-  const { error } = await supabase
-    .from("teaching_printable_pdf_links")
-    .upsert({ teaching_id: teachingId, printable_pdf_url: url.value }, { onConflict: "teaching_id" });
+    if (error) {
+      return { error: "Printable PDF link could not be saved." };
+    }
 
-  if (error) {
-    return { error: "PDF assignment save failed." };
+    if (!data) {
+      return { error: "Printable PDF link could not be found." };
+    }
+  } else {
+    const { error } = await supabase
+      .from("printable_pdf_links")
+      .insert({ title: title.value, printable_pdf_url: url.value });
+    if (error) {
+      return { error: "Printable PDF link could not be saved." };
+    }
   }
 
   revalidatePrintablePdfPaths();
   return { saved: true };
 }
 
-export async function removePrintablePdfLink(teachingId: string, previousState: PrintablePdfState): Promise<PrintablePdfState> {
+export async function removePrintablePdfLink(id: string, previousState: PrintablePdfState): Promise<PrintablePdfState> {
   void previousState;
-  const teachingIdResult = validateTeachingId(teachingId);
-  if (teachingIdResult.error || !teachingIdResult.value) {
-    return { error: teachingIdResult.error ?? "Teaching ID is invalid." };
+  const idResult = validatePrintablePdfId(id);
+  if (idResult.error || !idResult.value) {
+    return { error: idResult.error ?? "Printable PDF record ID is invalid." };
   }
 
   const { supabase } = await requireAdmin();
   const { error } = await supabase
-    .from("teaching_printable_pdf_links")
+    .from("printable_pdf_links")
     .delete()
-    .eq("teaching_id", teachingIdResult.value);
+    .eq("id", idResult.value);
 
   if (error) {
     return { error: "Printable PDF link could not be removed." };

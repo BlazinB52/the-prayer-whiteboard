@@ -10,7 +10,12 @@ type PublicHeaderProps = {
 };
 
 export function PublicHeader({ maxWidthClassName = "max-w-5xl", nav, homeLabel = "Back to home", end }: PublicHeaderProps) {
-  const navItems = nav?.filter((item) => item.href !== "/subscribe") ?? [];
+  const navItems = nav
+    ? [
+        ...nav.filter((item) => item.href !== "/subscribe" && item.href !== "/pdf"),
+        { href: "/pdf", label: "PDF Links" },
+      ]
+    : [];
   const subscribeClassName = "inline-flex min-h-11 shrink-0 items-center justify-center rounded-2xl bg-[#244a3a] px-4 text-sm font-extrabold !text-white shadow-lg shadow-[#244a3a]/15 transition hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#946332] active:bg-[#193329] active:!text-white visited:!text-white";
 
   return (
@@ -22,11 +27,11 @@ export function PublicHeader({ maxWidthClassName = "max-w-5xl", nav, homeLabel =
         </Link>
         {nav?.length ? (
           <div className="flex items-center gap-3">
-            <nav className="hidden items-center gap-7 text-sm font-bold text-[#385245] md:flex" aria-label="Main navigation">
+            <nav className="hidden items-center gap-4 text-xs font-bold text-[#385245] lg:flex" aria-label="Main navigation">
               {navItems.map((item) => <a key={item.href} href={item.href} className="transition hover:text-[#a45e2e]">{item.label}</a>)}
             </nav>
-            <Link href="/subscribe" className={`${subscribeClassName} hidden md:inline-flex`}>Subscribe</Link>
-            <details className="group relative md:hidden">
+            <Link href="/subscribe" className={`${subscribeClassName} hidden lg:inline-flex`}>Subscribe</Link>
+            <details className="group relative lg:hidden">
               <summary className="grid size-11 list-none place-items-center rounded-xl border border-[#284a3b]/15 bg-white text-[#244a3a] [&::-webkit-details-marker]:hidden" aria-label="Open navigation">
                 <Menu aria-hidden="true" size={22} />
               </summary>

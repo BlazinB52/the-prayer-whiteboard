@@ -1,6 +1,8 @@
 begin;
 
-create table if not exists public.teaching_printable_pdf_links (
+drop table if exists public.printable_pdf_links;
+
+create table public.teaching_printable_pdf_links (
   teaching_id uuid primary key references public.teachings(id) on delete cascade,
   printable_pdf_url text not null,
   created_at timestamptz not null default now(),
@@ -15,223 +17,182 @@ create table if not exists public.teaching_printable_pdf_links (
     )
 );
 
-drop trigger if exists teaching_printable_pdf_links_set_updated_at on public.teaching_printable_pdf_links;
 create trigger teaching_printable_pdf_links_set_updated_at
 before update on public.teaching_printable_pdf_links
 for each row execute function public.set_updated_at();
 
 alter table public.teaching_printable_pdf_links enable row level security;
 
-drop policy if exists "Public can read published teaching printable PDF links" on public.teaching_printable_pdf_links;
 create policy "Public can read published teaching printable PDF links"
-on public.teaching_printable_pdf_links
-for select
-using (
-  exists (
-    select 1
-    from public.teachings teaching
-    where teaching.id = teaching_id
-      and teaching.status = 'published'
-  )
-  or public.is_authenticated_admin()
-);
+on public.teaching_printable_pdf_links for select using (true);
 
-drop policy if exists "Admins manage teaching printable PDF links" on public.teaching_printable_pdf_links;
 create policy "Admins manage teaching printable PDF links"
-on public.teaching_printable_pdf_links
-for all
+on public.teaching_printable_pdf_links for all
 using (public.is_authenticated_admin())
 with check (public.is_authenticated_admin());
 
 grant select on public.teaching_printable_pdf_links to anon, authenticated;
 grant select, insert, update, delete on public.teaching_printable_pdf_links to authenticated;
 
-select plan(9);
+insert into public.teachings (id, title, slug, status, summary)
+values (
+  '00000000-0000-4000-b000-000000000611',
+  'Migrated Printable Resource',
+  'migrated-printable-resource',
+  'published',
+  'Migration fixture.'
+);
 
-create temp table printable_pdf_test_ids (
-  key text primary key,
-  id uuid not null
-) on commit drop;
-
-insert into printable_pdf_test_ids (key, id)
-values
-  ('admin_user', '00000000-0000-4000-b000-000000000501'),
-  ('admin_auth', '00000000-0000-4000-b000-000000000502'),
-  ('regular_user', '00000000-0000-4000-b000-000000000503'),
-  ('teaching_with_link', '00000000-0000-4000-b000-000000000511'),
-  ('teaching_without_link', '00000000-0000-4000-b000-000000000512');
-
-grant select on printable_pdf_test_ids to authenticated;
-
-insert into auth.users (
-  instance_id,
-  id,
-  aud,
-  role,
-  email,
-  encrypted_password,
-  email_confirmed_at,
+insert into public.teaching_printable_pdf_links (
+  teaching_id,
+  printable_pdf_url,
   created_at,
   updated_at
 )
-values
-  (
-    '00000000-0000-0000-0000-000000000000',
-    (select id from printable_pdf_test_ids where key = 'admin_user'),
-    'authenticated',
-    'authenticated',
-    'printable-pdf-admin@example.test',
-    'local-regression-placeholder',
-    now(),
-    now(),
-    now()
-  ),
-  (
-    '00000000-0000-0000-0000-000000000000',
-    (select id from printable_pdf_test_ids where key = 'regular_user'),
-    'authenticated',
-    'authenticated',
-    'printable-pdf-regular@example.test',
-    'local-regression-placeholder',
-    now(),
-    now(),
-    now()
-  );
+values (
+  '00000000-0000-4000-b000-000000000611',
+  'https://onedrive.live.com/download?resid=MIGRATION',
+  '2026-09-20 10:00:00+00',
+  '2026-09-21 11:00:00+00'
+);
+
+alter table public.teaching_printable_pdf_links
+rename to printable_pdf_links;
+
+drop policy if exists "Public can read published teaching printable PDF links" on public.printable_pdf_links;
+drop policy if exists "Admins manage teaching printable PDF links" on public.printable_pdf_links;
+
+alter table public.printable_pdf_links
+add column id uuid not null default gen_random_uuid(),
+add column title text;
+
+alter table public.printable_pdf_links
+disable trigger teaching_printable_pdf_links_set_updated_at;
+
+update public.printable_pdf_links pdf
+set title = teaching.title
+from public.teachings teaching
+where teaching.id = pdf.teaching_id;
+
+alter table public.printable_pdf_links
+enable trigger teaching_printable_pdf_links_set_updated_at;
+
+alter table public.printable_pdf_links
+alter column title set not null,
+drop constraint teaching_printable_pdf_links_pkey,
+add constraint printable_pdf_links_pkey primary key (id),
+drop column teaching_id;
+
+alter table public.printable_pdf_links
+rename constraint teaching_printable_pdf_links_url_check to printable_pdf_links_url_check;
+
+alter trigger teaching_printable_pdf_links_set_updated_at on public.printable_pdf_links
+rename to printable_pdf_links_set_updated_at;
+
+create policy "Public can read printable PDF links"
+on public.printable_pdf_links
+for select
+to anon, authenticated
+using (true);
+
+create policy "Admins manage printable PDF links"
+on public.printable_pdf_links
+for all
+to authenticated
+using (public.is_authenticated_admin())
+with check (public.is_authenticated_admin());
+
+revoke insert, update, delete on public.printable_pdf_links from anon;
+grant select on public.printable_pdf_links to anon, authenticated, service_role;
+grant select, insert, update, delete on public.printable_pdf_links to authenticated, service_role;
+
+select plan(16);
+
+select is((select count(*) from public.printable_pdf_links), 1::bigint, 'legacy PDF row is preserved');
+select is((select title from public.printable_pdf_links), 'Migrated Printable Resource', 'teaching title becomes the PDF title');
+select is((select printable_pdf_url from public.printable_pdf_links), 'https://onedrive.live.com/download?resid=MIGRATION', 'legacy URL is preserved');
+select is((select created_at from public.printable_pdf_links), '2026-09-20 10:00:00+00'::timestamptz, 'created timestamp is preserved');
+select is((select updated_at from public.printable_pdf_links), '2026-09-21 11:00:00+00'::timestamptz, 'updated timestamp is preserved');
+select ok((select id is not null from public.printable_pdf_links), 'migrated row receives a UUID');
+select hasnt_column('public', 'printable_pdf_links', 'teaching_id', 'teaching association is removed');
+
+set local role anon;
+select is((select count(*) from public.printable_pdf_links), 1::bigint, 'public can read PDF records');
+select throws_ok(
+  $$ insert into public.printable_pdf_links (title, printable_pdf_url) values ('Anon PDF', 'https://example.com/anon.pdf') $$,
+  '42501',
+  null,
+  'public cannot create PDF records'
+);
+select throws_ok(
+  $$ update public.printable_pdf_links set title = 'Anon update' $$,
+  '42501',
+  null,
+  'public cannot update PDF records'
+);
+select throws_ok(
+  $$ delete from public.printable_pdf_links $$,
+  '42501',
+  null,
+  'public cannot delete PDF records'
+);
+
+reset role;
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at
+)
+values (
+  '00000000-0000-0000-0000-000000000000',
+  '00000000-0000-4000-b000-000000000601',
+  'authenticated',
+  'authenticated',
+  'printable-pdf-admin@example.test',
+  'local-regression-placeholder',
+  now(),
+  now(),
+  now()
+);
 
 insert into public.admin_authorizations (id, user_id, role, is_active)
 values (
-  (select id from printable_pdf_test_ids where key = 'admin_auth'),
-  (select id from printable_pdf_test_ids where key = 'admin_user'),
+  '00000000-0000-4000-b000-000000000602',
+  '00000000-0000-4000-b000-000000000601',
   'admin',
   true
 );
 
 set local role authenticated;
-select set_config('request.jwt.claim.sub', (select id::text from printable_pdf_test_ids where key = 'admin_user'), true);
+select set_config('request.jwt.claim.sub', '00000000-0000-4000-b000-000000000601', true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-insert into public.teachings (id, title, slug, status, summary)
-values
-  (
-    (select id from printable_pdf_test_ids where key = 'teaching_with_link'),
-    'Teaching With Printable PDF',
-    'teaching-with-printable-pdf',
-    'published',
-    'Published teaching summary.'
-  ),
-  (
-    (select id from printable_pdf_test_ids where key = 'teaching_without_link'),
-    'Teaching Without Printable PDF',
-    'teaching-without-printable-pdf',
-    'published',
-    'Published teaching summary.'
-  );
+insert into public.printable_pdf_links (title, printable_pdf_url)
+values ('New Printable', 'https://example.com/new.pdf');
+select is((select count(*) from public.printable_pdf_links), 2::bigint, 'admin can create a PDF record');
 
-insert into public.teaching_printable_pdf_links (teaching_id, printable_pdf_url)
-values (
-  (select id from printable_pdf_test_ids where key = 'teaching_with_link'),
-  'https://onedrive.live.com/download?resid=ABC123'
-);
-
-select is(
-  (
-    select printable_pdf_url
-    from public.teaching_printable_pdf_links
-    where teaching_id = (select id from printable_pdf_test_ids where key = 'teaching_with_link')
-  ),
-  'https://onedrive.live.com/download?resid=ABC123',
-  'admin can assign a printable PDF link to a teaching'
-);
-
-update public.teaching_printable_pdf_links
-set printable_pdf_url = 'https://contoso.sharepoint.com/:b:/s/storehouse/example'
-where teaching_id = (select id from printable_pdf_test_ids where key = 'teaching_with_link');
-
-select is(
-  (
-    select printable_pdf_url
-    from public.teaching_printable_pdf_links
-    where teaching_id = (select id from printable_pdf_test_ids where key = 'teaching_with_link')
-  ),
-  'https://contoso.sharepoint.com/:b:/s/storehouse/example',
-  'admin can update a printable PDF link'
-);
-
-select is(
-  (
-    select count(*)
-    from public.teaching_printable_pdf_links
-    where teaching_id = (select id from printable_pdf_test_ids where key = 'teaching_without_link')
-  ),
-  0::bigint,
-  'a teaching without a PDF link remains valid'
-);
+update public.printable_pdf_links
+set title = 'Updated Printable', printable_pdf_url = 'https://example.com/updated.pdf'
+where title = 'New Printable';
+select is((select title from public.printable_pdf_links where printable_pdf_url = 'https://example.com/updated.pdf'), 'Updated Printable', 'admin can edit title and URL');
 
 select throws_ok(
-  $$ insert into public.teaching_printable_pdf_links (teaching_id, printable_pdf_url)
-     values ((select id from printable_pdf_test_ids where key = 'teaching_without_link'), 'http://example.com/file.pdf') $$,
+  $$ insert into public.printable_pdf_links (title, printable_pdf_url) values ('Unsafe PDF', 'http://example.com/file.pdf') $$,
   '23514',
   null,
   'non-https URLs are rejected'
 );
 
-select throws_ok(
-  $$ insert into public.teaching_printable_pdf_links (teaching_id, printable_pdf_url)
-     values ((select id from printable_pdf_test_ids where key = 'teaching_without_link'), 'javascript:alert(1)') $$,
-  '23514',
-  null,
-  'javascript URLs are rejected'
-);
-
-set local role authenticated;
-select set_config('request.jwt.claim.sub', (select id::text from printable_pdf_test_ids where key = 'regular_user'), true);
-select set_config('request.jwt.claim.role', 'authenticated', true);
-
-select throws_ok(
-  $$ insert into public.teaching_printable_pdf_links (teaching_id, printable_pdf_url)
-     values ((select id from printable_pdf_test_ids where key = 'teaching_without_link'), 'https://onedrive.live.com/download?resid=REGULAR') $$,
-  '42501',
-  null,
-  'authorization is required to assign a printable PDF link'
-);
-
-set local role authenticated;
-select set_config('request.jwt.claim.sub', (select id::text from printable_pdf_test_ids where key = 'admin_user'), true);
-select set_config('request.jwt.claim.role', 'authenticated', true);
-
-delete from public.teaching_printable_pdf_links
-where teaching_id = (select id from printable_pdf_test_ids where key = 'teaching_with_link');
-
-select is(
-  (
-    select count(*)
-    from public.teaching_printable_pdf_links
-    where teaching_id = (select id from printable_pdf_test_ids where key = 'teaching_with_link')
-  ),
-  0::bigint,
-  'admin can remove a printable PDF link'
-);
+delete from public.printable_pdf_links where title = 'Updated Printable';
+select is((select count(*) from public.printable_pdf_links), 1::bigint, 'admin can delete a PDF record');
 
 select ok(
   exists (
-    select 1
-    from pg_policies
+    select 1 from pg_policies
     where schemaname = 'public'
-      and tablename = 'teaching_printable_pdf_links'
-      and policyname = 'Admins manage teaching printable PDF links'
+      and tablename = 'printable_pdf_links'
+      and policyname = 'Public can read printable PDF links'
   ),
-  'admin write policy exists'
-);
-
-select ok(
-  exists (
-    select 1
-    from pg_policies
-    where schemaname = 'public'
-      and tablename = 'teaching_printable_pdf_links'
-      and policyname = 'Public can read published teaching printable PDF links'
-  ),
-  'published-teaching read policy exists for future public use'
+  'public read policy exists'
 );
 
 select * from finish();

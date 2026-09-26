@@ -4,53 +4,40 @@ import { requireAdmin } from "@/lib/supabase/admin";
 import { PrintablePdfManager } from "./printable-pdf-form";
 
 export const metadata: Metadata = {
-  title: "Teaching PDF Links",
+  title: "Printable PDF Links",
   robots: { index: false, follow: false },
 };
 
-type TeachingRow = {
+type PrintablePdfLinkRow = {
   id: string;
   title: string;
-  gathering_date: string | null;
-};
-
-type PrintablePdfLinkRow = {
-  teaching_id: string;
   printable_pdf_url: string;
+  created_at: string;
   updated_at: string;
 };
 
 export default async function AdminPrintablePdfsPage() {
   const { supabase } = await requireAdmin();
 
-  const [{ data: teachings, error: teachingsError }, { data: links, error: linksError }] = await Promise.all([
-    supabase
-      .from("teachings")
-      .select("id, title, gathering_date")
-      .order("gathering_date", { ascending: false, nullsFirst: false })
-      .order("title", { ascending: true }),
-    supabase
-      .from("teaching_printable_pdf_links")
-      .select("teaching_id, printable_pdf_url, updated_at")
-      .order("updated_at", { ascending: false }),
-  ]);
+  const { data: links, error: linksError } = await supabase
+    .from("printable_pdf_links")
+    .select("id, title, printable_pdf_url, created_at, updated_at")
+    .order("created_at", { ascending: false })
+    .order("title", { ascending: true });
 
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-6xl">
         <Link href="/admin" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to dashboard</Link>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-6">
-          <h1 className="text-3xl font-extrabold tracking-tight text-[#243d31]">Teaching Printable PDF Link</h1>
-          <p className="mt-2 text-sm text-[#607066]">Assign and maintain printable PDF links for existing teachings.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight text-[#243d31]">Printable PDF Links</h1>
+          <p className="mt-2 text-sm text-[#607066]">Add and maintain printable resources for the public PDF library.</p>
         </header>
 
-        {teachingsError || linksError ? (
+        {linksError ? (
           <p className="mt-6 text-sm font-bold text-[#a2472c]">Printable PDF links could not be loaded.</p>
         ) : (
-          <PrintablePdfManager
-            teachings={(teachings as TeachingRow[] | null) ?? []}
-            assignments={(links as PrintablePdfLinkRow[] | null) ?? []}
-          />
+          <PrintablePdfManager links={(links as PrintablePdfLinkRow[] | null) ?? []} />
         )}
       </div>
     </main>

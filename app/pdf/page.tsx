@@ -16,7 +16,7 @@ const pdfNavigation = [
 ];
 
 export const metadata: Metadata = {
-  title: "Printable PDF Links",
+  title: "Teaching Handout",
   description: "Printable resources from The Prayer Whiteboard.",
   alternates: { canonical: "https://theprayerwhiteboard.com/pdf" },
 };
@@ -53,7 +53,7 @@ export default async function PrintablePdfLinksPage() {
       <section className="border-b border-[#284a3b]/10 bg-[#20382e] px-5 py-10 text-white sm:px-8 sm:py-14">
         <div className="mx-auto max-w-5xl">
           <FileText aria-hidden="true" size={28} className="text-[#f0cb83]" />
-          <h1 className="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl">Printable PDF Links</h1>
+          <h1 className="mt-4 text-4xl font-extrabold tracking-tight sm:text-5xl">Teaching Handout</h1>
         </div>
       </section>
 

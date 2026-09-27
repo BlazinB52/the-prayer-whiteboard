@@ -264,7 +264,7 @@ test("legacy migration grants public reads while keeping writes admin-only", asy
 
 test("public PDF page is read-only, sorted newest first, and responsive", async () => {
   const page = await readFile("app/pdf/page.tsx", "utf8");
-  assert.match(page, /Printable PDF Links/);
+  assert.match(page, /Teaching Handout/);
   assert.match(page, /https:\/\/theprayerwhiteboard\.com\/pdf/);
   assert.doesNotMatch(page, new RegExp("/" + "PDF"));
   assert.match(page, /\.from\("printable_pdf_links"\)/);
@@ -280,7 +280,7 @@ test("public PDF page is read-only, sorted newest first, and responsive", async 
 
 test("shared desktop and mobile navigation receive only the top-menu PDF link", async () => {
   const header = await readFile("app/public-header.tsx", "utf8");
-  assert.match(header, /\{ href: "\/pdf", label: "PDF Links" \}/);
+  assert.match(header, /\{ href: "\/pdf", label: "Teaching Handout" \}/);
   assert.doesNotMatch(header, new RegExp("/" + "PDF"));
   assert.equal((header.match(/navItems\.map/g) ?? []).length, 2);
   assert.match(header, /<nav className="hidden[^"]*lg:flex"/);

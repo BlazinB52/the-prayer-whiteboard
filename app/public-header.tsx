@@ -13,7 +13,7 @@ export function PublicHeader({ maxWidthClassName = "max-w-5xl", nav, homeLabel =
   const navItems = nav
     ? [
         ...nav.filter((item) => item.href !== "/subscribe" && item.href !== "/pdf"),
-        { href: "/pdf", label: "PDF Links" },
+        { href: "/pdf", label: "Teaching Handout" },
       ]
     : [];
   const subscribeClassName = "inline-flex min-h-11 shrink-0 items-center justify-center rounded-2xl bg-[#244a3a] px-4 text-sm font-extrabold !text-white shadow-lg shadow-[#244a3a]/15 transition hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#946332] active:bg-[#193329] active:!text-white visited:!text-white";

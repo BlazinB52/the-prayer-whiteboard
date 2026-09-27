@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
 import { devotionalDayForWeekday, devotionalTimeZone } from "@/lib/devotional-schedule";
@@ -125,6 +126,7 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
   // has no teaching page, so it falls back to the devotional's own day URL.
   const readUrl = teaching ? `${base}/teachings/${teaching.slug}` : devotionalDayUrl(base, devotional.slug, dayNumber);
   const preferencesUrl = `${base}/email-preferences`;
+  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
 
   let sentCount = 0;
   const failures: { subscriberId: string; reason: string }[] = [];
@@ -142,6 +144,7 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
       prayerActivation: day.prayer_activation,
       readUrl,
       preferencesUrl,
+      copyrightDisclaimer,
     });
 
     try {

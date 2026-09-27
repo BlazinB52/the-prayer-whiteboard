@@ -1,6 +1,7 @@
 import "server-only";
 
 import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
+import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
 import { buildWeeklyUpdateEmail } from "@/lib/weekly-update-email-content";
@@ -61,6 +62,7 @@ export async function broadcastWeeklyUpdate(weeklyUpdateId: string): Promise<Bro
   const base = siteUrl();
   const weeklyUpdateUrl = `${base}/weekly-update`;
   const preferencesUrl = `${base}/email-preferences`;
+  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
 
   let sentCount = 0;
   let failedCount = 0;
@@ -74,6 +76,7 @@ export async function broadcastWeeklyUpdate(weeklyUpdateId: string): Promise<Bro
       convertedContent: update.converted_content,
       weeklyUpdateUrl,
       preferencesUrl,
+      copyrightDisclaimer,
     });
 
     try {

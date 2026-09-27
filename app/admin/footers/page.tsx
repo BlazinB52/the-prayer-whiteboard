@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { archiveFooter, createFooter, deleteFooter, updateFooter } from "./actions";
+import { archiveFooter, createFooter, deleteFooter, updateCopyrightDisclaimer, updateFooter } from "./actions";
 import { ArchiveFooterButton } from "./archive-button";
-import { FooterDeleteForm, FooterForm } from "./footer-form";
+import { CopyrightDisclaimerForm, FooterDeleteForm, FooterForm } from "./footer-form";
 import { ContentFooter } from "@/app/content-footer";
+import { FormattedTextBlocks } from "@/app/formatted-text";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -13,10 +14,11 @@ export const metadata: Metadata = {
 
 export default async function AdminFootersPage() {
   const { supabase } = await requireAdmin();
-  const [{ data: footers, error }, { data: teachingAssignments }, { data: weeklyUpdateAssignments }] = await Promise.all([
+  const [{ data: footers, error }, { data: teachingAssignments }, { data: weeklyUpdateAssignments }, { data: copyrightDisclaimers, error: copyrightError }] = await Promise.all([
     supabase.from("content_footers").select("id, internal_title, content, status, updated_at").order("status", { ascending: true }).order("internal_title", { ascending: true }),
     supabase.from("teaching_footer_assignments").select("footer_id, teachings(title, status)"),
     supabase.from("weekly_update_footer_assignments").select("footer_id, weekly_updates(title, status, is_current)"),
+    supabase.from("copyright_disclaimers").select("disclaimer_key, title, content, updated_at").in("disclaimer_key", ["full_page", "email_short"]).order("disclaimer_key", { ascending: true }),
   ]);
 
   const assignmentsByFooter = new Map<string, string[]>();
@@ -49,6 +51,49 @@ export default async function AdminFootersPage() {
             <h2 className="text-2xl font-extrabold text-[#243d31]">New footer</h2>
             <div className="mt-5"><FooterForm action={createFooter} submitLabel="Create footer" /></div>
           </article>
+        </section>
+
+        <section className="border-t border-[#284a3b]/10 py-8">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Copyright Disclaimers</p>
+              <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Centrally managed notices</h2>
+              <p className="mt-2 text-sm text-[#607066]">These are separate from ordinary reusable footers and are rendered by the public copyright page and outbound email helpers.</p>
+            </div>
+            <Link href="/copyright-disclaimers" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">View public page</Link>
+          </div>
+          {copyrightError ? <p className="mt-4 text-sm font-bold text-[#a2472c]">Copyright disclaimers could not be loaded.</p> : null}
+          <div className="mt-5 grid gap-5">
+            {(["full_page", "email_short"] as const).map((key) => {
+              const disclaimer = copyrightDisclaimers?.find((item) => item.disclaimer_key === key);
+              if (!disclaimer) {
+                return (
+                  <article key={key} className="rounded-2xl border border-[#a2472c]/20 bg-[#fff3ed] p-5 text-sm font-bold text-[#a2472c]">
+                    {key === "full_page" ? "Full page" : "Email short"} copyright disclaimer is missing.
+                  </article>
+                );
+              }
+
+              return (
+                <article key={disclaimer.disclaimer_key} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{disclaimer.disclaimer_key === "full_page" ? "Public page" : "Email footer"}</p>
+                      <h3 className="mt-2 text-2xl font-extrabold text-[#243d31]">{disclaimer.title}</h3>
+                      <p className="mt-2 text-sm text-[#607066]">Updated: {new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(disclaimer.updated_at))}</p>
+                    </div>
+                  </div>
+                  <div className="mt-5 rounded-xl border border-[#284a3b]/10 bg-white p-4 text-sm leading-6 text-[#52645a]">
+                    <FormattedTextBlocks text={disclaimer.content} links className="space-y-3" />
+                  </div>
+                  <details className="mt-5">
+                    <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit disclaimer</summary>
+                    <div className="mt-4"><CopyrightDisclaimerForm action={updateCopyrightDisclaimer.bind(null, disclaimer.disclaimer_key)} title={disclaimer.title} content={disclaimer.content} /></div>
+                  </details>
+                </article>
+              );
+            })}
+          </div>
         </section>
 
         <section className="border-t border-[#284a3b]/10 py-8">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildWeeklyUpdateEmail } from "@/lib/weekly-update-email-content";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { getAuthorizedUser } from "@/lib/supabase/admin";
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
   if (!update) return NextResponse.json({ error: "Weekly update not found." }, { status: 404 });
 
   const base = siteUrl();
+  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
   const email = buildWeeklyUpdateEmail({
     firstName,
     title: update.title,
@@ -63,6 +65,7 @@ export async function POST(request: Request) {
     convertedContent: update.converted_content,
     weeklyUpdateUrl: `${base}/weekly-update`,
     preferencesUrl: `${base}/email-preferences`,
+    copyrightDisclaimer,
   });
 
   const result = await sendSenderTransactionalEmail({

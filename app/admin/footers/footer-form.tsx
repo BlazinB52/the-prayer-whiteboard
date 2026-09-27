@@ -29,6 +29,28 @@ export function FooterForm({ action, internalTitle = "", content = "", submitLab
   );
 }
 
+export function CopyrightDisclaimerForm({ action, title = "", content = "" }: { action: Action; title?: string; content?: string }) {
+  const router = useRouter();
+  const [heading, setHeading] = useState(title);
+  const [body, setBody] = useState(content);
+  const [state, formAction, pending] = useActionState(async (previousState: FormState, formData: FormData) => {
+    const result = await action(previousState, formData);
+    if (result.saved) router.refresh();
+    return result;
+  }, {});
+
+  return (
+    <form action={formAction} className="space-y-4">
+      <label className="block text-sm font-bold text-[#385245]">Title<input name="title" value={heading} onChange={(event) => setHeading(event.target.value)} required maxLength={160} className="admin-input" /></label>
+      <FormattedTextarea label="Disclaimer content" name="content" value={body} onValueChange={setBody} required maxLength={5000} rows={7} />
+      <p className="text-xs leading-5 text-[#607066]">Safe formatting only. The email version automatically links the copyright acknowledgments phrase to the public copyright page.</p>
+      {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
+      {state.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Disclaimer saved.</p> : null}
+      <button type="submit" disabled={pending} className="admin-primary-button"><span>{pending ? "Saving..." : "Save disclaimer"}</span></button>
+    </form>
+  );
+}
+
 export function FooterDeleteForm({ action }: { action: Action }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(async (previousState: FormState, formData: FormData) => {

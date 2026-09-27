@@ -1,6 +1,7 @@
 import "server-only";
 
 import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
+import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
 import { buildTeachingEmail } from "@/lib/teaching-email-content";
@@ -61,6 +62,7 @@ export async function broadcastTeaching(teachingId: string): Promise<TeachingBro
   const base = siteUrl();
   const teachingUrl = `${base}/teachings/${teaching.slug}`;
   const preferencesUrl = `${base}/email-preferences`;
+  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
 
   let sentCount = 0;
   const failures: { subscriberId: string; reason: string }[] = [];
@@ -73,6 +75,7 @@ export async function broadcastTeaching(teachingId: string): Promise<TeachingBro
       introduction: teaching.introduction,
       teachingUrl,
       preferencesUrl,
+      copyrightDisclaimer,
     });
 
     try {

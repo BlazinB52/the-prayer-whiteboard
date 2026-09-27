@@ -226,6 +226,8 @@ test("public footer exposes a visible Subscribe call to action", async () => {
   const source = await readFile("app/public-footer.tsx", "utf8");
   assert.match(source, /href="\/subscribe"/);
   assert.match(source, />\s*Subscribe\s*</);
+  assert.match(source, /href="\/copyright-disclaimers"/);
+  assert.match(source, />\s*Copyright Disclaimers\s*</);
   assert.match(source, /!text-\[#1d352b\]/);
   assert.match(source, /hover:!text-\[#1d352b\]/);
   assert.match(source, /active:!text-\[#1d352b\]/);

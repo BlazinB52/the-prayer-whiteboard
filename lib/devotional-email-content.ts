@@ -1,4 +1,5 @@
 import { button, escapeHtml } from "./subscription-email-content.ts";
+import type { EmailCopyrightDisclaimer } from "./copyright-disclaimer-format.ts";
 
 // The day link is resolved from the devotional's own slug rather than from a
 // parent teaching's, so a series that is shared between teachings, or that has
@@ -49,6 +50,7 @@ export function buildDevotionalDayEmail(input: {
   prayerActivation: string | null;
   readUrl: string;
   preferencesUrl: string;
+  copyrightDisclaimer?: EmailCopyrightDisclaimer;
 }) {
   const totalDays = input.totalDays ?? 7;
   const dayLabel = `Day ${input.dayNumber} of ${totalDays}`;
@@ -80,6 +82,7 @@ export function buildDevotionalDayEmail(input: {
                 <p style="margin:0 0 6px;text-align:center;color:#243d31;font-size:13px;font-weight:800;">The Prayer Whiteboard</p>
                 <p style="margin:0 0 16px;text-align:center;color:#8a9a90;font-size:12px;">Prayer &bull; Scripture &bull; Teaching &bull; Devotion</p>
                 <p style="margin:0;line-height:1.65;color:#607066;font-size:13px;text-align:center;">You are receiving this because you subscribed to a Prayer Whiteboard devotional series. <a href="${escapeHtml(input.preferencesUrl)}" style="color:#244a3a;">Manage your email preferences or unsubscribe</a>.</p>
+                ${input.copyrightDisclaimer?.html ?? ""}
               </td>
             </tr>
           </table>
@@ -109,6 +112,7 @@ export function buildDevotionalDayEmail(input: {
     "---",
     "You are receiving this because you subscribed to a Prayer Whiteboard devotional series.",
     `Manage your email preferences or unsubscribe: ${input.preferencesUrl}`,
+    input.copyrightDisclaimer?.text ? `\n${input.copyrightDisclaimer.text}` : "",
   ].filter((line) => line !== "").join("\n");
 
   return { subject: `${dayLabel} — ${input.title}`, html, text };

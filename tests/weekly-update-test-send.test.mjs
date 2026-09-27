@@ -83,6 +83,14 @@ test("the preview is built by the production email builder and marked as a test"
   assert.match(code, /bodyMarkdown: update\.body_markdown/);
 });
 
+test("the test-send preview includes the shared copyright disclaimer like the real broadcast", async () => {
+  const { code } = await readRoute();
+
+  assert.match(code, /getEmailCopyrightDisclaimer\(base\)/);
+  assert.match(code, /copyrightDisclaimer,/);
+  assert.ok(code.indexOf("getEmailCopyrightDisclaimer(base)") < code.indexOf("buildWeeklyUpdateEmail({"));
+});
+
 test("the comment-stripping helper does not hide real code", () => {
   const sample = `// email_broadcast_events in a comment\nconst a = 1; /* email_subscribers */\nconst b = "email_broadcast_events";`;
   const code = stripComments(sample);

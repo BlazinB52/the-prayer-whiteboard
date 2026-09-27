@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 type FormState = { error?: string; saved?: boolean; deleted?: boolean };
+type CopyrightDisclaimerKey = "full_page" | "email_short";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const COPYRIGHT_DISCLAIMER_KEYS = new Set(["full_page", "email_short"]);
 
 function readFooterFields(formData: FormData) {
   const internalTitle = String(formData.get("internalTitle") ?? "").trim();
@@ -21,6 +23,15 @@ function revalidateFooterPaths() {
   revalidatePath("/admin/weekly-updates");
   revalidatePath("/");
   revalidatePath("/weekly-update");
+  revalidatePath("/copyright-disclaimers");
+}
+
+function readCopyrightDisclaimerFields(formData: FormData) {
+  const title = String(formData.get("title") ?? "").trim();
+  const content = String(formData.get("content") ?? "").trim();
+  if (!title || title.length > 160) return { error: "Disclaimer title is required and must be 160 characters or fewer." };
+  if (!content || content.length > 5000) return { error: "Disclaimer content is required and must be 5,000 characters or fewer." };
+  return { value: { title, content } };
 }
 
 export async function createFooter(_: FormState, formData: FormData): Promise<FormState> {
@@ -71,4 +82,21 @@ export async function deleteFooter(id: string, _: FormState, formData: FormData)
   if (error || !data) return { error: "Footer could not be deleted." };
   revalidateFooterPaths();
   return { deleted: true };
+}
+
+export async function updateCopyrightDisclaimer(disclaimerKey: CopyrightDisclaimerKey, _: FormState, formData: FormData): Promise<FormState> {
+  if (!COPYRIGHT_DISCLAIMER_KEYS.has(disclaimerKey)) return { error: "Copyright disclaimer could not be found." };
+  const { supabase } = await requireAdmin();
+  const fields = readCopyrightDisclaimerFields(formData);
+  if (fields.error || !fields.value) return { error: fields.error ?? "Copyright disclaimer could not be saved." };
+
+  const { data, error } = await supabase
+    .from("copyright_disclaimers")
+    .update(fields.value)
+    .eq("disclaimer_key", disclaimerKey)
+    .select("disclaimer_key")
+    .maybeSingle();
+  if (error || !data) return { error: "Copyright disclaimer could not be saved." };
+  revalidateFooterPaths();
+  return { saved: true };
 }

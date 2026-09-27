@@ -1,4 +1,5 @@
 import { button, escapeHtml, greeting, shell, textGreeting } from "./subscription-email-content.ts";
+import type { EmailCopyrightDisclaimer } from "./copyright-disclaimer-format.ts";
 import type { WeeklyUpdateBlock, WeeklyUpdateInline } from "./weekly-update-docx.ts";
 
 // Mirrors app/weekly-update/weekly-update-content.tsx so the email matches the
@@ -63,6 +64,7 @@ export function buildWeeklyUpdateEmail(input: {
   convertedContent: unknown;
   weeklyUpdateUrl: string;
   preferencesUrl: string;
+  copyrightDisclaimer?: EmailCopyrightDisclaimer;
 }) {
   const blocks = readBlocks(input.convertedContent);
   const bodyHtml = blocks.length
@@ -79,8 +81,10 @@ export function buildWeeklyUpdateEmail(input: {
     <p style="margin:28px 0 0;">${button("Read It Online", input.weeklyUpdateUrl)}</p>
     <hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:28px 0 16px;" />
     <p style="margin:0;line-height:1.65;color:#607066;font-size:13px;">You are receiving this because you subscribed to Prayer Whiteboard Weekly Updates. <a href="${escapeHtml(input.preferencesUrl)}" style="color:#244a3a;">Manage your email preferences or unsubscribe</a>.</p>
+    ${input.copyrightDisclaimer?.html ?? ""}
   `);
-  const text = `${textGreeting(input.firstName)}
+  const text = [
+    `${textGreeting(input.firstName)}
 
 ${bodyText}
 
@@ -89,7 +93,9 @@ ${input.weeklyUpdateUrl}
 
 ---
 You are receiving this because you subscribed to Prayer Whiteboard Weekly Updates.
-Manage your email preferences or unsubscribe: ${input.preferencesUrl}`;
+Manage your email preferences or unsubscribe: ${input.preferencesUrl}`,
+    input.copyrightDisclaimer?.text ? `\n${input.copyrightDisclaimer.text}` : "",
+  ].filter((line) => line !== "").join("\n");
 
   return { subject, html, text };
 }

@@ -16,7 +16,7 @@ const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 if (!url || !key) throw new Error("NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY are required.");
 
 const supabase = createClient(url, key);
-const TRANSLATION_TAG_PATTERN = /\((AMPC|AMP|NKJV|ESV|NIV)\)/i;
+const TRANSLATION_TAG_PATTERN = /\((AMPC|AMP|NKJV|ESV|NIV|KJV)\)/i;
 
 async function auditTeachingSections() {
   const { data: sections, error } = await supabase

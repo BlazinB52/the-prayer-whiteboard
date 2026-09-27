@@ -50,6 +50,8 @@ Scripture quotations marked (AMPC) taken from the Amplified® Bible, Classic Edi
 
 Scripture taken from the New King James Version®. Copyright © 1982 by Thomas Nelson. Used by permission. All rights reserved.
 
+Scripture quotations marked (KJV) are taken from the King James Version, which is in the public domain in the United States.
+
 Original commentary, organization, editorial content, and presentation © 2026 The Prayer Whiteboard. All rights reserved. Scripture quotations and any underlying third-party teaching material remain the property of their respective copyright holders.'
   ),
   (

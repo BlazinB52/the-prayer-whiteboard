@@ -1,9 +1,22 @@
 #!/usr/bin/env node
 
-// Backs up everything in Supabase that isn't already in this git repo or in
-// your local daily backup: a full Postgres dump (public + auth schemas) plus
-// every actual file in every Storage bucket, written to a fresh,
-// incrementally-named folder on D:.
+// Backs up everything in the "public" schema — every teaching, devotional,
+// weekly update, and all other site content — plus every actual file in
+// every Storage bucket and each bucket's configuration, written to a fresh,
+// incrementally-named folder on D:. Pair with scripts/restore-supabase.mjs
+// to actually recover from one of these — an untested backup isn't real
+// disaster recovery.
+//
+// Deliberately excludes the "auth" schema (admin login). Restore-tested
+// this: auth/storage schema objects are owned by internal roles
+// (supabase_admin, supabase_auth_admin, ...) that only a Supabase-managed
+// project provisions correctly — restoring that structure into an arbitrary
+// target fails with "must be able to SET ROLE ...". A fresh Supabase
+// project already has a correctly configured (empty) auth schema out of the
+// box, and there are only 1-2 admin accounts, so recreating admin login via
+// Supabase's normal signup flow after a disaster is trivial. Content in
+// "public" carries no such dependency and is what actually took hours of
+// work to create.
 //
 // This talks directly to the linked production Supabase project over the
 // network via the Supabase CLI's `db dump` (which shells out to pg_dump, no
@@ -58,14 +71,31 @@ function nextBackupDir(root, stamp) {
   return candidate;
 }
 
+// `supabase db dump` without --data-only dumps SCHEMA ONLY — confirmed by
+// testing locally, dumping before and after inserting a row produced
+// byte-identical output. Restoring only that file would silently produce an
+// empty (but structurally correct) database, with none of the actual
+// teachings content. A real backup needs both a schema pass and a
+// --data-only pass, kept as two files so the data-only file can be replayed
+// on its own against a target that already has the schema.
 async function dumpDatabase(backupDir) {
-  const dbDumpPath = path.join(backupDir, "database.sql");
-  console.log(`Dumping database (public, auth schemas) to ${dbDumpPath} ...`);
+  const schemaPath = path.join(backupDir, "schema.sql");
+  const dataPath = path.join(backupDir, "data.sql");
+
+  console.log(`Dumping schema (public) to ${schemaPath} ...`);
   execFileSync(
     "npx",
-    ["supabase", "db", "dump", "--linked", "--schema", "public,auth", "-f", dbDumpPath],
+    ["supabase", "db", "dump", "--linked", "--schema", "public", "-f", schemaPath],
     { stdio: "inherit", shell: true },
   );
+
+  console.log(`Dumping data (public) to ${dataPath} ...`);
+  execFileSync(
+    "npx",
+    ["supabase", "db", "dump", "--linked", "--data-only", "--schema", "public", "-f", dataPath],
+    { stdio: "inherit", shell: true },
+  );
+
   console.log("Database dump complete.");
 }
 
@@ -96,7 +126,7 @@ async function listAllObjects(bucket, prefix = "") {
   return results;
 }
 
-async function downloadBucket(bucket, backupDir) {
+async function downloadBucket(bucket, backupDir, contentTypes) {
   const objectPaths = await listAllObjects(bucket);
   console.log(`  ${bucket}: ${objectPaths.length} file(s)`);
 
@@ -116,6 +146,10 @@ async function downloadBucket(bucket, backupDir) {
     const buffer = Buffer.from(await data.arrayBuffer());
     await writeFile(destPath, buffer);
     totalBytes += buffer.byteLength;
+    // Restoring needs the real content-type (a .webp re-uploaded as
+    // application/octet-stream would break in-browser rendering) — capture
+    // it now rather than having the restore script guess from the extension.
+    contentTypes[`${bucket}/${objectPath}`] = data.type || "application/octet-stream";
   }
 
   return { fileCount: objectPaths.length, totalBytes, failures };
@@ -126,10 +160,24 @@ async function backupStorage(backupDir) {
   const { data: buckets, error } = await supabase.storage.listBuckets();
   if (error) throw new Error(`Could not list storage buckets: ${error.message}`);
 
+  // Bucket settings (public/private, size limit, allowed MIME types) live in
+  // Supabase's internal storage schema, not in the public/auth dump above.
+  // Persisting them here is what lets a restore recreate each bucket with
+  // matching configuration instead of guessing or leaving it wide open.
+  const bucketConfigs = (buckets ?? []).map((bucket) => ({
+    id: bucket.id,
+    public: bucket.public,
+    file_size_limit: bucket.file_size_limit,
+    allowed_mime_types: bucket.allowed_mime_types,
+  }));
+  await writeFile(path.join(backupDir, "buckets.json"), JSON.stringify(bucketConfigs, null, 2));
+
+  const contentTypes = {};
   const summary = {};
   for (const bucket of buckets ?? []) {
-    summary[bucket.id] = await downloadBucket(bucket.id, backupDir);
+    summary[bucket.id] = await downloadBucket(bucket.id, backupDir, contentTypes);
   }
+  await writeFile(path.join(backupDir, "storage-content-types.json"), JSON.stringify(contentTypes, null, 2));
   return summary;
 }
 
@@ -152,7 +200,10 @@ async function main() {
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     durationSeconds: Math.round((finishedAt - startedAt) / 1000),
-    databaseDump: "database.sql",
+    databaseSchema: "schema.sql",
+    databaseData: "data.sql",
+    bucketConfigs: "buckets.json",
+    storageContentTypes: "storage-content-types.json",
     storage: storageSummary,
   };
   await writeFile(path.join(backupDir, "manifest.json"), JSON.stringify(manifest, null, 2));

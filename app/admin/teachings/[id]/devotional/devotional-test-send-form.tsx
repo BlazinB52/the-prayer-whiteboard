@@ -29,7 +29,7 @@ export function DevotionalTestSendForm({ devotionalId }: { devotionalId: string 
       const payload = await response.json().catch(() => null);
       setResult(response.ok
         ? { tone: "success", message: `Test email sent to ${payload?.testEmail ?? "the address"}.` }
-        : { tone: "error", message: payload?.error ?? "Test email could not be sent." });
+        : { tone: "error", message: `${payload?.error ?? "Test email could not be sent."}${payload?.reason ? ` (${payload.reason})` : ""}` });
     } catch {
       setResult({ tone: "error", message: "Test email could not be sent." });
     } finally {

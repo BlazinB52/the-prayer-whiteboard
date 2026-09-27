@@ -2,7 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
-import { FormattedTextBlocks, formatInlineText } from "@/app/formatted-text";
+import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 import type { ContentActionState, SectionFormat } from "./content-actions";
 import { CalloutSection, getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, getPresetDefaults, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment, type SectionCallout, type SectionCalloutStyle, type SectionCalloutType, type SectionContentValue } from "./callout-utils";
@@ -387,7 +387,7 @@ function SectionPreview({ content, title, highlightHorizontalAlignment }: { cont
   ) : value.format === "scripture" ? (
     <>
       {value.introduction ? <div className="space-y-3"><TextParagraphs text={value.introduction} /></div> : null}
-      <p className="font-bold text-[#385245]">{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">({String(value.translation)})</span> : null}</p>
+      <p className="font-bold text-[#385245]">{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">(<ScriptureTranslationLabel translation={String(value.translation)} />)</span> : null}</p>
       {value.quotation ? <div className="mt-2 space-y-3 italic"><TextParagraphs text={value.quotation} /></div> : null}
     </>
   ) : (

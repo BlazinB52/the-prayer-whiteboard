@@ -8,7 +8,7 @@ import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { ContentFooter } from "@/app/content-footer";
 import { EmailUpdatesCta } from "@/app/email-updates-cta";
-import { FormattedTextBlocks, formatInlineText } from "@/app/formatted-text";
+import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { PrintToPdfButton } from "./print-to-pdf-button";
@@ -107,7 +107,7 @@ function SectionContent({ value, isCallout = false, alignment = "left" }: { valu
   if (value.format === "bullets" && Array.isArray(value.bullets)) return <><TextParagraphs text={value.introduction} /><ul className={isCallout ? `${getCalloutBulletListClassName(alignment)} mt-3` : "mt-3 list-disc space-y-2 pl-6"}>{value.bullets.map((bullet) => <li key={String(bullet)}>{formatInlineText(bullet, { links: true })}</li>)}</ul><TextParagraphs text={value.conclusion} className="mt-3" /></>;
   if (value.format === "scripture") {
     const hasIntroduction = getParagraphs(value.introduction).length > 0;
-    return <div>{hasIntroduction ? <TextParagraphs text={value.introduction} /> : null}<p className={`${hasIntroduction ? "mt-3 " : ""}font-bold text-[#385245]`}>{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">({String(value.translation)})</span> : null}</p><div className="mt-2 italic"><TextParagraphs text={value.quotation} /></div></div>;
+    return <div>{hasIntroduction ? <TextParagraphs text={value.introduction} /> : null}<p className={`${hasIntroduction ? "mt-3 " : ""}font-bold text-[#385245]`}>{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">(<ScriptureTranslationLabel translation={String(value.translation)} />)</span> : null}</p><div className="mt-2 italic"><TextParagraphs text={value.quotation} /></div></div>;
   }
   return <TextParagraphs text={value.text} className={value.format === "takeaway" ? "font-bold text-[#385245]" : undefined} />;
 }

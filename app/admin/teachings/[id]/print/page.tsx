@@ -5,7 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { ContentFooter } from "@/app/content-footer";
-import { FormattedTextBlocks, formatInlineText } from "@/app/formatted-text";
+import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
 import { getChalkboardPreviewUrl } from "../../../chalkboards/actions";
 import { getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment } from "../../callout-utils";
 import { PrintButton } from "./print-button";
@@ -262,7 +262,7 @@ function getParagraphs(text: unknown) {
 }
 
 function ScriptureReference({ value, className = "mt-3 font-bold text-[#385245]" }: { value: Content; className?: string }) {
-  return <p className={className}>{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">({String(value.translation)})</span> : null}</p>;
+  return <p className={className}>{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">(<ScriptureTranslationLabel translation={String(value.translation)} />)</span> : null}</p>;
 }
 
 function formatDate(value: string) {

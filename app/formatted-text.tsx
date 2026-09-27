@@ -5,6 +5,19 @@ const LINK_PATTERN = /\[([^\]\n]+)\]\(([^\s)]+)\)/g;
 const BULLET_PATTERN = /^-\s+(.+)$/;
 const BARE_URL_OR_AMPLIFIED_TAG_PATTERN = /https?:\/\/[^\s<]+|\((AMPC|AMP)\)/g;
 const LOCKMAN_FOUNDATION_URL = "https://www.lockman.org";
+const AMPLIFIED_TRANSLATION_KEYS = new Set(["AMP", "AMPC"]);
+
+export function ScriptureTranslationLabel({ translation }: { translation: string }) {
+  if (AMPLIFIED_TRANSLATION_KEYS.has(translation.trim().toUpperCase())) {
+    return (
+      <a href={LOCKMAN_FOUNDATION_URL} target="_blank" rel="noopener noreferrer" className="formatted-link">
+        {translation}
+      </a>
+    );
+  }
+
+  return <>{translation}</>;
+}
 
 type FormatInlineTextOptions = {
   links?: boolean;

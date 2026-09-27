@@ -8,6 +8,7 @@ import { PublishDevotionalButton, UnpublishDevotionalButton } from "../../devoti
 import { CreateDevotionalForm } from "./create-devotional-form";
 import { DevotionalAssignmentForm } from "./devotional-assignment-form";
 import { DevotionalDayForms, DevotionalImportForm, DevotionalPreviewLink, DevotionalSeriesForm } from "./devotional-editor";
+import { DevotionalTestSendForm } from "./devotional-test-send-form";
 
 export const metadata: Metadata = {
   title: "Manage 7-Day Devotional",
@@ -108,6 +109,10 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
               <div className="mt-6 flex flex-col gap-3 border-t border-[#284a3b]/10 pt-5 sm:flex-row">
                 {devotional.status === "published" ? <UnpublishDevotionalButton action={unpublishDevotional.bind(null, teaching.id)} /> : <PublishDevotionalButton action={publishDevotional.bind(null, teaching.id)} />}
               </div>
+            </section>
+            <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
+              <h2 className="text-2xl font-extrabold text-[#243d31]">Send a test email</h2>
+              <div className="mt-4"><DevotionalTestSendForm devotionalId={devotional.id} /></div>
             </section>
             <section className="mt-8">
               <h2 className="text-2xl font-extrabold text-[#243d31]">Seven Devotional Days</h2>

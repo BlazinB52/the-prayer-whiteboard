@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { unpublishTeaching } from "./actions";
+import { TeachingTestSendForm } from "./test-send-form";
 import { UnpublishButton } from "./unpublish-button";
 
 export const metadata: Metadata = {
@@ -66,6 +67,10 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
                   {teaching.status === "published" ? <Link href={`/teachings/${teaching.slug}`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">View public teaching</Link> : null}
                 </div>
                 {teaching.status === "published" ? <UnpublishButton action={unpublishTeaching.bind(null, teaching.id)} /> : null}
+                <details className="mt-5">
+                  <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Send a test email</summary>
+                  <div className="mt-4"><TeachingTestSendForm teachingId={teaching.id} /></div>
+                </details>
               </article>
             ))}
           </section>

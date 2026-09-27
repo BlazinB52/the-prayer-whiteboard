@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DevotionalDayForms, DevotionalImportForm, DevotionalPreviewLink, DevotionalSeriesForm } from "@/app/admin/teachings/[id]/devotional/devotional-editor";
+import { DevotionalTestSendForm } from "@/app/admin/teachings/[id]/devotional/devotional-test-send-form";
 import { importStandaloneDevotionalText, publishStandaloneDevotional, unpublishStandaloneDevotional, updateStandaloneDevotionalDay, updateStandaloneDevotionalSeries } from "@/app/admin/teachings/devotional-actions";
 import { PublishDevotionalButton, UnpublishDevotionalButton } from "@/app/admin/teachings/devotional-buttons";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
@@ -116,6 +117,11 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
               ? <>This devotional is public on its own at <Link href={`/devotionals/${devotional.slug}`} className="font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">/devotionals/{devotional.slug}</Link>, whether or not a teaching is attached.</>
               : "Publishing makes this devotional public on its own. A teaching is optional."}
           </p>
+        </section>
+
+        <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
+          <h2 className="text-2xl font-extrabold text-[#243d31]">Send a test email</h2>
+          <div className="mt-4"><DevotionalTestSendForm devotionalId={devotional.id} /></div>
         </section>
 
         <section className="mt-8">

@@ -40,13 +40,15 @@ values
   (
     'full_page',
     'Copyright Disclaimer — Full Page',
-    'Scripture quotations identified as NIV are from the Holy Bible, New International Version®, © 1973, 1978, 1984, 2011 Biblica, Inc. Used by permission. All rights reserved worldwide.
+    'Scripture quotations taken from The Holy Bible, New International Version®, NIV® Copyright © 1973, 1978, 1984, 2011 by Biblica, Inc.® Used by permission. All rights reserved worldwide.
 
-Scripture quotations identified as ESV are from the English Standard Version®, © 2001 Crossway, a publishing ministry of Good News Publishers, 2025 text edition. Used by permission. All rights reserved.
+Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®), copyright © 2001 by Crossway, a publishing ministry of Good News Publishers. Used by permission. All rights reserved.
 
-Scripture quotations identified as AMP are from the Amplified® Bible, © 2015 The Lockman Foundation. Used by permission. www.Lockman.org.
+Scripture quotations taken from the Amplified® Bible (AMP), Copyright © 2015 by The Lockman Foundation. Used by permission. https://www.lockman.org
 
-Scripture quotations identified as NKJV are from the New King James Version®, © 1982 Thomas Nelson. Used by permission. All rights reserved.
+Scripture quotations marked (AMPC) taken from the Amplified® Bible, Classic Edition, Copyright © 1954, 1958, 1962, 1964, 1965, 1987 by The Lockman Foundation. Used by permission. https://www.lockman.org
+
+Scripture taken from the New King James Version®. Copyright © 1982 by Thomas Nelson. Used by permission. All rights reserved.
 
 Original commentary, organization, editorial content, and presentation © 2026 The Prayer Whiteboard. All rights reserved. Scripture quotations and any underlying third-party teaching material remain the property of their respective copyright holders.'
   ),

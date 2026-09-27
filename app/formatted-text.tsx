@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 const EMPHASIS_PATTERN = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
 const LINK_PATTERN = /\[([^\]\n]+)\]\(([^\s)]+)\)/g;
 const BULLET_PATTERN = /^-\s+(.+)$/;
-const BARE_URL_PATTERN = /https?:\/\/[^\s<]+/g;
+const BARE_URL_OR_AMPLIFIED_TAG_PATTERN = /https?:\/\/[^\s<]+|\((AMPC|AMP)\)/g;
+const LOCKMAN_FOUNDATION_URL = "https://www.lockman.org";
 
 type FormatInlineTextOptions = {
   links?: boolean;
@@ -200,9 +201,21 @@ function formatBareLinks(source: string, offset = 0): ReactNode[] {
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  BARE_URL_PATTERN.lastIndex = 0;
-  while ((match = BARE_URL_PATTERN.exec(source)) !== null) {
+  BARE_URL_OR_AMPLIFIED_TAG_PATTERN.lastIndex = 0;
+  while ((match = BARE_URL_OR_AMPLIFIED_TAG_PATTERN.exec(source)) !== null) {
     if (match.index > lastIndex) parts.push(...formatEmphasis(source.slice(lastIndex, match.index)));
+
+    const amplifiedAbbreviation = match[1];
+    if (amplifiedAbbreviation) {
+      parts.push(
+        <span key={`${offset + match.index}-amp`}>
+          (<a href={LOCKMAN_FOUNDATION_URL} target="_blank" rel="noopener noreferrer" className="formatted-link">{amplifiedAbbreviation}</a>)
+        </span>,
+      );
+      lastIndex = match.index + match[0].length;
+      continue;
+    }
+
     const url = match[0].replace(/[.,;:!?)]$/, "");
     const trailing = match[0].slice(url.length);
     const safeUrl = normalizeSafeLinkUrl(url);

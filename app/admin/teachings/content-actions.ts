@@ -135,6 +135,9 @@ function validateSection(formData: FormData) {
   if (selectedFormat === "scripture" && (!reference.value || !quotation.value)) {
     return { error: "Scripture reference and quotation are required for this format." };
   }
+  if (selectedFormat === "scripture" && !translation.value) {
+    return { error: "Translation is required for a Scripture section, so the correct copyright notice can be identified (e.g. NIV, ESV, NKJV, AMPC)." };
+  }
 
   if (selectedFormat === "bullets") {
     const bullets = mainText.value!.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);

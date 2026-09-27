@@ -287,7 +287,7 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
         <>
           <FormattedTextarea label="Introductory note" help="A brief statement that appears before the Scripture." name="introduction" value={introduction} onValueChange={setIntroduction} rows={3} maxLength={12000} />
           <label className="block text-sm font-bold text-[#385245]">Scripture reference<input name="reference" value={reference} onChange={(event) => setReference(event.target.value)} maxLength={240} className="admin-input" /></label>
-          <label className="block text-sm font-bold text-[#385245]">Translation<span className="mt-1 block text-xs font-normal text-[#607066]">Optional - for example, NKJV, ESV, or AMPC.</span><input name="translation" value={translation} onChange={(event) => setTranslation(event.target.value)} maxLength={80} className="admin-input" /></label>
+          <label className="block text-sm font-bold text-[#385245]">Translation<span className="mt-1 block text-xs font-normal text-[#607066]">Required for Scripture sections - for example, NKJV, ESV, or AMPC. Used to show the correct copyright notice.</span><input name="translation" value={translation} onChange={(event) => setTranslation(event.target.value)} maxLength={80} required={selectedFormat === "scripture"} className="admin-input" /></label>
           <FormattedTextarea label="Scripture quotation" help="Enter the Scripture text. Each Enter begins a new displayed paragraph; line and paragraph formatting will be preserved." name="quotation" value={quotation} onValueChange={setQuotation} rows={6} maxLength={12000} />
         </>
       ) : selectedFormat === "bullets" ? (

@@ -104,7 +104,13 @@ export async function sendSenderTransactionalEmail(input: SenderTransactionalInp
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? 8000);
+  // Weekly updates carry a full document body, not a fixed-size template like
+  // a devotional day or teaching summary, so their larger HTML/text payload
+  // can take longer for Sender's API to accept and process than the other
+  // content-email types. 8s was tight enough to time out a real weekly
+  // update send in production; 20s gives the larger payload room without
+  // masking a genuinely broken request.
+  const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? 20000);
   const fetcher = input.fetcher ?? fetch;
 
   try {

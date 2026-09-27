@@ -58,8 +58,8 @@ const tools = [
     href: "/admin/printable-pdfs",
   },
   {
-    title: "Homepage Settings",
-    description: "Shape the public Whiteboard experience.",
+    title: "Prayer Whiteboard Utilities",
+    description: "Site maintenance tooling, including the local Supabase backup script.",
     status: "Coming next",
   },
 ];

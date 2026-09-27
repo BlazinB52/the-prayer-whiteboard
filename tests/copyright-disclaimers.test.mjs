@@ -16,6 +16,7 @@ const shortContent = `Scripture quotations are from the NIV, ESV, NKJV, and AMP 
 Original Content © 2026 The Prayer Whiteboard. All rights reserved.`;
 
 const copyrightDisclaimer = buildEmailCopyrightDisclaimer(shortContent, "https://theprayerwhiteboard.com/copyright-disclaimers");
+const AMP_HTML_LINK_PATTERN = /Scripture quotations are from the NIV, ESV, NKJV, and <a href="https:\/\/www\.lockman\.org">AMP<\/a> Bibles/;
 
 test("same-site copyright return paths are accepted and open redirects are rejected", () => {
   assert.equal(safeCopyrightReturnToPath("/teachings/example"), "/teachings/example");
@@ -31,6 +32,16 @@ test("email helper renders the current short disclaimer with the canonical page 
   assert.match(copyrightDisclaimer.html, /Complete copyright acknowledgments and permissions can be viewed <a href="https:\/\/theprayerwhiteboard\.com\/copyright-disclaimers">here<\/a>\./);
   assert.doesNotMatch(copyrightDisclaimer.html, /<a[^>]*>Complete copyright acknowledgments and permissions<\/a>/);
   assert.match(copyrightDisclaimer.text, /Complete copyright acknowledgments and permissions can be viewed here:\nhttps:\/\/theprayerwhiteboard\.com\/copyright-disclaimers/);
+});
+
+test("email disclaimer links AMP and AMPC to the Lockman Foundation in both HTML and plain text", () => {
+  const disclaimer = buildEmailCopyrightDisclaimer(
+    "Scripture quotations are from the NIV, ESV, NKJV, AMP, and AMPC Bibles. Complete copyright acknowledgments and permissions can be viewed here.",
+    "https://theprayerwhiteboard.com/copyright-disclaimers",
+  );
+
+  assert.match(disclaimer.html, /NKJV, <a href="https:\/\/www\.lockman\.org">AMP<\/a>, and <a href="https:\/\/www\.lockman\.org">AMPC<\/a> Bibles/);
+  assert.match(disclaimer.text, /AMP \(see https:\/\/www\.lockman\.org\), and AMPC \(see https:\/\/www\.lockman\.org\) Bibles/);
 });
 
 test("email helper escapes editable disclaimer HTML before linking only here", () => {
@@ -55,7 +66,7 @@ test("teaching emails include the short copyright disclaimer without changing pr
     copyrightDisclaimer,
   });
 
-  assert.match(email.html, /Scripture quotations are from the NIV, ESV, NKJV, and AMP Bibles/);
+  assert.match(email.html, AMP_HTML_LINK_PATTERN);
   assert.match(email.html, /viewed <a href="https:\/\/theprayerwhiteboard\.com\/copyright-disclaimers">here<\/a>\./);
   assert.match(email.text, /viewed here:\nhttps:\/\/theprayerwhiteboard\.com\/copyright-disclaimers/);
   assert.match(email.html, /Manage your email preferences or unsubscribe/);
@@ -78,7 +89,7 @@ test("devotional emails include the short copyright disclaimer without changing 
     copyrightDisclaimer,
   });
 
-  assert.match(email.html, /Scripture quotations are from the NIV, ESV, NKJV, and AMP Bibles/);
+  assert.match(email.html, AMP_HTML_LINK_PATTERN);
   assert.match(email.html, /viewed <a href="https:\/\/theprayerwhiteboard\.com\/copyright-disclaimers">here<\/a>\./);
   assert.match(email.text, /viewed here:\nhttps:\/\/theprayerwhiteboard\.com\/copyright-disclaimers/);
   assert.match(email.html, /Manage your email preferences or unsubscribe/);
@@ -96,7 +107,7 @@ test("weekly update emails include the short copyright disclaimer without changi
     copyrightDisclaimer,
   });
 
-  assert.match(email.html, /Scripture quotations are from the NIV, ESV, NKJV, and AMP Bibles/);
+  assert.match(email.html, AMP_HTML_LINK_PATTERN);
   assert.match(email.html, /viewed <a href="https:\/\/theprayerwhiteboard\.com\/copyright-disclaimers">here<\/a>\./);
   assert.match(email.text, /viewed here:\nhttps:\/\/theprayerwhiteboard\.com\/copyright-disclaimers/);
   assert.match(email.html, /Manage your email preferences or unsubscribe/);

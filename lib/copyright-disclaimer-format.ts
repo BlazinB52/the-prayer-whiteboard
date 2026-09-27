@@ -20,6 +20,9 @@ export const FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER = `Scripture quotations are fro
 
 Original Content © 2026 The Prayer Whiteboard. All rights reserved.`;
 
+const LOCKMAN_FOUNDATION_URL = "https://www.lockman.org";
+const HERE_OR_AMPLIFIED_TAG_PATTERN = /\bhere\b|\bAMPC?\b/g;
+
 export type CopyrightDisclaimerKey = "full_page" | "email_short";
 
 export type EmailCopyrightDisclaimer = {
@@ -66,17 +69,25 @@ function disclaimerParagraphs(content: string) {
 }
 
 function renderCopyrightDisclaimerInlineHtml(paragraph: string, pageUrl: string) {
-  const herePattern = /\bhere\b/;
-  const hereMatch = herePattern.exec(paragraph);
-  if (hereMatch?.index !== undefined) {
-    const before = paragraph.slice(0, hereMatch.index);
-    const after = paragraph.slice(hereMatch.index + hereMatch[0].length);
-    return `${escapeHtml(before)}<a href="${escapeHtml(pageUrl)}">here</a>${escapeHtml(after)}`;
+  let result = "";
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  HERE_OR_AMPLIFIED_TAG_PATTERN.lastIndex = 0;
+  while ((match = HERE_OR_AMPLIFIED_TAG_PATTERN.exec(paragraph)) !== null) {
+    result += escapeHtml(paragraph.slice(lastIndex, match.index));
+    result += match[0] === "here"
+      ? `<a href="${escapeHtml(pageUrl)}">here</a>`
+      : `<a href="${escapeHtml(LOCKMAN_FOUNDATION_URL)}">${escapeHtml(match[0])}</a>`;
+    lastIndex = match.index + match[0].length;
   }
 
-  return escapeHtml(paragraph);
+  return result + escapeHtml(paragraph.slice(lastIndex));
 }
 
 function injectCopyrightDisclaimerLinkText(paragraph: string, pageUrl: string) {
-  return /\bhere\b/.test(paragraph) ? paragraph.replace(/\bhere\b/, `here:\n${pageUrl}`) : paragraph;
+  let result = paragraph;
+  if (/\bhere\b/.test(result)) result = result.replace(/\bhere\b/, `here:\n${pageUrl}`);
+  result = result.replace(/\bAMPC?\b/g, (tag) => `${tag} (see ${LOCKMAN_FOUNDATION_URL})`);
+  return result;
 }

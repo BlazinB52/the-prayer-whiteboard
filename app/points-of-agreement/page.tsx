@@ -44,7 +44,7 @@ export default async function PointsOfAgreementPage() {
             <HeartHandshake aria-hidden="true" size={15} />
             Points of Agreement
           </p>
-          <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">PRAYER AND INTERCESSION: POINTS OF AGREEMENT</h1>
+          <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">PRAYER AND INTERCESSION: <span className="text-[0.82em]">POINTS OF AGREEMENT</span></h1>
           <p className="mt-4 max-w-3xl text-lg font-bold leading-8 text-[#52645a]">{formatInlineText(guideSettings.subtitle)}</p>
           <blockquote className="mt-8 border-l-4 border-[#d2a34f] pl-5 text-lg italic leading-8 text-[#4d5f52]">
             <p>{formatInlineText(guideSettings.opening_scripture)}</p>

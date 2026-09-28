@@ -57,7 +57,7 @@ Original commentary, organization, editorial content, and presentation © 2026 T
   (
     'email_short',
     'Copyright Disclaimer — Email Short Version',
-    'Scripture quotations are from the NIV, ESV, NKJV, and AMP Bibles. Complete copyright acknowledgments and permissions can be viewed here.
+    'Scripture quotations are from the NIV, ESV, NKJV, AMP, and AMPC Bibles. Complete copyright acknowledgments and permissions can be viewed here.
 
 Original Content © 2026 The Prayer Whiteboard. All rights reserved.'
   )

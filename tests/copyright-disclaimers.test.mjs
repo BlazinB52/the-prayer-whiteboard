@@ -197,7 +197,7 @@ test("disclaimer text is seeded once and not copied into both email templates", 
     readFile("lib/devotional-email-content.ts", "utf8"),
   ]);
 
-  assert.match(migration, /Scripture quotations are from the NIV, ESV, NKJV, and AMP Bibles/);
+  assert.match(migration, /Scripture quotations are from the NIV, ESV, NKJV, AMP, and AMPC Bibles/);
   assert.equal(teachingTemplate.includes("Scripture quotations are from the NIV"), false);
   assert.equal(devotionalTemplate.includes("Scripture quotations are from the NIV"), false);
   assert.equal(COPYRIGHT_DISCLAIMER_PATH, "/copyright-disclaimers");

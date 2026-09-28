@@ -23,13 +23,13 @@ export function WeeklyUpdateContent({ body, blocks }: { body?: string; blocks?: 
   const convertedBlocks = controlledBlocks(blocks);
   if (convertedBlocks.length) {
     return (
-      <div className="weekly-update-content space-y-6 text-[#52645a]">
+      <div className="weekly-update-content space-y-3 text-[#52645a]">
         {convertedBlocks.map((block, index) => {
           if (block.type === "divider") return <hr key={index} className="border-[#284a3b]/15" />;
           if (block.type === "heading") {
             return block.level === 2
-              ? <h2 key={index} className="pt-4 text-3xl font-extrabold text-[#243d31]">{renderChildren(block.children)}</h2>
-              : <h3 key={index} className="pt-2 text-2xl font-extrabold text-[#243d31]">{renderChildren(block.children)}</h3>;
+              ? <h2 key={index} className="pt-3 text-3xl font-extrabold text-[#243d31]">{renderChildren(block.children)}</h2>
+              : <h3 key={index} className="pt-1 text-2xl font-extrabold text-[#243d31]">{renderChildren(block.children)}</h3>;
           }
           if (block.type === "list") {
             return (
@@ -49,12 +49,12 @@ export function WeeklyUpdateContent({ body, blocks }: { body?: string; blocks?: 
   const textBlocks = textBody.replace(/\r\n?/g, "\n").split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
 
   return (
-    <div className="weekly-update-content space-y-6 text-[#52645a]">
+    <div className="weekly-update-content space-y-3 text-[#52645a]">
       {textBlocks.map((block, index) => {
         if (/^---+$/.test(block)) return <hr key={index} className="border-[#284a3b]/15" />;
-        if (block.startsWith("### ")) return <h3 key={index} className="pt-2 text-2xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(4), { links: true })}</h3>;
-        if (block.startsWith("## ")) return <h2 key={index} className="pt-4 text-3xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(3), { links: true })}</h2>;
-        if (block.startsWith("# ")) return <h2 key={index} className="pt-4 text-3xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(2), { links: true })}</h2>;
+        if (block.startsWith("### ")) return <h3 key={index} className="pt-1 text-2xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(4), { links: true })}</h3>;
+        if (block.startsWith("## ")) return <h2 key={index} className="pt-3 text-3xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(3), { links: true })}</h2>;
+        if (block.startsWith("# ")) return <h2 key={index} className="pt-3 text-3xl font-extrabold text-[#243d31]">{formatInlineText(block.slice(2), { links: true })}</h2>;
         if (block.split("\n").every((line) => /^[-*]\s+/.test(line.trim()))) {
           return (
             <ul key={index} className="list-disc space-y-2 pl-6 leading-7">

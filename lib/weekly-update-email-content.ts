@@ -33,16 +33,16 @@ function blockHtml(block: WeeklyUpdateBlock) {
   if (block.type === "divider") return `<hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:24px 0;" />`;
   if (block.type === "heading") {
     const size = block.level === 2 ? 24 : 20;
-    return `<h${block.level} style="margin:28px 0 12px;color:#243d31;font-size:${size}px;font-weight:bold;line-height:1.25;">${inlineHtml(block.children)}</h${block.level}>`;
+    return `<h${block.level} style="margin:20px 0 6px;color:#243d31;font-size:${size}px;font-weight:bold;line-height:1.25;">${inlineHtml(block.children)}</h${block.level}>`;
   }
   if (block.type === "list") {
     const items = block.items.map((item) => `<li style="margin:0 0 8px;">${inlineHtml(item)}</li>`).join("");
-    return `<ul style="margin:0 0 16px;padding-left:22px;line-height:1.65;">${items}</ul>`;
+    return `<ul style="margin:0 0 10px;padding-left:22px;line-height:1.65;">${items}</ul>`;
   }
   if (block.type === "quote") {
-    return `<blockquote style="margin:0 0 16px;padding:4px 0 4px 18px;border-left:4px solid #c99450;color:#385245;font-weight:bold;line-height:1.7;">${inlineHtml(block.children)}</blockquote>`;
+    return `<blockquote style="margin:0 0 10px;padding:4px 0 4px 18px;border-left:4px solid #c99450;color:#385245;font-weight:bold;line-height:1.7;">${inlineHtml(block.children)}</blockquote>`;
   }
-  return `<p style="margin:0 0 16px;line-height:1.7;">${inlineHtml(block.children)}</p>`;
+  return `<p style="margin:0 0 10px;line-height:1.7;">${inlineHtml(block.children)}</p>`;
 }
 
 function blockText(block: WeeklyUpdateBlock) {

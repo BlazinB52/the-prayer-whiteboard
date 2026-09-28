@@ -193,6 +193,19 @@ function headingLevel(style: string): 2 | 3 | null {
   return null;
 }
 
+const MAX_INFERRED_HEADING_LENGTH = 80;
+
+// Fallback for section titles that were never given a real "Heading" paragraph
+// style — just bolded a short title line, which is common after pasting or
+// autoformatting in Word. Detected by structure/boldness rather than a
+// specific point size, since the literal font size on these runs varies.
+function looksLikeInferredHeading(children: WeeklyUpdateInline[], text: string) {
+  if (!children.length) return false;
+  if (text.length > MAX_INFERRED_HEADING_LENGTH) return false;
+  if (/[.!?]\s*$/.test(text)) return false;
+  return children.every((child) => child.bold && child.text.trim());
+}
+
 export function convertDocxToWeeklyUpdate(buffer: Buffer): { blocks: WeeklyUpdateBlock[]; plainText: string } {
   if (buffer.byteLength > MAX_DOCX_BYTES) throw new Error("DOCX file exceeds the 8 MiB limit.");
   const entries = readZipEntries(buffer);
@@ -226,6 +239,11 @@ export function convertDocxToWeeklyUpdate(buffer: Buffer): { blocks: WeeklyUpdat
     const level = headingLevel(style);
     if (level) {
       blocks.push({ type: "heading", level, children });
+      continue;
+    }
+
+    if (looksLikeInferredHeading(children, text)) {
+      blocks.push({ type: "heading", level: 3, children });
       continue;
     }
 

@@ -20,3 +20,27 @@ export function WeeklyUpdateStatusButton({ action, weeklyUpdateId, intent, label
     </form>
   );
 }
+
+export function WeeklyUpdateDeleteButton({ action, weeklyUpdateId, title }: { action: Action; weeklyUpdateId: string; title: string }) {
+  const [state, formAction, pending] = useActionState(action, {});
+
+  return (
+    <form
+      action={formAction}
+      className="space-y-2"
+      onSubmit={(event) => {
+        if (!window.confirm(`Permanently delete "${title}"? This cannot be undone.`)) event.preventDefault();
+      }}
+    >
+      <input type="hidden" name="weeklyUpdateId" value={weeklyUpdateId} />
+      <button
+        type="submit"
+        disabled={pending}
+        className="min-h-11 rounded-xl border-2 border-[#a2472c] px-5 font-extrabold text-[#a2472c] transition hover:bg-[#a2472c] hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {pending ? "Deleting..." : "Delete"}
+      </button>
+      {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
+    </form>
+  );
+}

@@ -293,6 +293,33 @@ export async function publishWeeklyUpdate(previousState: WeeklyUpdateActionState
   redirect("/admin/weekly-updates?published=1");
 }
 
+export async function deleteWeeklyUpdate(previousState: WeeklyUpdateActionState, formData: FormData): Promise<WeeklyUpdateActionState> {
+  void previousState;
+  const id = readWeeklyUpdateId(formData);
+  if (id.error || !id.value) return { error: id.error ?? "Invalid weekly update ID." };
+  const admin = await getAdminActionClient();
+  if (!admin.supabase) return { error: admin.error };
+  const { supabase } = admin;
+
+  const { data: existing, error: existingError } = await supabase
+    .from("weekly_updates")
+    .select("id, is_current, source_document_storage_path")
+    .eq("id", id.value)
+    .maybeSingle();
+  if (existingError) return { error: `Database lookup failed: ${existingError.message}` };
+  if (!existing) return { error: "Weekly update not found." };
+  if (existing.is_current) return { error: "The current weekly update cannot be deleted. Publish another update first." };
+
+  const { error } = await supabase.from("weekly_updates").delete().eq("id", id.value);
+  if (error) return { error: `Weekly update delete failed: ${error.message}` };
+  if (existing.source_document_storage_path) {
+    await supabase.storage.from(SOURCE_BUCKET).remove([existing.source_document_storage_path]);
+  }
+
+  revalidatePath("/admin/weekly-updates");
+  redirect("/admin/weekly-updates?deleted=1");
+}
+
 export async function archiveWeeklyUpdate(previousState: WeeklyUpdateActionState, formData: FormData): Promise<WeeklyUpdateActionState> {
   void previousState;
   const id = readWeeklyUpdateId(formData);

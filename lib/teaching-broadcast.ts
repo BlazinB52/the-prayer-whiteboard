@@ -102,12 +102,13 @@ export async function broadcastTeaching(teachingId: string): Promise<TeachingBro
 
   const failedCount = recipients.length - sentCount;
   const status = failedCount && !sentCount ? "failed" : "sent";
-  await supabase.from("email_teaching_broadcast_events").update({
+  const { error: ledgerUpdateError } = await supabase.from("email_teaching_broadcast_events").update({
     status,
     // All per-recipient failure detail lives in this one column, so a broadcast
     // costs a single row no matter how large the list is.
     error: failedCount ? { sentCount, failedCount, failures } : null,
   }).eq("id", broadcastId);
+  if (ledgerUpdateError) throw new Error(`Teaching ledger could not be finalized: ${ledgerUpdateError.message}`);
 
   return { status, recipientCount: recipients.length, sentCount, failedCount };
 }

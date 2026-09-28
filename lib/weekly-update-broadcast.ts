@@ -104,13 +104,14 @@ export async function broadcastWeeklyUpdate(weeklyUpdateId: string): Promise<Bro
   }
 
   const status = failedCount === 0 ? "sent" : sentCount ? "partial" : "failed";
-  await supabase.from("email_broadcast_events").update({
+  const { error: ledgerUpdateError } = await supabase.from("email_broadcast_events").update({
     status,
     sent_count: sentCount,
     failed_count: failedCount,
     error: failedCount ? `${failedCount} recipient(s) failed.` : null,
     metadata: { title: update.title, failures },
   }).eq("id", broadcastId);
+  if (ledgerUpdateError) throw new Error(`Weekly update ledger could not be finalized: ${ledgerUpdateError.message}`);
 
   return { status, recipientCount: recipients.length, sentCount, failedCount };
 }

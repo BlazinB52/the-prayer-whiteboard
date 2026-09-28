@@ -33,7 +33,7 @@ function blockHtml(block: WeeklyUpdateBlock) {
   if (block.type === "divider") return `<hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:24px 0;" />`;
   if (block.type === "heading") {
     const size = block.level === 2 ? 24 : 20;
-    return `<h${block.level} style="margin:28px 0 12px;color:#243d31;font-size:${size}px;line-height:1.25;">${inlineHtml(block.children)}</h${block.level}>`;
+    return `<h${block.level} style="margin:28px 0 12px;color:#243d31;font-size:${size}px;font-weight:bold;line-height:1.25;">${inlineHtml(block.children)}</h${block.level}>`;
   }
   if (block.type === "list") {
     const items = block.items.map((item) => `<li style="margin:0 0 8px;">${inlineHtml(item)}</li>`).join("");

@@ -4,13 +4,29 @@ import test from "node:test";
 import { buildWeeklyUpdateEmail } from "../lib/weekly-update-email-content.ts";
 
 const baseInput = {
-  firstName: "Max",
   title: "This Week at the Whiteboard",
-  bodyMarkdown: "First paragraph.\n\nSecond paragraph.",
+  bodyMarkdown: "Dear Prayer Family,\n\nSecond paragraph.",
   convertedContent: [],
   weeklyUpdateUrl: "https://theprayerwhiteboard.com/weekly-update",
   preferencesUrl: "https://theprayerwhiteboard.com/email-preferences",
 };
+
+test("weekly update email starts with the imported salutation in HTML and plain text", () => {
+  const email = buildWeeklyUpdateEmail({
+    ...baseInput,
+    convertedContent: [
+      { type: "paragraph", children: [{ text: "Dear Prayer Family," }] },
+      { type: "paragraph", children: [{ text: "Weekly update body." }] },
+    ],
+  });
+
+  assert.match(email.html, /<\/h1>\s*<p[^>]*>Dear Prayer Family,<\/p>/);
+  assert.ok(email.text.startsWith("Dear Prayer Family,\n\nWeekly update body."));
+  assert.doesNotMatch(email.html, />Hi [^<]+,<\/p>/);
+  assert.doesNotMatch(email.html, />Hello,<\/p>/);
+  assert.doesNotMatch(email.text, /^Hi [^\n]+,/);
+  assert.doesNotMatch(email.text, /^Hello,$/);
+});
 
 test("structured blocks render into the email layout", () => {
   const email = buildWeeklyUpdateEmail({
@@ -36,9 +52,9 @@ test("structured blocks render into the email layout", () => {
 
 test("markdown body is used when no structured blocks exist", () => {
   const email = buildWeeklyUpdateEmail(baseInput);
-  assert.match(email.html, /First paragraph\./);
+  assert.match(email.html, /Dear Prayer Family,/);
   assert.match(email.html, /Second paragraph\./);
-  assert.match(email.text, /First paragraph\./);
+  assert.ok(email.text.startsWith("Dear Prayer Family,"));
 });
 
 test("broadcast content escapes subscriber-visible HTML and carries an unsubscribe link", () => {
@@ -93,4 +109,13 @@ test("only confirmed weekly update subscribers receive a broadcast", async () =>
   assert.match(recipients, /\.eq\("category", category\)/);
   assert.match(recipients, /\.eq\("status", "active"\)/);
   assert.match(recipients, /\.eq\("email_subscribers\.status", "confirmed"\)/);
+});
+
+test("subscriber broadcasts use the greeting-free weekly update builder", async () => {
+  const source = await readFile("lib/weekly-update-broadcast.ts", "utf8");
+  const builderCall = source.match(/buildWeeklyUpdateEmail\(\{[\s\S]*?\n\s*\}\);/)?.[0] ?? "";
+
+  assert.match(builderCall, /bodyMarkdown: update\.body_markdown/);
+  assert.equal(builderCall.includes("firstName"), false);
+  assert.match(source, /toName: recipient\.firstName/);
 });

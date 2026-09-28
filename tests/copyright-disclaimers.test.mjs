@@ -98,7 +98,6 @@ test("devotional emails include the short copyright disclaimer without changing 
 
 test("weekly update emails include the short copyright disclaimer without changing preferences behavior", () => {
   const email = buildWeeklyUpdateEmail({
-    firstName: "Max",
     title: "This Week at the Whiteboard",
     bodyMarkdown: "First paragraph.\n\nSecond paragraph.",
     convertedContent: [],
@@ -116,7 +115,6 @@ test("weekly update emails include the short copyright disclaimer without changi
 
 test("weekly update HTML links only the word here, not the surrounding sentence", () => {
   const email = buildWeeklyUpdateEmail({
-    firstName: "Max",
     title: "This Week at the Whiteboard",
     bodyMarkdown: "First paragraph.",
     convertedContent: [],

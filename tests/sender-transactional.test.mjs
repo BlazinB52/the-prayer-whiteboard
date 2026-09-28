@@ -179,8 +179,12 @@ test("confirmation and preference emails include only the intended secure link",
     managementUrl: "https://theprayerwhiteboard.com/email-preferences/manage?token=raw-management-token",
     expiresAt: "2026-09-15T12:30:00.000Z",
   });
+  assert.match(confirmation.html, /Hi Ada,/);
+  assert.ok(confirmation.text.startsWith("Hi Ada,"));
   assert.match(confirmation.html, /Confirm My Subscription/);
   assert.match(confirmation.text, /Weekly Updates/);
+  assert.match(preference.html, /Hi Ada,/);
+  assert.ok(preference.text.startsWith("Hi Ada,"));
   assert.match(preference.html, /Manage Email Preferences/);
   assert.match(preference.text, /single-use/);
 });

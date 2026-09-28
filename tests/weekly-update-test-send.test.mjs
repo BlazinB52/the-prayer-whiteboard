@@ -83,6 +83,15 @@ test("the preview is built by the production email builder and marked as a test"
   assert.match(code, /bodyMarkdown: update\.body_markdown/);
 });
 
+test("the test email uses the greeting-free weekly update builder", async () => {
+  const { code } = await readRoute();
+  const builderCall = code.match(/buildWeeklyUpdateEmail\(\{[\s\S]*?\n\s*\}\);/)?.[0] ?? "";
+
+  assert.match(builderCall, /bodyMarkdown: update\.body_markdown/);
+  assert.equal(builderCall.includes("firstName"), false);
+  assert.match(code, /toName: firstName/);
+});
+
 test("the test-send preview includes the shared copyright disclaimer like the real broadcast", async () => {
   const { code } = await readRoute();
 

@@ -70,7 +70,6 @@ export async function broadcastWeeklyUpdate(weeklyUpdateId: string): Promise<Bro
 
   for (const recipient of recipients) {
     const email = buildWeeklyUpdateEmail({
-      firstName: recipient.firstName,
       title: update.title,
       bodyMarkdown: update.body_markdown,
       convertedContent: update.converted_content,

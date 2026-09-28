@@ -16,6 +16,8 @@ test("a teaching email renders title, summary, and introduction", () => {
   const email = buildTeachingEmail(baseInput);
 
   assert.equal(email.subject, "New teaching: Aliyah, Israel, and the Harvest");
+  assert.match(email.html, /Hi Max,/);
+  assert.ok(email.text.startsWith("Hi Max,"));
   assert.match(email.html, /A study of return and ingathering\./);
   assert.match(email.html, /We begin in Jeremiah\./);
   assert.match(email.html, /Then we turn to Isaiah\./);

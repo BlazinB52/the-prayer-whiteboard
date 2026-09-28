@@ -1,4 +1,4 @@
-import { button, escapeHtml, greeting, shell, textGreeting } from "./subscription-email-content.ts";
+import { button, escapeHtml, shell } from "./subscription-email-content.ts";
 import type { EmailCopyrightDisclaimer } from "./copyright-disclaimer-format.ts";
 import type { WeeklyUpdateBlock, WeeklyUpdateInline } from "./weekly-update-docx.ts";
 
@@ -58,7 +58,6 @@ function paragraphsFromMarkdown(body: string) {
 }
 
 export function buildWeeklyUpdateEmail(input: {
-  firstName: string;
   title: string;
   bodyMarkdown: string;
   convertedContent: unknown;
@@ -76,7 +75,6 @@ export function buildWeeklyUpdateEmail(input: {
 
   const subject = input.title;
   const html = shell(input.title, `
-    <p style="margin:0 0 16px;line-height:1.65;">${greeting(input.firstName)}</p>
     ${bodyHtml}
     <p style="margin:28px 0 0;">${button("Read It Online", input.weeklyUpdateUrl)}</p>
     <hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:28px 0 16px;" />
@@ -84,9 +82,7 @@ export function buildWeeklyUpdateEmail(input: {
     ${input.copyrightDisclaimer?.html ?? ""}
   `);
   const text = [
-    `${textGreeting(input.firstName)}
-
-${bodyText}
+    `${bodyText}
 
 Read it online:
 ${input.weeklyUpdateUrl}

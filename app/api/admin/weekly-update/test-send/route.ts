@@ -59,7 +59,6 @@ export async function POST(request: Request) {
   const base = siteUrl();
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
   const email = buildWeeklyUpdateEmail({
-    firstName,
     title: update.title,
     bodyMarkdown: update.body_markdown,
     convertedContent: update.converted_content,

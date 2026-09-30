@@ -36,7 +36,10 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
             <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31]">Teachings</h1>
             <p className="mt-3 text-sm text-[#607066]">Manage draft and published teachings.</p>
           </div>
-          <Link href="/admin/teachings/new" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#244a3a] px-5 font-extrabold text-white transition hover:bg-[#1d3d30] hover:text-white"><span className="!text-white">New Teaching</span></Link>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/admin/teachings/import" className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#244a3a] px-5 font-extrabold text-[#244a3a] transition hover:bg-[#e7efe9]">Import from Word</Link>
+            <Link href="/admin/teachings/new" className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[#244a3a] px-5 font-extrabold text-white transition hover:bg-[#1d3d30] hover:text-white"><span className="!text-white">New Teaching</span></Link>
+          </div>
         </header>
 
         {params.saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching saved successfully.</p> : null}

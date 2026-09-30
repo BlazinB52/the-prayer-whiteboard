@@ -12,21 +12,30 @@ const baseInput = {
   preferencesUrl: "https://theprayerwhiteboard.com/email-preferences",
 };
 
-test("a teaching email renders title, summary, and introduction", () => {
+test("a teaching email renders the announcement line with title, then the summary on its own paragraph", () => {
   const email = buildTeachingEmail(baseInput);
 
   assert.equal(email.subject, "New teaching: Aliyah, Israel, and the Harvest");
   assert.match(email.html, /Hi Max,/);
   assert.ok(email.text.startsWith("Hi Max,"));
   assert.match(email.html, /A study of return and ingathering\./);
-  assert.match(email.html, /We begin in Jeremiah\./);
-  assert.match(email.html, /Then we turn to Isaiah\./);
+  assert.match(email.html, /published on The Prayer Whiteboard — <strong><em>Aliyah, Israel, and the Harvest<\/em><\/strong>\.<\/p>\s*<p[^>]*>A study of return/);
+  assert.match(email.text, /Prayer Whiteboard — Aliyah, Israel, and the Harvest\.\n\nA study of return and ingathering\./);
+  assert.equal(email.html.includes("<h1"), false);
   assert.match(email.html, /Read the Full Teaching/);
   assert.match(email.text, /Read the full teaching:/);
 });
 
-test("nullable summary and introduction are omitted rather than rendered empty", () => {
-  const email = buildTeachingEmail({ ...baseInput, summary: null, introduction: null });
+test("a teaching email opens with the centered letterhead logo when a logo URL is provided", () => {
+  const email = buildTeachingEmail({ ...baseInput, logoUrl: "https://theprayerwhiteboard.com/images/whiteboard-sword-logo-with-tagline.png" });
+
+  assert.match(email.html, /text-align:center[^>]*><img src="https:\/\/theprayerwhiteboard\.com\/images\/whiteboard-sword-logo-with-tagline\.png"/);
+  assert.ok(email.html.indexOf("<img") < email.html.indexOf("Hi Max,"));
+  assert.equal(email.html.includes("letter-spacing:0.12em"), false);
+});
+
+test("nullable summary is omitted rather than rendered empty", () => {
+  const email = buildTeachingEmail({ ...baseInput, summary: null });
 
   assert.equal(email.html.includes("<p style=\"margin:0 0 16px;line-height:1.7;\"></p>"), false);
   assert.match(email.html, /Read the Full Teaching/);

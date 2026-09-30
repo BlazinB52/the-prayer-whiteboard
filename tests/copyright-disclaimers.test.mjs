@@ -60,7 +60,6 @@ test("teaching emails include the short copyright disclaimer without changing pr
     firstName: "Max",
     title: "Aliyah, Israel, and the Harvest",
     summary: "A study of return and ingathering.",
-    introduction: "We begin in Jeremiah.",
     teachingUrl: "https://theprayerwhiteboard.com/teachings/aliyah-israel-harvest-prayer",
     preferencesUrl: "https://theprayerwhiteboard.com/email-preferences",
     copyrightDisclaimer,

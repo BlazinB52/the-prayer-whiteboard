@@ -16,7 +16,11 @@ export function button(label: string, href: string) {
   return `<a href="${safeHref}" style="display:inline-block;border-radius:14px;background:#244a3a;color:#ffffff;font-weight:800;text-decoration:none;padding:14px 22px;">${escapeHtml(label)}</a>`;
 }
 
-export function shell(title: string, body: string) {
+// An empty title omits the large heading (the teaching email names its title inline instead).
+// letterhead, when given, replaces the small brand line at the top of the card.
+export function shell(title: string, body: string, letterhead?: string) {
+  const brandLine = letterhead ?? `<p style="margin:0 0 12px;color:#946332;font-size:12px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">${BRAND}</p>`;
+  const heading = title ? `<h1 style="margin:0 0 18px;color:#243d31;font-size:28px;line-height:1.16;">${escapeHtml(title)}</h1>` : "";
   return `<!doctype html>
 <html>
   <body style="margin:0;background:#f7f2e8;color:#243126;font-family:Arial,Helvetica,sans-serif;">
@@ -26,8 +30,8 @@ export function shell(title: string, body: string) {
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#fffdf8;border:1px solid rgba(40,74,59,0.12);border-radius:18px;">
             <tr>
               <td style="padding:28px 24px;">
-                <p style="margin:0 0 12px;color:#946332;font-size:12px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">${BRAND}</p>
-                <h1 style="margin:0 0 18px;color:#243d31;font-size:28px;line-height:1.16;">${escapeHtml(title)}</h1>
+                ${brandLine}
+                ${heading}
                 ${body}
               </td>
             </tr>

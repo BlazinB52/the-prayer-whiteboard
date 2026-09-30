@@ -313,7 +313,7 @@ function WeeklyUpdateHeroButton({ weeklyUpdate }: { weeklyUpdate: CurrentWeeklyU
 function FeaturedHomepage({ data, weeklyUpdate }: { data: FeaturedHomepageData; weeklyUpdate: CurrentWeeklyUpdate }) {
   const teachingPath = `/teachings/${data.teaching.slug}`;
   const date = data.teaching.gathering_date ? new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${data.teaching.gathering_date}T00:00:00Z`)) : "Latest gathering";
-  const description = data.teaching.central_theme || data.teaching.summary || data.teaching.introduction || "";
+  const description = data.teaching.central_theme || data.teaching.introduction || "";
   const heroChalkboard = weeklyUpdate?.chalkboard ?? data.chalkboard ?? fallbackHomepageChalkboard;
   const heroChalkboardTitle = weeklyUpdate?.chalkboard
     ? weeklyUpdate.title

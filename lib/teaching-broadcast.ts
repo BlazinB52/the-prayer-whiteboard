@@ -47,7 +47,7 @@ export async function broadcastTeaching(teachingId: string): Promise<TeachingBro
   // publish state before mailing anyone.
   const { data: teaching, error: teachingError } = await supabase
     .from("teachings")
-    .select("id, slug, title, summary, introduction, status")
+    .select("id, slug, title, summary, status")
     .eq("id", teachingId)
     .maybeSingle();
   if (teachingError) throw new Error(`Teaching lookup failed: ${teachingError.message}`);
@@ -72,8 +72,8 @@ export async function broadcastTeaching(teachingId: string): Promise<TeachingBro
       firstName: recipient.firstName,
       title: teaching.title,
       summary: teaching.summary,
-      introduction: teaching.introduction,
       teachingUrl,
+      logoUrl: `${base}/images/whiteboard-sword-logo-with-tagline.png`,
       preferencesUrl,
       copyrightDisclaimer,
     });

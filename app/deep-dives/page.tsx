@@ -76,7 +76,7 @@ export default async function DeepDivesPage() {
 }
 
 function DeepDiveCard({ teaching }: { teaching: DeepDiveTeaching }) {
-  const description = teaching.central_theme || teaching.summary || "A deeper teaching from The Prayer Whiteboard.";
+  const description = teaching.central_theme || "A deeper teaching from The Prayer Whiteboard.";
   return (
     <article className="group flex min-h-[320px] flex-col rounded-2xl border border-[#20382e]/15 bg-[#fffdf8] p-6 shadow-xl shadow-[#20382e]/10 transition hover:-translate-y-0.5 hover:border-[#9d5a2f]/40 sm:p-7">
       <div className="flex items-center justify-between gap-4">
@@ -85,7 +85,6 @@ function DeepDiveCard({ teaching }: { teaching: DeepDiveTeaching }) {
       </div>
       <h2 className="mt-5 text-3xl font-extrabold leading-tight tracking-tight text-[#20382e]">{teaching.title}</h2>
       <p className="mt-4 leading-7 text-[#52645a]">{description}</p>
-      {teaching.summary && teaching.central_theme ? <p className="mt-3 text-sm leading-6 text-[#607066]">{teaching.summary}</p> : null}
       <Link href={`/teachings/${teaching.slug}`} className="mt-auto inline-flex items-center gap-2 pt-6 font-extrabold text-[#9d5a2f] underline-offset-4 transition hover:text-[#a85e32] hover:underline">
         Open Deep Dive <ArrowRight aria-hidden="true" size={18} className="transition group-hover:translate-x-1" />
       </Link>

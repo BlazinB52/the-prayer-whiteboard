@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: teaching, error } = await supabase
     .from("teachings")
-    .select("id, slug, title, summary, introduction")
+    .select("id, slug, title, summary")
     .eq("id", teachingId)
     .maybeSingle();
   if (error) return NextResponse.json({ error: "Teaching could not be read." }, { status: 500 });
@@ -62,8 +62,8 @@ export async function POST(request: Request) {
     firstName,
     title: teaching.title,
     summary: teaching.summary,
-    introduction: teaching.introduction,
     teachingUrl: `${base}/teachings/${teaching.slug}`,
+    logoUrl: `${base}/images/whiteboard-sword-logo-with-tagline.png`,
     preferencesUrl: `${base}/email-preferences`,
     copyrightDisclaimer,
   });

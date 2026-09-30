@@ -16,15 +16,24 @@ const baseInput = {
   preferencesUrl: "https://theprayerwhiteboard.com/email-preferences",
 };
 
-test("the header shows the series, the day number, and the exact title", () => {
+test("the header shows the day number, the exact title, and the series on the For line", () => {
   const email = buildDevotionalDayEmail(baseInput);
 
   assert.match(email.html, /7-Day Devotional: Beyond the Garden/);
+  assert.equal(email.html.includes("letter-spacing:0.12em"), false);
   assert.match(email.html, /DAY 3 OF 7/);
   assert.match(email.html, /Returning With Singing/);
   assert.match(email.html, /<strong[^>]*>For<\/strong> Beyond the Garden/);
   assert.equal(email.subject, "Day 3 of 7 — Returning With Singing");
   assert.match(email.text, /DAY 3 OF 7/);
+});
+
+test("a logo URL renders a small left-aligned logo above the gray series line", () => {
+  const email = buildDevotionalDayEmail({ ...baseInput, logoUrl: "https://theprayerwhiteboard.com/images/tpwb-email-logo.png" });
+
+  assert.match(email.html, /text-align:left[^>]*><img src="https:\/\/theprayerwhiteboard\.com\/images\/tpwb-email-logo\.png"[^>]*max-width:220px/);
+  assert.ok(email.html.indexOf("<img") < email.html.indexOf("7-Day Devotional:"));
+  assert.ok(email.html.indexOf("7-Day Devotional:") < email.html.indexOf("DAY 3 OF 7"));
 });
 
 test("anchor scriptures render verbatim from the database array", () => {

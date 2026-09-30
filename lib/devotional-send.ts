@@ -143,6 +143,7 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
       journalPrompt: day.journal_prompt,
       prayerActivation: day.prayer_activation,
       readUrl,
+      logoUrl: `${base}/images/tpwb-email-logo.png`,
       preferencesUrl,
       copyrightDisclaimer,
     });

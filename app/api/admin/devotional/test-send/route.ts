@@ -87,6 +87,7 @@ export async function POST(request: Request) {
     journalPrompt: day.journal_prompt,
     prayerActivation: day.prayer_activation,
     readUrl: devotionalDayUrl(base, devotional.slug, dayNumber),
+    logoUrl: `${base}/images/tpwb-email-logo.png`,
     preferencesUrl: `${base}/email-preferences`,
     copyrightDisclaimer,
   });

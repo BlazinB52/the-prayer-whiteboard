@@ -49,6 +49,7 @@ export function buildDevotionalDayEmail(input: {
   journalPrompt: string | null;
   prayerActivation: string | null;
   readUrl: string;
+  logoUrl?: string;
   preferencesUrl: string;
   copyrightDisclaimer?: EmailCopyrightDisclaimer;
 }) {
@@ -56,6 +57,10 @@ export function buildDevotionalDayEmail(input: {
   const dayLabel = `Day ${input.dayNumber} of ${totalDays}`;
   const scriptures = input.anchorScriptures.filter((scripture) => scripture.trim());
   const hasMoreDays = input.dayNumber < totalDays;
+
+  const logoHtml = input.logoUrl
+    ? `<div style="text-align:left;margin:0 0 10px;"><img src="${escapeHtml(input.logoUrl)}" alt="The Prayer Whiteboard" width="220" style="display:block;width:100%;max-width:220px;height:auto;border:0;" /></div>`
+    : "";
 
   const html = `<!doctype html>
 <html>
@@ -66,10 +71,10 @@ export function buildDevotionalDayEmail(input: {
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#fffdf8;border:1px solid rgba(40,74,59,0.12);border-radius:18px;">
             <tr>
               <td style="padding:28px 24px;">
-                <p style="margin:0 0 4px;color:#946332;font-size:12px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">The Prayer Whiteboard</p>
+                ${logoHtml}
                 <p style="margin:0 0 18px;color:#8a9a90;font-size:13px;">7-Day Devotional: ${escapeHtml(input.seriesTitle)}</p>
                 <p style="margin:0 0 6px;color:#946332;font-size:12px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;">${escapeHtml(dayLabel.toUpperCase())}</p>
-                <h1 style="margin:0 0 6px;color:#243d31;font-size:27px;line-height:1.2;">${escapeHtml(input.title)}</h1>
+                <h1 style="margin:0 0 6px;color:#243d31;font-size:23px;line-height:1.2;">${escapeHtml(input.title)}</h1>
                 <p style="margin:0 0 22px;color:#52645a;font-size:14px;font-style:italic;"><strong style="font-style:normal;">For</strong> ${escapeHtml(input.seriesTitle)}</p>
                 ${scripturesFieldHtml(scriptures)}
                 ${textFieldHtml("Devotional Reading", input.devotionalReading)}
@@ -93,7 +98,6 @@ export function buildDevotionalDayEmail(input: {
 </html>`;
 
   const text = [
-    "THE PRAYER WHITEBOARD",
     `7-Day Devotional: ${input.seriesTitle}`,
     "",
     dayLabel.toUpperCase(),

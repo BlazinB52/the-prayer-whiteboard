@@ -30,7 +30,7 @@ export function buildTeachingEmail(input: {
 
   // Centered letterhead logo with roughly four lines of space before the greeting.
   const letterhead = input.logoUrl
-    ? `<div style="text-align:center;margin:0 0 72px;"><img src="${escapeHtml(input.logoUrl)}" alt="The Prayer Whiteboard — Prayer changes things. The Word changes us." width="400" style="display:inline-block;width:100%;max-width:400px;height:auto;border:0;" /></div>`
+    ? `<div style="text-align:center;margin:0 0 72px;"><img src="${escapeHtml(input.logoUrl)}" alt="The Prayer Whiteboard — Prayer changes things. The Word changes us." width="360" style="display:inline-block;width:100%;max-width:360px;height:auto;border:0;" /></div>`
     : undefined;
 
   const subject = `New teaching: ${input.title}`;

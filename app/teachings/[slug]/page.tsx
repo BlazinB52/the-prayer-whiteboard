@@ -16,10 +16,17 @@ import { createClient } from "@/lib/supabase/server";
 import { PrintToPdfButton } from "./print-to-pdf-button";
 
 function PrintOnlyCopyrightNotice({ content, baseUrl }: { content: string; baseUrl: string }) {
-  const withLinkedDisclosuresPage = content.replace(/\bhere\b/, `[here](${canonicalCopyrightDisclaimerUrl(baseUrl)})`);
+  // Show the disclosures URL as visible text, not just a clickable "here" --
+  // this can end up on actual paper, where a link is dead but a printed URL
+  // is still usable. AMP/AMPC still get wrapped as real links to lockman.org
+  // (harmless if printed physically; still satisfies the digital-PDF case).
+  const printFriendly = content
+    .replace(/\bhere\b/, canonicalCopyrightDisclaimerUrl(baseUrl))
+    .replace(/\bAMPC\b/g, "[AMPC](https://www.lockman.org)")
+    .replace(/\bAMP\b/g, "[AMP](https://www.lockman.org)");
   return (
     <div className="print-only mt-10 border-t border-[#284a3b]/15 pt-4 text-xs leading-5 text-[#7a8a80]">
-      <FormattedTextBlocks text={withLinkedDisclosuresPage} links className="space-y-2" />
+      <FormattedTextBlocks text={printFriendly} links className="space-y-2" />
     </div>
   );
 }

@@ -55,6 +55,21 @@ test("public teaching pages render a print-only copyright notice that's hidden o
   assert.match(css, /@media print[\s\S]*\.print-only\s*\{\s*display:\s*block\s*!important;\s*\}/);
 });
 
+test("the print-only notice shows the disclosures URL as visible text and links AMP/AMPC, since it may end up on physical paper", async () => {
+  const source = await readFile("app/teachings/[slug]/page.tsx", "utf8");
+
+  assert.match(source, /siteUrl\(\)/);
+  assert.doesNotMatch(source, /\[here\]\(/, "should not hide the disclosures URL behind link text that's dead once printed on paper");
+  assert.match(source, /replace\(\/\\bhere\\b\/, canonicalCopyrightDisclaimerUrl\(baseUrl\)\)/);
+  assert.match(source, /replace\(\/\\bAMPC\\b\/g, "\[AMPC\]\(https:\/\/www\.lockman\.org\)"\)/);
+  assert.match(source, /replace\(\/\\bAMP\\b\/g, "\[AMP\]\(https:\/\/www\.lockman\.org\)"\)/);
+});
+
+test("the email signup CTA is hidden from print output on teaching pages", async () => {
+  const css = await readFile("app/globals.css", "utf8");
+  assert.match(css, /@media print[\s\S]*\.email-updates-cta[\s\S]*display:\s*none\s*!important;/);
+});
+
 test("devotional anchor-scripture lines render through the link-aware formatter, not as raw strings", async () => {
   const sites = [
     "app/devotionals/[slug]/day/[dayNumber]/page.tsx",

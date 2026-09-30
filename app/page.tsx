@@ -215,25 +215,42 @@ async function getPublishedDevotionalSlugsByTeachingId(teachingIds: string[]) {
   }));
 }
 
-async function getFeaturedHomepageData(): Promise<FeaturedHomepageData | null> {
-  const supabase = await createClient();
-  const { data: candidates, error: teachingError } = await supabase
+const FEATURED_TEACHING_COLUMNS = "id, slug, title, gathering_date, is_featured, status, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, chalkboard_asset_id";
+
+async function getFeaturedHomepageData(supabaseOverride?: ServiceRoleClient): Promise<FeaturedHomepageData | null> {
+  const supabase = supabaseOverride ?? await createClient();
+  const { data: featuredCandidates, error: teachingError } = await supabase
     .from("teachings")
-    .select("id, slug, title, gathering_date, is_featured, status, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, chalkboard_asset_id")
+    .select(FEATURED_TEACHING_COLUMNS)
     .eq("status", "published")
     .eq("teaching_type", "standard")
     .eq("is_featured", true);
-  if (teachingError) return null;
+  if (teachingError) throw teachingError;
 
-  const teaching = selectFeaturedTeaching((candidates ?? []) as FeaturedTeachingCandidate[]);
+  let candidates = featuredCandidates ?? [];
+  if (!candidates.length) {
+    // Nothing is flagged featured: use the most recent published teaching rather than a stale hardcoded one.
+    const { data: latest, error: latestError } = await supabase
+      .from("teachings")
+      .select(FEATURED_TEACHING_COLUMNS)
+      .eq("status", "published")
+      .eq("teaching_type", "standard")
+      .order("gathering_date", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: false })
+      .limit(1);
+    if (latestError) throw latestError;
+    candidates = (latest ?? []).map((teaching) => ({ ...teaching, is_featured: true }));
+  }
+
+  const teaching = selectFeaturedTeaching(candidates as FeaturedTeachingCandidate[]);
   if (!teaching) return null;
-  const selectedTeaching = (candidates ?? []).find((candidate) => candidate.id === teaching.id);
+  const selectedTeaching = candidates.find((candidate) => candidate.id === teaching.id);
   if (!selectedTeaching) return null;
 
   const [{ data: previousGatherings, error: previousError }] = await Promise.all([
     supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").eq("teaching_type", "standard").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
-  if (previousError) return null;
+  if (previousError) throw previousError;
 
   const previousGatheringItems = (previousGatherings ?? []) as PreviousGathering[];
   const devotionalSlugsByTeachingId = await getPublishedDevotionalSlugsByTeachingId([teaching.id, ...previousGatheringItems.map((gathering) => gathering.id)]);
@@ -261,8 +278,26 @@ function buildHomepageTeasers(teaching: Pick<FeaturedHomepageData["teaching"], "
   ].filter((teaser) => teaser.heading && teaser.text);
 }
 
+// A transient Supabase error must never drop the homepage onto the stale hardcoded teaching.
+// Retry, then try the service-role client, then reuse the last good result from this server instance.
+let lastGoodFeatured: FeaturedHomepageData | null = null;
+
+async function getFeaturedHomepageDataWithRetry(attempts = 3): Promise<FeaturedHomepageData | null> {
+  const serviceClient = createServiceRoleClient();
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const data = await getFeaturedHomepageData(attempt === attempts - 1 && serviceClient ? serviceClient : undefined);
+      if (data) lastGoodFeatured = data;
+      return data;
+    } catch {
+      if (attempt < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)));
+    }
+  }
+  return lastGoodFeatured;
+}
+
 export default async function PrayerGroupPage() {
-  const [featured, weeklyUpdate] = await Promise.all([getFeaturedHomepageData(), getCurrentWeeklyUpdate()]);
+  const [featured, weeklyUpdate] = await Promise.all([getFeaturedHomepageDataWithRetry(), getCurrentWeeklyUpdate()]);
   return featured ? <FeaturedHomepage data={featured} weeklyUpdate={weeklyUpdate} /> : <HardCodedHomepage previousGatherings={await getPreviousGatherings()} weeklyUpdate={weeklyUpdate} />;
 }
 

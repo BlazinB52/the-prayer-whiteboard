@@ -9,9 +9,19 @@ import { ReturnToTop } from "@/app/return-to-top";
 import { ContentFooter } from "@/app/content-footer";
 import { EmailUpdatesCta } from "@/app/email-updates-cta";
 import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
+import { canonicalCopyrightDisclaimerUrl, FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER } from "@/lib/copyright-disclaimer-format";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { PrintToPdfButton } from "./print-to-pdf-button";
+
+function PrintOnlyCopyrightNotice({ content, baseUrl }: { content: string; baseUrl: string }) {
+  const withLinkedDisclosuresPage = content.replace(/\bhere\b/, `[here](${canonicalCopyrightDisclaimerUrl(baseUrl)})`);
+  return (
+    <div className="print-only mt-10 border-t border-[#284a3b]/15 pt-4 text-xs leading-5 text-[#7a8a80]">
+      <FormattedTextBlocks text={withLinkedDisclosuresPage} links className="space-y-2" />
+    </div>
+  );
+}
 
 type Content = Record<string, unknown>;
 type Asset = { id: string; alt_text: string; caption: string | null; website_storage_path: string | null; storage_path: string; download_storage_path: string | null; allow_download: boolean };
@@ -36,11 +46,12 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
   const teachingType: TeachingType = teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard";
 
   const signer = createServiceRoleClient();
-  const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assignments }, { data: footerAssignment }] = await Promise.all([
+  const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assignments }, { data: footerAssignment }, { data: emailDisclaimer }] = await Promise.all([
     supabase.from("teaching_categories").select("id, teaching_id, title, sort_order, status").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_sections").select("id, teaching_id, category_id, title, content, sort_order, status, highlight_horizontal_alignment").eq("teaching_id", teaching.id).eq("status", "published").order("sort_order"),
     supabase.from("teaching_chalkboard_assignments").select("chalkboard_asset_id, display_order").eq("teaching_id", teaching.id).order("display_order", { ascending: true }),
     supabase.from("teaching_footer_assignments").select("footer_id").eq("teaching_id", teaching.id).maybeSingle(),
+    supabase.from("copyright_disclaimers").select("content").eq("disclaimer_key", "email_short").maybeSingle(),
   ]);
   if (categoriesError || sectionsError) notFound();
   const validCategories = (categories ?? []).filter((category) => category.teaching_id === teaching.id);
@@ -70,6 +81,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
         <div className="mt-8 space-y-8">{assetsWithUrls.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}</div>
         <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2><div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}><PublicSection sectionId={section.id} title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}</div></section>)}</div>
         {footer?.status === "active" ? <ContentFooter content={footer.content} /> : null}
+        <PrintOnlyCopyrightNotice content={emailDisclaimer?.content?.trim() || FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER} baseUrl={process.env.NEXT_PUBLIC_SITE_URL || "https://theprayerwhiteboard.com"} />
       </article>
       <EmailUpdatesCta copy="Want to receive new teachings and other content from The Prayer Whiteboard? Choose the emails you would like to receive." />
       <PublicFooter />

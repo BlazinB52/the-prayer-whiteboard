@@ -41,6 +41,20 @@ test("every render site for a Scripture section's translation field uses the sha
   }
 });
 
+test("public teaching pages render a print-only copyright notice that's hidden on screen but shown when printed to PDF", async () => {
+  const [source, css] = await Promise.all([
+    readFile("app/teachings/[slug]/page.tsx", "utf8"),
+    readFile("app/globals.css", "utf8"),
+  ]);
+
+  assert.match(source, /function PrintOnlyCopyrightNotice/);
+  assert.match(source, /className="print-only /);
+  assert.match(source, /disclaimer_key", "email_short"/);
+  assert.match(source, /FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER/);
+  assert.match(css, /\.print-only\s*\{\s*display:\s*none;\s*\}/);
+  assert.match(css, /@media print[\s\S]*\.print-only\s*\{\s*display:\s*block\s*!important;\s*\}/);
+});
+
 test("devotional anchor-scripture lines render through the link-aware formatter, not as raw strings", async () => {
   const sites = [
     "app/devotionals/[slug]/day/[dayNumber]/page.tsx",

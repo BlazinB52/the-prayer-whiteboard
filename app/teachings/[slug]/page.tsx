@@ -10,6 +10,7 @@ import { ContentFooter } from "@/app/content-footer";
 import { EmailUpdatesCta } from "@/app/email-updates-cta";
 import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
 import { canonicalCopyrightDisclaimerUrl, FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER } from "@/lib/copyright-disclaimer-format";
+import { siteUrl } from "@/lib/email-subscriptions";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { PrintToPdfButton } from "./print-to-pdf-button";
@@ -81,7 +82,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
         <div className="mt-8 space-y-8">{assetsWithUrls.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}</div>
         <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2><div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}><PublicSection sectionId={section.id} title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}</div></section>)}</div>
         {footer?.status === "active" ? <ContentFooter content={footer.content} /> : null}
-        <PrintOnlyCopyrightNotice content={emailDisclaimer?.content?.trim() || FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER} baseUrl={process.env.NEXT_PUBLIC_SITE_URL || "https://theprayerwhiteboard.com"} />
+        <PrintOnlyCopyrightNotice content={emailDisclaimer?.content?.trim() || FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER} baseUrl={siteUrl()} />
       </article>
       <EmailUpdatesCta copy="Want to receive new teachings and other content from The Prayer Whiteboard? Choose the emails you would like to receive." />
       <PublicFooter />

@@ -17,9 +17,10 @@ import {
 } from "@/lib/public-devotionals";
 
 export const metadata: Metadata = {
-  title: "7-Day Devotionals | The Whiteboard",
+  title: "7-Day Devotionals",
   description:
     "Browse Prayer Whiteboard 7-day devotional series and start receiving devotional emails.",
+  alternates: { canonical: "/devotionals" },
 };
 
 export default async function DevotionalsPage() {

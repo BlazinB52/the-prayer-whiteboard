@@ -7,8 +7,9 @@ import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { SubscribeForm } from "./subscribe-form";
 
 export const metadata: Metadata = {
-  title: "Email Updates | The Prayer Whiteboard",
+  title: "Email Updates",
   description: "Choose the Prayer Whiteboard emails you would like to receive.",
+  alternates: { canonical: "/subscribe" },
 };
 
 export default async function SubscribePage({ searchParams }: { searchParams: Promise<{ devotional?: string; category?: string }> }) {

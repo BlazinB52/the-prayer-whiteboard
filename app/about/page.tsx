@@ -9,8 +9,9 @@ import { ReturnToTop } from "@/app/return-to-top";
 const contactEmail = "theprayerwhiteboard@gmail.com";
 
 export const metadata: Metadata = {
-  title: "About The Prayer Whiteboard",
+  title: "About",
   description: "The Prayer Whiteboard mission artwork and Matthew 18:19.",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {

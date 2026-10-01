@@ -23,7 +23,7 @@ export function PublicHeader({ maxWidthClassName = "max-w-5xl", nav, homeLabel =
       <div className={`mx-auto flex min-h-[73px] ${maxWidthClassName} items-center justify-between gap-4 px-5 py-3 sm:px-8`}>
         <Link href="/" className="flex min-w-0 items-center gap-2 font-extrabold text-[#21382e]">
           <BookOpenText aria-hidden="true" size={20} className="shrink-0" />
-          <span className="truncate">The Whiteboard</span>
+          <span className="truncate">The Prayer Whiteboard</span>
         </Link>
         {nav?.length ? (
           <div className="flex items-center gap-3">

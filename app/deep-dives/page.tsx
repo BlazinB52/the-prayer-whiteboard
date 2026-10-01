@@ -7,8 +7,9 @@ import { ReturnToTop } from "@/app/return-to-top";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Deep Dives | The Whiteboard",
+  title: "Deep Dives",
   description: "Deeper Prayer Whiteboard teachings for mature study in God's Word.",
+  alternates: { canonical: "/deep-dives" },
 };
 
 type DeepDiveTeaching = {

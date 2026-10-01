@@ -6,6 +6,7 @@ import { PublicFooter } from "@/app/public-footer";
 import { formatInlineText } from "@/app/formatted-text";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
+import { NOINDEX, truncateDescription } from "@/lib/seo";
 import {
   getDevotionalDescription,
   getDevotionalReadPath,
@@ -19,11 +20,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const series = await getPublishedDevotionalSeriesBySlug(slug);
 
-  if (!series) return { title: "Devotional | The Whiteboard", robots: { index: false, follow: false } };
+  if (!series) return { title: "Devotional", robots: NOINDEX };
 
   return {
     title: `${series.title} | 7-Day Devotional`,
-    description: getDevotionalDescription(series),
+    description: truncateDescription(getDevotionalDescription(series)),
+    alternates: { canonical: `/devotionals/${series.slug}` },
   };
 }
 

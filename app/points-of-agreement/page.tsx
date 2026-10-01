@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = {
   title: "Prayer & Intercession Guide",
   description: "Join The Prayer Whiteboard in active Points of Agreement.",
+  alternates: { canonical: "/points-of-agreement" },
 };
 
 export default async function PointsOfAgreementPage() {

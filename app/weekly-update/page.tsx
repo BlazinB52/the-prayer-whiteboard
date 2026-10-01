@@ -12,8 +12,9 @@ import { WeeklyUpdateContent } from "./weekly-update-content";
 import { WeeklyUpdatePrintButton } from "./print-button";
 
 export const metadata: Metadata = {
-  title: "Weekly Update | The Whiteboard",
+  title: "Weekly Update",
   description: "The current weekly update from The Prayer Whiteboard.",
+  alternates: { canonical: "/weekly-update" },
 };
 
 export const dynamic = "force-dynamic";

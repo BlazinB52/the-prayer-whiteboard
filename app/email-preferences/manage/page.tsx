@@ -6,7 +6,7 @@ import { loadPreferenceToken } from "@/lib/email-subscriptions";
 import { PreferenceManagementForm } from "./preference-management-form";
 
 export const metadata: Metadata = {
-  title: "Manage Email Preferences | The Prayer Whiteboard",
+  title: "Manage Email Preferences",
   robots: { index: false, follow: false },
 };
 

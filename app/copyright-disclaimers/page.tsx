@@ -7,8 +7,9 @@ import { FALLBACK_FULL_PAGE_COPYRIGHT_DISCLAIMER, safeCopyrightReturnToPath } fr
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Copyright Disclaimers | The Prayer Whiteboard",
+  title: "Copyright Disclaimers",
   description: "Copyright acknowledgments and permissions for The Prayer Whiteboard.",
+  alternates: { canonical: "/copyright-disclaimers" },
 };
 
 type PageProps = {

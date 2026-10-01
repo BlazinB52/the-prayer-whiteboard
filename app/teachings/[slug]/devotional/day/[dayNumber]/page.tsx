@@ -9,7 +9,8 @@ import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import type { DevotionalDay } from "@/lib/devotionals";
-import { getPublishedDevotionalSeriesByTeachingSlug } from "@/lib/public-devotionals";
+import { getDevotionalDayDescription, getPublishedDevotionalSeriesByTeachingSlug } from "@/lib/public-devotionals";
+import { NOINDEX } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
 
 function parseDayNumber(value: string) {
@@ -20,21 +21,25 @@ function parseDayNumber(value: string) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; dayNumber: string }> }): Promise<Metadata> {
   const { slug, dayNumber: dayNumberParam } = await params;
   const dayNumber = parseDayNumber(dayNumberParam);
-  if (!dayNumber) return { title: "Teaching | The Whiteboard", robots: { index: false, follow: false } };
+  if (!dayNumber) return { title: "Devotional", robots: NOINDEX };
 
   const devotional = await getPublishedDevotionalSeriesByTeachingSlug(slug);
-  if (!devotional) return { title: "Teaching | The Whiteboard", robots: { index: false, follow: false } };
+  if (!devotional) return { title: "Devotional", robots: NOINDEX };
 
   const supabase = await createClient();
   const { data: day } = await supabase
     .from("teaching_devotional_days")
-    .select("title")
+    .select("title, devotional_reading")
     .eq("devotional_id", devotional.id)
     .eq("day_number", dayNumber)
     .maybeSingle();
 
-  if (!day) return { title: "Teaching | The Whiteboard", robots: { index: false, follow: false } };
-  return { title: `Day ${dayNumber}: ${day.title} | ${devotional.title}` };
+  if (!day) return { title: "Devotional", robots: NOINDEX };
+  return {
+    title: `Day ${dayNumber}: ${day.title} | ${devotional.title}`,
+    description: getDevotionalDayDescription({ day_number: dayNumber, devotional_reading: day.devotional_reading }, devotional),
+    alternates: { canonical: `/devotionals/${devotional.slug}/day/${dayNumber}` },
+  };
 }
 
 export default async function DevotionalDayPage({ params }: { params: Promise<{ slug: string; dayNumber: string }> }) {

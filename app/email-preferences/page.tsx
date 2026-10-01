@@ -5,7 +5,7 @@ import { PublicHeader } from "@/app/public-header";
 import { PreferenceRequestForm } from "./preference-request-form";
 
 export const metadata: Metadata = {
-  title: "Email Preferences | The Prayer Whiteboard",
+  title: "Email Preferences",
   robots: { index: false, follow: false },
 };
 

@@ -4,8 +4,9 @@ import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | The Prayer Whiteboard",
+  title: "Privacy Policy",
   description: "How The Prayer Whiteboard handles email subscription information.",
+  alternates: { canonical: "/privacy" },
 };
 
 export default function PrivacyPage() {

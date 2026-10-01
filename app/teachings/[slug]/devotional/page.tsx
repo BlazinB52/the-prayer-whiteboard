@@ -8,16 +8,19 @@ import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { DEVOTIONAL_DAY_NUMBERS, splitParagraphs, type DevotionalDay } from "@/lib/devotionals";
 import { getPublishedDevotionalSeriesByTeachingSlug } from "@/lib/public-devotionals";
+import { NOINDEX, truncateDescription } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const devotional = await getPublishedDevotionalSeriesByTeachingSlug(slug);
-  if (!devotional) return { title: "Teaching | The Whiteboard", robots: { index: false, follow: false } };
+  if (!devotional) return { title: "Devotional", robots: NOINDEX };
 
   return {
     title: `${devotional.title} | 7-Day Devotional`,
-    description: splitParagraphs(devotional.introduction)[0] ?? `A 7-Day Devotional for ${devotional.teaching.title}.`,
+    description: truncateDescription(splitParagraphs(devotional.introduction)[0] ?? `A 7-Day Devotional for ${devotional.teaching.title}.`),
+    // The series lives at /devotionals/[slug]; this teaching-scoped URL is a duplicate of it.
+    alternates: { canonical: `/devotionals/${devotional.slug}` },
   };
 }
 

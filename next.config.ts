@@ -14,6 +14,24 @@ const nextConfig: NextConfig = {
     ],
   },
   serverExternalPackages: ["sharp"],
+  async redirects() {
+    return [
+      {
+        // Retired duplicate of the short-version teaching. `permanent` is sent as a 308,
+        // which search engines treat the same as a 301.
+        source: "/teachings/aliyah-israel-harvest-prayer",
+        destination: "/teachings/aliyah-israel-harvest-prayer-short-version",
+        permanent: true,
+      },
+    ];
+  },
+  async headers() {
+    // Route handlers have no <meta> tag, so keep them out of the index with a header.
+    return [
+      { source: "/api/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/auth/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+    ];
+  },
 };
 
 export default nextConfig;

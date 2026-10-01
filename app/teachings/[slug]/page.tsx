@@ -13,6 +13,8 @@ import { canonicalCopyrightDisclaimerUrl, FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER } 
 import { siteUrl } from "@/lib/email-subscriptions";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
+import { JsonLd } from "@/app/json-ld";
+import { LOGO_PATH, NOINDEX, SITE_NAME, SITE_URL, absoluteUrl, teachingOgImagePath, truncateDescription } from "@/lib/seo";
 import { PrintToPdfButton } from "./print-to-pdf-button";
 
 function PrintOnlyCopyrightNotice({ content, baseUrl }: { content: string; baseUrl: string }) {
@@ -41,15 +43,24 @@ export const revalidate = 0;
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const supabase = await createClient();
-  const { data } = await supabase.from("teachings").select("title, summary").eq("slug", slug).eq("status", "published").maybeSingle();
-  if (!data) return { title: "Teaching | The Whiteboard", robots: { index: false, follow: false } };
-  return { title: `${data.title} | The Whiteboard`, description: data.summary ?? undefined };
+  const { data } = await supabase.from("teachings").select("title, summary, central_theme, introduction, published_at, updated_at").eq("slug", slug).eq("status", "published").maybeSingle();
+  if (!data) return { title: "Teaching", robots: NOINDEX };
+  const description = truncateDescription(data.summary || data.central_theme || data.introduction);
+  const canonical = `/teachings/${slug}`;
+  const images = [{ url: teachingOgImagePath(slug), alt: `${data.title} chalkboard` }];
+  return {
+    title: data.title,
+    description,
+    alternates: { canonical },
+    openGraph: { type: "article", siteName: SITE_NAME, title: data.title, description, url: canonical, images, publishedTime: data.published_at ?? undefined, modifiedTime: data.updated_at ?? undefined },
+    twitter: { card: "summary_large_image", title: data.title, description, images: images.map((image) => image.url) },
+  };
 }
 
 export default async function StructuredTeachingPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const supabase = await createClient();
-  const { data: teaching, error: teachingError } = await supabase.from("teachings").select("id, title, teaching_type, gathering_date, central_theme, introduction, summary, status, slug, chalkboard_asset_id").eq("slug", slug).eq("status", "published").maybeSingle();
+  const { data: teaching, error: teachingError } = await supabase.from("teachings").select("id, title, teaching_type, gathering_date, central_theme, introduction, summary, status, slug, chalkboard_asset_id, published_at, updated_at").eq("slug", slug).eq("status", "published").maybeSingle();
   if (teachingError || !teaching || teaching.slug !== slug) notFound();
   const teachingType: TeachingType = teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard";
 
@@ -76,8 +87,22 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
     ? await supabase.from("content_footers").select("content, status").eq("id", footerAssignment.footer_id).eq("status", "active").maybeSingle()
     : { data: null };
 
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: teaching.title,
+    description: truncateDescription(teaching.summary || teaching.central_theme || teaching.introduction),
+    image: [absoluteUrl(teachingOgImagePath(slug))],
+    datePublished: teaching.published_at ?? teaching.gathering_date ?? undefined,
+    dateModified: teaching.updated_at ?? teaching.published_at ?? undefined,
+    mainEntityOfPage: absoluteUrl(`/teachings/${slug}`),
+    author: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
+    publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL, logo: { "@type": "ImageObject", url: absoluteUrl(LOGO_PATH) } },
+  };
+
   return (
     <main className={`min-h-screen text-[#243126] ${teachingType === "deep_dive" ? "bg-[#f4efe4]" : "bg-[#f7f2e8]"}`}>
+      <JsonLd data={articleJsonLd} />
       <PublicHeader maxWidthClassName="max-w-4xl" end={<Link href="/" className="shrink-0 text-sm font-extrabold text-[#244a3a]">Back to home</Link>} />
       <div className="teaching-print-toolbar sticky top-[73px] z-30 border-b border-[#284a3b]/10 bg-[#f7f2e8]/95 px-5 py-2 backdrop-blur sm:px-8">
         <div className="mx-auto flex max-w-4xl justify-end">

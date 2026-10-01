@@ -51,7 +51,7 @@ test("homepage retries chalkboard signing and retains a bundled fallback image",
 
 test("public structured teaching page only loads published teachings", async () => {
   const source = await readFile("app/teachings/[slug]/page.tsx", "utf8");
-  assert.match(source, /\.from\("teachings"\)\.select\("id, title, teaching_type, gathering_date, central_theme, introduction, summary, status, slug, chalkboard_asset_id"\)\.eq\("slug", slug\)\.eq\("status", "published"\)\.maybeSingle\(\)/);
+  assert.match(source, /\.from\("teachings"\)\.select\("id, title, teaching_type, gathering_date, central_theme, introduction, summary, status, slug, chalkboard_asset_id, published_at, updated_at"\)\.eq\("slug", slug\)\.eq\("status", "published"\)\.maybeSingle\(\)/);
   assert.match(source, /if \(teachingError \|\| !teaching \|\| teaching\.slug !== slug\) notFound\(\)/);
 });
 

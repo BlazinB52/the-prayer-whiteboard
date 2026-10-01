@@ -6,7 +6,7 @@ import { confirmSubscriptionToken } from "@/lib/email-subscriptions";
 import { categoryLabels, confirmationCopy } from "@/lib/subscription-confirmation-view";
 
 export const metadata: Metadata = {
-  title: "Confirm Subscription | The Prayer Whiteboard",
+  title: "Confirm Subscription",
   robots: { index: false, follow: false },
 };
 

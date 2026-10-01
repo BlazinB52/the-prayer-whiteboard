@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { truncateDescription } from "./seo";
 import { splitParagraphs, type TeachingDevotional } from "./devotionals";
 import { createClient } from "./supabase/server";
 
@@ -55,6 +56,16 @@ export function getDevotionalDescription(series: Pick<PublicDevotionalSeries, "t
     series.teaching?.central_theme ||
     (series.teaching ? `A 7-day devotional for ${series.teaching.title}.` : `A 7-day devotional: ${series.title}.`)
   );
+}
+
+// Meta description for a single day: the opening of the reading, which is the
+// most distinctive text on the page, with the series name as a fallback.
+export function getDevotionalDayDescription(
+  day: { day_number: number; devotional_reading: string | null },
+  series: Pick<PublicDevotionalSeries, "title">,
+) {
+  const opening = splitParagraphs(day.devotional_reading)[0]?.replace(/[*_#>`]/g, "");
+  return truncateDescription(opening) ?? `Day ${day.day_number} of ${series.title}, a 7-day devotional from The Prayer Whiteboard.`;
 }
 
 export function getDevotionalSignupCopy(series?: Pick<PublicDevotionalSeries, "title">) {

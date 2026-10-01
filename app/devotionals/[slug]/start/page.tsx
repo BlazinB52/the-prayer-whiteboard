@@ -9,10 +9,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const series = await getPublishedDevotionalSeriesBySlug(slug);
 
-  if (!series) return { title: "Start a Devotional | The Whiteboard", robots: { index: false, follow: false } };
+  if (!series) return { title: "Start a Devotional", robots: { index: false, follow: false } };
 
   return {
-    title: `Start ${series.title} | The Whiteboard`,
+    title: `Start ${series.title}`,
     description: `Subscribe to receive ${series.title} by email.`,
   };
 }

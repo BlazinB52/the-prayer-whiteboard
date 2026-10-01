@@ -9,7 +9,8 @@ import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import type { DevotionalDay } from "@/lib/devotionals";
-import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
+import { getDevotionalDayDescription, getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
+import { NOINDEX } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
 
 // The canonical per-day page, addressed by the devotional's own slug. The
@@ -40,13 +41,17 @@ async function loadDay(slug: string, dayNumber: number) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string; dayNumber: string }> }): Promise<Metadata> {
   const { slug, dayNumber: dayNumberParam } = await params;
   const dayNumber = parseDayNumber(dayNumberParam);
-  const fallback: Metadata = { title: "Devotional | The Whiteboard", robots: { index: false, follow: false } };
+  const fallback: Metadata = { title: "Devotional", robots: NOINDEX };
   if (!dayNumber) return fallback;
 
   const resolved = await loadDay(slug, dayNumber);
   if (!resolved) return fallback;
 
-  return { title: `Day ${dayNumber}: ${resolved.day.title} | ${resolved.series.title}` };
+  return {
+    title: `Day ${dayNumber}: ${resolved.day.title} | ${resolved.series.title}`,
+    description: getDevotionalDayDescription(resolved.day, resolved.series),
+    alternates: { canonical: `/devotionals/${resolved.series.slug}/day/${dayNumber}` },
+  };
 }
 
 export default async function PublicDevotionalDayPage({ params }: { params: Promise<{ slug: string; dayNumber: string }> }) {

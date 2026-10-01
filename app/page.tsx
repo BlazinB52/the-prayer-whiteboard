@@ -10,6 +10,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { PublicHeader } from "@/app/public-header";
+import { JsonLd } from "@/app/json-ld";
+import { LOGO_PATH, SITE_DESCRIPTION, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
 import { PublicFooter } from "@/app/public-footer";
 import { ReturnToTop } from "@/app/return-to-top";
 import { EmailUpdatesCta } from "@/app/email-updates-cta";
@@ -18,8 +20,14 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { selectFeaturedTeaching, type FeaturedTeachingCandidate } from "@/lib/homepage-utils";
 
-const pageUrl = "https://theprayerwhiteboard.com";
-const teachingPath = "/teachings/aliyah-israel-harvest-prayer";
+const homeJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "Organization", "@id": `${SITE_URL}/#organization`, name: SITE_NAME, url: SITE_URL, logo: absoluteUrl(LOGO_PATH), description: SITE_DESCRIPTION },
+    { "@type": "WebSite", "@id": `${SITE_URL}/#website`, name: SITE_NAME, url: SITE_URL, description: SITE_DESCRIPTION, publisher: { "@id": `${SITE_URL}/#organization` } },
+  ],
+};
+const teachingPath = "/teachings/aliyah-israel-harvest-prayer-short-version";
 const homepageNav = [
   { href: "#latest", label: "Latest Teaching" },
   { href: "/deep-dives", label: "Deep Dives" },
@@ -30,10 +38,10 @@ const homepageNav = [
 ];
 
 export const metadata: Metadata = {
-  title: "The Whiteboard | Prayer & Scripture",
+  title: { absolute: "The Prayer Whiteboard | Prayer & Scripture" },
   description:
     "A welcoming home for prayer-group teachings, points of agreement, and growing together in God's Word.",
-  alternates: { canonical: pageUrl },
+  alternates: { canonical: "/" },
   robots: { index: true, follow: true },
 };
 
@@ -298,7 +306,12 @@ async function getFeaturedHomepageDataWithRetry(attempts = 3): Promise<FeaturedH
 
 export default async function PrayerGroupPage() {
   const [featured, weeklyUpdate] = await Promise.all([getFeaturedHomepageDataWithRetry(), getCurrentWeeklyUpdate()]);
-  return featured ? <FeaturedHomepage data={featured} weeklyUpdate={weeklyUpdate} /> : <HardCodedHomepage previousGatherings={await getPreviousGatherings()} weeklyUpdate={weeklyUpdate} />;
+  return (
+    <>
+      <JsonLd data={homeJsonLd} />
+      {featured ? <FeaturedHomepage data={featured} weeklyUpdate={weeklyUpdate} /> : <HardCodedHomepage previousGatherings={await getPreviousGatherings()} weeklyUpdate={weeklyUpdate} />}
+    </>
+  );
 }
 
 function WeeklyUpdateHeroButton({ weeklyUpdate }: { weeklyUpdate: CurrentWeeklyUpdate }) {
@@ -393,7 +406,7 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
                 <h3 className="mt-5 text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-[#66746c]">{gathering.description}</p>
                 {gathering.current ? (
-                  <HomepageTeachingActions slug="aliyah-israel-harvest-prayer" hasPublishedDevotional={false} className="mt-auto pt-6" />
+                  <HomepageTeachingActions slug="aliyah-israel-harvest-prayer-short-version" hasPublishedDevotional={false} className="mt-auto pt-6" />
                 ) : (
                   <span className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-extrabold text-[#9d5a2f]">Teaching coming soon <ArrowRight aria-hidden="true" size={17} /></span>
                 )}
@@ -517,7 +530,7 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
             <p className="mt-5 text-base leading-7 text-[#dce8e1]">
               God is gathering His people, revealing Jesus, and calling the Church to pray. This teaching follows the biblical picture of returning, ascending, and drawing nearer to God.
             </p>
-            <HomepageTeachingActions slug="aliyah-israel-harvest-prayer" hasPublishedDevotional={false} variant="dark" className="mt-7" />
+            <HomepageTeachingActions slug="aliyah-israel-harvest-prayer-short-version" hasPublishedDevotional={false} variant="dark" className="mt-7" />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -599,7 +612,7 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
                 <h3 className="mt-5 text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-[#66746c]">{gathering.description}</p>
                 {gathering.current ? (
-                  <HomepageTeachingActions slug="aliyah-israel-harvest-prayer" hasPublishedDevotional={false} className="mt-auto pt-6" />
+                  <HomepageTeachingActions slug="aliyah-israel-harvest-prayer-short-version" hasPublishedDevotional={false} className="mt-auto pt-6" />
                 ) : (
                   <span className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-extrabold text-[#9d5a2f]">
                     Teaching coming soon

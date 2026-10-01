@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getDevotionalStartPath, getPublishedDevotionalSeries } from "@/lib/public-devotionals";
 
 export const metadata: Metadata = {
-  title: "Start a 7-Day Devotional | The Whiteboard",
+  title: "Start a 7-Day Devotional",
   description:
     "Subscribe to receive Prayer Whiteboard 7-day devotional series by email.",
 };

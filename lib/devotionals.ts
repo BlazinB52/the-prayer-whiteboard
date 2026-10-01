@@ -1,4 +1,6 @@
-export const DEVOTIONAL_DAY_NUMBERS = [1, 2, 3, 4, 5, 6, 7] as const;
+import { formatAnchorScriptures } from "./anchor-scripture-format.ts";
+
+export const DEVOTIONAL_DAY_NUMBERS =[1, 2, 3, 4, 5, 6, 7] as const;
 
 // scripture text limit
 export const MAX_ANCHOR_SCRIPTURE_LENGTH = 1000;
@@ -65,11 +67,11 @@ export function splitDevotionalTextBlocks(value: string | null | undefined): Dev
 }
 
 export function normalizeScriptureLines(value: FormDataEntryValue | null) {
-  return String(value ?? "")
+  return formatAnchorScriptures(String(value ?? "")
     .replace(/\r\n?/g, "\n")
     .split("\n")
     .map((line) => line.trim())
-    .filter(Boolean);
+    .filter(Boolean));
 }
 
 export function formatAnchorScriptureLengthLimit() {

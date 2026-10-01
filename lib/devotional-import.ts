@@ -1,3 +1,5 @@
+import { formatAnchorScriptures } from "./anchor-scripture-format.ts";
+
 export type ImportedDevotionalDay = {
   day_number: number;
   title: string;
@@ -104,7 +106,7 @@ function parseDay(section: string[]): ImportedDevotionalDay {
   return {
     day_number: Number(match[1]),
     title: section[0],
-    anchor_scriptures: anchorScriptures,
+    anchor_scriptures: formatAnchorScriptures(anchorScriptures),
     devotional_reading: devotionalReading.join("\n"),
     confession: confession.join("\n"),
     journal_prompt: journalPrompt.join("\n"),

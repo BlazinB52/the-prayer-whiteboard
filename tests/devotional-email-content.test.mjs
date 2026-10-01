@@ -20,7 +20,6 @@ test("the header shows the day number, the exact title, and the series on the Fo
   const email = buildDevotionalDayEmail(baseInput);
 
   assert.match(email.html, /7-Day Devotional: Beyond the Garden/);
-  assert.equal(email.html.includes("letter-spacing:0.12em"), false);
   assert.match(email.html, /DAY 3 OF 7/);
   assert.match(email.html, /Returning With Singing/);
   assert.match(email.html, /<strong[^>]*>For<\/strong> Beyond the Garden/);
@@ -28,12 +27,13 @@ test("the header shows the day number, the exact title, and the series on the Fo
   assert.match(email.text, /DAY 3 OF 7/);
 });
 
-test("a logo URL renders a small left-aligned logo above the gray series line", () => {
-  const email = buildDevotionalDayEmail({ ...baseInput, logoUrl: "https://theprayerwhiteboard.com/images/tpwb-email-logo.png" });
+test("the header opens with the brand line, then the gray series line, with no logo", () => {
+  const email = buildDevotionalDayEmail(baseInput);
 
-  assert.match(email.html, /text-align:left[^>]*><img src="https:\/\/theprayerwhiteboard\.com\/images\/tpwb-email-logo\.png"[^>]*max-width:220px/);
-  assert.ok(email.html.indexOf("<img") < email.html.indexOf("7-Day Devotional:"));
+  assert.equal(email.html.includes("<img"), false);
+  assert.ok(email.html.indexOf("The Prayer Whiteboard</p>") < email.html.indexOf("7-Day Devotional:"));
   assert.ok(email.html.indexOf("7-Day Devotional:") < email.html.indexOf("DAY 3 OF 7"));
+  assert.ok(email.text.startsWith("THE PRAYER WHITEBOARD\n7-Day Devotional: Beyond the Garden"));
 });
 
 test("anchor scriptures render verbatim from the database array", () => {

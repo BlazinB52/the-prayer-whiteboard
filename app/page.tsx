@@ -33,7 +33,7 @@ const homepageNav = [
   { href: "#latest", label: "Latest Teaching" },
   { href: "/deep-dives", label: "Deep Dives" },
   { href: "/devotionals", label: "Devotionals" },
-  { href: "/points-of-agreement", label: "Prayer Guide" },
+  { href: "#prayer", label: "Prayer Guide" },
   { href: "#gatherings", label: "Gatherings" },
   { href: "/subscribe", label: "Email Updates" },
 ];
@@ -639,7 +639,7 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
 
 function ThoseInAuthorityCard() {
   return (
-    <article className="rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
+    <article id="prayer" className="scroll-mt-24 rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
       <span className="grid size-12 place-items-center rounded-2xl bg-[#e8efe9] text-[#244a3a]">
         <Landmark aria-hidden="true" size={25} />
       </span>

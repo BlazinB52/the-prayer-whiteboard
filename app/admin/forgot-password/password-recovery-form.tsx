@@ -42,7 +42,7 @@ export function PasswordRecoveryForm() {
   return (
     <form onSubmit={handleSubmit} className="mt-8 space-y-5">
       <label className="block text-sm font-bold text-[#385245]">
-        Administrator email
+        Email
         <input name="email" type="email" autoComplete="email" required className="admin-input" />
       </label>
       {message.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{message.error}</p> : null}

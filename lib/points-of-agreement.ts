@@ -25,6 +25,7 @@ export type PointOfAgreement = {
   created_at: string;
   updated_at: string;
   archived_at: string | null;
+  updated_by_name?: string | null;
 };
 
 export type PublicPointOfAgreement = Omit<

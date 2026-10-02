@@ -34,6 +34,9 @@ export function UpdatePasswordForm() {
       return;
     }
 
+    // Records that a newly invited content manager has set their password.
+    // Harmless for anyone already active.
+    await supabase.rpc("mark_staff_activated");
     await supabase.auth.signOut();
     router.replace("/admin/login?reset=success");
     router.refresh();

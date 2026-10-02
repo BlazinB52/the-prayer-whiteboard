@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { isPointOfAgreementStatus, type PointsOfAgreementGuideSettings } from "@/lib/points-of-agreement";
-import { requireAdmin } from "@/lib/supabase/admin";
+import { requireContentManager } from "@/lib/supabase/admin";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const TEXT_LIMITS = {
@@ -26,8 +26,8 @@ export type MovePointDirection = "up" | "down";
 function revalidatePointsOfAgreement() {
   revalidatePath("/");
   revalidatePath("/points-of-agreement");
-  revalidatePath("/admin");
-  revalidatePath("/admin/points-of-agreement");
+  revalidatePath("/admin/cm");
+  revalidatePath("/admin/cm/points-of-agreement");
 }
 
 function readText(formData: FormData, name: string, label: string, maxLength: number, required = true) {
@@ -100,7 +100,7 @@ function readGuideSettings(formData: FormData): { error?: string; value?: Points
   };
 }
 
-async function loadPoint(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], id: string) {
+async function loadPoint(supabase: Awaited<ReturnType<typeof requireContentManager>>["supabase"], id: string) {
   if (!UUID_PATTERN.test(id)) return null;
   const { data } = await supabase
     .from("points_of_agreement")
@@ -111,7 +111,7 @@ async function loadPoint(supabase: Awaited<ReturnType<typeof requireAdmin>>["sup
 }
 
 export async function updateGuideSettings(_: FormState, formData: FormData): Promise<FormState> {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const result = readGuideSettings(formData);
   if (result.error) return { error: result.error };
   if (!result.value) return { error: "Guide header and footer could not be saved." };
@@ -126,7 +126,7 @@ export async function updateGuideSettings(_: FormState, formData: FormData): Pro
 }
 
 export async function createPointOfAgreement(_: FormState, formData: FormData): Promise<FormState> {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const result = readPointFields(formData);
   if (result.error) return { error: result.error };
   if (!result.value) return { error: "This point could not be created." };
@@ -144,11 +144,11 @@ export async function createPointOfAgreement(_: FormState, formData: FormData): 
 
   if (error) return { error: "This point could not be created." };
   revalidatePointsOfAgreement();
-  redirect("/admin/points-of-agreement?point=created");
+  redirect("/admin/cm/points-of-agreement?point=created");
 }
 
 export async function updatePointOfAgreement(id: string, _: FormState, formData: FormData): Promise<FormState> {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const point = await loadPoint(supabase, id);
   if (!point) return { error: "This point could not be found." };
 
@@ -168,7 +168,7 @@ export async function updatePointOfAgreement(id: string, _: FormState, formData:
 
 export async function archivePointOfAgreement(id: string, previousState: PointActionState): Promise<PointActionState> {
   void previousState;
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const point = await loadPoint(supabase, id);
   if (!point) return { error: "This point could not be found." };
   if (point.status !== "active") return { error: "Only active points can be archived." };
@@ -181,12 +181,12 @@ export async function archivePointOfAgreement(id: string, previousState: PointAc
 
   if (error) return { error: "This point could not be archived." };
   revalidatePointsOfAgreement();
-  redirect("/admin/points-of-agreement?point=archived");
+  redirect("/admin/cm/points-of-agreement?point=archived");
 }
 
 export async function restorePointOfAgreement(id: string, previousState: PointActionState): Promise<PointActionState> {
   void previousState;
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const point = await loadPoint(supabase, id);
   if (!point) return { error: "This point could not be found." };
   if (point.status !== "archived") return { error: "Only archived points can be restored." };
@@ -195,12 +195,12 @@ export async function restorePointOfAgreement(id: string, previousState: PointAc
 
   if (error) return { error: "This point could not be restored." };
   revalidatePointsOfAgreement();
-  redirect("/admin/points-of-agreement?point=restored");
+  redirect("/admin/cm/points-of-agreement?point=restored");
 }
 
 export async function movePointOfAgreement(id: string, direction: MovePointDirection, previousState: PointActionState): Promise<PointActionState> {
   void previousState;
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   if (!UUID_PATTERN.test(id)) return { error: "This point could not be found." };
 
   const { error } = await supabase.rpc("admin_move_point_of_agreement", {
@@ -210,12 +210,12 @@ export async function movePointOfAgreement(id: string, direction: MovePointDirec
 
   if (error) return { error: direction === "up" ? "This point could not be moved up." : "This point could not be moved down." };
   revalidatePointsOfAgreement();
-  redirect(`/admin/points-of-agreement?point=moved-${direction}`);
+  redirect(`/admin/cm/points-of-agreement?point=moved-${direction}`);
 }
 
 export async function deletePointOfAgreement(id: string, previousState: PointActionState, formData: FormData): Promise<PointActionState> {
   void previousState;
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const point = await loadPoint(supabase, id);
   if (!point) return { error: "This point could not be found." };
   if (String(formData.get("confirmation") ?? "").trim() !== "DELETE") {
@@ -225,5 +225,5 @@ export async function deletePointOfAgreement(id: string, previousState: PointAct
   const { error } = await supabase.from("points_of_agreement").delete().eq("id", point.id);
   if (error) return { error: "This point could not be deleted." };
   revalidatePointsOfAgreement();
-  redirect("/admin/points-of-agreement?point=deleted");
+  redirect("/admin/cm/points-of-agreement?point=deleted");
 }

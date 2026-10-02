@@ -46,7 +46,7 @@ test("successful recovery reaches the authorized password update flow", async ()
   const page = await readFile("app/update-password/page.tsx", "utf8");
   const form = await readFile("app/update-password/update-password-form.tsx", "utf8");
 
-  assert.match(page, /getAuthorizedUser\(\)/);
+  assert.match(page, /getStaffSession\(\)/);
   assert.match(page, /redirect\("\/admin\/reset-password\?error=invalid"\)/);
   assert.match(form, /password !== confirmation/);
   assert.match(form, /supabase\.auth\.updateUser\(\{ password \}\)/);

@@ -28,10 +28,10 @@ const tools = [
     href: "/admin/chalkboards",
   },
   {
-    title: "Points of Agreement",
-    description: "Curate the Prayer & Intercession Guide.",
+    title: "Content Management",
+    description: "Points of Agreement and other content shared with content managers.",
     status: "Available",
-    href: "/admin/points-of-agreement",
+    href: "/admin/cm",
   },
   {
     title: "Weekly Updates",
@@ -58,9 +58,10 @@ const tools = [
     href: "/admin/printable-pdfs",
   },
   {
-    title: "Prayer Whiteboard Utilities",
-    description: "Site maintenance tooling, including the local Supabase backup script.",
-    status: "Coming next",
+    title: "Content Managers",
+    description: "Invite content managers, resend invites, send password resets, and revoke or restore access.",
+    status: "Available",
+    href: "/admin/content-managers",
   },
 ];
 

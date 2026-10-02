@@ -5,9 +5,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export function LoginForm({ passwordReset = false }: { passwordReset?: boolean }) {
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid: "That account does not have access to this workspace.",
+  recovery: "That password-reset link is invalid or has expired. Request a new one.",
+  link: "That link is invalid or has expired. Ask the administrator to send a new one.",
+};
+
+export function LoginForm({ passwordReset = false, errorCode }: { passwordReset?: boolean; errorCode?: string }) {
   const router = useRouter();
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(errorCode ? ERROR_MESSAGES[errorCode] ?? "" : "");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

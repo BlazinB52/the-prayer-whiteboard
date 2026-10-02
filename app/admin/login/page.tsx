@@ -2,19 +2,20 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "./login-form";
-import { getAuthorizedUser } from "@/lib/supabase/admin";
+import { getStaffSession } from "@/lib/supabase/admin";
+import { staffHomePath } from "@/lib/staff-roles";
 
 export const metadata: Metadata = {
-  title: "Administrator Sign In",
+  title: "Sign In",
   robots: { index: false, follow: false },
 };
 
-export default async function AdminLoginPage({ searchParams }: { searchParams: Promise<{ reset?: string }> }) {
-  const { reset } = await searchParams;
-  const user = await getAuthorizedUser();
+export default async function AdminLoginPage({ searchParams }: { searchParams: Promise<{ reset?: string; error?: string }> }) {
+  const { reset, error } = await searchParams;
+  const session = await getStaffSession();
 
-  if (user) {
-    redirect("/admin");
+  if (session) {
+    redirect(staffHomePath(session.role));
   }
 
   return (
@@ -40,15 +41,15 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: P
           <div className="px-7 py-10 sm:px-10 sm:py-12">
             <div className="max-w-md">
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">
-                Administrator access
+                Team access
               </p>
               <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-[#243d31]">
                 Sign in
               </h2>
               <p className="mt-3 text-sm leading-6 text-[#607066]">
-                Use your administrator credentials to continue.
+                Use the email and password for your account.
               </p>
-              <LoginForm passwordReset={reset === "success"} />
+              <LoginForm passwordReset={reset === "success"} errorCode={error} />
             </div>
           </div>
         </section>

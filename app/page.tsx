@@ -367,12 +367,12 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
       <section className="px-5 py-14 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-6xl">
           <ThoseInAuthorityCard />
-          <article className="mt-6 rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
+          <article className="mt-6 relative rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 transition hover:-translate-y-0.5 hover:border-[#a85e32]/30 sm:p-8">
             <span className="grid size-12 place-items-center rounded-2xl bg-[#e8efe9] text-[#244a3a]"><HeartHandshake aria-hidden="true" size={25} /></span>
             <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8e673c]">Stand together</p>
             <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">Points of Agreement</h2>
             <p className="mt-4 leading-7 text-[#5b6a61]">Join in prayer for active needs presented in a privacy-conscious summary form.</p>
-            <Link href="/points-of-agreement" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">View Points of Agreement <ArrowRight aria-hidden="true" size={18} /></Link>
+            <Link href="/points-of-agreement" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f] after:absolute after:inset-0 after:rounded-[2rem] after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-[#a85e32]">View Points of Agreement <ArrowRight aria-hidden="true" size={18} /></Link>
           </article>
         </div>
       </section>
@@ -567,7 +567,7 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
       <section className="px-5 py-14 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-6xl">
           <ThoseInAuthorityCard />
-          <article className="mt-6 rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
+          <article className="mt-6 relative rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 transition hover:-translate-y-0.5 hover:border-[#a85e32]/30 sm:p-8">
             <span className="grid size-12 place-items-center rounded-2xl bg-[#e8efe9] text-[#244a3a]">
               <HeartHandshake aria-hidden="true" size={25} />
             </span>
@@ -576,7 +576,7 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
             <p className="mt-4 leading-7 text-[#5b6a61]">
               Join in prayer for active needs presented in a privacy-conscious summary form.
             </p>
-            <Link href="/points-of-agreement" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
+            <Link href="/points-of-agreement" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f] after:absolute after:inset-0 after:rounded-[2rem] after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-[#a85e32]">
               View Points of Agreement <ArrowRight aria-hidden="true" size={18} />
             </Link>
           </article>
@@ -639,7 +639,7 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
 
 function ThoseInAuthorityCard() {
   return (
-    <article id="prayer" className="scroll-mt-24 rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
+    <article id="prayer" className="scroll-mt-24 relative rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 transition hover:-translate-y-0.5 hover:border-[#a85e32]/30 sm:p-8">
       <span className="grid size-12 place-items-center rounded-2xl bg-[#e8efe9] text-[#244a3a]">
         <Landmark aria-hidden="true" size={25} />
       </span>
@@ -648,7 +648,7 @@ function ThoseInAuthorityCard() {
       <p className="mt-4 leading-7 text-[#5b6a61]">
         Join us in lifting up the leaders on our prayer list, with a scripture and a short prayer for each.
       </p>
-      <Link href="/those-in-authority" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
+      <Link href="/those-in-authority" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f] after:absolute after:inset-0 after:rounded-[2rem] after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-4 focus-visible:after:outline-[#a85e32]">
         View Prayer List <ArrowRight aria-hidden="true" size={18} />
       </Link>
     </article>

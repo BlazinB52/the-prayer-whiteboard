@@ -15,6 +15,12 @@ const tools = [
     status: "Available",
     href: "/admin/cm/points-of-agreement",
   },
+  {
+    title: "Pray for Those in Authority",
+    description: "Manage the leaders on the prayer list: photo, name, title, scripture, and prayer.",
+    status: "Available",
+    href: "/admin/cm/those-in-authority",
+  },
 ];
 
 export default async function ContentManagementPage() {

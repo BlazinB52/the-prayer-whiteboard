@@ -6,6 +6,7 @@ import {
   ArrowRight,
   CalendarDays,
   HeartHandshake,
+  Landmark,
   Layers,
   Sparkles,
 } from "lucide-react";
@@ -365,7 +366,8 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
     <>
       <section className="px-5 py-14 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-6xl">
-          <article className="rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
+          <ThoseInAuthorityCard />
+          <article className="mt-6 rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
             <span className="grid size-12 place-items-center rounded-2xl bg-[#e8efe9] text-[#244a3a]"><HeartHandshake aria-hidden="true" size={25} /></span>
             <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8e673c]">Stand together</p>
             <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">Points of Agreement</h2>
@@ -564,7 +566,8 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
 
       <section className="px-5 py-14 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-6xl">
-          <article className="rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
+          <ThoseInAuthorityCard />
+          <article className="mt-6 rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
             <span className="grid size-12 place-items-center rounded-2xl bg-[#e8efe9] text-[#244a3a]">
               <HeartHandshake aria-hidden="true" size={25} />
             </span>
@@ -631,5 +634,23 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
       <PublicFooter />
       <ReturnToTop />
     </main>
+  );
+}
+
+function ThoseInAuthorityCard() {
+  return (
+    <article className="rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-xl shadow-[#4d5f52]/8 sm:p-8">
+      <span className="grid size-12 place-items-center rounded-2xl bg-[#e8efe9] text-[#244a3a]">
+        <Landmark aria-hidden="true" size={25} />
+      </span>
+      <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-[#8e673c]">1 Timothy 2:1–2</p>
+      <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">Pray for Those in Authority</h2>
+      <p className="mt-4 leading-7 text-[#5b6a61]">
+        Join us in lifting up the leaders on our prayer list, with a scripture and a short prayer for each.
+      </p>
+      <Link href="/those-in-authority" className="mt-6 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
+        View Prayer List <ArrowRight aria-hidden="true" size={18} />
+      </Link>
+    </article>
   );
 }

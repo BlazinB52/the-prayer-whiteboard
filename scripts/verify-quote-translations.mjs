@@ -80,13 +80,22 @@ async function matchesFor(reference, quote) {
     if (fragments.every((fragment) => passage.includes(fragment))) matches.push(version);
     scores.push([version, overlap(fragments, passage)]);
   }
+  if (scores.every(([, score]) => score < 0)) {
+    return { matches: [], closest: `NO PASSAGE FOUND for "${reference}" (lookup failed - this is not a wording mismatch)` };
+  }
   scores.sort((a, b) => b[1] - a[1]);
   return { matches, closest: scores.slice(0, 2).map(([v, sc]) => v + ":" + Math.round(sc * 100) + "%").join(" ") };
 }
 
 function splitReferenceAndQuote(line) {
-  const match = line.match(/^(.+?)(?:\s*\((?:AMPC|AMP|NKJV|ESV|NIV|KJV)\))?\s*(?::|—|–|-)\s*[“"'](.+)$/s);
-  return match ? { reference: match[1].replace(/b(?=[–-])/, ""), quote: match[2].replace(/[”"]\s*$/, "") } : null;
+  // Read the reference by its book/chapter:verse shape, so a missing opening
+  // quote mark (or a colon inside the quote) can't shift where it ends.
+  const match = line.match(/^\s*((?:[1-3]\s)?[A-Za-z]+(?:\s[A-Za-z]+)*\s\d+:\d+[a-z]?(?:\s*[–-]\s*\d+(?::\d+)?[a-z]?)?)\s*(?:\((?:AMPC|AMP|NKJV|ESV|NIV|KJV)\))?\s*(?::|—|–|-)\s*(.+)$/s);
+  if (!match) return null;
+  return {
+    reference: match[1].replace(/(\d)[a-z](?=\s*[–-])/, "$1").replace(/\s+/g, " "),
+    quote: match[2].replace(/^[“"'\s]+/, "").replace(/[”"'\s]+$/, ""),
+  };
 }
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

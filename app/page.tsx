@@ -32,7 +32,7 @@ const teachingPath = "/teachings/aliyah-israel-harvest-prayer-short-version";
 const homepageNav = [
   { href: "#latest", label: "Latest Teaching" },
   { href: "/deep-dives", label: "Deep Dives" },
-  { href: "/devotionals", label: "Devotionals" },
+  { href: "/devotionals#revisit", label: "Devotionals" },
   { href: "#prayer", label: "Prayer Guide" },
   { href: "#gatherings", label: "Gatherings" },
   { href: "/subscribe", label: "Email Updates" },

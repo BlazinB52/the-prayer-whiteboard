@@ -7,7 +7,6 @@ import { ReturnToTop } from "@/app/return-to-top";
 import { EmailUpdatesCta } from "@/app/email-updates-cta";
 import {
   getDevotionalDescription,
-  getDevotionalPath,
   getDevotionalReadPath,
   getDevotionalSignupCopy,
   getDevotionalStartLabel,
@@ -51,7 +50,7 @@ export default async function DevotionalsPage() {
           </Link>
         </div>
       </section>
-      <section className="border-y border-[#284a3b]/10 bg-[#eee7da] px-5 py-14 sm:px-8 sm:py-20">
+      <section id="revisit" className="scroll-mt-24 border-y border-[#284a3b]/10 bg-[#eee7da] px-5 py-14 sm:px-8 sm:py-20">
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -132,6 +131,11 @@ function FeaturedDevotional({ series }: { series: PublicDevotionalSeries }) {
 }
 
 function DevotionalArchiveCard({ series, isCurrent }: { series: PublicDevotionalSeries; isCurrent: boolean }) {
+  // Clicking a card reads the devotional directly rather than landing on the
+  // subscribe/overview page: the associated teaching's devotional page when
+  // there is one, otherwise day one of the standalone series.
+  const readHref = series.teaching ? `/teachings/${series.teaching.slug}/devotional` : `/devotionals/${series.slug}/day/1`;
+
   return (
     <article className="flex min-h-[260px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
       <div className="flex items-start justify-between gap-3">
@@ -148,7 +152,7 @@ function DevotionalArchiveCard({ series, isCurrent }: { series: PublicDevotional
       <p className="mt-3 text-sm leading-6 text-[#66746c]">
         {getDevotionalDescription(series)}
       </p>
-      <Link href={getDevotionalPath(series)} className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-extrabold text-[#9d5a2f]">
+      <Link href={readHref} className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-extrabold text-[#9d5a2f]">
         Open devotional <ArrowRight aria-hidden="true" size={17} />
       </Link>
     </article>

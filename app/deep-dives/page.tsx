@@ -25,7 +25,7 @@ type DeepDiveTeaching = {
 const deepDiveNav = [
   { href: "/", label: "Home" },
   { href: "/#latest", label: "Latest Teaching" },
-  { href: "/devotionals", label: "Devotionals" },
+  { href: "/devotionals#revisit", label: "Devotionals" },
   { href: "/points-of-agreement", label: "Prayer Guide" },
   { href: "/subscribe", label: "Email Updates" },
 ];

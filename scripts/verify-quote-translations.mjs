@@ -84,7 +84,31 @@ async function matchesFor(reference, quote) {
     return { matches: [], closest: `NO PASSAGE FOUND for "${reference}" (lookup failed - this is not a wording mismatch)` };
   }
   scores.sort((a, b) => b[1] - a[1]);
-  return { matches, closest: scores.slice(0, 2).map(([v, sc]) => v + ":" + Math.round(sc * 100) + "%").join(" ") };
+  return { matches, best: scores[0][0], closest: scores.slice(0, 2).map(([v, sc]) => v + ":" + Math.round(sc * 100) + "%").join(" ") };
+}
+
+// Bible.com version numbers (each confirmed against the live site).
+const BIBLE_COM_VERSION_IDS = { NIV: 111, ESV: 59, NKJV: 114, KJV: 1, AMPC: 8, AMP: 1588 };
+const BIBLE_COM_BOOKS = {
+  genesis: "GEN", exodus: "EXO", leviticus: "LEV", numbers: "NUM", deuteronomy: "DEU", joshua: "JOS", judges: "JDG", ruth: "RUT",
+  "1 samuel": "1SA", "2 samuel": "2SA", "1 kings": "1KI", "2 kings": "2KI", "1 chronicles": "1CH", "2 chronicles": "2CH",
+  ezra: "EZR", nehemiah: "NEH", esther: "EST", job: "JOB", psalm: "PSA", psalms: "PSA", proverbs: "PRO", ecclesiastes: "ECC",
+  "song of solomon": "SNG", isaiah: "ISA", jeremiah: "JER", lamentations: "LAM", ezekiel: "EZK", daniel: "DAN", hosea: "HOS",
+  joel: "JOL", amos: "AMO", obadiah: "OBA", jonah: "JON", micah: "MIC", nahum: "NAM", habakkuk: "HAB", zephaniah: "ZEP",
+  haggai: "HAG", zechariah: "ZEC", malachi: "MAL", matthew: "MAT", mark: "MRK", luke: "LUK", john: "JHN", acts: "ACT",
+  romans: "ROM", "1 corinthians": "1CO", "2 corinthians": "2CO", galatians: "GAL", ephesians: "EPH", philippians: "PHP",
+  colossians: "COL", "1 thessalonians": "1TH", "2 thessalonians": "2TH", "1 timothy": "1TI", "2 timothy": "2TI", titus: "TIT",
+  philemon: "PHM", hebrews: "HEB", james: "JAS", "1 peter": "1PE", "2 peter": "2PE", "1 john": "1JN", "2 john": "2JN",
+  "3 john": "3JN", jude: "JUD", revelation: "REV",
+};
+
+function bibleComLink(reference, version) {
+  const match = reference.match(/^(.+?)\s(\d+):(\d+)[a-z]?(?:\s*[–-]\s*(\d+)[a-z]?)?$/);
+  const book = match && BIBLE_COM_BOOKS[match[1].toLowerCase()];
+  const id = BIBLE_COM_VERSION_IDS[version];
+  if (!match || !book || !id) return null;
+  const verses = match[4] ? `${match[3]}-${match[4]}` : match[3];
+  return `https://www.bible.com/bible/${id}/${book}.${match[2]}.${verses}.${version}`;
 }
 
 function splitReferenceAndQuote(line) {
@@ -135,9 +159,21 @@ items.push(
 
 let mismatches = 0;
 for (const item of items) {
-  const { matches, note, closest } = await matchesFor(item.reference, item.quote);
+  const { matches, best, note, closest } = await matchesFor(item.reference, item.quote);
   const ok = item.tag !== "NONE" && matches.includes(item.tag);
-  if (!ok) mismatches += 1;
-  console.log(`${ok ? "OK      " : "CHECK   "} [${item.where}] ${item.reference} tagged=${item.tag} matches=${matches.join("/") || "none"} closest=${closest ?? note}`);
+  if (ok) continue;
+
+  mismatches += 1;
+  // Link to the translation it was tagged with, else the one it matched or came closest to.
+  const linkVersion = VERSIONS.includes(item.tag) ? item.tag : (matches[0] ?? best);
+  const link = linkVersion ? bibleComLink(item.reference, linkVersion) : null;
+  const quoteShown = item.quote.length > 140 ? `${item.quote.slice(0, 140)}...` : item.quote;
+  console.log(`CHECK  [${item.where}] ${item.reference}`);
+  console.log(`  tagged: ${item.tag}   exact match: ${matches.join("/") || "none"}   closest: ${closest ?? note}`);
+  console.log(`  quote:  ${quoteShown}`);
+  if (link) console.log(`  verify: ${link}`);
+  console.log("");
 }
-console.log(`\n${items.length} quotations checked, ${mismatches} need attention.`);
+console.log(mismatches
+  ? `${mismatches} of ${items.length} quotations need attention.`
+  : `All ${items.length} quotations match their translation tags.`);

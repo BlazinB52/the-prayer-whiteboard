@@ -118,7 +118,7 @@ for (const day of days ?? []) {
 }
 
 items.push(
-  { where: "Mission Statement footer", tag: "NKJV", reference: "Matthew 18:19", quote: "Again, I say to you, if two of you agree on earth about anything they ask, it will be done for them by my Father in heaven." },
+  { where: "Mission Statement footer", tag: "ESV", reference: "Matthew 18:19", quote: "Again, I say to you, if two of you agree on earth about anything they ask, it will be done for them by my Father in heaven." },
   { where: "Shuttering teaching", tag: "NKJV", reference: "James 1:17", quote: "with whom there is no variation or shadow of turning" },
   { where: "Shuttering teaching", tag: "NKJV", reference: "2 Corinthians 5:21", quote: "For He made Him who knew no sin to be sin for us, that we might become the righteousness of God in Him." },
   { where: "Shuttering teaching", tag: "NKJV", reference: "Jeremiah 23:6", quote: "In His days Judah will be saved, and Israel will dwell safely; now this is His name by which He will be called: THE LORD OUR RIGHTEOUSNESS." },

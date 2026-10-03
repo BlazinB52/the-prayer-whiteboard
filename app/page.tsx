@@ -388,11 +388,11 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
           {previousGatherings.length ? (
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {previousGatherings.map((gathering) => (
-              <article key={gathering.id} className="flex min-h-[250px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
-                <h3 className="text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
+              <article key={gathering.id} className="flex flex-col rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
+                <h3 className="text-lg font-extrabold leading-6 text-[#263e33]">{gathering.title}</h3>
                 <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#607066]"><CalendarDays aria-hidden="true" size={16} /> {formatGatheringDate(gathering.gathering_date)}</p>
-                <div className="mt-5 border-t border-[#284a3b]/10 pt-4">
-                  <HomepageTeachingActions slug={gathering.slug} hasPublishedDevotional={Boolean(gathering.hasPublishedDevotional)} devotionalSlug={gathering.devotionalSlug} />
+                <div className="mt-4 border-t border-[#284a3b]/10 pt-3">
+                  <HomepageTeachingActions slug={gathering.slug} hasPublishedDevotional={Boolean(gathering.hasPublishedDevotional)} devotionalSlug={gathering.devotionalSlug} showDevotionalLink={false} />
                 </div>
               </article>
             ))}
@@ -400,17 +400,17 @@ function StaticHomepageLowerSections({ previousGatherings, showFallbackArchive =
           ) : fallbackGatherings.length ? (
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {fallbackGatherings.map((gathering) => (
-              <article key={gathering.date} className="group flex min-h-[245px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 transition hover:-translate-y-1 hover:shadow-xl">
+              <article key={gathering.date} className="group flex flex-col rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 transition hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex items-center justify-between gap-3">
                   <span className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[#9b6531]"><CalendarDays aria-hidden="true" size={16} /> {gathering.date}</span>
                   {gathering.current ? <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">Latest</span> : null}
                 </div>
-                <h3 className="mt-5 text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-[#66746c]">{gathering.description}</p>
+                <h3 className="mt-4 text-lg font-extrabold leading-6 text-[#263e33]">{gathering.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#66746c]">{gathering.description}</p>
                 {gathering.current ? (
-                  <HomepageTeachingActions slug="aliyah-israel-harvest-prayer-short-version" hasPublishedDevotional={false} className="mt-auto pt-6" />
+                  <HomepageTeachingActions slug="aliyah-israel-harvest-prayer-short-version" hasPublishedDevotional={false} className="mt-auto pt-5" />
                 ) : (
-                  <span className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-extrabold text-[#9d5a2f]">Teaching coming soon <ArrowRight aria-hidden="true" size={17} /></span>
+                  <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-extrabold text-[#9d5a2f]">Teaching coming soon <ArrowRight aria-hidden="true" size={17} /></span>
                 )}
               </article>
             ))}
@@ -452,11 +452,11 @@ function formatGatheringDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function HomepageTeachingActions({ slug, hasPublishedDevotional, devotionalSlug, className, variant = "light" }: { slug: string; hasPublishedDevotional: boolean; devotionalSlug?: string | null; className?: string; variant?: "dark" | "light" }) {
+function HomepageTeachingActions({ slug, hasPublishedDevotional, devotionalSlug, className, variant = "light", showDevotionalLink = true }: { slug: string; hasPublishedDevotional: boolean; devotionalSlug?: string | null; className?: string; variant?: "dark" | "light"; showDevotionalLink?: boolean }) {
   return (
     <div className={`flex flex-col items-start gap-2 ${className ?? ""}`}>
       <HomepageTeachingAction href={`/teachings/${slug}`} label="Read the full teaching" variant={variant} />
-      {hasPublishedDevotional && devotionalSlug ? <HomepageTeachingAction href={`/devotionals/${devotionalSlug}`} label="Open 7-Day Devotions" variant={variant} /> : null}
+      {showDevotionalLink && hasPublishedDevotional && devotionalSlug ? <HomepageTeachingAction href={`/devotionals/${devotionalSlug}`} label="Open 7-Day Devotions" variant={variant} /> : null}
     </div>
   );
 }
@@ -595,29 +595,29 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
 
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {previousGatherings.length ? previousGatherings.map((gathering) => (
-              <article key={gathering.id} className="flex min-h-[250px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
-                <h3 className="text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
+              <article key={gathering.id} className="flex flex-col rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
+                <h3 className="text-lg font-extrabold leading-6 text-[#263e33]">{gathering.title}</h3>
                 <p className="mt-2 inline-flex items-center gap-2 text-sm font-bold text-[#607066]">
                   <CalendarDays aria-hidden="true" size={16} /> {formatGatheringDate(gathering.gathering_date)}
                 </p>
-                <div className="mt-5 border-t border-[#284a3b]/10 pt-4">
-                  <HomepageTeachingActions slug={gathering.slug} hasPublishedDevotional={Boolean(gathering.hasPublishedDevotional)} devotionalSlug={gathering.devotionalSlug} />
+                <div className="mt-4 border-t border-[#284a3b]/10 pt-3">
+                  <HomepageTeachingActions slug={gathering.slug} hasPublishedDevotional={Boolean(gathering.hasPublishedDevotional)} devotionalSlug={gathering.devotionalSlug} showDevotionalLink={false} />
                 </div>
               </article>
             )) : archiveDates.map((gathering) => (
-              <article key={gathering.date} className="group flex min-h-[245px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 transition hover:-translate-y-1 hover:shadow-xl">
+              <article key={gathering.date} className="group flex flex-col rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 transition hover:-translate-y-1 hover:shadow-xl">
                 <div className="flex items-center justify-between gap-3">
                   <span className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[#9b6531]">
                     <CalendarDays aria-hidden="true" size={16} /> {gathering.date}
                   </span>
                   {gathering.current ? <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">Latest</span> : null}
                 </div>
-                <h3 className="mt-5 text-xl font-extrabold leading-7 text-[#263e33]">{gathering.title}</h3>
-                <p className="mt-3 text-sm leading-6 text-[#66746c]">{gathering.description}</p>
+                <h3 className="mt-4 text-lg font-extrabold leading-6 text-[#263e33]">{gathering.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#66746c]">{gathering.description}</p>
                 {gathering.current ? (
-                  <HomepageTeachingActions slug="aliyah-israel-harvest-prayer-short-version" hasPublishedDevotional={false} className="mt-auto pt-6" />
+                  <HomepageTeachingActions slug="aliyah-israel-harvest-prayer-short-version" hasPublishedDevotional={false} className="mt-auto pt-5" />
                 ) : (
-                  <span className="mt-auto inline-flex items-center gap-2 pt-6 text-sm font-extrabold text-[#9d5a2f]">
+                  <span className="mt-auto inline-flex items-center gap-2 pt-5 text-sm font-extrabold text-[#9d5a2f]">
                     Teaching coming soon
                     <ArrowRight aria-hidden="true" size={17} />
                   </span>

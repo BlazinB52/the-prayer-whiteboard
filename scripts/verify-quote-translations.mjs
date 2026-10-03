@@ -21,6 +21,10 @@ function normalize(text) {
     .replace(/\[[^\]]*\]/g, " ")
     .replace(/\([^)]*\)/g, " ")
     .replace(/[^a-z0-9' ]+/g, " ")
+    // Quote marks around a phrase aren't wording (a quote may use 'single' marks
+    // where the translation uses "double"); keep only apostrophes inside words.
+    .replace(/(^|\s)'+/g, "$1")
+    .replace(/'+(?=\s|$)/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }

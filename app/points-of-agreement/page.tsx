@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { ArrowRight, HeartHandshake } from "lucide-react";
 import { PublicFooter } from "@/app/public-footer";
+import { ScriptureCopyrightNotice } from "@/app/scripture-copyright-notice";
+import { FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER } from "@/lib/copyright-disclaimer-format";
+import { siteUrl } from "@/lib/email-subscriptions";
 import { formatInlineText } from "@/app/formatted-text";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
@@ -19,7 +22,7 @@ export const metadata: Metadata = {
 
 export default async function PointsOfAgreementPage() {
   const supabase = await createClient();
-  const [{ data: settings, error: settingsError }, { data: points, error: pointsError }] = await Promise.all([
+  const [{ data: settings, error: settingsError }, { data: points, error: pointsError }, { data: emailDisclaimer }] = await Promise.all([
     supabase
       .from("public_points_of_agreement_guide_settings")
       .select("title, subtitle, opening_scripture, opening_scripture_reference, footer_quotation, footer_scripture_reference")
@@ -29,6 +32,7 @@ export default async function PointsOfAgreementPage() {
       .select("point_of_agreement, scripture, target, decree, additional_direction, display_order")
       .order("display_order", { ascending: true })
       .order("point_of_agreement", { ascending: true }),
+    supabase.from("copyright_disclaimers").select("content").eq("disclaimer_key", "email_short").maybeSingle(),
   ]);
   const guideSettings = settingsError || !settings
     ? DEFAULT_POINTS_OF_AGREEMENT_GUIDE_SETTINGS
@@ -46,9 +50,9 @@ export default async function PointsOfAgreementPage() {
             Points of Agreement
           </p>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{guideSettings.title}</h1>
-          <p className="mt-4 max-w-3xl text-lg font-bold leading-8 text-[#52645a]">{formatInlineText(guideSettings.subtitle)}</p>
+          <p className="mt-4 max-w-3xl text-lg font-bold leading-8 text-[#52645a]">{formatInlineText(guideSettings.subtitle, { links: true })}</p>
           <blockquote className="mt-8 border-l-4 border-[#d2a34f] pl-5 text-lg italic leading-8 text-[#4d5f52]">
-            <p>{formatInlineText(guideSettings.opening_scripture)}</p>
+            <p>{formatInlineText(guideSettings.opening_scripture, { links: true })}</p>
             <cite className="mt-3 block text-xs not-italic font-extrabold uppercase tracking-[0.18em] text-[#946332]">
               {guideSettings.opening_scripture_reference}
             </cite>
@@ -81,11 +85,12 @@ export default async function PointsOfAgreementPage() {
 
         <footer className="mt-10 border-t border-[#284a3b]/15 pt-8">
           <blockquote className="text-lg italic leading-8 text-[#4d5f52]">
-            <p>{formatInlineText(guideSettings.footer_quotation)}</p>
+            <p>{formatInlineText(guideSettings.footer_quotation, { links: true })}</p>
             <cite className="mt-3 block text-xs not-italic font-extrabold uppercase tracking-[0.18em] text-[#946332]">
               {guideSettings.footer_scripture_reference}
             </cite>
           </blockquote>
+          <ScriptureCopyrightNotice content={emailDisclaimer?.content?.trim() || FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER} baseUrl={siteUrl()} />
           <a href="#top" className="mt-8 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
             Return to top <ArrowRight aria-hidden="true" size={18} className="-rotate-90" />
           </a>
@@ -108,7 +113,7 @@ function GuideField({ label, value, variant }: { label: string; value: string; v
   return (
     <div className={variant === "target" ? "mt-4 sm:mt-5" : "mt-5 sm:mt-6"}>
       <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#243d31]">{label}:</h2>
-      <div className={`space-y-3 whitespace-pre-wrap break-words text-base font-normal leading-7 ${bodyClassName}`}>{formatInlineText(value)}</div>
+      <div className={`space-y-3 whitespace-pre-wrap break-words text-base font-normal leading-7 ${bodyClassName}`}>{formatInlineText(value, { links: true })}</div>
     </div>
   );
 }

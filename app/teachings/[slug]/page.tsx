@@ -9,7 +9,8 @@ import { ReturnToTop } from "@/app/return-to-top";
 import { ContentFooter } from "@/app/content-footer";
 import { EmailUpdatesCta } from "@/app/email-updates-cta";
 import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
-import { canonicalCopyrightDisclaimerUrl, FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER } from "@/lib/copyright-disclaimer-format";
+import { ScriptureCopyrightNotice } from "@/app/scripture-copyright-notice";
+import { FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER } from "@/lib/copyright-disclaimer-format";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
@@ -17,21 +18,6 @@ import { JsonLd } from "@/app/json-ld";
 import { LOGO_PATH, NOINDEX, SITE_NAME, SITE_URL, absoluteUrl, teachingOgImagePath, truncateDescription } from "@/lib/seo";
 import { PrintToPdfButton } from "./print-to-pdf-button";
 
-function PrintOnlyCopyrightNotice({ content, baseUrl }: { content: string; baseUrl: string }) {
-  // Show the disclosures URL as visible text, not just a clickable "here" --
-  // this can end up on actual paper, where a link is dead but a printed URL
-  // is still usable. AMP/AMPC still get wrapped as real links to lockman.org
-  // (harmless if printed physically; still satisfies the digital-PDF case).
-  const printFriendly = content
-    .replace(/\bhere\b/, canonicalCopyrightDisclaimerUrl(baseUrl))
-    .replace(/\bAMPC\b/g, "[AMPC](https://www.lockman.org)")
-    .replace(/\bAMP\b/g, "[AMP](https://www.lockman.org)");
-  return (
-    <div className="print-only mt-10 border-t border-[#284a3b]/15 pt-4 text-xs leading-5 text-[#7a8a80]">
-      <FormattedTextBlocks text={printFriendly} links className="space-y-2" />
-    </div>
-  );
-}
 
 type Content = Record<string, unknown>;
 type Asset = { id: string; alt_text: string; caption: string | null; website_storage_path: string | null; storage_path: string; download_storage_path: string | null; allow_download: boolean };
@@ -114,7 +100,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
         <div className="mt-8 space-y-8">{assetsWithUrls.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} />)}</div>
         <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2><div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}><PublicSection sectionId={section.id} title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}</div></section>)}</div>
         {footer?.status === "active" ? <ContentFooter content={footer.content} /> : null}
-        <PrintOnlyCopyrightNotice content={emailDisclaimer?.content?.trim() || FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER} baseUrl={siteUrl()} />
+        <ScriptureCopyrightNotice printOnly content={emailDisclaimer?.content?.trim() || FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER} baseUrl={siteUrl()} />
       </article>
       <EmailUpdatesCta copy="Want to receive new teachings and other content from The Prayer Whiteboard? Choose the emails you would like to receive." />
       <PublicFooter />

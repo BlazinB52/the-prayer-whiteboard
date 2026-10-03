@@ -42,27 +42,40 @@ test("every render site for a Scripture section's translation field uses the sha
 });
 
 test("public teaching pages render a print-only copyright notice that's hidden on screen but shown when printed to PDF", async () => {
-  const [source, css] = await Promise.all([
+  const [page, component, css] = await Promise.all([
     readFile("app/teachings/[slug]/page.tsx", "utf8"),
+    readFile("app/scripture-copyright-notice.tsx", "utf8"),
     readFile("app/globals.css", "utf8"),
   ]);
 
-  assert.match(source, /function PrintOnlyCopyrightNotice/);
-  assert.match(source, /className="print-only /);
-  assert.match(source, /disclaimer_key", "email_short"/);
-  assert.match(source, /FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER/);
+  assert.match(page, /<ScriptureCopyrightNotice printOnly /);
+  assert.match(page, /disclaimer_key", "email_short"/);
+  assert.match(page, /FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER/);
+  assert.match(component, /printOnly \? "print-only " : ""/);
   assert.match(css, /\.print-only\s*\{\s*display:\s*none;\s*\}/);
   assert.match(css, /@media print[\s\S]*\.print-only\s*\{\s*display:\s*block\s*!important;\s*\}/);
 });
 
-test("the print-only notice shows the disclosures URL as visible text and links AMP/AMPC, since it may end up on physical paper", async () => {
-  const source = await readFile("app/teachings/[slug]/page.tsx", "utf8");
+test("the shared copyright notice shows the disclosures URL as visible text and links AMP/AMPC, since it may end up on physical paper", async () => {
+  const [page, component] = await Promise.all([
+    readFile("app/teachings/[slug]/page.tsx", "utf8"),
+    readFile("app/scripture-copyright-notice.tsx", "utf8"),
+  ]);
 
-  assert.match(source, /siteUrl\(\)/);
-  assert.doesNotMatch(source, /\[here\]\(/, "should not hide the disclosures URL behind link text that's dead once printed on paper");
-  assert.match(source, /replace\(\/\\bhere\\b\/, canonicalCopyrightDisclaimerUrl\(baseUrl\)\)/);
-  assert.match(source, /replace\(\/\\bAMPC\\b\/g, "\[AMPC\]\(https:\/\/www\.lockman\.org\)"\)/);
-  assert.match(source, /replace\(\/\\bAMP\\b\/g, "\[AMP\]\(https:\/\/www\.lockman\.org\)"\)/);
+  assert.match(page, /siteUrl\(\)/);
+  assert.doesNotMatch(component, /\[here\]\(/, "should not hide the disclosures URL behind link text that's dead once printed on paper");
+  assert.match(component, /replace\(\/\\bhere\\b\/, canonicalCopyrightDisclaimerUrl\(baseUrl\)\)/);
+  assert.match(component, /replace\(\/\\bAMPC\\b\/g, "\[AMPC\]\(https:\/\/www\.lockman\.org\)"\)/);
+  assert.match(component, /replace\(\/\\bAMP\\b\/g, "\[AMP\]\(https:\/\/www\.lockman\.org\)"\)/);
+});
+
+test("Points of Agreement renders quotes through the link-aware formatter and always shows a visible copyright notice", async () => {
+  const source = await readFile("app/points-of-agreement/page.tsx", "utf8");
+
+  assert.doesNotMatch(source, /formatInlineText\((?:value|guideSettings\.[a-z_]+)\)/, "a quote is rendered without links, so a typed (AMPC) tag would not link to Lockman");
+  assert.match(source, /formatInlineText\(value, \{ links: true \}\)/);
+  assert.match(source, /<ScriptureCopyrightNotice content=/);
+  assert.doesNotMatch(source, /<ScriptureCopyrightNotice printOnly/);
 });
 
 test("the email signup CTA is hidden from print output on teaching pages", async () => {

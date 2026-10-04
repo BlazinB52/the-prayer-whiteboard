@@ -86,7 +86,11 @@ export function LeaderForm({
         <label className={`flex items-center justify-between gap-4 ${switchLocked ? "cursor-not-allowed" : "cursor-pointer"}`}>
           <span>
             <span className="block text-sm font-extrabold text-[#385245]">{isActive ? "Active: shown on the public page" : "Not active: hidden from the public page"}</span>
-            {switchLocked ? (
+            {switchLocked && !leader ? (
+              <span className="mt-0.5 block text-xs text-[#607066]">
+                This leader will be saved to the pool. {MAX_ACTIVE_LEADERS} leaders are already active, so turn one off later to show this one.
+              </span>
+            ) : switchLocked ? (
               <span className="mt-0.5 block text-xs font-bold text-[#a2472c]">
                 {MAX_ACTIVE_LEADERS} leaders are already active. Turn one off to activate this one.
               </span>

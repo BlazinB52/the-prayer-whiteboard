@@ -179,6 +179,7 @@ function LastEdited({ name, at }: { name: string; at: string }) {
 function statusMessage(value: string) {
   const messages: Record<string, string> = {
     created: "Leader added.",
+    "created-inactive": `Leader added to the pool as not active, because ${MAX_ACTIVE_LEADERS} leaders are already active.`,
     deleted: "Leader deleted.",
     "photo-removed": "Photo removed.",
     "moved-up": "Leader moved up.",

@@ -111,8 +111,12 @@ export async function createLeader(_: LeaderFormState, formData: FormData): Prom
   const fields = readLeaderFields(formData);
   if (fields.error || !fields.value) return { error: fields.error ?? "This leader could not be added." };
 
+  // Adding never fails because of the active limit: if 4 are already active,
+  // the new leader goes into the pool as not active.
+  let savedInactive = false;
   if (fields.value.is_active && (await activeCount(supabase)) >= MAX_ACTIVE_LEADERS) {
-    return { error: ACTIVE_LIMIT_MESSAGE };
+    fields.value.is_active = false;
+    savedInactive = true;
   }
 
   const photo = await readPhoto(formData);
@@ -124,14 +128,19 @@ export async function createLeader(_: LeaderFormState, formData: FormData): Prom
     if (!photoPath) return { error: "The photo could not be uploaded. Try again." };
   }
 
-  const { error } = await supabase.from("authority_leaders").insert({ ...fields.value, photo_path: photoPath });
+  let { error } = await supabase.from("authority_leaders").insert({ ...fields.value, photo_path: photoPath });
+  if (isActiveLimitError(error)) {
+    // Someone else activated a leader in the meantime.
+    savedInactive = true;
+    ({ error } = await supabase.from("authority_leaders").insert({ ...fields.value, is_active: false, photo_path: photoPath }));
+  }
   if (error) {
     await removePhoto(supabase, photoPath);
-    return { error: isActiveLimitError(error) ? ACTIVE_LIMIT_MESSAGE : "This leader could not be added." };
+    return { error: "This leader could not be added." };
   }
 
   revalidateLeaders();
-  redirect(`${EDITOR_PATH}?leader=created`);
+  redirect(`${EDITOR_PATH}?leader=${savedInactive ? "created-inactive" : "created"}`);
 }
 
 export async function updateLeader(id: string, _: LeaderFormState, formData: FormData): Promise<LeaderFormState> {

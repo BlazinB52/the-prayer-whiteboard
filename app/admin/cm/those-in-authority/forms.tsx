@@ -221,6 +221,7 @@ export function ActionButton({
 // ---------------------------------------------------------------------------
 
 const VIEW = 240; // on-screen crop frame, px
+const PHOTO_BACKGROUND = "#f4efe5"; // fills space around a zoomed-out photo
 
 type Crop = { zoom: number; x: number; y: number };
 
@@ -242,7 +243,10 @@ function PhotoCropper({
   const [crop, setCrop] = useState<Crop>({ zoom: 1, x: 0, y: 0 });
   const [error, setError] = useState<string | null>(null);
 
+  // zoom 1 = the photo fills the frame. Zooming below 1 shrinks it until the
+  // whole photo fits (minZoom); the leftover space is filled with cream.
   const baseScale = natural ? Math.max(VIEW / natural.w, VIEW / natural.h) : 1;
+  const minZoom = natural ? Math.min(VIEW / natural.w, VIEW / natural.h) / baseScale : 1;
 
   const clamp = useCallback(
     (next: Crop): Crop => {
@@ -250,11 +254,10 @@ function PhotoCropper({
       const scale = baseScale * next.zoom;
       const w = natural.w * scale;
       const h = natural.h * scale;
-      return {
-        zoom: next.zoom,
-        x: Math.min(0, Math.max(VIEW - w, next.x)),
-        y: Math.min(0, Math.max(VIEW - h, next.y)),
-      };
+      // Larger than the frame: keep it covering the frame. Smaller: keep it inside.
+      const within = (value: number, size: number) =>
+        Math.min(Math.max(0, VIEW - size), Math.max(Math.min(0, VIEW - size), value));
+      return { zoom: next.zoom, x: within(next.x, w), y: within(next.y, h) };
     },
     [natural, baseScale],
   );
@@ -276,10 +279,11 @@ function PhotoCropper({
           onBusyChange?.(false);
           return;
         }
-        context.fillStyle = "#ffffff";
+        context.fillStyle = PHOTO_BACKGROUND;
         context.fillRect(0, 0, AUTHORITY_PHOTO_SIZE, AUTHORITY_PHOTO_SIZE);
         context.imageSmoothingQuality = "high";
-        context.drawImage(image, -current.x / scale, -current.y / scale, VIEW / scale, VIEW / scale, 0, 0, AUTHORITY_PHOTO_SIZE, AUTHORITY_PHOTO_SIZE);
+        const k = AUTHORITY_PHOTO_SIZE / VIEW;
+        context.drawImage(image, current.x * k, current.y * k, natural.w * scale * k, natural.h * scale * k);
         canvas.toBlob(
           (blob) => {
             if (blob) onCropped(blob);
@@ -348,7 +352,7 @@ function PhotoCropper({
   }
 
   function setZoom(zoom: number) {
-    const next = Math.min(4, Math.max(1, zoom));
+    const next = Math.min(4, Math.max(minZoom, zoom));
     const ratio = next / crop.zoom;
     const center = VIEW / 2;
     const updated = clamp({ zoom: next, x: center - (center - crop.x) * ratio, y: center - (center - crop.y) * ratio });
@@ -383,8 +387,8 @@ function PhotoCropper({
       {src && natural ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-[#f7f2e8] p-4">
           <div
-            className="relative cursor-grab touch-none overflow-hidden rounded-2xl border-2 border-[#c99a52] bg-white shadow-md active:cursor-grabbing"
-            style={{ width: VIEW, height: VIEW }}
+            className="relative cursor-grab touch-none overflow-hidden rounded-2xl border-2 border-[#c99a52] shadow-md active:cursor-grabbing"
+            style={{ width: VIEW, height: VIEW, background: PHOTO_BACKGROUND }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -399,14 +403,14 @@ function PhotoCropper({
               style={{ width: natural.w * scale, height: natural.h * scale, transform: `translate(${crop.x}px, ${crop.y}px)` }}
             />
           </div>
-          <p className="text-xs text-[#607066]">Drag to position. Use the slider to zoom.</p>
+          <p className="text-xs text-[#607066]">Drag to position. Slide left to zoom out, right to zoom in.</p>
           <div className="flex w-full max-w-[15rem] items-center gap-2">
             <button type="button" onClick={() => setZoom(crop.zoom - 0.2)} aria-label="Zoom out" className="grid size-8 place-items-center rounded-lg border border-[#284a3b]/15 bg-white text-[#385245]">
               <Minus aria-hidden="true" size={16} />
             </button>
             <input
               type="range"
-              min={1}
+              min={minZoom}
               max={4}
               step={0.01}
               value={crop.zoom}

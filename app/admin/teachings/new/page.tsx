@@ -19,14 +19,14 @@ export default async function NewTeachingPage() {
       .eq("status", "active")
       .order("chalkboard_date", { ascending: false })
       .order("canonical_name", { ascending: true }),
-    supabase.from("content_footers").select("id, internal_title").eq("status", "active").order("internal_title", { ascending: true }),
+    supabase.from("content_footers").select("id, internal_title, language").eq("status", "active").order("internal_title", { ascending: true }),
   ]);
   const chalkboardOptions = (chalkboards ?? []).map((chalkboard) => ({
     id: chalkboard.id,
     label: chalkboard.canonical_name ?? chalkboard.title,
     language: (chalkboard.language === "es" ? "es" : "en") as "en" | "es",
   }));
-  const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title }));
+  const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title, language: (footer.language === "es" ? "es" : "en") as "en" | "es" }));
 
   return (
     <main className="admin-shell">

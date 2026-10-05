@@ -28,7 +28,7 @@ type ChalkboardOption = {
   label: string;
   language: "en" | "es";
 };
-type FooterOption = { id: string; label: string };
+type FooterOption = { id: string; label: string; language: "en" | "es" };
 
 export function TeachingForm({ values, action, chalkboards = [], footers = [] }: { values: TeachingValues; action: Action; chalkboards?: ChalkboardOption[]; footers?: FooterOption[] }) {
   const router = useRouter();
@@ -43,7 +43,8 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
     const language = event.target.value === "es" ? "es" : "en";
     setDraftValues((current) => {
       const allowed = new Set(chalkboards.filter((chalkboard) => chalkboard.language === language).map((chalkboard) => chalkboard.id));
-      return { ...current, language, chalkboardAssetIds: current.chalkboardAssetIds.filter((id) => allowed.has(id)) };
+      const footerAllowed = footers.some((footer) => footer.id === current.footerId && footer.language === language);
+      return { ...current, language, chalkboardAssetIds: current.chalkboardAssetIds.filter((id) => allowed.has(id)), footerId: footerAllowed ? current.footerId : "" };
     });
   };
   const handleChalkboardChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,6 +70,7 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
     return result;
   }, {});
   const availableChalkboards = chalkboards.filter((chalkboard) => chalkboard.language === draftValues.language);
+  const availableFooters = footers.filter((footer) => footer.language === draftValues.language);
   const showHomepageTeasers = draftValues.teachingType !== "deep_dive";
 
   return (
@@ -141,7 +143,7 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
           Footer
           <select name="footerId" value={draftValues.footerId} onChange={handleChange} disabled={!draftValues.includeFooter} required={draftValues.includeFooter} className="admin-input">
             <option value="">Choose a footer</option>
-            {footers.map((footer) => <option key={footer.id} value={footer.id}>{footer.label}</option>)}
+            {availableFooters.map((footer) => <option key={footer.id} value={footer.id}>{footer.label}</option>)}
           </select>
         </label>
       </fieldset>

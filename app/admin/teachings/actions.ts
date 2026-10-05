@@ -182,9 +182,11 @@ async function readFooterAssignment(
   if (!includeFooter) return { value: null };
   if (!footerId) return { error: "Choose a footer or uncheck Include footer." };
   if (!UUID_PATTERN.test(footerId)) return { error: "Choose a valid footer." };
-  const { data, error } = await supabase.from("content_footers").select("id").eq("id", footerId).eq("status", "active").maybeSingle();
+  const { data, error } = await supabase.from("content_footers").select("id, language").eq("id", footerId).eq("status", "active").maybeSingle();
   if (error) return { error: "The selected footer could not be verified." };
   if (!data) return { error: "Choose an active footer from the library." };
+  const language = formData.get("language") === "es" ? "es" : "en";
+  if (data.language !== language) return { error: language === "es" ? "Choose an Español (El Salvador) footer for an Español teaching." : "Choose an English footer for an English teaching." };
   return { value: footerId };
 }
 

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { archiveFooter, createFooter, deleteFooter, updateCopyrightDisclaimer, updateFooter } from "./actions";
-import { ArchiveFooterButton } from "./archive-button";
-import { CopyrightDisclaimerForm, FooterDeleteForm, FooterForm } from "./footer-form";
-import { ContentFooter } from "@/app/content-footer";
+import { createFooter, updateCopyrightDisclaimer } from "./actions";
+import { loadFooterAssignments } from "./assignments";
+import { CopyrightDisclaimerForm, FooterForm } from "./footer-form";
 import { FormattedTextBlocks } from "@/app/formatted-text";
 import { requireAdmin } from "@/lib/supabase/admin";
 
@@ -12,30 +11,45 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+type FooterRow = { id: string; internal_title: string; status: string; updated_at: string };
+
+function FooterGroup({ heading, id, footers, assignmentsByFooter, emptyText }: { heading: string; id: string; footers: FooterRow[]; assignmentsByFooter: Map<string, string[]>; emptyText: string }) {
+  return (
+    <section aria-labelledby={id} className="mt-8">
+      <h3 id={id} className="border-b border-[#284a3b]/10 pb-3 text-xl font-extrabold text-[#243d31]">
+        {heading} <span className="text-sm font-bold text-[#607066]">({footers.length})</span>
+      </h3>
+      {footers.length ? (
+        <ul className="divide-y divide-[#284a3b]/10">
+          {footers.map((footer) => {
+            const assignmentCount = (assignmentsByFooter.get(footer.id) ?? []).length;
+            return (
+              <li key={footer.id}>
+                <Link href={`/admin/footers/${footer.id}`} className="flex min-h-12 items-center gap-3 px-2 py-2 transition hover:bg-[#e7efe9]/60">
+                  <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{footer.internal_title}</span>
+                  <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{footer.status}</span>
+                  <span className="hidden rounded-full bg-[#eee7da] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a] sm:inline">{assignmentCount ? `${assignmentCount} assigned` : "Unassigned"}</span>
+                  <span className="hidden w-28 shrink-0 text-right text-sm text-[#607066] sm:inline">{new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(footer.updated_at))}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="py-4 text-sm text-[#607066]">{emptyText}</p>
+      )}
+    </section>
+  );
+}
+
 export default async function AdminFootersPage() {
   const { supabase } = await requireAdmin();
-  const [{ data: footers, error }, { data: teachingAssignments }, { data: weeklyUpdateAssignments }, { data: copyrightDisclaimers, error: copyrightError }] = await Promise.all([
-    supabase.from("content_footers").select("id, internal_title, content, status, updated_at").order("status", { ascending: true }).order("internal_title", { ascending: true }),
-    supabase.from("teaching_footer_assignments").select("footer_id, teachings(title, status)"),
-    supabase.from("weekly_update_footer_assignments").select("footer_id, weekly_updates(title, status, is_current)"),
+  const [{ data: footers, error }, { data: copyrightDisclaimers, error: copyrightError }] = await Promise.all([
+    supabase.from("content_footers").select("id, internal_title, language, status, updated_at").order("status", { ascending: true }).order("internal_title", { ascending: true }),
     supabase.from("copyright_disclaimers").select("disclaimer_key, title, content, updated_at").in("disclaimer_key", ["full_page", "email_short"]).order("disclaimer_key", { ascending: true }),
   ]);
 
-  const assignmentsByFooter = new Map<string, string[]>();
-  for (const assignment of teachingAssignments ?? []) {
-    const teaching = Array.isArray(assignment.teachings) ? assignment.teachings[0] : assignment.teachings;
-    if (!teaching) continue;
-    const current = assignmentsByFooter.get(assignment.footer_id) ?? [];
-    current.push(`Teaching: ${teaching.title} (${teaching.status})`);
-    assignmentsByFooter.set(assignment.footer_id, current);
-  }
-  for (const assignment of weeklyUpdateAssignments ?? []) {
-    const weeklyUpdate = Array.isArray(assignment.weekly_updates) ? assignment.weekly_updates[0] : assignment.weekly_updates;
-    if (!weeklyUpdate) continue;
-    const current = assignmentsByFooter.get(assignment.footer_id) ?? [];
-    current.push(`Weekly Update: ${weeklyUpdate.title}${weeklyUpdate.is_current ? " (current)" : ` (${weeklyUpdate.status})`}`);
-    assignmentsByFooter.set(assignment.footer_id, current);
-  }
+  const assignmentsByFooter = await loadFooterAssignments(supabase);
 
   return (
     <main className="admin-shell">
@@ -100,39 +114,10 @@ export default async function AdminFootersPage() {
           <h2 className="text-2xl font-extrabold text-[#243d31]">Footer library</h2>
           {error ? <p className="mt-4 text-sm font-bold text-[#a2472c]">Footers could not be loaded.</p> : null}
           {footers?.length ? (
-            <div className="mt-5 grid gap-5">
-              {footers.map((footer) => {
-                const assignments = assignmentsByFooter.get(footer.id) ?? [];
-                return (
-                  <article key={footer.id} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{footer.status}</p>
-                        <h3 className="mt-2 text-2xl font-extrabold text-[#243d31]">{footer.internal_title}</h3>
-                        <p className="mt-2 text-sm text-[#607066]">Updated: {new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(footer.updated_at))}</p>
-                      </div>
-                      {footer.status === "active" ? <ArchiveFooterButton action={archiveFooter.bind(null, footer.id)} /> : null}
-                    </div>
-                    <div className="mt-5 rounded-xl border border-[#284a3b]/10 bg-white p-4">
-                      <ContentFooter content={footer.content} />
-                    </div>
-                    <details className="mt-5">
-                      <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit footer</summary>
-                      <div className="mt-4"><FooterForm action={updateFooter.bind(null, footer.id)} internalTitle={footer.internal_title} content={footer.content} /></div>
-                    </details>
-                    <div className="mt-5 rounded-xl border border-[#284a3b]/10 bg-white/70 p-4">
-                      <h4 className="text-sm font-extrabold text-[#385245]">Assigned to</h4>
-                      {assignments.length ? <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-[#607066]">{assignments.map((assignment) => <li key={assignment}>{assignment}</li>)}</ul> : <p className="mt-2 text-sm text-[#607066]">Not assigned.</p>}
-                    </div>
-                    <details className="mt-5 rounded-xl border border-[#a2472c]/20 bg-[#fff3ed] p-4">
-                      <summary className="cursor-pointer text-sm font-extrabold text-[#a2472c]">Delete footer</summary>
-                      {assignments.length ? <p className="mt-3 text-sm leading-6 text-[#754033]">This footer is assigned. Remove assignments before deleting it.</p> : null}
-                      <FooterDeleteForm action={deleteFooter.bind(null, footer.id)} />
-                    </details>
-                  </article>
-                );
-              })}
-            </div>
+            <>
+              <FooterGroup heading="English" id="footers-en" footers={footers.filter((footer) => footer.language !== "es")} assignmentsByFooter={assignmentsByFooter} emptyText="No English footers yet." />
+              <FooterGroup heading="Español (El Salvador)" id="footers-es" footers={footers.filter((footer) => footer.language === "es")} assignmentsByFooter={assignmentsByFooter} emptyText="Aún no hay pies de página en español." />
+            </>
           ) : <p className="mt-4 text-sm text-[#607066]">No footers have been created yet.</p>}
         </section>
       </div>

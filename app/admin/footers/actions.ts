@@ -14,11 +14,12 @@ function readFooterFields(formData: FormData) {
   const content = String(formData.get("content") ?? "").trim();
   if (!internalTitle || internalTitle.length > 160) return { error: "Footer name is required and must be 160 characters or fewer." };
   if (!content || content.length > 5000) return { error: "Footer content is required and must be 5,000 characters or fewer." };
-  return { value: { internal_title: internalTitle, content } };
+  const language = formData.get("language") === "es" ? "es" : "en";
+  return { value: { internal_title: internalTitle, content, language } };
 }
 
 function revalidateFooterPaths() {
-  revalidatePath("/admin/footers");
+  revalidatePath("/admin/footers", "layout");
   revalidatePath("/admin/teachings");
   revalidatePath("/admin/weekly-updates");
   revalidatePath("/");

@@ -7,8 +7,9 @@ import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 type FormState = { error?: string; saved?: boolean; deleted?: boolean };
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
 
-export function FooterForm({ action, internalTitle = "", content = "", submitLabel = "Save footer" }: { action: Action; internalTitle?: string; content?: string; submitLabel?: string }) {
+export function FooterForm({ action, internalTitle = "", content = "", language: initialLanguage = "en", submitLabel = "Save footer" }: { action: Action; internalTitle?: string; content?: string; language?: "en" | "es"; submitLabel?: string }) {
   const router = useRouter();
+  const [language, setLanguage] = useState<"en" | "es">(initialLanguage);
   const [title, setTitle] = useState(internalTitle);
   const [body, setBody] = useState(content);
   const [state, formAction, pending] = useActionState(async (previousState: FormState, formData: FormData) => {
@@ -19,6 +20,7 @@ export function FooterForm({ action, internalTitle = "", content = "", submitLab
 
   return (
     <form action={formAction} className="space-y-4">
+      <label className="block text-sm font-bold text-[#385245]">Language<select name="language" value={language} onChange={(event) => setLanguage(event.target.value === "es" ? "es" : "en")} className="admin-input"><option value="en">English</option><option value="es">Español (El Salvador)</option></select></label>
       <label className="block text-sm font-bold text-[#385245]">Internal title<input name="internalTitle" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={160} className="admin-input" /></label>
       <FormattedTextarea label="Displayed content" name="content" value={body} onValueChange={setBody} required maxLength={5000} rows={6} />
       <p className="text-xs leading-5 text-[#607066]">Paragraph breaks are preserved. Use the formatting controls for emphasis, bullets, and HTTP or HTTPS links.</p>
@@ -55,7 +57,7 @@ export function FooterDeleteForm({ action }: { action: Action }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(async (previousState: FormState, formData: FormData) => {
     const result = await action(previousState, formData);
-    if (result.deleted) router.refresh();
+    if (result.deleted) router.push("/admin/footers");
     return result;
   }, {});
 

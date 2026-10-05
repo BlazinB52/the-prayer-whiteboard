@@ -71,7 +71,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
       .order("chalkboard_date", { ascending: false })
       .order("canonical_name", { ascending: true }),
     supabase.from("teaching_chalkboard_assignments").select("chalkboard_asset_id").eq("teaching_id", id).order("display_order", { ascending: true }),
-    supabase.from("content_footers").select("id, internal_title").eq("status", "active").order("internal_title", { ascending: true }),
+    supabase.from("content_footers").select("id, internal_title, language").eq("status", "active").order("internal_title", { ascending: true }),
     supabase.from("teaching_footer_assignments").select("footer_id").eq("teaching_id", id).maybeSingle(),
   ]);
   const assignedChalkboardIds = (assignedChalkboards ?? []).map((assignment) => assignment.chalkboard_asset_id as string);
@@ -80,7 +80,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
     label: chalkboard.canonical_name ?? chalkboard.title,
     language: (chalkboard.language === "es" ? "es" : "en") as "en" | "es",
   }));
-  const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title }));
+  const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title, language: (footer.language === "es" ? "es" : "en") as "en" | "es" }));
 
   const categoryItems = (categories ?? []).map((category) => ({
     ...category,

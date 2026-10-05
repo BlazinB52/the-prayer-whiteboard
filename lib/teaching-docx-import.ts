@@ -13,7 +13,7 @@ export const TEACHING_IMPORT_LIMITS = {
   sectionTitle: 160,
   centralTheme: 300,
   introduction: 5000,
-  summary: 800,
+  summary: 400,
   sectionText: 12000,
   scriptureReference: 240,
   scriptureTranslation: 80,

@@ -8,7 +8,7 @@ const MAX_LENGTHS = {
   title: 160,
   centralTheme: 300,
   introduction: 5000,
-  summary: 800,
+  summary: 400,
   teaserHeading: 100,
   teaserText: 300,
 };

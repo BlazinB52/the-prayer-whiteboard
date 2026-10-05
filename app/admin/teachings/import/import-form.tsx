@@ -65,6 +65,14 @@ export function TeachingImportForm() {
   return (
     <form ref={formRef} onSubmit={(event) => { event.preventDefault(); handlePreview(); }} className="space-y-6">
       <label className="block text-sm font-bold text-[#385245]">
+        Language
+        <select name="language" defaultValue="en" onChange={resetPreview} disabled={pending} className="admin-input">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+        <span className="mt-1 block text-xs font-normal text-[#607066]">Which list the teaching appears under on the Teachings page.</span>
+      </label>
+      <label className="block text-sm font-bold text-[#385245]">
         Teaching document
         <input name="sourceDocument" type="file" required accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={resetPreview} disabled={pending} className="admin-input py-2" />
         <span className="mt-1 block text-xs font-normal text-[#607066]">A .docx file prepared to the Teaching DOCX Import Format Rules, 8 MiB or smaller. The file is checked and previewed first; nothing is saved until you approve the preview.</span>

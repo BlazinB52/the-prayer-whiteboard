@@ -105,6 +105,7 @@ export async function createTeachingFromImport(formData: FormData): Promise<Teac
         summary: teaching.summary || null,
         gathering_date: gatheringDate.value,
         teaching_type: "standard",
+        language: formData.get("language") === "es" ? "es" : "en",
         teaser_1_heading: null,
         teaser_1_text: null,
         teaser_2_heading: null,

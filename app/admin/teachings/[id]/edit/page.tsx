@@ -187,9 +187,9 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
         </section>
         <section className="mt-8 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-5">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
-          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">{teaching.teaching_type === "deep_dive" ? "Publish this Deep Dive" : "Feature this teaching on the homepage"}</h2>
-          <p className="mt-3 text-sm leading-6 text-[#607066]">{teaching.teaching_type === "deep_dive" ? "Publishing makes this Deep Dive public in the Deep Dives collection without replacing the featured homepage teaching." : "Publishing makes this teaching public, replaces the current homepage feature without unpublishing it, and keeps the stored gathering date unchanged."}</p>
-          <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} teachingType={teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard"} />
+          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">{teaching.language === "es" ? "Publish to the Español homepage" : teaching.teaching_type === "deep_dive" ? "Publish this Deep Dive" : "Feature this teaching on the homepage"}</h2>
+          <p className="mt-3 text-sm leading-6 text-[#607066]">{teaching.language === "es" ? "Publishing makes this teaching public on the Español homepage (/espanol) and features it there. The English homepage is not changed, and no email is sent to subscribers." : teaching.teaching_type === "deep_dive" ? "Publishing makes this Deep Dive public in the Deep Dives collection without replacing the featured homepage teaching." : "Publishing makes this teaching public, replaces the current homepage feature without unpublishing it, and keeps the stored gathering date unchanged."}</p>
+          <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} teachingType={teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard"} language={teaching.language === "es" ? "es" : "en"} />
         </section>
         {teaching.status === "published" ? (
           <section className="mt-8 rounded-2xl border border-[#a2472c]/20 bg-[#fff8f1] p-5">

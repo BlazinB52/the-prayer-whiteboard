@@ -2,6 +2,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { truncateDescription } from "./seo";
 import { splitParagraphs, type TeachingDevotional } from "./devotionals";
 import { createClient } from "./supabase/server";
+import { getSpanishDevotionalIds } from "./spanish-devotionals";
 
 // Every row reached through this module is already published, and
 // teaching_devotionals_published_slug_check guarantees a published row has a
@@ -77,15 +78,17 @@ export function getDevotionalStartLabel(series: Pick<PublicDevotionalSeries, "ti
   return `Start ${series.title}`;
 }
 
-export async function getPublishedDevotionalSeries(): Promise<PublicDevotionalSeries[]> {
+export async function getPublishedDevotionalSeries(language: "en" | "es" = "en"): Promise<PublicDevotionalSeries[]> {
   const supabase = await createClient();
-  const { data: devotionals, error: devotionalError } = await supabase
+  const spanishIds = await getSpanishDevotionalIds(supabase);
+  const { data: devotionalsAll, error: devotionalError } = await supabase
     .from("teaching_devotionals")
     .select("id, teaching_id, slug, title, introduction, published_at")
     .eq("status", "published")
     .order("published_at", { ascending: false, nullsFirst: false });
 
-  if (devotionalError || !devotionals?.length) return [];
+  const devotionals = (devotionalsAll ?? []).filter((devotional) => spanishIds.has(devotional.id) === (language === "es"));
+  if (devotionalError || !devotionals.length) return [];
 
   const devotionalRows = devotionals as DevotionalRow[];
 

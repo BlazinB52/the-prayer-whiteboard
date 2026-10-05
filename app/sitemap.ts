@@ -21,6 +21,7 @@ function latest(...values: Array<Date | undefined>) {
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
     { url: absoluteUrl("/"), changeFrequency: "weekly", priority: 1 },
+    { url: absoluteUrl("/espanol"), changeFrequency: "weekly", priority: 0.8 },
     { url: absoluteUrl("/deep-dives"), changeFrequency: "weekly", priority: 0.7 },
     { url: absoluteUrl("/devotionals"), changeFrequency: "weekly", priority: 0.7 },
     { url: absoluteUrl("/those-in-authority"), changeFrequency: "weekly", priority: 0.6 },

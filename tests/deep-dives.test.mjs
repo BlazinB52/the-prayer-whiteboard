@@ -26,8 +26,8 @@ test("admin teaching form hides homepage teasers for Deep Dives without dropping
 test("short summary app limit accepts planned Deep Dive length without database changes", async () => {
   const form = await readFile("app/admin/teachings/teaching-form.tsx", "utf8");
   const actions = await readFile("app/admin/teachings/actions.ts", "utf8");
-  assert.match(form, /name="summary"[\s\S]*maxLength=\{800\}/);
-  assert.match(actions, /summary: 800/);
+  assert.match(form, /name="summary"[\s\S]*maxLength=\{500\}/);
+  assert.match(actions, /summary: 500/);
 });
 
 test("Deep Dives collection queries only published deep_dive teachings", async () => {

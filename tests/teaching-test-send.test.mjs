@@ -78,14 +78,14 @@ test("the teaching preview is built by the production email builder, includes th
   assert.match(code, /copyrightDisclaimer,/);
 });
 
-test("the admin teachings list exposes the teaching test send form", async () => {
+test("the admin teaching edit page exposes the teaching test send form", async () => {
   const [page, form] = await Promise.all([
-    readFile("app/admin/teachings/page.tsx", "utf8"),
+    readFile("app/admin/teachings/[id]/edit/page.tsx", "utf8"),
     readFile("app/admin/teachings/test-send-form.tsx", "utf8"),
   ]);
 
-  assert.match(page, /import \{ TeachingTestSendForm \} from "\.\/test-send-form";/);
-  assert.match(page, /<TeachingTestSendForm teachingId=\{teaching\.id\} \/>/);
+  assert.match(page, /import \{ TeachingTestSendForm \} from "\.\.\/\.\.\/test-send-form";/);
+  assert.match(page, /<TeachingTestSendForm teachingId=\{id\} \/>/);
 
   assert.match(form, /^"use client";/);
   assert.match(form, /"\/api\/admin\/teaching\/test-send"/);

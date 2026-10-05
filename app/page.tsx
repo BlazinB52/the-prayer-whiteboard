@@ -191,6 +191,7 @@ async function getPreviousGatherings(): Promise<PreviousGathering[]> {
     .select("id, slug, title, gathering_date")
     .eq("status", "published")
     .eq("teaching_type", "standard")
+    .eq("language", "en")
     .order("gathering_date", { ascending: false, nullsFirst: false })
     .order("id", { ascending: false });
 
@@ -233,6 +234,7 @@ async function getFeaturedHomepageData(supabaseOverride?: ServiceRoleClient): Pr
     .select(FEATURED_TEACHING_COLUMNS)
     .eq("status", "published")
     .eq("teaching_type", "standard")
+    .eq("language", "en")
     .eq("is_featured", true);
   if (teachingError) throw teachingError;
 
@@ -244,6 +246,7 @@ async function getFeaturedHomepageData(supabaseOverride?: ServiceRoleClient): Pr
       .select(FEATURED_TEACHING_COLUMNS)
       .eq("status", "published")
       .eq("teaching_type", "standard")
+      .eq("language", "en")
       .order("gathering_date", { ascending: false, nullsFirst: false })
       .order("id", { ascending: false })
       .limit(1);
@@ -257,7 +260,7 @@ async function getFeaturedHomepageData(supabaseOverride?: ServiceRoleClient): Pr
   if (!selectedTeaching) return null;
 
   const [{ data: previousGatherings, error: previousError }] = await Promise.all([
-    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").eq("teaching_type", "standard").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
+    supabase.from("teachings").select("id, slug, title, gathering_date").eq("status", "published").eq("teaching_type", "standard").eq("language", "en").order("gathering_date", { ascending: false, nullsFirst: false }).order("id", { ascending: false }),
   ]);
   if (previousError) throw previousError;
 

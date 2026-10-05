@@ -7,6 +7,7 @@ import { devotionalDayForWeekday, devotionalTimeZone } from "@/lib/devotional-sc
 import { siteUrl } from "@/lib/email-subscriptions";
 import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
+import { getSpanishDevotionalIds } from "@/lib/spanish-devotionals";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const THROTTLE_MS = 150;
@@ -80,15 +81,17 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
   // The most recently published series drives the run. It is read straight off
   // teaching_devotionals, so a series authored standalone is eligible on the
   // same terms as one that started life inside a teaching.
-  const { data: devotional, error: devotionalError } = await supabase
+  // Español series are never mailed: the subscriber list is English, so they are skipped here.
+  const { data: candidates, error: devotionalError } = await supabase
     .from("teaching_devotionals")
     .select("id, slug, title, status, published_at, updated_at")
     .eq("status", "published")
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(25);
   if (devotionalError) throw new Error(`Devotional lookup failed: ${devotionalError.message}`);
+  const spanishIds = await getSpanishDevotionalIds(supabase);
+  const devotional = (candidates ?? []).find((candidate) => !spanishIds.has(candidate.id));
   if (!devotional) return { status: "no_devotional" };
 
   const { count: totalDays } = await supabase

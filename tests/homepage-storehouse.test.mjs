@@ -12,7 +12,7 @@ test("Storehouse keeps only published standard teachings eligible for its devoti
     assert.match(query, /\.eq\("status", "published"\)/);
     assert.match(query, /\.eq\("teaching_type", "standard"\)/);
   }
-  assert.equal(featuredQuery.match(/\.eq\("teaching_type", "standard"\)/g)?.length, 2);
+  assert.equal(featuredQuery.match(/\.eq\("teaching_type", "standard"\)/g)?.length, 3);
 
   assert.match(source, /\.from\("teaching_devotional_assignments"\)[\s\S]*?\.select\("teaching_id, devotional_id"\)/);
   assert.match(source, /\.from\("teaching_devotionals"\)[\s\S]*?\.select\("id, slug"\)[\s\S]*?\.eq\("status", "published"\)/);

@@ -54,7 +54,7 @@ test("assignment migration backfills ownership without a recursive public policy
 
 test("the public devotional list resolves teachings through assignments, not the legacy column", async () => {
   const publicDevotionals = await readFile("lib/public-devotionals.ts", "utf8");
-  const listing = publicDevotionals.match(/export async function getPublishedDevotionalSeries\(\)[\s\S]*?\n}/)?.[0] ?? "";
+  const listing = publicDevotionals.match(/export async function getPublishedDevotionalSeries\([^)]*\)[\s\S]*?\n}/)?.[0] ?? "";
 
   assert.notEqual(listing, "", "getPublishedDevotionalSeries should be present");
   assert.match(listing, /from\("teaching_devotional_assignments"\)/);

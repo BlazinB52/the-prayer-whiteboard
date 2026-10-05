@@ -1,7 +1,23 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
+// The Español homepage lives at /espanol. Send the accented and capitalized spellings there.
+function isEspanolAlias(pathname: string) {
+  let decoded = pathname;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return false;
+  }
+  const normalized = decoded.normalize("NFC").toLowerCase().replace(/\/+$/, "");
+  return pathname !== "/espanol" && (normalized === "/español" || normalized === "/espanol");
+}
+
 export async function proxy(request: NextRequest) {
+  if (isEspanolAlias(request.nextUrl.pathname)) {
+    return NextResponse.redirect(new URL("/espanol", request.url));
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

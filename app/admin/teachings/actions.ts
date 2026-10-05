@@ -329,7 +329,7 @@ export async function publishAndFeatureTeaching(
 
   const { data: teaching } = await supabase
     .from("teachings")
-    .select("slug, teaching_type")
+    .select("slug, teaching_type, language")
     .eq("id", id)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -345,10 +345,12 @@ export async function publishAndFeatureTeaching(
   }
 
   revalidatePath("/");
+  revalidatePath("/espanol");
   revalidatePath("/deep-dives");
   revalidatePath("/admin/teachings");
   revalidatePath(`/teachings/${teaching.slug}`);
   revalidateTeachingDevotionalPaths(teaching.slug);
+  if (teaching.language === "es") redirect("/admin/teachings?espanolPublished=1");
   redirect(teaching.teaching_type === "deep_dive" ? "/admin/teachings?deepDivePublished=1" : "/admin/teachings?published=1");
 }
 

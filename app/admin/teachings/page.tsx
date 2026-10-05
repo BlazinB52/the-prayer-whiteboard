@@ -58,7 +58,7 @@ function TeachingGroup({ heading, teachings, emptyText }: { heading: string; tea
   );
 }
 
-export default async function TeachingsPage({ searchParams }: { searchParams: Promise<{ published?: string; deepDivePublished?: string; saved?: string; unpublished?: string; deleted?: string }> }) {
+export default async function TeachingsPage({ searchParams }: { searchParams: Promise<{ espanolPublished?: string; published?: string; deepDivePublished?: string; saved?: string; unpublished?: string; deleted?: string }> }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
   const { data: teachings, error } = await supabase
@@ -87,6 +87,7 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
 
         {params.saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching saved successfully.</p> : null}
         {params.published === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching published and featured on the homepage.</p> : null}
+        {params.espanolPublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching published to the Español homepage (/espanol). The English homepage was not changed and no email was sent.</p> : null}
         {params.deepDivePublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Deep Dive published to the Deep Dives collection.</p> : null}
         {params.unpublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching unpublished and returned to draft.</p> : null}
         {params.deleted === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching permanently deleted.</p> : null}

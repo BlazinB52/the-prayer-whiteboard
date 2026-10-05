@@ -14,6 +14,7 @@ const MAX_RECORDED_FAILURES = 25;
 export type TeachingBroadcastOutcome =
   | { status: "duplicate" }
   | { status: "not_publishable" }
+  | { status: "skipped_language" }
   | { status: "sent" | "failed"; recipientCount: number; sentCount: number; failedCount: number };
 
 function getClient() {
@@ -47,11 +48,13 @@ export async function broadcastTeaching(teachingId: string): Promise<TeachingBro
   // publish state before mailing anyone.
   const { data: teaching, error: teachingError } = await supabase
     .from("teachings")
-    .select("id, slug, title, summary, status")
+    .select("id, slug, title, summary, status, language")
     .eq("id", teachingId)
     .maybeSingle();
   if (teachingError) throw new Error(`Teaching lookup failed: ${teachingError.message}`);
   if (!teaching || teaching.status !== "published") return { status: "not_publishable" };
+  // The subscriber list is English; Español teachings are published without an email.
+  if (teaching.language !== "en") return { status: "skipped_language" };
 
   const broadcastId = await claimBroadcast(teachingId);
   if (!broadcastId) return { status: "duplicate" };

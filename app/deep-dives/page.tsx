@@ -37,6 +37,7 @@ export default async function DeepDivesPage() {
     .select("id, slug, title, gathering_date, summary, central_theme, published_at")
     .eq("status", "published")
     .eq("teaching_type", "deep_dive")
+    .eq("language", "en")
     .order("gathering_date", { ascending: false, nullsFirst: false })
     .order("published_at", { ascending: false, nullsFirst: false })
     .order("title", { ascending: true });

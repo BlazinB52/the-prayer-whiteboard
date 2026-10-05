@@ -12,6 +12,7 @@ function today() {
 export function ChalkboardForm() {
   const router = useRouter();
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const [language, setLanguage] = useState<"en" | "es">("en");
   const [chalkboardDate, setChalkboardDate] = useState(today());
   const [chalkboardTitle, setChalkboardTitle] = useState("");
   const [includeInPrint, setIncludeInPrint] = useState(true);
@@ -49,6 +50,7 @@ export function ChalkboardForm() {
       const result = await finalizeChalkboardUpload({
         assetGroupId: target.assetGroupId,
         incomingPath: target.path,
+        language,
         chalkboardDate,
         chalkboardTitle,
         altText: String(form.get("altText") ?? ""),
@@ -77,7 +79,8 @@ export function ChalkboardForm() {
     <form onSubmit={submit} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8 sm:p-6">
       <h2 className="text-2xl font-extrabold text-[#243d31]">Upload chalkboard</h2>
       <p className="mt-2 text-sm text-[#607066]">Add a chalkboard to the independent library. It can be attached to a teaching later.</p>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+      <label className="mt-5 block text-sm font-bold text-[#385245]">Language<select name="language" value={language} onChange={(event) => setLanguage(event.target.value === "es" ? "es" : "en")} className="admin-input"><option value="en">English</option><option value="es">Español (El Salvador)</option></select></label>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="block text-sm font-bold text-[#385245]">Chalkboard date<input name="chalkboardDate" type="date" value={chalkboardDate} onChange={(event) => setChalkboardDate(event.target.value)} required className="admin-input" /></label>
         <label className="block text-sm font-bold text-[#385245]">Chalkboard title<input name="chalkboardTitle" value={chalkboardTitle} onChange={(event) => setChalkboardTitle(event.target.value)} required maxLength={160} className="admin-input" /><span className="mt-1 block text-xs font-normal text-[#607066]">The server stores this as YYYYMMDD_Title.</span></label>
       </div>

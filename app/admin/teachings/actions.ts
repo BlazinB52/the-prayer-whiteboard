@@ -137,18 +137,20 @@ async function validateChalkboardSelection(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
   formData: FormData,
 ) {
+  const language = formData.get("language") === "es" ? "es" : "en";
   const chalkboardAssetIds = Array.from(new Set(formData.getAll("chalkboardAssetIds").map((value) => String(value).trim()).filter(Boolean)));
   if (!chalkboardAssetIds.length) return { value: [] as string[] };
   if (chalkboardAssetIds.some((id) => !UUID_PATTERN.test(id))) return { error: "Choose valid chalkboards." };
 
   const { data: chalkboards, error } = await supabase
     .from("chalkboard_assets")
-    .select("id, website_storage_path, storage_path")
+    .select("id, language, website_storage_path, storage_path")
     .in("id", chalkboardAssetIds)
     .eq("is_current_version", true)
     .eq("status", "active");
   if (error) return { error: "The selected chalkboards could not be verified." };
   if ((chalkboards ?? []).length !== chalkboardAssetIds.length) return { error: "Choose available chalkboards from the library." };
+  if ((chalkboards ?? []).some((chalkboard) => chalkboard.language !== language)) return { error: language === "es" ? "Choose only Español (El Salvador) chalkboards for an Español teaching." : "Choose only English chalkboards for an English teaching." };
   if ((chalkboards ?? []).some((chalkboard) => !chalkboard.website_storage_path && !chalkboard.storage_path)) return { error: "Choose chalkboards with usable image files." };
 
   return { value: chalkboardAssetIds };

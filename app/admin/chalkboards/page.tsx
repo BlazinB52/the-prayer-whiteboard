@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ChalkboardForm } from "./chalkboard-form";
-import { deleteChalkboard, getChalkboardPreviewUrl, updateChalkboardDetails } from "./actions";
-import { ChalkboardCard } from "./chalkboard-card";
+import { getChalkboardPreviewUrl } from "./actions";
+import { loadChalkboardAssignments } from "./assignments";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -10,46 +10,78 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-function dateForInput(value: string | null) {
-  return value ? value.slice(0, 10) : "";
+type ChalkboardRow = {
+  id: string;
+  name: string;
+  date: string | null;
+  assignmentCount: number;
+  includeInPrint: boolean;
+  previewUrl: string | null;
+};
+
+function formatDate(value: string | null) {
+  if (!value) return "Not set";
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value.slice(0, 10)}T00:00:00Z`));
+}
+
+function ChalkboardGroup({ heading, id, rows, emptyText }: { heading: string; id: string; rows: ChalkboardRow[]; emptyText: string }) {
+  return (
+    <section aria-labelledby={id} className="mt-8">
+      <h3 id={id} className="border-b border-[#284a3b]/10 pb-3 text-xl font-extrabold text-[#243d31]">
+        {heading} <span className="text-sm font-bold text-[#607066]">({rows.length})</span>
+      </h3>
+      {rows.length ? (
+        <ul className="divide-y divide-[#284a3b]/10">
+          {rows.map((row) => (
+            <li key={row.id}>
+              <Link href={`/admin/chalkboards/${row.id}`} className="flex min-h-14 items-center gap-3 px-2 py-2 transition hover:bg-[#e7efe9]/60">
+                <span className="flex h-12 w-9 shrink-0 items-center justify-center overflow-hidden rounded bg-[#eee7da]">
+                  {row.previewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={row.previewUrl} alt="" className="block h-full w-full object-contain" />
+                  ) : null}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{row.name}</span>
+                <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">
+                  {row.assignmentCount ? `${row.assignmentCount} assigned` : "Unassigned"}
+                </span>
+                {row.includeInPrint ? null : <span className="hidden rounded-full bg-[#f3e4dc] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#a2472c] sm:inline">No print</span>}
+                <span className="hidden w-28 shrink-0 text-right text-sm text-[#607066] sm:inline">{formatDate(row.date)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="py-4 text-sm text-[#607066]">{emptyText}</p>
+      )}
+    </section>
+  );
 }
 
 export default async function AdminChalkboardsPage() {
   const { supabase } = await requireAdmin();
-  const [{ data: teachings }, { data: teachingAssignments }, { data: weeklyUpdateAssignments }, { data: assets, error }] = await Promise.all([
-    supabase.from("teachings").select("id, title, chalkboard_asset_id").in("status", ["draft", "published"]).order("gathering_date", { ascending: false }),
-    supabase.from("teaching_chalkboard_assignments").select("chalkboard_asset_id, teachings(title, status)"),
-    supabase.from("weekly_update_chalkboard_assignments").select("chalkboard_asset_id, weekly_updates(title, status, is_current)"),
+  const [assignmentsByAsset, { data: assets, error }] = await Promise.all([
+    loadChalkboardAssignments(supabase),
     supabase
       .from("chalkboard_assets")
-      .select("id, title, canonical_name, chalkboard_date, alt_text, caption, website_storage_path, width, height, include_in_print, allow_download, download_storage_path, uploaded_at")
+      .select("id, title, canonical_name, language, chalkboard_date, website_storage_path, include_in_print")
       .eq("is_current_version", true)
       .eq("status", "active")
       .order("chalkboard_date", { ascending: false })
       .order("canonical_name", { ascending: true }),
   ]);
 
-  const teachingByAsset = new Map((teachings ?? []).filter((teaching) => teaching.chalkboard_asset_id).map((teaching) => [teaching.chalkboard_asset_id as string, teaching.title]));
-  const assignmentsByAsset = new Map<string, string[]>();
-  for (const assignment of teachingAssignments ?? []) {
-    const teaching = Array.isArray(assignment.teachings) ? assignment.teachings[0] : assignment.teachings;
-    if (!teaching) continue;
-    const current = assignmentsByAsset.get(assignment.chalkboard_asset_id) ?? [];
-    current.push(`Teaching: ${teaching.title}`);
-    assignmentsByAsset.set(assignment.chalkboard_asset_id, current);
-  }
-  for (const [assetId, title] of teachingByAsset) {
-    if (assignmentsByAsset.has(assetId)) continue;
-    assignmentsByAsset.set(assetId, [`Teaching: ${title}`]);
-  }
-  for (const assignment of weeklyUpdateAssignments ?? []) {
-    const weeklyUpdate = Array.isArray(assignment.weekly_updates) ? assignment.weekly_updates[0] : assignment.weekly_updates;
-    if (!weeklyUpdate) continue;
-    const current = assignmentsByAsset.get(assignment.chalkboard_asset_id) ?? [];
-    current.push(`Weekly Update: ${weeklyUpdate.title}${weeklyUpdate.is_current ? " (current)" : ""}`);
-    assignmentsByAsset.set(assignment.chalkboard_asset_id, current);
-  }
-  const previews = await Promise.all((assets ?? []).map(async (asset) => ({ asset, url: asset.website_storage_path ? await getChalkboardPreviewUrl(asset.website_storage_path) : null })));
+  const rows = await Promise.all((assets ?? []).map(async (asset) => ({
+    language: asset.language,
+    row: {
+      id: asset.id,
+      name: asset.canonical_name ?? asset.title,
+      date: asset.chalkboard_date,
+      assignmentCount: (assignmentsByAsset.get(asset.id) ?? []).length,
+      includeInPrint: asset.include_in_print,
+      previewUrl: asset.website_storage_path ? await getChalkboardPreviewUrl(asset.website_storage_path) : null,
+    } satisfies ChalkboardRow,
+  })));
 
   return (
     <main className="admin-shell">
@@ -63,32 +95,11 @@ export default async function AdminChalkboardsPage() {
         <section className="border-t border-[#284a3b]/10 py-8">
           <h2 className="text-2xl font-extrabold text-[#243d31]">Existing chalkboards</h2>
           {error ? <p className="mt-4 text-sm font-bold text-[#a2472c]">Chalkboards could not be loaded.</p> : null}
-          {previews.length ? (
-            <div className="mt-5 grid items-start gap-5 lg:grid-cols-2">
-              {previews.map(({ asset, url }) => (
-                <ChalkboardCard
-                  key={asset.id}
-                  asset={{
-                    id: asset.id,
-                    canonicalName: asset.canonical_name ?? asset.title,
-                    chalkboardDate: dateForInput(asset.chalkboard_date),
-                    assignments: assignmentsByAsset.get(asset.id) ?? [],
-                    title: asset.title,
-                    alt_text: asset.alt_text,
-                    caption: asset.caption,
-                    include_in_print: asset.include_in_print,
-                    allow_download: asset.allow_download,
-                    hasDownloadPath: Boolean(asset.download_storage_path),
-                    width: asset.width,
-                    height: asset.height,
-                    uploaded_at: asset.uploaded_at,
-                    previewUrl: url,
-                  }}
-                  updateAction={updateChalkboardDetails}
-                  deleteAction={deleteChalkboard.bind(null, asset.id)}
-                />
-              ))}
-            </div>
+          {rows.length ? (
+            <>
+              <ChalkboardGroup heading="English" id="chalkboards-en" rows={rows.filter((item) => item.language !== "es").map((item) => item.row)} emptyText="No English chalkboards yet." />
+              <ChalkboardGroup heading="Español (El Salvador)" id="chalkboards-es" rows={rows.filter((item) => item.language === "es").map((item) => item.row)} emptyText="Aún no hay pizarras en español." />
+            </>
           ) : <p className="mt-4 text-sm text-[#607066]">No chalkboards have been uploaded yet.</p>}
         </section>
       </div>

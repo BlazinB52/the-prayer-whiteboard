@@ -21,6 +21,7 @@ type UploadActionState = ChalkboardActionState & { canonicalName?: string };
 type FinalizeInput = {
   assetGroupId: string;
   incomingPath: string;
+  language: "en" | "es";
   chalkboardDate: string;
   chalkboardTitle: string;
   altText: string;
@@ -167,6 +168,7 @@ export async function finalizeChalkboardUpload(input: FinalizeInput): Promise<Up
       storage_path: input.incomingPath,
       title: names.title,
       canonical_name: names.canonicalName,
+      language: input.language === "es" ? "es" : "en",
       chalkboard_date: names.date,
       alt_text: altText,
       caption: caption || null,
@@ -217,6 +219,7 @@ export async function updateChalkboardDetails(_: ChalkboardActionState, formData
   const { data, error } = await supabase.from("chalkboard_assets").update({
     title: names.title,
     canonical_name: names.canonicalName,
+    language: formData.get("language") === "es" ? "es" : "en",
     chalkboard_date: names.date,
     alt_text: altText,
     caption: caption || null,
@@ -225,6 +228,7 @@ export async function updateChalkboardDetails(_: ChalkboardActionState, formData
   }).eq("id", assetId).select("id").maybeSingle();
   if (error || !data) return { error: "The chalkboard details could not be saved." };
   revalidatePath("/admin/chalkboards");
+  revalidatePath(`/admin/chalkboards/${assetId}`);
   revalidatePath("/admin/teachings");
   revalidatePath("/");
   return { saved: true };

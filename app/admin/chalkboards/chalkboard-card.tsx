@@ -9,6 +9,7 @@ type Action = (state: ChalkboardActionState, formData: FormData) => Promise<Chal
 type Asset = {
   id: string;
   canonicalName: string;
+  language: "en" | "es";
   chalkboardDate: string;
   assignments: string[];
   title: string;
@@ -27,6 +28,7 @@ export function ChalkboardCard({ asset, updateAction, deleteAction }: { asset: A
   const router = useRouter();
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const deleteRef = useRef<HTMLDetailsElement>(null);
+  const [language, setLanguage] = useState(asset.language);
   const [chalkboardDate, setChalkboardDate] = useState(asset.chalkboardDate);
   const [title, setTitle] = useState(asset.title);
   const [altText, setAltText] = useState(asset.alt_text);
@@ -45,7 +47,7 @@ export function ChalkboardCard({ asset, updateAction, deleteAction }: { asset: A
     const result = await deleteAction(previousState, formData);
     if (result.deleted) {
       if (deleteRef.current) deleteRef.current.open = false;
-      router.refresh();
+      router.push("/admin/chalkboards");
     }
     return result;
   }, {});
@@ -63,8 +65,9 @@ export function ChalkboardCard({ asset, updateAction, deleteAction }: { asset: A
         </div>
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-[#946332]">{asset.canonicalName}</p>
-          <h3 className="mt-2 text-xl font-extrabold text-[#243d31]">{asset.title}</h3>
+          <h2 className="mt-2 text-xl font-extrabold text-[#243d31]">{asset.title}</h2>
           <dl className="mt-4 grid gap-2 text-sm text-[#607066]">
+            <div className="flex justify-between gap-3"><dt>Language</dt><dd className="font-bold text-[#385245]">{asset.language === "es" ? "Español (El Salvador)" : "English"}</dd></div>
             <div className="flex justify-between gap-3"><dt>Assignments</dt><dd className="text-right font-bold text-[#385245]">{asset.assignments.length ? asset.assignments.join(", ") : "Unassigned"}</dd></div>
             <div className="flex justify-between gap-3"><dt>Dimensions</dt><dd className="font-bold text-[#385245]">{asset.width} x {asset.height}</dd></div>
             <div className="flex justify-between gap-3"><dt>Print</dt><dd className="font-bold text-[#385245]">{asset.include_in_print ? "Included" : "Excluded"}</dd></div>
@@ -79,6 +82,7 @@ export function ChalkboardCard({ asset, updateAction, deleteAction }: { asset: A
             <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit details</summary>
             <form action={updateFormAction} className="mt-4 space-y-4">
               <input type="hidden" name="chalkboardId" value={asset.id} />
+              <label className="block text-sm font-bold text-[#385245]">Language<select name="language" value={language} onChange={(event) => setLanguage(event.target.value === "es" ? "es" : "en")} className="admin-input"><option value="en">English</option><option value="es">Español (El Salvador)</option></select></label>
               <label className="block text-sm font-bold text-[#385245]">Chalkboard date<input name="chalkboardDate" type="date" value={chalkboardDate} onChange={(event) => setChalkboardDate(event.target.value)} required className="admin-input" /></label>
               <label className="block text-sm font-bold text-[#385245]">Chalkboard title<input name="title" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={160} className="admin-input" /></label>
               <label className="block text-sm font-bold text-[#385245]">Alternative text<input name="altText" value={altText} onChange={(event) => setAltText(event.target.value)} required maxLength={500} className="admin-input" /></label>

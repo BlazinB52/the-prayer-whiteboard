@@ -14,7 +14,7 @@ export default async function NewTeachingPage() {
   const [{ data: chalkboards }, { data: footers }] = await Promise.all([
     supabase
       .from("chalkboard_assets")
-      .select("id, title, canonical_name, chalkboard_date")
+      .select("id, title, canonical_name, language, chalkboard_date")
       .eq("is_current_version", true)
       .eq("status", "active")
       .order("chalkboard_date", { ascending: false })
@@ -24,6 +24,7 @@ export default async function NewTeachingPage() {
   const chalkboardOptions = (chalkboards ?? []).map((chalkboard) => ({
     id: chalkboard.id,
     label: chalkboard.canonical_name ?? chalkboard.title,
+    language: (chalkboard.language === "es" ? "es" : "en") as "en" | "es",
   }));
   const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title }));
 

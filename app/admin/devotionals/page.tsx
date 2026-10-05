@@ -9,16 +9,64 @@ export const metadata: Metadata = {
 
 type AssociatedTeaching = { id: string; title: string };
 
+type DevotionalRow = {
+  id: string;
+  teaching_id: string | null;
+  title: string;
+  status: string;
+  published_at: string | null;
+  associatedTeachings: AssociatedTeaching[];
+};
+
 function formatDate(value: string | null) {
-  if (!value) return "Not set";
+  if (!value) return "Not published";
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
+}
+
+function DevotionalGroup({ heading, id, devotionals, emptyText }: { heading: string; id: string; devotionals: DevotionalRow[]; emptyText: string }) {
+  return (
+    <section aria-labelledby={id}>
+      <h2 id={id} className="border-b border-[#284a3b]/10 pb-3 text-2xl font-extrabold text-[#243d31]">
+        {heading} <span className="text-sm font-bold text-[#607066]">({devotionals.length})</span>
+      </h2>
+      {devotionals.length ? (
+        <ul className="divide-y divide-[#284a3b]/10">
+          {devotionals.map((devotional) => {
+            // Falls back to the legacy owner column, which is nullable since
+            // 20260923000000. With no teaching at either level the devotional
+            // is standalone and is managed through its own route rather than
+            // through a teaching that does not exist.
+            const managementTeachingId = devotional.associatedTeachings[0]?.id ?? devotional.teaching_id ?? null;
+            const manageHref = managementTeachingId
+              ? `/admin/teachings/${managementTeachingId}/devotional`
+              : `/admin/devotionals/${devotional.id}`;
+            const usedBy = devotional.associatedTeachings.length
+              ? devotional.associatedTeachings.map((teaching) => teaching.title).join(", ")
+              : "No associated teaching";
+            return (
+              <li key={devotional.id}>
+                <Link href={manageHref} className="flex min-h-12 items-center gap-3 px-2 py-2 transition hover:bg-[#e7efe9]/60">
+                  <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{devotional.title}</span>
+                  <span className="hidden max-w-[16rem] truncate text-sm text-[#607066] md:inline">{usedBy}</span>
+                  <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{devotional.status}</span>
+                  <span className="hidden w-28 shrink-0 text-right text-sm text-[#607066] sm:inline">{formatDate(devotional.published_at)}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="py-4 text-sm text-[#607066]">{emptyText}</p>
+      )}
+    </section>
+  );
 }
 
 export default async function AdminDevotionalsPage() {
   const { supabase } = await requireAdmin();
   const { data: devotionals, error: devotionalsError } = await supabase
     .from("teaching_devotionals")
-    .select("id, teaching_id, slug, title, status, published_at, updated_at")
+    .select("id, teaching_id, slug, title, language, status, published_at, updated_at")
     .order("updated_at", { ascending: false });
 
   if (devotionalsError) {
@@ -53,6 +101,18 @@ export default async function AdminDevotionalsPage() {
     teachingAssociationsByDevotionalId.set(assignment.devotional_id, current);
   }
 
+  const rows = (devotionals ?? []).map((devotional) => ({
+    language: devotional.language,
+    row: {
+      id: devotional.id,
+      teaching_id: devotional.teaching_id,
+      title: devotional.title,
+      status: devotional.status,
+      published_at: devotional.published_at,
+      associatedTeachings: teachingAssociationsByDevotionalId.get(devotional.id) ?? [],
+    } satisfies DevotionalRow,
+  }));
+
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-6xl">
@@ -65,45 +125,11 @@ export default async function AdminDevotionalsPage() {
           <Link href="/admin/devotionals/new" className="admin-primary-button inline-flex items-center justify-center"><span>Create New Devotional</span></Link>
         </header>
 
-        {devotionals?.length ? (
-          <section className="grid gap-5 py-10 sm:grid-cols-2">
-            {devotionals.map((devotional) => {
-              const associatedTeachings = teachingAssociationsByDevotionalId.get(devotional.id) ?? [];
-              // Falls back to the legacy owner column, which is nullable since
-              // 20260923000000. With no teaching at either level the devotional
-              // is standalone and is managed through its own route rather than
-              // through a teaching that does not exist.
-              const managementTeachingId = associatedTeachings[0]?.id ?? devotional.teaching_id ?? null;
-              const manageHref = managementTeachingId
-                ? `/admin/teachings/${managementTeachingId}/devotional`
-                : `/admin/devotionals/${devotional.id}`;
-              const previewHref = managementTeachingId
-                ? `/admin/teachings/${managementTeachingId}/devotional/preview`
-                : `/admin/devotionals/${devotional.id}/preview`;
-              return (
-                <article key={devotional.id} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-lg shadow-[#4d5f52]/8">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <h2 className="text-2xl font-extrabold text-[#243d31]">{devotional.title}</h2>
-                    <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{devotional.status}</span>
-                  </div>
-                  <p className="mt-5 text-sm text-[#607066]">Published: <span className="font-bold text-[#385245]">{devotional.published_at ? formatDate(devotional.published_at) : "Not published"}</span></p>
-                  <div className="mt-5 border-t border-[#284a3b]/10 pt-4">
-                    <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#607066]">Used by</p>
-                    {associatedTeachings.length ? (
-                      <ul className="mt-2 grid gap-1 text-sm font-bold text-[#385245]">
-                        {associatedTeachings.map((teaching) => <li key={teaching.id}>{teaching.title}</li>)}
-                      </ul>
-                    ) : <p className="mt-2 text-sm text-[#607066]">No associated teaching</p>}
-                  </div>
-                  <div className="mt-6 flex flex-wrap items-center gap-4">
-                    <Link href={manageHref} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Manage devotional</Link>
-                    <Link href={previewHref} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Preview devotional</Link>
-                    {devotional.status === "published" && devotional.slug ? <Link href={`/devotionals/${devotional.slug}`} className="inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">View public devotional</Link> : null}
-                  </div>
-                </article>
-              );
-            })}
-          </section>
+        {rows.length ? (
+          <div className="space-y-10 py-10">
+            <DevotionalGroup heading="English" id="devotionals-en" devotionals={rows.filter((item) => item.language !== "es").map((item) => item.row)} emptyText="No English devotionals yet." />
+            <DevotionalGroup heading="Español" id="devotionals-es" devotionals={rows.filter((item) => item.language === "es").map((item) => item.row)} emptyText="Aún no hay devocionales en español." />
+          </div>
         ) : (
           <section className="max-w-2xl py-16">
             <h2 className="text-2xl font-extrabold text-[#243d31]">No devotionals yet</h2>

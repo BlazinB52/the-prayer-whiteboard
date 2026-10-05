@@ -35,11 +35,20 @@ export function DevotionalSeriesForm({ devotional, action }: { devotional: Teach
   const [values, setValues] = useState({
     title: devotional.title,
     introduction: devotional.introduction ?? "",
+    language: devotional.language === "es" ? "es" : "en",
   });
   const [state, formAction, isPending] = useActionState(action, {});
 
   return (
     <form action={formAction} className="mt-6 space-y-5">
+      <label className="block text-sm font-bold text-[#385245]">
+        Language
+        <select name="language" value={values.language} onChange={(event) => setValues((current) => ({ ...current, language: event.target.value === "es" ? "es" : "en" }))} className="admin-input">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+        <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">Español devotionals appear on the Español homepage and are not emailed to subscribers automatically.</span>
+      </label>
       <label className="block text-sm font-bold text-[#385245]">
         Devotional title <span className="text-[#a2472c]">*</span>
         <input name="title" value={values.title} onChange={(event) => setValues((current) => ({ ...current, title: event.target.value }))} maxLength={180} required className="admin-input" />

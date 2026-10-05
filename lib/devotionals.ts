@@ -19,6 +19,7 @@ export type TeachingDevotional = {
   introduction: string | null;
   status: DevotionalStatus;
   published_at: string | null;
+  language?: "en" | "es";
 };
 
 export type DevotionalDay = {

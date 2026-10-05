@@ -22,7 +22,7 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
   const { supabase } = await requireAdmin();
   const { data: devotional, error: devotionalError } = await supabase
     .from("teaching_devotionals")
-    .select("id, teaching_id, slug, title, introduction, status, published_at")
+    .select("id, teaching_id, slug, title, introduction, status, published_at, language")
     .eq("id", id)
     .maybeSingle();
 

@@ -37,7 +37,7 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
     .maybeSingle(),
     supabase
       .from("teaching_devotionals")
-      .select("id, teaching_id, slug, title, introduction, status, published_at")
+      .select("id, teaching_id, slug, title, introduction, status, published_at, language")
       .order("title", { ascending: true }),
   ]);
   const devotional = (devotionals ?? []).find((item) => item.id === assignment?.devotional_id) ?? null;

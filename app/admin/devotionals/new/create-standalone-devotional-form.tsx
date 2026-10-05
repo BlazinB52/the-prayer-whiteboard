@@ -7,11 +7,19 @@ import type { DevotionalFormState } from "@/app/admin/teachings/devotional-actio
 type Action = (state: DevotionalFormState, formData: FormData) => Promise<DevotionalFormState>;
 
 export function CreateStandaloneDevotionalForm({ action }: { action: Action }) {
-  const [values, setValues] = useState({ title: "", introduction: "" });
+  const [values, setValues] = useState({ title: "", introduction: "", language: "en" });
   const [state, formAction, isPending] = useActionState(action, {});
 
   return (
     <form action={formAction} className="mt-6 space-y-5">
+      <label className="block text-sm font-bold text-[#385245]">
+        Language
+        <select name="language" value={values.language} onChange={(event) => setValues((current) => ({ ...current, language: event.target.value }))} className="admin-input">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+        <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">Español devotionals appear on the Español homepage and are not emailed to subscribers automatically.</span>
+      </label>
       <label className="block text-sm font-bold text-[#385245]">
         Devotional title <span className="text-[#a2472c]">*</span>
         <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">A working title is fine. It becomes the provisional web address and can be changed before the devotional is published.</span>

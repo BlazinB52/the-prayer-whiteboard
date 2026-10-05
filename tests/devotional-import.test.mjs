@@ -50,8 +50,10 @@ test("devotional admin index lists devotional records without teaching-only card
   const source = await readFile("app/admin/devotionals/page.tsx", "utf8");
   assert.match(source, /\.from\("teaching_devotionals"\)/);
   assert.match(source, /devotionals\.map\(\(devotional\)/);
-  assert.match(source, /Used by/);
-  assert.match(source, /Preview devotional/);
+  assert.match(source, /No associated teaching/);
+  assert.match(source, /heading="English"/);
+  assert.match(source, /heading="Español"/);
+  assert.match(source, /\/admin\/devotionals\/\$\{devotional\.id\}/);
   assert.match(source, /Create New Devotional/);
   assert.doesNotMatch(source, /Edit teaching/);
   assert.doesNotMatch(source, /no devotional(?!s)/i);

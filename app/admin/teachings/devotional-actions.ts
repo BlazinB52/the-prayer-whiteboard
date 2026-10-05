@@ -29,6 +29,10 @@ function readText(formData: FormData, name: string, maxLength: number, required 
 
 // Shared day-field validation, used by both the teaching-scoped and the
 // standalone day editors.
+function readLanguage(formData: FormData) {
+  return formData.get("language") === "es" ? "es" : "en";
+}
+
 function readDayFields(formData: FormData) {
   const title = readText(formData, "title", MAX_LENGTHS.title);
   const devotionalReading = readText(formData, "devotionalReading", MAX_LENGTHS.reading);
@@ -88,7 +92,7 @@ async function getTeaching(supabase: Awaited<ReturnType<typeof requireAdmin>>["s
   if (!UUID_PATTERN.test(teachingId)) return null;
   const { data } = await supabase
     .from("teachings")
-    .select("id, slug, title, status")
+    .select("id, slug, title, status, language")
     .eq("id", teachingId)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -165,7 +169,7 @@ export async function createDevotional(teachingId: string, previousState: Devoti
 
   const { data: created, error } = await supabase
     .from("teaching_devotionals")
-    .insert({ teaching_id: teaching.id, slug: teaching.slug, title: `${teaching.title} 7-Day Devotional`, status: "draft", published_at: null })
+    .insert({ teaching_id: teaching.id, slug: teaching.slug, title: `${teaching.title} 7-Day Devotional`, language: teaching.language === "es" ? "es" : "en", status: "draft", published_at: null })
     .select("id")
     .single();
 
@@ -233,7 +237,7 @@ export async function updateDevotionalSeries(teachingId: string, previousState: 
 
   const { error } = await supabase
     .from("teaching_devotionals")
-    .update({ title: title.value, introduction: introduction.value || null })
+    .update({ title: title.value, introduction: introduction.value || null, language: readLanguage(formData) })
     .eq("id", devotional.id);
 
   if (error) return { error: "The devotional series information could not be saved." };
@@ -322,6 +326,7 @@ export async function importDevotionalText(teachingId: string, previousState: De
       .insert({
         teaching_id: teaching.id,
         slug: teaching.slug,
+        language: teaching.language === "es" ? "es" : "en",
         title: imported.title,
         introduction: imported.introduction || null,
         status: "draft",
@@ -465,6 +470,7 @@ export async function createStandaloneDevotional(previousState: DevotionalFormSt
       .insert({
         teaching_id: null,
         slug,
+        language: readLanguage(formData),
         title: titleValue,
         introduction: introduction.value || null,
         status: "draft",
@@ -505,7 +511,7 @@ export async function updateStandaloneDevotionalSeries(devotionalId: string, pre
 
   const { error } = await supabase
     .from("teaching_devotionals")
-    .update({ title: title.value, introduction: introduction.value || null })
+    .update({ title: title.value, introduction: introduction.value || null, language: readLanguage(formData) })
     .eq("id", devotional.id);
 
   if (error) return { error: "The devotional series information could not be saved." };

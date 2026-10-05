@@ -7,6 +7,7 @@ import { ContentWorkspace } from "../../content-workspace";
 import { DeleteTeachingButton } from "../../delete-teaching-button";
 import { PublishFeatureButton } from "../../publish-feature-button";
 import { UnpublishButton } from "../../unpublish-button";
+import { TeachingTestSendForm } from "../../test-send-form";
 import {
   createCategory,
   createSection,
@@ -24,6 +25,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+function formatDate(value: string | null) {
+  if (!value) return "Not set";
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
+}
+
 export default async function EditTeachingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
@@ -33,7 +39,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
   const { supabase } = await requireAdmin();
   const { data: teaching, error } = await supabase
     .from("teachings")
-    .select("id, title, teaching_type, gathering_date, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, status, chalkboard_asset_id")
+    .select("id, slug, title, is_featured, updated_at, teaching_type, language, gathering_date, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, status, chalkboard_asset_id")
     .eq("id", id)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -135,11 +141,28 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
           <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{teaching.status}</span>
         </div>
         <p className="mt-3 text-sm text-[#607066]">Update metadata and teaching content without changing publication or homepage-feature status.</p>
+        <section className="mt-6 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{teaching.language === "es" ? "Español" : "English"}</span>
+            {teaching.teaching_type === "deep_dive" ? <span className="rounded-full bg-[#20382e] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#f0cb83]">Deep Dive</span> : null}
+          </div>
+          <dl className="mt-4 grid gap-3 text-sm text-[#607066] sm:grid-cols-3">
+            <div><dt>Gathering date</dt><dd className="font-bold text-[#385245]">{formatDate(teaching.gathering_date)}</dd></div>
+            <div><dt>Featured</dt><dd className="font-bold text-[#385245]">{teaching.is_featured ? "Yes" : "No"}</dd></div>
+            <div><dt>Last updated</dt><dd className="font-bold text-[#385245]">{new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(teaching.updated_at))}</dd></div>
+          </dl>
+          {teaching.status === "published" ? <Link href={`/teachings/${teaching.slug}`} className="mt-4 inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">View public teaching</Link> : null}
+          <details className="mt-4">
+            <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Send a test email</summary>
+            <div className="mt-4"><TeachingTestSendForm teachingId={id} /></div>
+          </details>
+        </section>
         <TeachingForm
           action={updateTeaching.bind(null, id)}
           values={{
             title: teaching.title,
             teachingType: teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard",
+            language: teaching.language === "es" ? "es" : "en",
             gatheringDate: teaching.gathering_date ?? "",
             centralTheme: teaching.central_theme ?? "",
             introduction: teaching.introduction ?? "",

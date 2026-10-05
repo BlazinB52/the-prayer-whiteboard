@@ -7,6 +7,7 @@ import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 type TeachingValues = {
   title: string;
   teachingType: "standard" | "deep_dive";
+  language: "en" | "es";
   gatheringDate: string;
   centralTheme: string;
   introduction: string;
@@ -31,7 +32,7 @@ type FooterOption = { id: string; label: string };
 export function TeachingForm({ values, action, chalkboards = [], footers = [] }: { values: TeachingValues; action: Action; chalkboards?: ChalkboardOption[]; footers?: FooterOption[] }) {
   const router = useRouter();
   const [draftValues, setDraftValues] = useState<TeachingValues>(values);
-  const formKey = [values.title, values.teachingType, values.gatheringDate, values.centralTheme, values.introduction, values.summary, values.teaser1Heading, values.teaser1Text, values.teaser2Heading, values.teaser2Text, values.chalkboardAssetIds.join(","), String(values.includeFooter), values.footerId].join("::");
+  const formKey = [values.title, values.teachingType, values.language, values.gatheringDate, values.centralTheme, values.introduction, values.summary, values.teaser1Heading, values.teaser1Text, values.teaser2Heading, values.teaser2Text, values.chalkboardAssetIds.join(","), String(values.includeFooter), values.footerId].join("::");
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target;
@@ -66,6 +67,13 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
       <label className="block text-sm font-bold text-[#385245]">
         Title <span className="text-[#a2472c]">*</span>
         <input name="title" value={draftValues.title} onChange={handleChange} required maxLength={160} className="admin-input" />
+      </label>
+      <label className="block text-sm font-bold text-[#385245]">
+        Language
+        <select name="language" value={draftValues.language} onChange={handleChange} className="admin-input">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
       </label>
       <label className="block text-sm font-bold text-[#385245]">
         Gathering date

@@ -104,6 +104,7 @@ function validateTeasers(formData: FormData) {
 
 function validateMetadata(formData: FormData) {
   const teachingType = formData.get("teachingType") === "deep_dive" ? "deep_dive" : "standard";
+  const language = formData.get("language") === "es" ? "es" : "en";
   const fields = {
     title: readText(formData, "title", MAX_LENGTHS.title, true),
     centralTheme: readText(formData, "centralTheme", MAX_LENGTHS.centralTheme),
@@ -126,6 +127,7 @@ function validateMetadata(formData: FormData) {
       summary: fields.summary.value || null,
       gathering_date: fields.gatheringDate.value,
       teaching_type: teachingType,
+      language,
       ...teasers.value!,
     },
   };

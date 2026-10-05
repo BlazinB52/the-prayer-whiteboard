@@ -180,7 +180,7 @@ export default async function EspanolHomePage() {
         <div className="mt-2 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm">
           <Link href="/" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline">English</Link>
           <Link href="/privacy" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline">Privacidad</Link>
-          <Link href="/copyright-disclaimers" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline">Derechos de autor</Link>
+          <Link href="/espanol/derechos-de-autor" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline">Derechos de autor</Link>
           <a href="mailto:theprayerwhiteboard@gmail.com" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline">Contacto</a>
         </div>
       </footer>

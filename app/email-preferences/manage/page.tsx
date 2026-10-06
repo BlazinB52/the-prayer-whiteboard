@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { loadPreferenceToken } from "@/lib/email-subscriptions";
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 export default async function ManageEmailPreferencesPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token = "" } = await searchParams;
   const preference = await loadPreferenceToken(token);
+  if (preference?.language === "es") redirect(`/espanol/preferencias/administrar?token=${encodeURIComponent(token)}`);
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] text-[#243126]">

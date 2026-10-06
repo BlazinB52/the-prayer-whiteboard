@@ -48,14 +48,14 @@ test("Español teaching and devotional pages use the Español footer and never o
   assert.match(start, /series\.language === "es"/);
 });
 
-test("the Español header and footer never link to the English subscription", async () => {
+test("the Español header and footer send subscribers to the Español form, never the English one", async () => {
   const header = await readFile("app/public-header.tsx", "utf8");
-  const guarded = header.match(/spanish \? null : <Link href="\/subscribe"/g)?.length ?? 0;
-  const all = header.match(/<Link href="\/subscribe"/g)?.length ?? 0;
-  assert.ok(all > 0);
-  assert.equal(guarded, all, "every Subscribe button in the header must be hidden on Español pages");
+  const routed = header.match(/<Link href=\{spanish \? "\/espanol\/suscribirse" : "\/subscribe"\}/g)?.length ?? 0;
+  assert.ok(routed > 0);
+  assert.doesNotMatch(header, /<Link href="\/subscribe"/, "every Subscribe button in the header must switch to the Español form on Español pages");
   const footer = await readFile("app/public-footer-es.tsx", "utf8");
-  assert.doesNotMatch(footer, /\/subscribe/);
+  assert.match(footer, /\/espanol\/suscribirse/);
+  assert.doesNotMatch(footer, /\/subscribe\b/);
   assert.doesNotMatch(footer, /href="\/(privacy|copyright-disclaimers|about|devotionals)"/);
 });
 

@@ -36,26 +36,26 @@ export function PublicHeader({ maxWidthClassName = "max-w-5xl", nav, homeLabel =
             <nav className="hidden items-center gap-4 text-xs font-bold text-[#385245] lg:flex" aria-label="Main navigation">
               {navItems.map((item) => <a key={item.href} href={item.href} className="transition hover:text-[#a45e2e]">{item.label}</a>)}
             </nav>
-            {spanish ? null : <Link href="/subscribe" className={`${subscribeClassName} hidden lg:inline-flex`}>Subscribe</Link>}
+            <Link href={spanish ? "/espanol/suscribirse" : "/subscribe"} className={`${subscribeClassName} hidden lg:inline-flex`}>{spanish ? "Suscribirse" : "Subscribe"}</Link>
             <details className="group relative lg:hidden">
               <summary className="grid size-11 list-none place-items-center rounded-xl border border-[#284a3b]/15 bg-white text-[#244a3a] [&::-webkit-details-marker]:hidden" aria-label="Open navigation">
                 <Menu aria-hidden="true" size={22} />
               </summary>
               <div className="absolute right-0 top-14 z-50 min-w-56 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-3 text-sm font-bold text-[#385245] shadow-2xl shadow-[#243126]/15">
                 {navItems.map((item) => <a key={item.href} href={item.href} className="block rounded-xl px-3 py-2 transition hover:bg-[#f7f2e8] hover:text-[#a45e2e]">{item.label}</a>)}
-                {spanish ? null : <Link href="/subscribe" className={`${subscribeClassName} mt-2 w-full`}>Subscribe</Link>}
+                <Link href={spanish ? "/espanol/suscribirse" : "/subscribe"} className={`${subscribeClassName} mt-2 w-full`}>{spanish ? "Suscribirse" : "Subscribe"}</Link>
               </div>
             </details>
           </div>
         ) : end ? (
           <div className="flex items-center gap-3">
             <div className="hidden sm:block">{end}</div>
-            {spanish ? null : <Link href="/subscribe" className={subscribeClassName}>Subscribe</Link>}
+            <Link href={spanish ? "/espanol/suscribirse" : "/subscribe"} className={subscribeClassName}>{spanish ? "Suscribirse" : "Subscribe"}</Link>
           </div>
         ) : (
           <div className="flex items-center gap-3">
             <Link href={spanish ? "/espanol" : "/"} className="hidden shrink-0 text-sm font-extrabold text-[#244a3a] sm:inline-flex">{spanish ? "Inicio" : homeLabel}</Link>
-            {spanish ? null : <Link href="/subscribe" className={subscribeClassName}>Subscribe</Link>}
+            <Link href={spanish ? "/espanol/suscribirse" : "/subscribe"} className={subscribeClassName}>{spanish ? "Suscribirse" : "Subscribe"}</Link>
           </div>
         )}
       </div>

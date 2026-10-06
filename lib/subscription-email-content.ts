@@ -1,4 +1,6 @@
-import { EMAIL_CATEGORY_LABELS, type EmailCategory } from "./email-categories.ts";
+import { emailCategoryLabel, type EmailCategory } from "./email-categories.ts";
+
+type Language = "en" | "es";
 
 const BRAND = "The Prayer Whiteboard";
 
@@ -43,23 +45,26 @@ export function shell(title: string, body: string, letterhead?: string) {
 </html>`;
 }
 
-export function greeting(firstName: string) {
+export function greeting(firstName: string, language: Language = "en") {
+  if (language === "es") return firstName ? `Hola ${escapeHtml(firstName)},` : "Hola,";
   return firstName ? `Hi ${escapeHtml(firstName)},` : "Hello,";
 }
 
-export function textGreeting(firstName: string) {
+export function textGreeting(firstName: string, language: Language = "en") {
+  if (language === "es") return firstName ? `Hola ${firstName},` : "Hola,";
   return firstName ? `Hi ${firstName},` : "Hello,";
 }
 
-function categoryList(categories: EmailCategory[]) {
-  return categories.map((category) => `<li>${escapeHtml(EMAIL_CATEGORY_LABELS[category])}</li>`).join("");
+function categoryList(categories: EmailCategory[], language: Language = "en") {
+  return categories.map((category) => `<li>${escapeHtml(emailCategoryLabel(category, language))}</li>`).join("");
 }
 
-function categoryText(categories: EmailCategory[]) {
-  return categories.map((category) => `- ${EMAIL_CATEGORY_LABELS[category]}`).join("\n");
+function categoryText(categories: EmailCategory[], language: Language = "en") {
+  return categories.map((category) => `- ${emailCategoryLabel(category, language)}`).join("\n");
 }
 
-export function buildConfirmationEmail(input: { firstName: string; categories: EmailCategory[]; confirmationUrl: string; expiresAt: string }) {
+export function buildConfirmationEmail(input: { firstName: string; categories: EmailCategory[]; confirmationUrl: string; expiresAt: string; language?: Language }) {
+  if (input.language === "es") return buildConfirmationEmailEs(input);
   const expires = new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeStyle: "short" }).format(new Date(input.expiresAt));
   const subject = "Confirm your Prayer Whiteboard email subscription";
   const html = shell("Confirm your email subscription", `
@@ -87,7 +92,8 @@ If you have trouble finding future Prayer Whiteboard emails, please check Junk, 
   return { subject, html, text };
 }
 
-export function buildPreferenceManagementEmail(input: { firstName: string; managementUrl: string; expiresAt: string }) {
+export function buildPreferenceManagementEmail(input: { firstName: string; managementUrl: string; expiresAt: string; language?: Language }) {
+  if (input.language === "es") return buildPreferenceManagementEmailEs(input);
   const expires = new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeStyle: "short" }).format(new Date(input.expiresAt));
   const subject = "Your secure Prayer Whiteboard preference link";
   const html = shell("Manage your email preferences", `
@@ -107,5 +113,60 @@ ${input.managementUrl}
 This link is temporary, single-use, and expires on ${expires}.
 
 If you did not request this link, you can ignore this message.`;
+  return { subject, html, text };
+}
+
+function expiryEs(expiresAt: string) {
+  return new Intl.DateTimeFormat("es", { dateStyle: "long", timeStyle: "short" }).format(new Date(expiresAt));
+}
+
+function buildConfirmationEmailEs(input: { firstName: string; categories: EmailCategory[]; confirmationUrl: string; expiresAt: string }) {
+  const expires = expiryEs(input.expiresAt);
+  const subject = "Confirma tu suscripción por correo de The Prayer Whiteboard";
+  const html = shell("Confirma tu suscripción por correo", `
+    <p style="margin:0 0 16px;line-height:1.65;">${greeting(input.firstName, "es")}</p>
+    <p style="margin:0 0 16px;line-height:1.65;">Por favor, confirma que deseas recibir las actualizaciones por correo de The Prayer Whiteboard que seleccionaste.</p>
+    <p style="margin:24px 0;">${button("Confirmar mi suscripción", input.confirmationUrl)}</p>
+    <p style="margin:0 0 10px;line-height:1.65;">Categorías de correo solicitadas:</p>
+    <ul style="margin:0 0 16px;padding-left:22px;line-height:1.65;">${categoryList(input.categories, "es")}</ul>
+    <p style="margin:0 0 16px;line-height:1.65;">Este enlace vence el ${escapeHtml(expires)}. Si no solicitaste esta suscripción, puedes ignorar este mensaje.</p>
+    <p style="margin:0;line-height:1.65;color:#607066;">Si no encuentras los próximos correos de The Prayer Whiteboard, revisa las carpetas de correo no deseado, spam o promociones.</p>
+  `);
+  const text = `${textGreeting(input.firstName, "es")}
+
+Por favor, confirma que deseas recibir las actualizaciones por correo de The Prayer Whiteboard que seleccionaste.
+
+Confirmar mi suscripción:
+${input.confirmationUrl}
+
+Categorías de correo solicitadas:
+${categoryText(input.categories, "es")}
+
+Este enlace vence el ${expires}. Si no solicitaste esta suscripción, puedes ignorar este mensaje.
+
+Si no encuentras los próximos correos de The Prayer Whiteboard, revisa las carpetas de correo no deseado, spam o promociones.`;
+  return { subject, html, text };
+}
+
+function buildPreferenceManagementEmailEs(input: { firstName: string; managementUrl: string; expiresAt: string }) {
+  const expires = expiryEs(input.expiresAt);
+  const subject = "Tu enlace seguro de preferencias de The Prayer Whiteboard";
+  const html = shell("Administra tus preferencias de correo", `
+    <p style="margin:0 0 16px;line-height:1.65;">${greeting(input.firstName, "es")}</p>
+    <p style="margin:0 0 16px;line-height:1.65;">Usa este enlace seguro para administrar tus preferencias de correo de The Prayer Whiteboard.</p>
+    <p style="margin:24px 0;">${button("Administrar mis preferencias de correo", input.managementUrl)}</p>
+    <p style="margin:0 0 16px;line-height:1.65;">Este enlace es temporal, de un solo uso, y vence el ${escapeHtml(expires)}.</p>
+    <p style="margin:0;line-height:1.65;color:#607066;">Si no solicitaste este enlace, puedes ignorar este mensaje.</p>
+  `);
+  const text = `${textGreeting(input.firstName, "es")}
+
+Usa este enlace seguro para administrar tus preferencias de correo de The Prayer Whiteboard.
+
+Administrar mis preferencias de correo:
+${input.managementUrl}
+
+Este enlace es temporal, de un solo uso, y vence el ${expires}.
+
+Si no solicitaste este enlace, puedes ignorar este mensaje.`;
   return { subject, html, text };
 }

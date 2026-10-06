@@ -2,7 +2,8 @@ import "server-only";
 
 import crypto from "node:crypto";
 import { headers } from "next/headers";
-import { EMAIL_CATEGORIES, type EmailCategory, type PreferenceView } from "@/lib/email-categories";
+import { EMAIL_CATEGORIES, offeredEmailCategories, type EmailCategory, type PreferenceView } from "@/lib/email-categories";
+import { toLanguage, type Language } from "@/lib/i18n";
 import { getSenderGroupIdsForCategories } from "@/lib/devotional-sender-groups";
 import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "@/lib/subscription-email-content";
@@ -42,36 +43,67 @@ export function maskEmail(email: string) {
   return `${visible}${"*".repeat(Math.max(2, name.length - visible.length))}@${domain}`;
 }
 
-export function readSelectedCategories(formData: FormData) {
-  return EMAIL_CATEGORIES.filter((category) => formData.get(category) === "on");
+export function readSelectedCategories(formData: FormData, language: Language = "en") {
+  return offeredEmailCategories(language).filter((category) => formData.get(category) === "on");
 }
 
-export function validateSubscriberFields(formData: FormData) {
+const MESSAGES = {
+  en: {
+    submit: "Subscription could not be submitted.",
+    firstName: "Enter your first name.",
+    email: "Enter a valid email address.",
+    category: "Choose at least one email category.",
+    consent: "Please acknowledge the privacy and consent statement.",
+    prefLink: "This preference link is missing or invalid.",
+    prefCategory: "Choose at least one email category or unsubscribe from all.",
+    prefSave: "Preferences could not be saved.",
+    prefExpired: "This preference link is invalid or expired.",
+    preferencesSaved: "Subscription preferences could not be saved.",
+    confirmationFailed: "Your subscription was saved, but the confirmation email could not be sent. Please try again in a few minutes.",
+  },
+  es: {
+    submit: "No se pudo enviar la suscripción.",
+    firstName: "Escribe tu nombre.",
+    email: "Escribe una dirección de correo electrónico válida.",
+    category: "Elige al menos una categoría de correo.",
+    consent: "Por favor, acepta la declaración de privacidad y consentimiento.",
+    prefLink: "Este enlace de preferencias falta o no es válido.",
+    prefCategory: "Elige al menos una categoría de correo o cancela todas las suscripciones.",
+    prefSave: "No se pudieron guardar las preferencias.",
+    prefExpired: "Este enlace de preferencias no es válido o venció.",
+    preferencesSaved: "No se pudieron guardar las preferencias de suscripción.",
+    confirmationFailed: "Tu suscripción se guardó, pero no se pudo enviar el correo de confirmación. Inténtalo de nuevo en unos minutos.",
+  },
+} as const;
+
+export function validateSubscriberFields(formData: FormData, language: Language = "en") {
+  const m = MESSAGES[language];
   const firstName = String(formData.get("firstName") ?? "").trim().replace(/\s+/g, " ");
   const email = String(formData.get("email") ?? "").trim();
   const normalizedEmail = normalizeEmail(email);
-  const categories = readSelectedCategories(formData);
+  const categories = readSelectedCategories(formData, language);
   const consent = formData.get("privacyConsent") === "on";
   const website = String(formData.get("website") ?? "").trim();
 
-  if (website) return { error: "Subscription could not be submitted." };
-  if (!firstName || firstName.length > 120) return { error: "Enter your first name." };
-  if (!EMAIL_PATTERN.test(normalizedEmail) || normalizedEmail.length > 320) return { error: "Enter a valid email address." };
-  if (!categories.length) return { error: "Choose at least one email category." };
-  if (!consent) return { error: "Please acknowledge the privacy and consent statement." };
+  if (website) return { error: m.submit };
+  if (!firstName || firstName.length > 120) return { error: m.firstName };
+  if (!EMAIL_PATTERN.test(normalizedEmail) || normalizedEmail.length > 320) return { error: m.email };
+  if (!categories.length) return { error: m.category };
+  if (!consent) return { error: m.consent };
 
   return { value: { firstName, email, normalizedEmail, categories } };
 }
 
-export function validatePreferenceFields(formData: FormData) {
+export function validatePreferenceFields(formData: FormData, language: Language = "en") {
+  const m = MESSAGES[language];
   const firstName = String(formData.get("firstName") ?? "").trim().replace(/\s+/g, " ");
-  const categories = readSelectedCategories(formData);
+  const categories = readSelectedCategories(formData, language);
   const unsubscribeAll = formData.get("unsubscribeAll") === "on";
   const token = String(formData.get("token") ?? "").trim();
 
-  if (!token) return { error: "This preference link is missing or invalid." };
-  if (!firstName || firstName.length > 120) return { error: "Enter your first name." };
-  if (!unsubscribeAll && !categories.length) return { error: "Choose at least one email category or unsubscribe from all." };
+  if (!token) return { error: m.prefLink };
+  if (!firstName || firstName.length > 120) return { error: m.firstName };
+  if (!unsubscribeAll && !categories.length) return { error: m.prefCategory };
 
   return { value: { firstName, categories, token, unsubscribeAll } };
 }
@@ -152,7 +184,10 @@ function devotionalContextFromMetadata(metadata: unknown): DevotionalContext | n
 
 // Group sync runs only for confirmed subscribers, so an unconfirmed address is
 // never created in Sender.
-async function syncConfirmedSubscriber(input: { subscriberId: string; email: string; firstName: string; categories: EmailCategory[]; devotionalSlug?: string | null }) {
+async function syncConfirmedSubscriber(input: { subscriberId: string; email: string; firstName: string; categories: EmailCategory[]; devotionalSlug?: string | null; language?: Language }) {
+  // The Sender groups (and the automations attached to them) are English. Español subscribers are
+  // kept in Supabase only until Español groups exist.
+  if (input.language === "es") return;
   const supabase = getClient();
 
   const groupIds = getSenderGroupIdsForCategories(input.categories, input.devotionalSlug);
@@ -282,13 +317,16 @@ async function hasRecentSuccessfulDelivery(subscriberId: string, messageType: "c
   return Boolean(count);
 }
 
-async function deliverConfirmationEmail(input: { subscriberId: string; firstName: string; email: string; categories: EmailCategory[]; token: string; expiresAt: string }) {
-  const confirmationUrl = `${siteUrl()}/subscribe/confirm?token=${encodeURIComponent(input.token)}`;
-  const email = buildConfirmationEmail({ firstName: input.firstName, categories: input.categories, confirmationUrl, expiresAt: input.expiresAt });
+async function deliverConfirmationEmail(input: { subscriberId: string; firstName: string; email: string; categories: EmailCategory[]; token: string; expiresAt: string; language?: Language }) {
+  const language = input.language ?? "en";
+  const deliveryPath = language === "es" ? "/espanol/suscribirse/confirmar" : "/subscribe/confirm";
+  const confirmationUrl = `${siteUrl()}${deliveryPath}?token=${encodeURIComponent(input.token)}`;
+  const email = buildConfirmationEmail({ firstName: input.firstName, categories: input.categories, confirmationUrl, expiresAt: input.expiresAt, language });
   const deliveryEventId = await createDeliveryEvent(input.subscriberId, "confirmation", {
     expiresAt: input.expiresAt,
     categories: input.categories,
-    deliveryPath: "/subscribe/confirm",
+    deliveryPath,
+    language,
   });
   const result = await sendSenderTransactionalEmail({
     toEmail: input.email,
@@ -301,12 +339,15 @@ async function deliverConfirmationEmail(input: { subscriberId: string; firstName
   return result;
 }
 
-async function deliverPreferenceManagementEmail(input: { subscriberId: string; firstName: string; email: string; token: string; expiresAt: string }) {
-  const managementUrl = `${siteUrl()}/email-preferences/manage?token=${encodeURIComponent(input.token)}`;
-  const email = buildPreferenceManagementEmail({ firstName: input.firstName, managementUrl, expiresAt: input.expiresAt });
+async function deliverPreferenceManagementEmail(input: { subscriberId: string; firstName: string; email: string; token: string; expiresAt: string; language?: Language }) {
+  const language = input.language ?? "en";
+  const deliveryPath = language === "es" ? "/espanol/preferencias/administrar" : "/email-preferences/manage";
+  const managementUrl = `${siteUrl()}${deliveryPath}?token=${encodeURIComponent(input.token)}`;
+  const email = buildPreferenceManagementEmail({ firstName: input.firstName, managementUrl, expiresAt: input.expiresAt, language });
   const deliveryEventId = await createDeliveryEvent(input.subscriberId, "management", {
     expiresAt: input.expiresAt,
-    deliveryPath: "/email-preferences/manage",
+    deliveryPath,
+    language,
   });
   const result = await sendSenderTransactionalEmail({
     toEmail: input.email,
@@ -319,18 +360,19 @@ async function deliverPreferenceManagementEmail(input: { subscriberId: string; f
   return result;
 }
 
-export async function requestSubscription(formData: FormData) {
-  const fields = validateSubscriberFields(formData);
-  if (fields.error || !fields.value) return { error: fields.error ?? "Subscription could not be submitted." };
+export async function requestSubscription(formData: FormData, language: Language = "en") {
+  const m = MESSAGES[language];
+  const fields = validateSubscriberFields(formData, language);
+  if (fields.error || !fields.value) return { error: fields.error ?? m.submit };
   const devotionalContext = await readDevotionalContext(formData, fields.value.categories);
 
   const supabase = getClient();
   const { data: existing, error: existingError } = await supabase
     .from("email_subscribers")
-    .select("id, status, confirmed_at")
+    .select("id, status, confirmed_at, language")
     .eq("normalized_email", fields.value.normalizedEmail)
     .maybeSingle();
-  if (existingError) return { error: "Subscription could not be submitted." };
+  if (existingError) return { error: m.submit };
   // A suppressed address is a hard stop on Sender's side, not just ours — retrying
   // the same rejected send would only repeat the rejection. Clear the Sender-side
   // block first; only then is it safe to treat this like a fresh signup below,
@@ -347,7 +389,32 @@ export async function requestSubscription(formData: FormData) {
     ...(await requestMetadata()),
     source: devotionalContext.value ? "devotional_start" : "general_subscribe",
     devotional: devotionalContext.value,
+    language,
   };
+
+  // A confirmed subscriber signing up in the other language is not switched on the spot, because
+  // anyone could otherwise change someone else's language by typing their address. The request
+  // waits in pending_language and takes effect when they click the confirmation link, which is sent
+  // in the new language and lists the categories they asked for.
+  if (existing && existingIsConfirmed && toLanguage(existing.language) !== language) {
+    const { error: pendingError } = await supabase.from("email_subscribers").update({ pending_language: language }).eq("id", existing.id);
+    if (pendingError) return { error: m.submit };
+    await recordConsentEvent(existing.id, "subscription_requested", fields.value.categories, { ...consentMetadata, languageSwitch: true });
+    if (await hasRecentSuccessfulDelivery(existing.id, "confirmation")) return { submitted: true };
+    const switchAccess = await createAccessToken(existing.id, "confirmation");
+    const switchDelivery = await deliverConfirmationEmail({
+      subscriberId: existing.id,
+      firstName: fields.value.firstName,
+      email: fields.value.email,
+      categories: fields.value.categories,
+      token: switchAccess.token,
+      expiresAt: switchAccess.expiresAt,
+      language,
+    });
+    if (isSuppressionRejection(switchDelivery)) return { submitted: true };
+    if (!switchDelivery.ok) return { error: m.confirmationFailed };
+    return { submitted: true };
+  }
 
   if (existing && existingIsConfirmed) {
     const { data: activePreferences, error: preferenceError } = await supabase
@@ -355,7 +422,7 @@ export async function requestSubscription(formData: FormData) {
       .select("category")
       .eq("subscriber_id", existing.id)
       .eq("status", "active");
-    if (preferenceError) return { error: "Subscription preferences could not be saved." };
+    if (preferenceError) return { error: m.preferencesSaved };
 
     const activeCategories = (activePreferences ?? [])
       .map((preference) => preference.category as EmailCategory)
@@ -374,7 +441,7 @@ export async function requestSubscription(formData: FormData) {
       sender_sync_status: "not_configured",
       sender_sync_error: null,
     }).eq("id", existing.id);
-    if (subscriberError) return { error: "Subscription could not be submitted." };
+    if (subscriberError) return { error: m.submit };
 
     await replacePreferences(existing.id, categories, "active");
     await recordConsentEvent(existing.id, "preference_changed", categories, consentMetadata);
@@ -384,6 +451,7 @@ export async function requestSubscription(formData: FormData) {
       firstName: fields.value.firstName,
       categories,
       devotionalSlug: devotionalContext.value?.slug,
+      language,
     });
     return { submitted: true, alreadyConfirmed: true };
   }
@@ -398,14 +466,16 @@ export async function requestSubscription(formData: FormData) {
     unsubscribed_at: null,
     suppressed_at: null,
     sender_sync_status: "not_configured",
+    language,
+    pending_language: null,
   };
   const subscriberResult = subscriberId
     ? await supabase.from("email_subscribers").update(subscriberPayload).eq("id", subscriberId)
     : await supabase.from("email_subscribers").insert(subscriberPayload).select("id").single();
   if (!subscriberId && "data" in subscriberResult) subscriberId = subscriberResult.data?.id ?? null;
   const subscriberError = subscriberResult.error;
-  if (subscriberError) return { error: "Subscription could not be submitted." };
-  if (!subscriberId) return { error: "Subscription could not be submitted." };
+  if (subscriberError) return { error: m.submit };
+  if (!subscriberId) return { error: m.submit };
 
   await replacePreferences(subscriberId, fields.value.categories, "pending");
   const isResubscribe = existing?.status === "unsubscribed" || existing?.status === "suppressed";
@@ -419,9 +489,10 @@ export async function requestSubscription(formData: FormData) {
     categories: fields.value.categories,
     token: access.token,
     expiresAt: access.expiresAt,
+    language,
   });
   if (isSuppressionRejection(delivery)) return { submitted: true };
-  if (!delivery.ok) return { error: "Your subscription was saved, but the confirmation email could not be sent. Please try again in a few minutes." };
+  if (!delivery.ok) return { error: m.confirmationFailed };
 
   return { submitted: true };
 }
@@ -447,7 +518,7 @@ async function readToken(token: string, tokenType: "confirmation" | "management"
 }
 
 export async function confirmSubscriptionToken(token: string) {
-  if (!token) return { status: "invalid" as const, categories: [] as EmailCategory[] };
+  if (!token) return { status: "invalid" as const, categories: [] as EmailCategory[], language: "en" as Language };
   const supabase = getClient();
   const tokenResult = await readToken(token, "confirmation", true);
   if (tokenResult.status === "used" && tokenResult.subscriberId) {
@@ -457,43 +528,64 @@ export async function confirmSubscriptionToken(token: string) {
       .eq("subscriber_id", tokenResult.subscriberId)
       .eq("status", "active");
     const activeCategories = (activePreferences ?? []).map((preference) => preference.category as EmailCategory).filter((category) => EMAIL_CATEGORIES.includes(category));
-    return { status: "already_confirmed" as const, categories: activeCategories };
+    const { data: usedSubscriber } = await supabase.from("email_subscribers").select("language").eq("id", tokenResult.subscriberId).maybeSingle();
+    return { status: "already_confirmed" as const, categories: activeCategories, language: toLanguage(usedSubscriber?.language) };
   }
-  if (tokenResult.status !== "valid" || !tokenResult.subscriberId) return { status: tokenResult.status, categories: [] as EmailCategory[] };
+  if (tokenResult.status !== "valid" || !tokenResult.subscriberId) return { status: tokenResult.status, categories: [] as EmailCategory[], language: "en" as Language };
 
   const { data: preferences, error: prefError } = await supabase
     .from("email_subscription_preferences")
     .select("category, status")
     .eq("subscriber_id", tokenResult.subscriberId)
     .eq("status", "pending");
-  if (prefError) return { status: "invalid" as const, categories: [] as EmailCategory[] };
-  const categories = (preferences ?? []).map((preference) => preference.category as EmailCategory).filter((category) => EMAIL_CATEGORIES.includes(category));
-  if (!categories.length) return { status: "invalid" as const, categories: [] as EmailCategory[] };
+  if (prefError) return { status: "invalid" as const, categories: [] as EmailCategory[], language: "en" as Language };
+  let categories = (preferences ?? []).map((preference) => preference.category as EmailCategory).filter((category) => EMAIL_CATEGORIES.includes(category));
 
   const now = new Date().toISOString();
   const { data: subscriber } = await supabase
     .from("email_subscribers")
-    .select("email, first_name")
+    .select("email, first_name, language, pending_language, confirmed_at")
     .eq("id", tokenResult.subscriberId)
     .maybeSingle();
+  const currentLanguage = toLanguage(subscriber?.language);
+  const nextLanguage = subscriber?.pending_language ? toLanguage(subscriber.pending_language) : currentLanguage;
+  const switching = nextLanguage !== currentLanguage;
   const { data: requestEvent } = await supabase
     .from("email_consent_events")
-    .select("metadata")
+    .select("metadata, categories")
     .eq("subscriber_id", tokenResult.subscriberId)
     .in("event_type", ["subscription_requested", "resubscribed"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   const devotionalContext = devotionalContextFromMetadata(requestEvent?.metadata);
+
+  if (switching) {
+    // Language switch for an already-confirmed subscriber: keep what they already receive that exists
+    // in the new language, and add what they just asked for.
+    const offered = offeredEmailCategories(nextLanguage);
+    const requested = ((requestEvent?.categories ?? []) as string[]).filter((category): category is EmailCategory => (EMAIL_CATEGORIES as readonly string[]).includes(category));
+    const { data: activeRows } = await supabase
+      .from("email_subscription_preferences")
+      .select("category")
+      .eq("subscriber_id", tokenResult.subscriberId)
+      .eq("status", "active");
+    const active = (activeRows ?? []).map((row) => row.category as EmailCategory);
+    categories = [...new Set([...active, ...requested])].filter((category) => offered.includes(category));
+  }
+  if (!categories.length) return { status: "invalid" as const, categories: [] as EmailCategory[], language: currentLanguage };
+
   const { error: subscriberError } = await supabase.from("email_subscribers").update({
     status: "confirmed",
-    confirmed_at: now,
+    confirmed_at: switching ? (subscriber?.confirmed_at ?? now) : now,
     unsubscribed_at: null,
+    language: nextLanguage,
+    pending_language: null,
     sender_sync_status: "not_configured",
   }).eq("id", tokenResult.subscriberId);
-  if (subscriberError) return { status: "invalid" as const, categories: [] as EmailCategory[] };
+  if (subscriberError) return { status: "invalid" as const, categories: [] as EmailCategory[], language: currentLanguage };
   await replacePreferences(tokenResult.subscriberId, categories, "active");
-  await recordConsentEvent(tokenResult.subscriberId, "double_opt_in_confirmed", categories, await requestMetadata());
+  await recordConsentEvent(tokenResult.subscriberId, "double_opt_in_confirmed", categories, { ...(await requestMetadata()), language: nextLanguage, ...(switching ? { languageSwitch: true } : {}) });
   if (subscriber) {
     await syncConfirmedSubscriber({
       subscriberId: tokenResult.subscriberId,
@@ -501,23 +593,24 @@ export async function confirmSubscriptionToken(token: string) {
       firstName: subscriber.first_name,
       categories,
       devotionalSlug: devotionalContext?.slug,
+      language: nextLanguage,
     });
   }
-  return { status: "confirmed" as const, categories };
+  return { status: "confirmed" as const, categories, language: nextLanguage };
 }
 
-export async function requestManagementLink(formData: FormData) {
+export async function requestManagementLink(formData: FormData, language: Language = "en") {
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   const website = String(formData.get("website") ?? "").trim();
   if (website) return { submitted: true };
-  if (!EMAIL_PATTERN.test(email) || email.length > 320) return { error: "Enter a valid email address." };
+  if (!EMAIL_PATTERN.test(email) || email.length > 320) return { error: MESSAGES[language].email };
   const supabase = getClient();
   const { data: subscriber } = await supabase.from("email_subscribers").select("id, status").eq("normalized_email", email).maybeSingle();
   if (subscriber?.status === "confirmed" || subscriber?.status === "unsubscribed") {
     if (await hasRecentSuccessfulDelivery(subscriber.id, "management")) return { submitted: true };
     const access = await createAccessToken(subscriber.id, "management");
     await recordConsentEvent(subscriber.id, "preference_management_requested", [], await requestMetadata());
-    const { data: fullSubscriber } = await supabase.from("email_subscribers").select("first_name, email").eq("id", subscriber.id).maybeSingle();
+    const { data: fullSubscriber } = await supabase.from("email_subscribers").select("first_name, email, language").eq("id", subscriber.id).maybeSingle();
     if (!fullSubscriber) return { submitted: true };
     await deliverPreferenceManagementEmail({
       subscriberId: subscriber.id,
@@ -525,6 +618,8 @@ export async function requestManagementLink(formData: FormData) {
       email: fullSubscriber.email,
       token: access.token,
       expiresAt: access.expiresAt,
+      // The email follows the subscriber's own language, whichever page they asked from.
+      language: toLanguage(fullSubscriber.language),
     });
   }
   return { submitted: true };
@@ -535,11 +630,12 @@ export async function loadPreferenceToken(token: string): Promise<PreferenceView
   const tokenResult = await readToken(token, "management", false);
   if (tokenResult.status !== "valid" || !tokenResult.subscriberId) return null;
   const supabase = getClient();
-  const { data: subscriber } = await supabase.from("email_subscribers").select("id, first_name, email, status").eq("id", tokenResult.subscriberId).maybeSingle();
+  const { data: subscriber } = await supabase.from("email_subscribers").select("id, first_name, email, status, language").eq("id", tokenResult.subscriberId).maybeSingle();
   if (!subscriber || !["confirmed", "unsubscribed"].includes(subscriber.status)) return null;
   const { data: preferences } = await supabase.from("email_subscription_preferences").select("category, status").eq("subscriber_id", subscriber.id);
   return {
     subscriberId: subscriber.id,
+    language: toLanguage(subscriber.language),
     firstName: subscriber.first_name,
     emailMasked: maskEmail(subscriber.email),
     categories: ((preferences ?? []) as Preference[]).filter((preference) => preference.status === "active").map((preference) => preference.category),
@@ -547,11 +643,12 @@ export async function loadPreferenceToken(token: string): Promise<PreferenceView
   };
 }
 
-export async function savePreferences(formData: FormData) {
-  const fields = validatePreferenceFields(formData);
-  if (fields.error || !fields.value) return { error: fields.error ?? "Preferences could not be saved." };
+export async function savePreferences(formData: FormData, language: Language = "en") {
+  const m = MESSAGES[language];
+  const fields = validatePreferenceFields(formData, language);
+  if (fields.error || !fields.value) return { error: fields.error ?? m.prefSave };
   const tokenResult = await readToken(fields.value.token, "management", true);
-  if (tokenResult.status !== "valid" || !tokenResult.subscriberId) return { error: "This preference link is invalid or expired." };
+  if (tokenResult.status !== "valid" || !tokenResult.subscriberId) return { error: m.prefExpired };
   const supabase = getClient();
   const now = new Date().toISOString();
   const categories = fields.value.unsubscribeAll ? [] : fields.value.categories;
@@ -562,7 +659,7 @@ export async function savePreferences(formData: FormData) {
     unsubscribed_at: fields.value.unsubscribeAll ? now : null,
     sender_sync_status: "not_configured",
   }).eq("id", tokenResult.subscriberId);
-  if (error) return { error: "Preferences could not be saved." };
+  if (error) return { error: m.prefSave };
   await replacePreferences(tokenResult.subscriberId, categories, "active");
   await recordConsentEvent(tokenResult.subscriberId, fields.value.unsubscribeAll ? "unsubscribed" : "preference_changed", categories, await requestMetadata());
   return { saved: true, unsubscribed: fields.value.unsubscribeAll };

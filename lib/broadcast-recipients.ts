@@ -9,7 +9,9 @@ export type BroadcastRecipient = { id: string; firstName: string; email: string 
 
 // Recipients come from Supabase rather than a Sender group, so the double
 // opt-in state in our own database decides who is mailed.
-export async function loadConfirmedRecipients(category: EmailCategory): Promise<BroadcastRecipient[]> {
+// Language defaults to English so every existing broadcast keeps mailing only English subscribers;
+// an Español subscriber receives only a send that asks for "es" explicitly.
+export async function loadConfirmedRecipients(category: EmailCategory, language: "en" | "es" = "en"): Promise<BroadcastRecipient[]> {
   const supabase = createServiceRoleClient();
   if (!supabase) throw new Error("Broadcast storage is not configured.");
 
@@ -22,6 +24,7 @@ export async function loadConfirmedRecipients(category: EmailCategory): Promise<
       .eq("category", category)
       .eq("status", "active")
       .eq("email_subscribers.status", "confirmed")
+      .eq("email_subscribers.language", language)
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw new Error(`Recipient lookup failed: ${error.message}`);
     if (!data?.length) break;

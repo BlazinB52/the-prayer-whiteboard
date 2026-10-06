@@ -314,6 +314,7 @@ export async function importDevotionalText(teachingId: string, previousState: De
       .update({
         title: imported.title,
         introduction: imported.introduction || null,
+        ...(imported.language === "es" ? { language: "es" } : {}),
         slug: existing?.slug || teaching.slug,
         status: "draft",
         published_at: null,
@@ -326,7 +327,7 @@ export async function importDevotionalText(teachingId: string, previousState: De
       .insert({
         teaching_id: teaching.id,
         slug: teaching.slug,
-        language: teaching.language === "es" ? "es" : "en",
+        language: teaching.language === "es" || imported.language === "es" ? "es" : "en",
         title: imported.title,
         introduction: imported.introduction || null,
         status: "draft",
@@ -564,6 +565,7 @@ export async function importStandaloneDevotionalText(devotionalId: string, previ
     .update({
       title: imported.title,
       introduction: imported.introduction || null,
+      ...(imported.language === "es" ? { language: "es" } : {}),
       status: "draft",
       published_at: null,
     })

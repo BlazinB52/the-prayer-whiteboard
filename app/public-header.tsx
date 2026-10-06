@@ -50,12 +50,12 @@ export function PublicHeader({ maxWidthClassName = "max-w-5xl", nav, homeLabel =
         ) : end ? (
           <div className="flex items-center gap-3">
             <div className="hidden sm:block">{end}</div>
-            <Link href="/subscribe" className={subscribeClassName}>Subscribe</Link>
+            {spanish ? null : <Link href="/subscribe" className={subscribeClassName}>Subscribe</Link>}
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <Link href="/" className="hidden shrink-0 text-sm font-extrabold text-[#244a3a] sm:inline-flex">{homeLabel}</Link>
-            <Link href="/subscribe" className={subscribeClassName}>Subscribe</Link>
+            <Link href={spanish ? "/espanol" : "/"} className="hidden shrink-0 text-sm font-extrabold text-[#244a3a] sm:inline-flex">{spanish ? "Inicio" : homeLabel}</Link>
+            {spanish ? null : <Link href="/subscribe" className={subscribeClassName}>Subscribe</Link>}
           </div>
         )}
       </div>

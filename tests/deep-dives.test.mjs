@@ -58,7 +58,8 @@ test("public structured teaching page supports subtle Deep Dive treatment", asyn
   const source = await readFile("app/teachings/[slug]/page.tsx", "utf8");
   assert.match(source, /teaching_type/);
   assert.match(source, /teachingType === "deep_dive"/);
-  assert.match(source, /Deep Dives Collection/);
+  assert.match(source, /t.deepDivesCollection/);
+  assert.match(await readFile("lib/i18n.ts", "utf8"), /deepDivesCollection: "Deep Dives Collection"/);
 });
 
 test("Deep Dive migration adds teaching_type and type-aware publishing", async () => {

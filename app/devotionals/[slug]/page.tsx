@@ -3,9 +3,11 @@ import Link from "next/link";
 import { ArrowRight, BookOpenCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import { PublicFooter } from "@/app/public-footer";
+import { PublicFooterEs } from "@/app/public-footer-es";
 import { formatInlineText } from "@/app/formatted-text";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
+import { toLanguage, ui } from "@/lib/i18n";
 import { NOINDEX, truncateDescription } from "@/lib/seo";
 import {
   getDevotionalDescription,
@@ -23,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!series) return { title: "Devotional", robots: NOINDEX };
 
   return {
-    title: `${series.title} | 7-Day Devotional`,
+    title: `${series.title} | ${ui(toLanguage(series.language)).sevenDayDevotional}`,
     description: truncateDescription(getDevotionalDescription(series)),
     alternates: { canonical: `/devotionals/${series.slug}` },
   };
@@ -36,38 +38,40 @@ export default async function PublicDevotionalPage({ params }: { params: Promise
   if (!series) notFound();
 
   const description = getDevotionalDescription(series);
+  const language = toLanguage(series.language);
+  const t = ui(language);
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
-      <PublicHeader maxWidthClassName="max-w-4xl" />
+    <main lang={language} className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
+      <PublicHeader variant={language} maxWidthClassName="max-w-4xl" />
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
         <header className="border-b border-[#284a3b]/15 pb-8">
           <p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]">
             <BookOpenCheck aria-hidden="true" size={15} />
-            7-Day Devotional
+            {t.sevenDayDevotional}
           </p>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">
             {series.title}
           </h1>
           <p className="mt-6 text-lg leading-8 text-[#52645a]">{formatInlineText(description)}</p>
-          <Link href={getDevotionalStartPath(series)} className="mt-5 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold !text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white visited:!text-white sm:w-auto">
+          {language === "es" ? null : <Link href={getDevotionalStartPath(series)} className="mt-5 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-[#244a3a] px-6 text-base font-extrabold !text-white shadow-xl shadow-[#244a3a]/20 transition hover:-translate-y-0.5 hover:bg-[#1d3d30] hover:!text-white focus-visible:!text-white visited:!text-white sm:w-auto">
             {getDevotionalStartLabel(series)} <ArrowRight aria-hidden="true" size={19} />
-          </Link>
-          <p className="mt-4 max-w-2xl whitespace-pre-line text-sm font-bold leading-6 text-[#385245] sm:text-base sm:leading-7">
+          </Link>}
+          {language === "es" ? null : <p className="mt-4 max-w-2xl whitespace-pre-line text-sm font-bold leading-6 text-[#385245] sm:text-base sm:leading-7">
             {getDevotionalSignupCopy(series)}
-          </p>
+          </p>}
         </header>
         {series.teaching ? (
           <Link href={getDevotionalReadPath(series)} className="mt-8 inline-flex items-center gap-2 text-sm font-extrabold text-[#9d5a2f] underline-offset-4 transition hover:text-[#a85e32] hover:underline">
-            Prefer to read online? Open the devotional <ArrowRight aria-hidden="true" size={17} />
+            {t.openDevotionalOnline} <ArrowRight aria-hidden="true" size={17} />
           </Link>
         ) : (
           <Link href={`/devotionals/${series.slug}/day/1`} className="mt-8 inline-flex items-center gap-2 text-sm font-extrabold text-[#9d5a2f] underline-offset-4 transition hover:text-[#a85e32] hover:underline">
-            Prefer to read online? Start with day one <ArrowRight aria-hidden="true" size={17} />
+            {t.startDayOneOnline} <ArrowRight aria-hidden="true" size={17} />
           </Link>
         )}
       </article>
-      <PublicFooter />
+      {language === "es" ? <PublicFooterEs /> : <PublicFooter />}
       <ReturnToTop />
     </main>
   );

@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FormattedTextBlocks } from "@/app/formatted-text";
+import { PublicFooterEs } from "@/app/public-footer-es";
 import { PublicHeader } from "@/app/public-header";
+import { ESPANOL_COPYRIGHT_FOOTER_ID } from "@/lib/espanol-constants";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
-// The Español (El Salvador) copyright notice is an ordinary reusable footer managed in
-// /admin/footers; this page displays it. Edit that footer to change what appears here.
+// Displays the long Español (El Salvador) copyright footer; edit that footer in /admin/footers to change it.
 // Public access to footers is limited to ones assigned to published content, so this reads that one
 // footer id on the server instead.
-const ESPANOL_COPYRIGHT_FOOTER_ID = "7eb2fa03-d789-4396-b30f-e0c68f5f28ee";
-
 export const metadata: Metadata = {
   title: "Derechos de autor",
   description: "Reconocimientos de derechos de autor y permisos de The Prayer Whiteboard.",
@@ -45,6 +44,7 @@ export default async function EspanolCopyrightPage() {
           Volver a The Prayer Whiteboard
         </Link>
       </article>
+      <PublicFooterEs />
     </main>
   );
 }

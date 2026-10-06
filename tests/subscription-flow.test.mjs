@@ -64,7 +64,7 @@ test("a previously confirmed devotional subscriber is not sent through double op
 test("devotional signup success copy displays the title without a duplicate prefix", async () => {
   const source = await readFile("app/subscribe/subscribe-form.tsx", "utf8");
 
-  assert.match(source, /title\.replace\(\/\^7-Day Devotional:\\s\*\/i, ""\)/);
+  assert.match(source, /title\.replace\(\/\^\(\?:7-Day Devotional\|Devocional de 7 d\[ií\]as\):\\s\*\/i, ""\)/);
   assert.match(source, /You&.*signed up for \{devotionalTitle\}\./);
   assert.match(source, /Once confirmed, you&.*signed up for \{devotionalTitle\}\./);
   assert.doesNotMatch(source, /signed up for the 7-Day Devotional:/);

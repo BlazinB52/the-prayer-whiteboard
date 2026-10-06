@@ -10,7 +10,7 @@ const initialState: SubscribeState = {};
 
 export function SubscribeForm({ devotional }: { devotional: { slug: string; title: string } | null }) {
   const [state, action, pending] = useActionState(submitSubscription, initialState);
-  const devotionalTitle = devotional?.title.replace(/^7-Day Devotional:\s*/i, "") ?? null;
+  const devotionalTitle = devotional?.title.replace(/^(?:7-Day Devotional|Devocional de 7 d[ií]as):\s*/i, "") ?? null;
   const [selected, setSelected] = useState<Record<EmailCategory, boolean>>({
     weekly_updates: false,
     teachings: false,

@@ -16,3 +16,17 @@ export async function getSpanishDevotionalIds(client: SupabaseClient): Promise<S
     ...(assigned ?? []).map((row) => row.devotional_id as string),
   ]);
 }
+
+/** Whether one published series is Español, by its own language or by an Español teaching it is assigned to. */
+export async function isSpanishDevotional(client: SupabaseClient, devotionalId: string): Promise<boolean> {
+  const [{ data: own }, { data: assigned }] = await Promise.all([
+    client.from("teaching_devotionals").select("language").eq("id", devotionalId).maybeSingle(),
+    client
+      .from("teaching_devotional_assignments")
+      .select("devotional_id, teachings!inner(language)")
+      .eq("devotional_id", devotionalId)
+      .eq("teachings.language", "es")
+      .limit(1),
+  ]);
+  return own?.language === "es" || (assigned?.length ?? 0) > 0;
+}

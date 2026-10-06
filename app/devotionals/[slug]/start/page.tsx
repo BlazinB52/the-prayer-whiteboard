@@ -22,5 +22,7 @@ export default async function DevotionalSubscriptionPage({ params }: { params: P
   const series = await getPublishedDevotionalSeriesBySlug(slug);
 
   if (!series) notFound();
+  // There is no Español subscription yet, so an Español series sends visitors to its own page.
+  if (series.language === "es") redirect(`/devotionals/${series.slug}`);
   redirect(getDevotionalStartPath(series));
 }

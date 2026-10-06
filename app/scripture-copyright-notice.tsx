@@ -4,9 +4,10 @@ import { canonicalCopyrightDisclaimerUrl } from "@/lib/copyright-disclaimer-form
 // Show the disclosures URL as visible text, not just a clickable "here" --
 // this can end up on actual paper, where a link is dead but a printed URL
 // is still usable. AMP/AMPC are wrapped as real links to lockman.org.
-export function ScriptureCopyrightNotice({ content, baseUrl, printOnly = false }: { content: string; baseUrl: string; printOnly?: boolean }) {
-  const text = content
-    .replace(/\bhere\b/, canonicalCopyrightDisclaimerUrl(baseUrl))
+export function ScriptureCopyrightNotice({ content, baseUrl, printOnly = false, language = "en" }: { content: string; baseUrl: string; printOnly?: boolean; language?: "en" | "es" }) {
+  const spanish = language === "es";
+  const spanishUrl = `${baseUrl.replace(/\/+$/, "")}/espanol/derechos-de-autor`;
+  const text = (spanish ? content.replace(/\baquí\b/, spanishUrl) : content.replace(/\bhere\b/, canonicalCopyrightDisclaimerUrl(baseUrl)))
     .replace(/\bAMPC\b/g, "[AMPC](https://www.lockman.org)")
     .replace(/\bAMP\b/g, "[AMP](https://www.lockman.org)");
 

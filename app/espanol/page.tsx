@@ -1,7 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BookOpenText, CalendarDays, Layers, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarDays, Layers, Sparkles } from "lucide-react";
+import { PublicFooterEs } from "@/app/public-footer-es";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { formatInlineText } from "@/app/formatted-text";
@@ -173,17 +174,7 @@ export default async function EspanolHomePage() {
         </section>
       ) : null}
 
-      <footer className="bg-[#1d352b] px-5 py-9 text-center text-[#d8e5dd] sm:px-8">
-        <BookOpenText aria-hidden="true" className="mx-auto text-[#efc775]" size={28} />
-        <p className="mt-4 text-lg font-extrabold text-white">The Prayer Whiteboard</p>
-        <p className="mt-2 text-sm">Oración &middot; La Palabra &middot; Creciendo juntos</p>
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm">
-          <Link href="/" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline">English</Link>
-          <Link href="/privacy" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline">Privacidad</Link>
-          <Link href="/espanol/derechos-de-autor" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline">Derechos de autor</Link>
-          <a href="mailto:theprayerwhiteboard@gmail.com" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline">Contacto</a>
-        </div>
-      </footer>
+      <PublicFooterEs />
       <ReturnToTop />
     </main>
   );

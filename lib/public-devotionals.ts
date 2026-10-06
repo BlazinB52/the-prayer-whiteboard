@@ -2,7 +2,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { truncateDescription } from "./seo";
 import { splitParagraphs, type TeachingDevotional } from "./devotionals";
 import { createClient } from "./supabase/server";
-import { getSpanishDevotionalIds } from "./spanish-devotionals";
+import { getSpanishDevotionalIds, isSpanishDevotional } from "./spanish-devotionals";
 
 // Every row reached through this module is already published, and
 // teaching_devotionals_published_slug_check guarantees a published row has a
@@ -12,6 +12,8 @@ export type PublicDevotionalSeries = Pick<
   "id" | "teaching_id" | "title" | "introduction" | "published_at"
 > & {
   slug: string;
+  // Español series render every public page in Spanish.
+  language: "en" | "es";
   // Null for a standalone series. Since 20260923020000 a devotional is public
   // on its own status alone, so a teaching is context, not a precondition.
   teaching: {
@@ -50,12 +52,15 @@ export function getDevotionalReadPath(series: Pick<PublicDevotionalSeries, "slug
   return series.teaching ? `/teachings/${series.teaching.slug}/devotional` : `/devotionals/${series.slug}`;
 }
 
-export function getDevotionalDescription(series: Pick<PublicDevotionalSeries, "title" | "introduction" | "teaching">) {
+export function getDevotionalDescription(series: Pick<PublicDevotionalSeries, "title" | "introduction" | "teaching"> & { language?: "en" | "es" }) {
+  const spanish = series.language === "es";
   return (
     splitParagraphs(series.introduction)[0] ||
     series.teaching?.summary ||
     series.teaching?.central_theme ||
-    (series.teaching ? `A 7-day devotional for ${series.teaching.title}.` : `A 7-day devotional: ${series.title}.`)
+    (series.teaching
+      ? (spanish ? `Un devocional de 7 días para ${series.teaching.title}.` : `A 7-day devotional for ${series.teaching.title}.`)
+      : (spanish ? `Un devocional de 7 días: ${series.title}.` : `A 7-day devotional: ${series.title}.`))
   );
 }
 
@@ -63,10 +68,12 @@ export function getDevotionalDescription(series: Pick<PublicDevotionalSeries, "t
 // most distinctive text on the page, with the series name as a fallback.
 export function getDevotionalDayDescription(
   day: { day_number: number; devotional_reading: string | null },
-  series: Pick<PublicDevotionalSeries, "title">,
+  series: Pick<PublicDevotionalSeries, "title"> & { language?: "en" | "es" },
 ) {
   const opening = splitParagraphs(day.devotional_reading)[0]?.replace(/[*_#>`]/g, "");
-  return truncateDescription(opening) ?? `Day ${day.day_number} of ${series.title}, a 7-day devotional from The Prayer Whiteboard.`;
+  return truncateDescription(opening) ?? (series.language === "es"
+    ? `Día ${day.day_number} de ${series.title}, un devocional de 7 días de The Prayer Whiteboard.`
+    : `Day ${day.day_number} of ${series.title}, a 7-day devotional from The Prayer Whiteboard.`);
 }
 
 export function getDevotionalSignupCopy(series?: Pick<PublicDevotionalSeries, "title">) {
@@ -144,6 +151,7 @@ export async function getPublishedDevotionalSeries(language: "en" | "es" = "en")
 
     return {
       ...devotional,
+      language: (spanishIds.has(devotional.id) ? "es" : "en") as "en" | "es",
       teaching: teaching
         ? {
           slug: teaching.slug,
@@ -193,9 +201,11 @@ export async function getPublishedDevotionalSeriesBySlug(slug: string): Promise<
   if (teachingError) return null;
 
   const teaching = (teachings ?? []).find((item) => item.id === devotional.teaching_id) ?? (teachings ?? [])[0] ?? null;
+  const language = (await isSpanishDevotional(supabase, devotional.id)) ? "es" : "en";
 
   return {
     ...devotional,
+    language,
     teaching: teaching
       ? {
         slug: teaching.slug,
@@ -238,9 +248,11 @@ export async function getPublishedDevotionalSeriesByTeachingSlug(slug: string): 
     .maybeSingle();
 
   if (devotionalError || !devotional) return null;
+  const language = (await isSpanishDevotional(supabase, devotional.id)) ? "es" : "en";
 
   return {
     ...devotional,
+    language,
     teaching: {
       slug: teaching.slug,
       title: teaching.title,

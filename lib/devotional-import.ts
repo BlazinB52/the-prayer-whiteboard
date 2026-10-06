@@ -14,17 +14,30 @@ export type ImportedDevotional = {
   title: string;
   introduction: string;
   days: ImportedDevotionalDay[];
+  // Español when the file uses the Spanish day headings and labels.
+  language: "en" | "es";
 };
 
-const DAY_HEADING_PATTERN = /^Day\s+([1-7]):\s+.+/i;
+// English files use "Day 1:" headings and the English labels; Español files use "Día 1:" and the
+// Spanish labels below. Each label is the same field either way, so a file may be written in either.
+const DAY_HEADING_PATTERN = /^(?:Day|D[ií]a)\s+([1-7]):\s+.+/i;
+const SPANISH_DAY_HEADING_PATTERN = /^D[ií]a\s+[1-7]:/i;
 const MAX_ANCHOR_SCRIPTURE_LENGTH = 1000;
-const LABELS = [
-  "Anchor Scriptures:",
-  "The Spiritual Mechanic:",
-  "Today's Confession:",
-  "5-Minute Journal Prompt:",
-  "Prayer Activation Exercise:",
-] as const;
+const LABEL_ALIASES = {
+  anchorScriptures: ["Anchor Scriptures:", "Pasajes bíblicos clave:"],
+  spiritualMechanic: ["The Spiritual Mechanic:", "La dinámica espiritual:"],
+  confession: ["Today's Confession:", "Confesión de hoy:"],
+  journalPrompt: ["5-Minute Journal Prompt:", "Pregunta para tu diario de 5 minutos:"],
+  prayerActivation: ["Prayer Activation Exercise:", "Ejercicio de activación en oración:"],
+} as const;
+type LabelKey = keyof typeof LABEL_ALIASES;
+const LABELS: readonly string[] = Object.values(LABEL_ALIASES).flat();
+
+// Case and accent differences in a label ("Confesion de hoy:") should not fail an import.
+function foldLabel(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
 
 function cleanText(value: string) {
   return value
@@ -37,9 +50,12 @@ function cleanText(value: string) {
 }
 
 function expandLabeledLine(line: string) {
+  const folded = foldLabel(line);
   for (const label of LABELS) {
-    if (line === label) return [line];
-    if (line.startsWith(label)) {
+    const foldedLabel = foldLabel(label);
+    if (folded === foldedLabel) return [label];
+    if (folded.startsWith(foldedLabel)) {
+      // Accent folding can change the length (NFD), so cut the original line by the label's own length.
       const rest = cleanText(line.slice(label.length));
       return rest ? [label, rest] : [label];
     }
@@ -59,15 +75,16 @@ function normalizeLines(text: string) {
   return lines;
 }
 
-function readBlock(section: string[], label: (typeof LABELS)[number]) {
-  const start = section.indexOf(label);
+function readBlock(section: string[], key: LabelKey) {
+  const aliases = LABEL_ALIASES[key] as readonly string[];
+  const start = section.findIndex((line) => aliases.includes(line));
   if (start === -1) {
-    throw new Error(`Missing "${label}" in ${section[0]}.`);
+    throw new Error(`Missing "${aliases[0]}" (Spanish: "${aliases[1]}") in ${section[0]}.`);
   }
 
   let end = section.length;
   for (let index = start + 1; index < section.length; index += 1) {
-    if ((LABELS as readonly string[]).includes(section[index])) {
+    if (LABELS.includes(section[index])) {
       end = index;
       break;
     }
@@ -97,11 +114,11 @@ function parseDay(section: string[]): ImportedDevotionalDay {
   const match = section[0].match(DAY_HEADING_PATTERN);
   if (!match) throw new Error(`Invalid day heading: ${section[0]}`);
 
-  const anchorScriptures = readBlock(section, "Anchor Scriptures:");
-  const devotionalReading = readBlock(section, "The Spiritual Mechanic:");
-  const confession = readBlock(section, "Today's Confession:");
-  const journalPrompt = readBlock(section, "5-Minute Journal Prompt:");
-  const prayerActivation = readBlock(section, "Prayer Activation Exercise:");
+  const anchorScriptures = readBlock(section, "anchorScriptures");
+  const devotionalReading = readBlock(section, "spiritualMechanic");
+  const confession = readBlock(section, "confession");
+  const journalPrompt = readBlock(section, "journalPrompt");
+  const prayerActivation = readBlock(section, "prayerActivation");
 
   return {
     day_number: Number(match[1]),
@@ -114,7 +131,7 @@ function parseDay(section: string[]): ImportedDevotionalDay {
   };
 }
 
-function validateImportedDevotional(devotional: ImportedDevotional) {
+function validateImportedDevotional(devotional: Omit<ImportedDevotional, "language">) {
   if (!devotional.title) throw new Error("The devotional title is missing.");
   if (devotional.title.length > 180) throw new Error("The devotional title must be 180 characters or fewer.");
   if (devotional.introduction.length > 8000) throw new Error("The devotional introduction must be 8,000 characters or fewer.");
@@ -156,5 +173,6 @@ export function parseDevotionalText(text: string): ImportedDevotional {
   const days = splitDaySections(lines.slice(firstDayIndex)).map(parseDay);
   const devotional = { title, introduction, days };
   validateImportedDevotional(devotional);
-  return devotional;
+  const language = lines.slice(firstDayIndex).some((line) => SPANISH_DAY_HEADING_PATTERN.test(line)) ? "es" : "en";
+  return { ...devotional, language };
 }

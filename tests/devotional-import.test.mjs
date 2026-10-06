@@ -73,3 +73,61 @@ Closing paragraph.`), [
     { type: "bullet-list", items: ["Existing bullet", "Another bullet"] },
   ]);
 });
+
+function diaEspanol(dayNumber) {
+  return `Día ${dayNumber}: Día importado ${dayNumber}
+Pasajes bíblicos clave:
+Referencia ${dayNumber}: "Texto bíblico ${dayNumber}."
+La dinámica espiritual:
+Lectura ${dayNumber}.
+Confesión de hoy:
+Confesión ${dayNumber}.
+Pregunta para tu diario de 5 minutos:
+Pregunta ${dayNumber}.
+Ejercicio de activación en oración:
+Activación ${dayNumber}.`;
+}
+
+test("devotional text importer reads Español day headings and labels", () => {
+  const parsed = parseDevotionalText([
+    "Devocional de 7 días: Serie importada",
+    "Introducción opcional.",
+    ...[1, 2, 3, 4, 5, 6, 7].map(diaEspanol),
+  ].join("\n"));
+
+  assert.equal(parsed.language, "es");
+  assert.equal(parsed.title, "Devocional de 7 días: Serie importada");
+  assert.equal(parsed.days.length, 7);
+  assert.equal(parsed.days[0].title, "Día 1: Día importado 1");
+  assert.equal(parsed.days[0].devotional_reading, "Lectura 1.");
+  assert.equal(parsed.days[2].confession, "Confesión 3.");
+  assert.equal(parsed.days[4].journal_prompt, "Pregunta 5.");
+  assert.equal(parsed.days[6].prayer_activation, "Activación 7.");
+  assert.deepEqual(parsed.days[0].anchor_scriptures, ['Referencia 1: "Texto bíblico 1."']);
+});
+
+test("devotional text importer accepts Spanish labels without accents or on the same line as the text", () => {
+  const section = (n) => `Dia ${n}: Titulo ${n}
+Pasajes biblicos clave: Juan 3:16 "Porque de tal manera amó Dios al mundo."
+La dinamica espiritual: Lectura ${n}.
+Confesion de hoy: Confesión ${n}.
+Pregunta para tu diario de 5 minutos: Pregunta ${n}.
+Ejercicio de activacion en oracion: Activación ${n}.`;
+  const parsed = parseDevotionalText(["Título", ...[1, 2, 3, 4, 5, 6, 7].map(section)].join("\n"));
+  assert.equal(parsed.language, "es");
+  assert.equal(parsed.days[0].devotional_reading, "Lectura 1.");
+  assert.equal(parsed.days[6].prayer_activation, "Activación 7.");
+});
+
+test("English devotional files are still detected as English", () => {
+  const parsed = parseDevotionalText(["Title", ...[1, 2, 3, 4, 5, 6, 7].map(day)].join("\n"));
+  assert.equal(parsed.language, "en");
+});
+
+test("a missing label names both the English and the Spanish wording", () => {
+  const broken = diaEspanol(1).replace("Confesión de hoy:\nConfesión 1.\n", "");
+  assert.throws(
+    () => parseDevotionalText(["Título", broken, ...[2, 3, 4, 5, 6, 7].map(diaEspanol)].join("\n")),
+    /Missing "Today's Confession:" \(Spanish: "Confesión de hoy:"\)/,
+  );
+});

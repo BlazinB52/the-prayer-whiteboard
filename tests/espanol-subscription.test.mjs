@@ -88,3 +88,26 @@ test("Español routes exist for the form, confirmation and preferences, and the 
   const manage = await readFile("app/email-preferences/manage/page.tsx", "utf8");
   assert.match(manage, /preference\?\.language === "es"\) redirect\(`\/espanol\/preferencias\/administrar/);
 });
+
+test("Español emails state the expiry in El Salvador time, whatever the server clock is", () => {
+  // 02:17 UTC on 9 October is 8:17 p. m. on 8 October in El Salvador (UTC-6, no daylight saving).
+  const email = buildConfirmationEmail({ firstName: "Oliver", categories: ["teachings"], confirmationUrl: "https://example.test/x", expiresAt: "2026-10-09T02:17:00Z", language: "es" });
+  for (const part of [email.html, email.text]) {
+    assert.match(part, /8 de octubre de 2026/);
+    assert.match(part, /8:17\s*p\.\s*m\./);
+    assert.match(part, /hora de El Salvador/);
+  }
+  const management = buildPreferenceManagementEmail({ firstName: "Oliver", managementUrl: "https://example.test/y", expiresAt: "2026-10-09T02:17:00Z", language: "es" });
+  assert.match(management.text, /8 de octubre de 2026/);
+  assert.match(management.text, /hora de El Salvador/);
+});
+
+test("the Spanish emails use voseo", () => {
+  const email = buildConfirmationEmail({ firstName: "Oliver", categories: ["teachings"], confirmationUrl: "https://example.test/x", expiresAt: "2026-10-09T02:17:00Z", language: "es" });
+  assert.match(email.subject, /^Confirmá tu suscripción/);
+  assert.match(email.html, /<h1[^>]*>Confirmá tu suscripción por correo<\/h1>/);
+  assert.match(email.text, /confirmá que querés recibir/);
+  assert.match(email.text, /podés ignorar/);
+  assert.match(email.text, /Si no encontrás .* revisá las carpetas/);
+  assert.doesNotMatch(email.text, /\b(confirma que deseas|puedes|encuentras|revisa las)\b/);
+});

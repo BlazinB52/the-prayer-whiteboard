@@ -116,8 +116,10 @@ If you did not request this link, you can ignore this message.`;
   return { subject, html, text };
 }
 
+// The server runs on UTC, so the time is shown in El Salvador time and says so.
 function expiryEs(expiresAt: string) {
-  return new Intl.DateTimeFormat("es", { dateStyle: "long", timeStyle: "short" }).format(new Date(expiresAt));
+  const formatted = new Intl.DateTimeFormat("es-SV", { dateStyle: "long", timeStyle: "short", timeZone: "America/El_Salvador" }).format(new Date(expiresAt));
+  return `${formatted} (hora de El Salvador)`;
 }
 
 function buildConfirmationEmailEs(input: { firstName: string; categories: EmailCategory[]; confirmationUrl: string; expiresAt: string }) {

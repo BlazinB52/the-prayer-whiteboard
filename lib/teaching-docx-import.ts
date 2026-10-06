@@ -55,7 +55,7 @@ export type TeachingDocxParts = {
 
 type Kind = "title" | "subtitle" | "h1" | "h2" | "h3plus" | "normal" | "scripture" | "bullet" | "takeaway" | "callout" | "other";
 
-type Inline = { text: string; bold: boolean; italic: boolean; href: string | null; linkLabelIssue?: string };
+export type Inline = { text: string; bold: boolean; italic: boolean; href: string | null; linkLabelIssue?: string };
 
 type Block = {
   kind: Kind;
@@ -99,7 +99,7 @@ function isFalseFlag(node: XmlNode | undefined) {
   return value === "0" || value === "false" || value === "off";
 }
 
-function readStyleNames(stylesXml: string | null | undefined) {
+export function readStyleNames(stylesXml: string | null | undefined) {
   const names = new Map<string, string>();
   let defaultId = "Normal";
   if (!stylesXml) return { names, defaultId };
@@ -113,7 +113,7 @@ function readStyleNames(stylesXml: string | null | undefined) {
   return { names, defaultId };
 }
 
-function readRelationships(relationshipsXml: string | null | undefined) {
+export function readRelationships(relationshipsXml: string | null | undefined) {
   const targets = new Map<string, string>();
   if (!relationshipsXml) return targets;
   for (const relationship of findAll(parseXml(relationshipsXml), "Relationship")) {
@@ -139,7 +139,7 @@ function hyperlinkFromInstruction(instruction: string) {
 }
 
 /** Walks a paragraph in document order, applying run formatting and hyperlinks. */
-function readInlines(paragraph: XmlNode, relationships: Map<string, string>) {
+export function readInlines(paragraph: XmlNode, relationships: Map<string, string>) {
   const inlines: Inline[] = [];
   const fields: { instruction: string; phase: "code" | "result"; href: string | null }[] = [];
 
@@ -227,7 +227,7 @@ function emphasisRuns(inlines: Inline[], context: FormatContext) {
   }).join("");
 }
 
-function safeHref(href: string) {
+export function safeHref(href: string) {
   if (!/^https?:\/\//i.test(href.trim())) return null;
   try {
     const parsed = new URL(href.trim());

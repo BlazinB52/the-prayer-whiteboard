@@ -58,6 +58,12 @@ const tools = [
     href: "/admin/printable-pdfs",
   },
   {
+    title: "Teaching Outlines",
+    description: "Upload teacher's outlines from Word and file them by category.",
+    status: "Available",
+    href: "/admin/outlines",
+  },
+  {
     title: "Content Managers",
     description: "Invite content managers, resend invites, send password resets, and revoke or restore access.",
     status: "Available",

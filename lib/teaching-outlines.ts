@@ -320,6 +320,19 @@ export function validateOutlineCategoryName(value: unknown) {
   return { value: name };
 }
 
+export function validateOptionalSpanishName(value: unknown) {
+  const name = typeof value === "string" ? value.replace(SPACES, " ").trim() : "";
+  if (!name) return { value: null };
+  if (name.length > OUTLINE_LIMITS.categoryName) return { error: `Spanish name must be ${OUTLINE_LIMITS.categoryName} characters or fewer.` };
+  return { value: name };
+}
+
+export function validateOptionalOutlineId(value: unknown) {
+  const id = typeof value === "string" ? value.trim() : "";
+  if (!id) return { value: null };
+  return isValidUuid(id) ? { value: id } : { error: "That teaching could not be found." };
+}
+
 export function validateOutlineLanguage(value: unknown): OutlineLanguage {
   return value === "es" ? "es" : "en";
 }

@@ -13,16 +13,19 @@ import {
   renameOutlineCategory,
   saveOutline,
   setOutlineStatus,
+  setOutlineTeaching,
   type OutlineActionState,
   type OutlinePreview,
 } from "./actions";
 
-export type ManagerCategory = { id: string; name: string };
+export type ManagerCategory = { id: string; name: string; nameEs: string | null };
+export type ManagerTeaching = { id: string; title: string; language: "en" | "es" };
 export type ManagerOutline = {
   id: string;
   title: string;
   subtitle: string | null;
   categoryId: string;
+  teachingId: string | null;
   language: "en" | "es";
   gatheringDate: string | null;
   status: "draft" | "published";
@@ -34,7 +37,16 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value.length === 10 ? `${value}T00:00:00Z` : value));
 }
 
-function UploadSection({ categories }: { categories: ManagerCategory[] }) {
+function TeachingOptions({ teachings }: { teachings: ManagerTeaching[] }) {
+  return (
+    <>
+      <option value="">None</option>
+      {teachings.map((teaching) => <option key={teaching.id} value={teaching.id}>{teaching.title}{teaching.language === "es" ? " (Español)" : ""}</option>)}
+    </>
+  );
+}
+
+function UploadSection({ categories, teachings }: { categories: ManagerCategory[]; teachings: ManagerTeaching[] }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [preview, setPreview] = useState<OutlinePreview | null>(null);
@@ -161,6 +173,11 @@ function UploadSection({ categories }: { categories: ManagerCategory[] }) {
                       <input name="gatheringDate" type="date" value={date} onChange={(event) => setDate(event.target.value)} disabled={pending} className="admin-input" />
                       <span className="mt-1 block text-xs font-normal text-[#607066]">{preview.suggestedDate ? "Suggested from the file name." : "Optional."}</span>
                     </label>
+                    <label className="block text-sm font-bold text-[#385245] sm:col-span-2">
+                      Related teaching
+                      <select name="teachingId" defaultValue="" disabled={pending} className="admin-input"><TeachingOptions teachings={teachings} /></select>
+                      <span className="mt-1 block text-xs font-normal text-[#607066]">Optional. The public outline links to this teaching.</span>
+                    </label>
                     <label className="flex items-center gap-3 self-center text-sm font-bold text-[#385245]">
                       <input name="publish" type="checkbox" defaultChecked className="h-5 w-5 accent-[#326048]" disabled={pending} />
                       Publish now (uncheck to save as a draft)
@@ -189,6 +206,8 @@ function UploadSection({ categories }: { categories: ManagerCategory[] }) {
 function CategoriesSection({ categories, counts }: { categories: ManagerCategory[]; counts: Map<string, number> }) {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [nameEs, setNameEs] = useState("");
+  const [editNameEs, setEditNameEs] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -212,11 +231,12 @@ function CategoriesSection({ categories, counts }: { categories: ManagerCategory
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          run(() => createOutlineCategory(name), () => setName(""));
+          run(() => createOutlineCategory(name, nameEs), () => { setName(""); setNameEs(""); });
         }}
         className="mt-4 flex flex-col gap-3 sm:flex-row"
       >
         <input value={name} onChange={(event) => setName(event.target.value)} placeholder="New category name" maxLength={80} disabled={pending} aria-label="New category name" className="admin-input sm:max-w-sm" />
+        <input value={nameEs} onChange={(event) => setNameEs(event.target.value)} placeholder="Nombre en español (optional)" maxLength={80} disabled={pending} aria-label="Spanish category name" className="admin-input sm:max-w-sm" />
         <button type="submit" disabled={pending || !name.trim()} className="admin-primary-button"><span>Add category</span></button>
       </form>
       {error ? <p role="alert" className="mt-3 text-sm font-bold text-[#a2472c]">{error}</p> : null}
@@ -230,19 +250,20 @@ function CategoriesSection({ categories, counts }: { categories: ManagerCategory
                   className="flex flex-1 flex-wrap gap-2"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    run(() => renameOutlineCategory(category.id, editName), () => setEditingId(null));
+                    run(() => renameOutlineCategory(category.id, editName, editNameEs), () => setEditingId(null));
                   }}
                 >
                   <input value={editName} onChange={(event) => setEditName(event.target.value)} maxLength={80} aria-label="Category name" autoFocus className="admin-input sm:max-w-xs" />
+                  <input value={editNameEs} onChange={(event) => setEditNameEs(event.target.value)} maxLength={80} placeholder="Nombre en español" aria-label="Spanish category name" className="admin-input sm:max-w-xs" />
                   <button type="submit" disabled={pending} className="admin-primary-button"><span>Save</span></button>
                   <button type="button" onClick={() => setEditingId(null)} className="admin-secondary-button"><span>Cancel</span></button>
                 </form>
               ) : (
                 <>
                   <span className="flex-1 font-bold text-[#243d31]">
-                    {category.name} <span className="text-xs font-normal text-[#607066]">({counts.get(category.id) ?? 0})</span>
+                    {category.name}{category.nameEs ? <span className="font-normal text-[#607066]"> · {category.nameEs}</span> : null} <span className="text-xs font-normal text-[#607066]">({counts.get(category.id) ?? 0})</span>
                   </span>
-                  <button type="button" onClick={() => { setEditingId(category.id); setEditName(category.name); }} className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Rename</button>
+                  <button type="button" onClick={() => { setEditingId(category.id); setEditName(category.name); setEditNameEs(category.nameEs ?? ""); }} className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Rename</button>
                   <button
                     type="button"
                     disabled={pending}
@@ -261,7 +282,7 @@ function CategoriesSection({ categories, counts }: { categories: ManagerCategory
   );
 }
 
-function OutlineList({ categories, outlines }: { categories: ManagerCategory[]; outlines: ManagerOutline[] }) {
+function OutlineList({ categories, outlines, teachings }: { categories: ManagerCategory[]; outlines: ManagerOutline[]; teachings: ManagerTeaching[] }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -325,6 +346,17 @@ function OutlineList({ categories, outlines }: { categories: ManagerCategory[]; 
                           {categories.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
                         </select>
                       </label>
+                      <label className="flex items-center gap-2 font-bold text-[#385245]">
+                        Teaching
+                        <select
+                          value={outline.teachingId ?? ""}
+                          disabled={pending}
+                          onChange={(event) => run(() => setOutlineTeaching(outline.id, event.target.value))}
+                          className="max-w-56 rounded-lg border border-[#284a3b]/20 bg-white px-2 py-1 text-sm"
+                        >
+                          <TeachingOptions teachings={teachings} />
+                        </select>
+                      </label>
                       <button
                         type="button"
                         disabled={pending}
@@ -345,15 +377,15 @@ function OutlineList({ categories, outlines }: { categories: ManagerCategory[]; 
   );
 }
 
-export function OutlineManager({ categories, outlines }: { categories: ManagerCategory[]; outlines: ManagerOutline[] }) {
+export function OutlineManager({ categories, outlines, teachings }: { categories: ManagerCategory[]; outlines: ManagerOutline[]; teachings: ManagerTeaching[] }) {
   const counts = new Map<string, number>();
   for (const outline of outlines) counts.set(outline.categoryId, (counts.get(outline.categoryId) ?? 0) + 1);
 
   return (
     <>
-      <UploadSection categories={categories} />
+      <UploadSection categories={categories} teachings={teachings} />
       <CategoriesSection categories={categories} counts={counts} />
-      <OutlineList categories={categories} outlines={outlines} />
+      <OutlineList categories={categories} outlines={outlines} teachings={teachings} />
     </>
   );
 }

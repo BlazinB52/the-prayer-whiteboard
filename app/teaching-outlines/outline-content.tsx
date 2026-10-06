@@ -8,7 +8,12 @@ import type { OutlineBlock, OutlineInline, OutlineListItem } from "@/lib/teachin
 // Teacher outlines tend to open lines with a short label ("Ask:", "Teacher
 // note:"). Word files rarely bold those, so they are detected and emphasised
 // here instead of asking authors to format anything.
-const LEAD_LABEL = /^([A-Z][A-Za-z' ]{1,28}):(\s+)(?=\S)/;
+const LEAD_LABEL = /^(\p{Lu}[\p{L}' ]{1,28}):(\s+)(?=\S)/u;
+
+// English and Español (El Salvador) labels, matched on the lowercase label.
+const TEACHER_NOTE = /^(teacher note|nota (para|del|de la) (el |la )?(maestr|docent|profesor|facilitad))/;
+const TRANSITION = /^(transition|transici)/;
+const PROMPT = /^(discuss|apply|ask|read|review|discut|convers|aplic|pregunt|le[eé]:|lectura|repas)/;
 
 function splitLeadLabel(inlines: OutlineInline[]): { label: string | null; rest: OutlineInline[] } {
   const first = inlines[0];
@@ -45,13 +50,13 @@ function Paragraph({ inlines }: { inlines: OutlineInline[] }) {
     </>
   );
 
-  if (key.startsWith("teacher note")) {
+  if (TEACHER_NOTE.test(key)) {
     return <p className="mt-4 rounded-xl border border-[#c49a3a]/40 bg-[#fbf4e1] px-4 py-3 text-[15px] leading-7 text-[#5e4a14]">{body}</p>;
   }
-  if (key.startsWith("transition")) {
+  if (TRANSITION.test(key)) {
     return <p className="mt-4 text-[15px] italic leading-7 text-[#607066]">{body}</p>;
   }
-  if (["discuss:", "apply:", "ask:", "read:", "review:"].includes(key)) {
+  if (PROMPT.test(key)) {
     return <p className="mt-4 border-l-4 border-[#326048]/40 pl-4 leading-7 text-[#243126]">{body}</p>;
   }
   return <p className="mt-4 leading-7 text-[#243126]">{body}</p>;

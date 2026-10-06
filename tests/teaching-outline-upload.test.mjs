@@ -77,3 +77,11 @@ test("the migration restricts writes to admins and public reads to published row
   assert.match(sql, /Public reads published teaching outlines[\s\S]*status = 'published'/);
   assert.match(sql, /bucket_id = 'teaching-outlines' and public\.is_authenticated_admin\(\)/);
 });
+
+test("the follow-up migration seeds categories, links teachings, and opens uploads to content managers", async () => {
+  const sql = await readFile("supabase/migrations/20261006010000_outlines_categories_teaching_link_staff.sql", "utf8");
+  for (const name of ["Prayer", "Communion", "Christian Living"]) assert.match(sql, new RegExp(`'${name}'`));
+  assert.match(sql, /teaching_id uuid references public\.teachings\(id\) on delete set null/);
+  assert.match(sql, /Staff manage teaching outlines[\s\S]*is_content_manager_or_admin/);
+  assert.match(sql, /bucket_id = 'teaching-outlines' and public\.is_content_manager_or_admin\(\)/);
+});

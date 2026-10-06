@@ -20,6 +20,7 @@ const nav = [
   { href: "#almacen", label: "El Almacén" },
   { href: "#profundo", label: "Estudios profundos" },
   { href: "#devocionales", label: "Devocionales" },
+  { href: "/espanol/recursos-para-maestros", label: "Recursos para maestros" },
   { href: "/", label: "English" },
 ];
 

@@ -24,6 +24,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl("/espanol"), changeFrequency: "weekly", priority: 0.8 },
     { url: absoluteUrl("/deep-dives"), changeFrequency: "weekly", priority: 0.7 },
     { url: absoluteUrl("/devotionals"), changeFrequency: "weekly", priority: 0.7 },
+    { url: absoluteUrl("/teacher-resources"), changeFrequency: "weekly", priority: 0.6 },
+    { url: absoluteUrl("/espanol/recursos-para-maestros"), changeFrequency: "weekly", priority: 0.5 },
     { url: absoluteUrl("/those-in-authority"), changeFrequency: "weekly", priority: 0.6 },
     { url: absoluteUrl("/points-of-agreement"), changeFrequency: "weekly", priority: 0.6 },
     { url: absoluteUrl("/weekly-update"), changeFrequency: "weekly", priority: 0.5 },
@@ -39,12 +41,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (!url || !key) return staticPages;
   const supabase = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 
-  const [teachingsResult, devotionalsResult] = await Promise.all([
+  const [teachingsResult, devotionalsResult, outlinesResult] = await Promise.all([
     supabase.from("teachings").select("slug, updated_at, published_at").eq("status", "published"),
     supabase.from("teaching_devotionals").select("id, slug, updated_at, published_at").eq("status", "published"),
+    supabase.from("teaching_outlines").select("slug, language, updated_at, published_at").eq("status", "published"),
   ]);
 
   const teachings = (teachingsResult.data ?? []) as Row[];
+  const outlines = (outlinesResult.data ?? []) as Array<Row & { language: string }>;
   const devotionals = (devotionalsResult.data ?? []) as Array<Row & { id: string }>;
 
   const daysResult = devotionals.length
@@ -84,5 +88,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         })),
     ]);
 
-  return [...staticPages, ...teachingEntries, ...devotionalEntries];
+  const outlineEntries: MetadataRoute.Sitemap = outlines
+    .filter((outline) => outline.slug)
+    .map((outline) => ({
+      url: absoluteUrl(outline.language === "es" ? `/espanol/recursos-para-maestros/${outline.slug}` : `/teacher-resources/${outline.slug}`),
+      lastModified: latest(toDate(outline.updated_at), toDate(outline.published_at)),
+      changeFrequency: "monthly" as const,
+      priority: 0.5,
+    }));
+
+  return [...staticPages, ...teachingEntries, ...devotionalEntries, ...outlineEntries];
 }

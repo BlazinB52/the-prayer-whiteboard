@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/supabase/admin";
+import { requireContentManager } from "@/lib/supabase/admin";
 import { MAX_TEACHING_DOCX_BYTES } from "@/lib/teaching-docx-package";
 import {
   OUTLINE_BUCKET,
@@ -14,6 +14,8 @@ import {
   validateOutlineCategoryName,
   validateOutlineId,
   validateOutlineLanguage,
+  validateOptionalOutlineId,
+  validateOptionalSpanishName,
   validateOutlineTitle,
   type ParsedOutline,
 } from "@/lib/teaching-outlines";
@@ -33,6 +35,8 @@ const DOCX_EXTENSION = /\.docx$/i;
 
 function revalidateOutlinePaths() {
   revalidatePath("/admin/outlines");
+  revalidatePath("/teacher-resources", "layout");
+  revalidatePath("/espanol/recursos-para-maestros", "layout");
 }
 
 /** Reads the uploaded file and converts it. The file is only held in memory for the request. */
@@ -49,7 +53,7 @@ async function readOutlineFile(formData: FormData) {
 
 /** Step 1: convert the document and return a preview. Nothing is saved. */
 export async function previewOutline(formData: FormData): Promise<OutlinePreviewState> {
-  await requireAdmin();
+  await requireContentManager();
   const read = await readOutlineFile(formData);
   if ("error" in read) return { error: read.error };
 
@@ -71,7 +75,7 @@ export async function previewOutline(formData: FormData): Promise<OutlinePreview
  * .docx is stored first and removed again if the row cannot be saved.
  */
 export async function saveOutline(formData: FormData): Promise<OutlineActionState> {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const read = await readOutlineFile(formData);
   if ("error" in read) return { error: read.error };
   if (!read.result.ok || !read.result.outline) return { error: "This document still has problems. Fix them in Word and preview it again." };
@@ -82,6 +86,8 @@ export async function saveOutline(formData: FormData): Promise<OutlineActionStat
   if (date.error) return { error: date.error };
   const categoryId = validateOutlineId(formData.get("categoryId"));
   if (categoryId.error || !categoryId.value) return { error: "Choose a category." };
+  const teachingId = validateOptionalOutlineId(formData.get("teachingId"));
+  if (teachingId.error) return { error: teachingId.error };
   const publish = formData.get("publish") === "on";
 
   const { data: category } = await supabase.from("outline_categories").select("id").eq("id", categoryId.value).maybeSingle();
@@ -102,6 +108,7 @@ export async function saveOutline(formData: FormData): Promise<OutlineActionStat
       title: title.value,
       subtitle: read.result.outline.subtitle,
       category_id: categoryId.value,
+      teaching_id: teachingId.value,
       language: validateOutlineLanguage(formData.get("language")),
       gathering_date: date.value,
       status: publish ? "published" : "draft",
@@ -124,7 +131,7 @@ export async function saveOutline(formData: FormData): Promise<OutlineActionStat
 }
 
 export async function setOutlineStatus(id: string, status: "draft" | "published"): Promise<OutlineActionState> {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const idResult = validateOutlineId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
 
@@ -139,7 +146,7 @@ export async function setOutlineStatus(id: string, status: "draft" | "published"
 }
 
 export async function moveOutlineToCategory(id: string, categoryId: string): Promise<OutlineActionState> {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const idResult = validateOutlineId(id);
   const categoryResult = validateOutlineId(categoryId);
   if (idResult.error || !idResult.value || categoryResult.error || !categoryResult.value) return { error: "That record could not be found." };
@@ -151,8 +158,22 @@ export async function moveOutlineToCategory(id: string, categoryId: string): Pro
   return { ok: true };
 }
 
+export async function setOutlineTeaching(id: string, teachingId: string): Promise<OutlineActionState> {
+  const { supabase } = await requireContentManager();
+  const idResult = validateOutlineId(id);
+  const teachingResult = validateOptionalOutlineId(teachingId);
+  if (idResult.error || !idResult.value) return { error: idResult.error };
+  if (teachingResult.error) return { error: teachingResult.error };
+
+  const { error } = await supabase.from("teaching_outlines").update({ teaching_id: teachingResult.value }).eq("id", idResult.value);
+  if (error) return { error: "The related teaching could not be changed." };
+
+  revalidateOutlinePaths();
+  return { ok: true };
+}
+
 export async function deleteOutline(id: string): Promise<OutlineActionState> {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const idResult = validateOutlineId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
 
@@ -165,10 +186,12 @@ export async function deleteOutline(id: string): Promise<OutlineActionState> {
   return { ok: true };
 }
 
-export async function createOutlineCategory(name: string): Promise<OutlineActionState> {
-  const { supabase } = await requireAdmin();
+export async function createOutlineCategory(name: string, nameEs: string): Promise<OutlineActionState> {
+  const { supabase } = await requireContentManager();
   const nameResult = validateOutlineCategoryName(name);
   if (nameResult.error || !nameResult.value) return { error: nameResult.error };
+  const spanish = validateOptionalSpanishName(nameEs);
+  if (spanish.error) return { error: spanish.error };
 
   const { data: last } = await supabase.from("outline_categories").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
   const baseSlug = outlineSlug(nameResult.value);
@@ -176,6 +199,7 @@ export async function createOutlineCategory(name: string): Promise<OutlineAction
   for (let suffix = 0; suffix <= 99; suffix += 1) {
     const { error } = await supabase.from("outline_categories").insert({
       name: nameResult.value,
+      name_es: spanish.value,
       slug: suffix === 0 ? baseSlug : `${baseSlug}-${suffix}`,
       sort_order: (last?.sort_order ?? 0) + 1,
     });
@@ -191,14 +215,16 @@ export async function createOutlineCategory(name: string): Promise<OutlineAction
   return { error: "The category could not be created." };
 }
 
-export async function renameOutlineCategory(id: string, name: string): Promise<OutlineActionState> {
-  const { supabase } = await requireAdmin();
+export async function renameOutlineCategory(id: string, name: string, nameEs: string): Promise<OutlineActionState> {
+  const { supabase } = await requireContentManager();
   const idResult = validateOutlineId(id);
   const nameResult = validateOutlineCategoryName(name);
   if (idResult.error || !idResult.value) return { error: idResult.error };
   if (nameResult.error || !nameResult.value) return { error: nameResult.error };
+  const spanish = validateOptionalSpanishName(nameEs);
+  if (spanish.error) return { error: spanish.error };
 
-  const { error } = await supabase.from("outline_categories").update({ name: nameResult.value }).eq("id", idResult.value);
+  const { error } = await supabase.from("outline_categories").update({ name: nameResult.value, name_es: spanish.value }).eq("id", idResult.value);
   if (error) return { error: error.code === "23505" ? "A category with that name already exists." : "The category could not be renamed." };
 
   revalidateOutlinePaths();
@@ -206,7 +232,7 @@ export async function renameOutlineCategory(id: string, name: string): Promise<O
 }
 
 export async function deleteOutlineCategory(id: string): Promise<OutlineActionState> {
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const idResult = validateOutlineId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
 

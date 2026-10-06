@@ -21,6 +21,12 @@ const tools = [
     status: "Available",
     href: "/admin/cm/those-in-authority",
   },
+  {
+    title: "Teaching Outlines",
+    description: "Upload teacher's outlines from Word and file them by category.",
+    status: "Available",
+    href: "/admin/outlines",
+  },
 ];
 
 export default async function ContentManagementPage() {

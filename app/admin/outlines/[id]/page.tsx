@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OutlineContent } from "@/app/teaching-outlines/outline-content";
-import { requireAdmin } from "@/lib/supabase/admin";
+import { requireContentManager } from "@/lib/supabase/admin";
 import { OUTLINE_BUCKET, validateOutlineId, type OutlineBlock } from "@/lib/teaching-outlines";
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export default async function AdminOutlinePreviewPage({ params }: { params: Prom
   const idResult = validateOutlineId(id);
   if (!idResult.value) notFound();
 
-  const { supabase } = await requireAdmin();
+  const { supabase } = await requireContentManager();
   const { data: outline } = await supabase
     .from("teaching_outlines")
     .select("title, subtitle, status, content, source_path, source_file_name, outline_categories(name)")

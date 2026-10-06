@@ -34,6 +34,7 @@ const homepageNav = [
   { href: "/deep-dives", label: "Deep Dives" },
   { href: "/devotionals#revisit", label: "Devotionals" },
   { href: "#prayer", label: "Prayer Guide" },
+  { href: "/teacher-resources", label: "Teacher Resources" },
   { href: "#gatherings", label: "Gatherings" },
   { href: "/subscribe", label: "Email Updates" },
 ];

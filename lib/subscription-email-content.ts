@@ -122,19 +122,19 @@ function expiryEs(expiresAt: string) {
 
 function buildConfirmationEmailEs(input: { firstName: string; categories: EmailCategory[]; confirmationUrl: string; expiresAt: string }) {
   const expires = expiryEs(input.expiresAt);
-  const subject = "Confirma tu suscripción por correo de The Prayer Whiteboard";
-  const html = shell("Confirma tu suscripción por correo", `
+  const subject = "Confirmá tu suscripción por correo de The Prayer Whiteboard";
+  const html = shell("Confirmá tu suscripción por correo", `
     <p style="margin:0 0 16px;line-height:1.65;">${greeting(input.firstName, "es")}</p>
-    <p style="margin:0 0 16px;line-height:1.65;">Por favor, confirma que deseas recibir las actualizaciones por correo de The Prayer Whiteboard que seleccionaste.</p>
+    <p style="margin:0 0 16px;line-height:1.65;">Por favor, confirmá que querés recibir las actualizaciones por correo de The Prayer Whiteboard que seleccionaste.</p>
     <p style="margin:24px 0;">${button("Confirmar mi suscripción", input.confirmationUrl)}</p>
     <p style="margin:0 0 10px;line-height:1.65;">Categorías de correo solicitadas:</p>
     <ul style="margin:0 0 16px;padding-left:22px;line-height:1.65;">${categoryList(input.categories, "es")}</ul>
-    <p style="margin:0 0 16px;line-height:1.65;">Este enlace vence el ${escapeHtml(expires)}. Si no solicitaste esta suscripción, puedes ignorar este mensaje.</p>
-    <p style="margin:0;line-height:1.65;color:#607066;">Si no encuentras los próximos correos de The Prayer Whiteboard, revisa las carpetas de correo no deseado, spam o promociones.</p>
+    <p style="margin:0 0 16px;line-height:1.65;">Este enlace vence el ${escapeHtml(expires)}. Si no solicitaste esta suscripción, podés ignorar este mensaje.</p>
+    <p style="margin:0;line-height:1.65;color:#607066;">Si no encontrás los próximos correos de The Prayer Whiteboard, revisá las carpetas de correo no deseado, spam o promociones.</p>
   `);
   const text = `${textGreeting(input.firstName, "es")}
 
-Por favor, confirma que deseas recibir las actualizaciones por correo de The Prayer Whiteboard que seleccionaste.
+Por favor, confirmá que querés recibir las actualizaciones por correo de The Prayer Whiteboard que seleccionaste.
 
 Confirmar mi suscripción:
 ${input.confirmationUrl}
@@ -142,31 +142,31 @@ ${input.confirmationUrl}
 Categorías de correo solicitadas:
 ${categoryText(input.categories, "es")}
 
-Este enlace vence el ${expires}. Si no solicitaste esta suscripción, puedes ignorar este mensaje.
+Este enlace vence el ${expires}. Si no solicitaste esta suscripción, podés ignorar este mensaje.
 
-Si no encuentras los próximos correos de The Prayer Whiteboard, revisa las carpetas de correo no deseado, spam o promociones.`;
+Si no encontrás los próximos correos de The Prayer Whiteboard, revisá las carpetas de correo no deseado, spam o promociones.`;
   return { subject, html, text };
 }
 
 function buildPreferenceManagementEmailEs(input: { firstName: string; managementUrl: string; expiresAt: string }) {
   const expires = expiryEs(input.expiresAt);
   const subject = "Tu enlace seguro de preferencias de The Prayer Whiteboard";
-  const html = shell("Administra tus preferencias de correo", `
+  const html = shell("Administrá tus preferencias de correo", `
     <p style="margin:0 0 16px;line-height:1.65;">${greeting(input.firstName, "es")}</p>
-    <p style="margin:0 0 16px;line-height:1.65;">Usa este enlace seguro para administrar tus preferencias de correo de The Prayer Whiteboard.</p>
+    <p style="margin:0 0 16px;line-height:1.65;">Usá este enlace seguro para administrar tus preferencias de correo de The Prayer Whiteboard.</p>
     <p style="margin:24px 0;">${button("Administrar mis preferencias de correo", input.managementUrl)}</p>
     <p style="margin:0 0 16px;line-height:1.65;">Este enlace es temporal, de un solo uso, y vence el ${escapeHtml(expires)}.</p>
-    <p style="margin:0;line-height:1.65;color:#607066;">Si no solicitaste este enlace, puedes ignorar este mensaje.</p>
+    <p style="margin:0;line-height:1.65;color:#607066;">Si no solicitaste este enlace, podés ignorar este mensaje.</p>
   `);
   const text = `${textGreeting(input.firstName, "es")}
 
-Usa este enlace seguro para administrar tus preferencias de correo de The Prayer Whiteboard.
+Usá este enlace seguro para administrar tus preferencias de correo de The Prayer Whiteboard.
 
 Administrar mis preferencias de correo:
 ${input.managementUrl}
 
 Este enlace es temporal, de un solo uso, y vence el ${expires}.
 
-Si no solicitaste este enlace, puedes ignorar este mensaje.`;
+Si no solicitaste este enlace, podés ignorar este mensaje.`;
   return { subject, html, text };
 }

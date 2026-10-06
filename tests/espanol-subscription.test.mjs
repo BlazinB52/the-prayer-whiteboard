@@ -20,7 +20,7 @@ test("every send reads only subscribers of one language, English by default", as
 test("the confirmation email is fully Spanish for Español subscribers and unchanged for English", () => {
   const input = { firstName: "María", categories: ["teachings", "devotionals"], confirmationUrl: "https://example.test/espanol/suscribirse/confirmar?token=abc", expiresAt: "2026-10-08T12:00:00Z" };
   const es = buildConfirmationEmail({ ...input, language: "es" });
-  assert.equal(es.subject, "Confirma tu suscripción por correo de The Prayer Whiteboard");
+  assert.equal(es.subject, "Confirmá tu suscripción por correo de The Prayer Whiteboard");
   for (const part of [es.html, es.text]) {
     assert.match(part, /Hola María,/);
     assert.match(part, /Nuevas enseñanzas/);

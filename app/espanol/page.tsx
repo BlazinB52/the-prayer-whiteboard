@@ -106,7 +106,7 @@ export default async function EspanolHomePage() {
       ) : (
         <section id="ultima" className="scroll-mt-20 bg-[#244a3a] px-5 py-14 text-center text-white sm:px-8 sm:py-20">
           <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Muy pronto habrá enseñanzas en español</h2>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-[#dce8e1]">Estamos preparando las enseñanzas. Vuelve pronto.</p>
+          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-[#dce8e1]">Estamos preparando las enseñanzas. Volvé pronto.</p>
         </section>
       )}
 
@@ -114,7 +114,7 @@ export default async function EspanolHomePage() {
         <div className="mx-auto max-w-6xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Vuelve a la Palabra</p>
+              <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Volvé a la Palabra</p>
               <h2 className="mt-2 text-4xl font-extrabold tracking-tight text-[#243d31]">El Almacén</h2>
             </div>
             <p className="max-w-md text-sm leading-6 text-[#607066]">Las enseñanzas publicadas se organizan por fecha de reunión para que sean fáciles de encontrar después.</p>

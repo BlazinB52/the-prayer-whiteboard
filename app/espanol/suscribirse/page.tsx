@@ -7,7 +7,7 @@ import { SubscribeFormEs } from "./subscribe-form-es";
 
 export const metadata: Metadata = {
   title: "Actualizaciones por correo",
-  description: "Elige los correos de The Prayer Whiteboard que deseas recibir.",
+  description: "Elegí los correos de The Prayer Whiteboard que querás recibir.",
   alternates: { canonical: "/espanol/suscribirse" },
 };
 

@@ -8,7 +8,7 @@ const initialState: PreferenceRequestStateEs = {};
 export function PreferenceRequestFormEs() {
   const [state, action, pending] = useActionState(requestPreferenceAccessEs, initialState);
   if (state.submitted) {
-    return <p role="status" className="rounded-2xl border border-[#326048]/20 bg-[#e7efe9] p-5 font-bold leading-7 text-[#244a3a]">Si ese correo está conectado a las actualizaciones de Prayer Whiteboard, te enviaremos en breve un enlace seguro de preferencias. Revisa las carpetas de correo no deseado, spam o promociones si no lo ves.</p>;
+    return <p role="status" className="rounded-2xl border border-[#326048]/20 bg-[#e7efe9] p-5 font-bold leading-7 text-[#244a3a]">Si ese correo está conectado a las actualizaciones de Prayer Whiteboard, te enviaremos en breve un enlace seguro de preferencias. Revisá las carpetas de correo no deseado, spam o promociones si no lo ves.</p>;
   }
   return (
     <form action={action} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-xl shadow-[#4d5f52]/8 sm:p-7">

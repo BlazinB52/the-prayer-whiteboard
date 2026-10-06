@@ -19,7 +19,7 @@ export function SubscribeFormEs() {
       <p className="mt-3 leading-7">
         {state.alreadyConfirmed
           ? "Tus preferencias de correo se actualizaron."
-          : "Revisa tu correo y confirma tu suscripción. Una vez confirmada, recibirás las actualizaciones por correo que seleccionaste."}
+          : "Revisá tu correo y confirmá tu suscripción. Una vez confirmada, recibirás las actualizaciones por correo que elegiste."}
       </p>
     </div>
   ) : (
@@ -39,7 +39,7 @@ export function SubscribeFormEs() {
         <input name="website" tabIndex={-1} autoComplete="off" />
       </label>
       <fieldset className="mt-6">
-        <legend className="text-sm font-extrabold text-[#385245]">Elige tus actualizaciones por correo</legend>
+        <legend className="text-sm font-extrabold text-[#385245]">Elegí tus actualizaciones por correo</legend>
         <button
           type="button"
           onClick={() => setSelected({ teachings: !allSelected, devotionals: !allSelected })}
@@ -67,7 +67,7 @@ export function SubscribeFormEs() {
       <label className="mt-6 flex gap-3 text-sm font-bold leading-6 text-[#385245]">
         <input name="privacyConsent" type="checkbox" required className="mt-1" />
         <span>
-          Acepto recibir los correos seleccionados de The Prayer Whiteboard y entiendo que puedo cambiar mis preferencias o cancelar mi suscripción más adelante. Consulta la{" "}
+          Acepto recibir los correos seleccionados de The Prayer Whiteboard y entiendo que puedo cambiar mis preferencias o cancelar mi suscripción más adelante. Consultá la{" "}
           <Link href="/espanol/privacidad" className="text-[#9d5a2f] underline underline-offset-2">Política de privacidad</Link>.
         </span>
       </label>
@@ -76,7 +76,7 @@ export function SubscribeFormEs() {
         {pending ? "Enviando..." : "Suscribirse"} <ArrowRight aria-hidden="true" size={18} />
       </button>
       <p className="mt-4 text-sm leading-6 text-[#607066]">
-        Después de suscribirte, te enviaremos un correo de confirmación. No recibirás estas actualizaciones a menos que confirmes tu suscripción.
+        Después de suscribirte, te enviaremos un correo de confirmación. No recibirás estas actualizaciones a menos que confirmés tu suscripción.
       </p>
     </form>
   );
@@ -84,10 +84,10 @@ export function SubscribeFormEs() {
   return (
     <>
       <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#243d31] sm:text-6xl">
-        {state.submitted ? "Tus preferencias de correo" : "Elige tus actualizaciones por correo"}
+        {state.submitted ? "Tus preferencias de correo" : "Elegí tus actualizaciones por correo"}
       </h1>
       <p className="mt-5 max-w-2xl text-base leading-7 text-[#52645a]">
-        Suscríbete a los correos de The Prayer Whiteboard que deseas recibir. Elige las nuevas enseñanzas, los devocionales de 7 días, o ambos.
+        Suscribite a los correos de The Prayer Whiteboard que querás recibir. Elegí las nuevas enseñanzas, los devocionales de 7 días, o ambos.
       </p>
       <div className="mt-8">{result}</div>
     </>

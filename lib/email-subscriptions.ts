@@ -63,16 +63,16 @@ const MESSAGES = {
   },
   es: {
     submit: "No se pudo enviar la suscripción.",
-    firstName: "Escribe tu nombre.",
-    email: "Escribe una dirección de correo electrónico válida.",
-    category: "Elige al menos una categoría de correo.",
-    consent: "Por favor, acepta la declaración de privacidad y consentimiento.",
+    firstName: "Escribí tu nombre.",
+    email: "Escribí una dirección de correo electrónico válida.",
+    category: "Elegí al menos una categoría de correo.",
+    consent: "Por favor, aceptá la declaración de privacidad y consentimiento.",
     prefLink: "Este enlace de preferencias falta o no es válido.",
-    prefCategory: "Elige al menos una categoría de correo o cancela todas las suscripciones.",
+    prefCategory: "Elegí al menos una categoría de correo o cancelá todas las suscripciones.",
     prefSave: "No se pudieron guardar las preferencias.",
     prefExpired: "Este enlace de preferencias no es válido o venció.",
     preferencesSaved: "No se pudieron guardar las preferencias de suscripción.",
-    confirmationFailed: "Tu suscripción se guardó, pero no se pudo enviar el correo de confirmación. Inténtalo de nuevo en unos minutos.",
+    confirmationFailed: "Tu suscripción se guardó, pero no se pudo enviar el correo de confirmación. Intentalo de nuevo en unos minutos.",
   },
 } as const;
 

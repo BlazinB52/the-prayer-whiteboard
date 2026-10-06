@@ -9,10 +9,12 @@ const initialState: PreferenceSaveStateEs = {};
 export function PreferenceManagementFormEs({ preference }: { preference: PreferenceView }) {
   const [state, action, pending] = useActionState(saveEmailPreferencesEs, initialState);
   const [selected, setSelected] = useState<Record<string, boolean>>({
+    weekly_updates: preference.categories.includes("weekly_updates"),
     teachings: preference.categories.includes("teachings"),
     devotionals: preference.categories.includes("devotionals"),
   });
   const [unsubscribeAll, setUnsubscribeAll] = useState(false);
+  const [languages, setLanguages] = useState({ en: preference.languages.includes("en"), es: preference.languages.includes("es") });
 
   if (state.saved) {
     return <p role="status" className="rounded-2xl border border-[#326048]/20 bg-[#e7efe9] p-5 font-bold leading-7 text-[#244a3a]">{state.unsubscribed ? "Se canceló tu suscripción a las actualizaciones por correo de Prayer Whiteboard." : "Se guardaron tus preferencias de correo de Prayer Whiteboard."}</p>;
@@ -25,7 +27,7 @@ export function PreferenceManagementFormEs({ preference }: { preference: Prefere
       <label className="mt-5 block text-sm font-bold text-[#385245]">Nombre<input name="firstName" defaultValue={preference.firstName} required maxLength={120} className="admin-input" /></label>
       <fieldset className="mt-6" disabled={unsubscribeAll}>
         <legend className="text-sm font-extrabold text-[#385245]">Categorías de correo</legend>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {ESPANOL_EMAIL_CATEGORIES.map((category) => (
             <label key={category} className="flex min-h-14 items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-4 text-sm font-bold text-[#385245]">
               <input
@@ -37,6 +39,19 @@ export function PreferenceManagementFormEs({ preference }: { preference: Prefere
               {emailCategoryLabel(category, "es")}
             </label>
           ))}
+        </div>
+      </fieldset>
+      <fieldset className="mt-6" disabled={unsubscribeAll}>
+        <legend className="text-sm font-extrabold text-[#385245]">Idioma de los correos</legend>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="flex min-h-14 items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-4 text-sm font-bold text-[#385245]">
+            <input name="language_en" type="checkbox" checked={languages.en} onChange={(event) => setLanguages((current) => ({ ...current, en: event.target.checked }))} />
+            English
+          </label>
+          <label className="flex min-h-14 items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-4 text-sm font-bold text-[#385245]">
+            <input name="language_es" type="checkbox" checked={languages.es} onChange={(event) => setLanguages((current) => ({ ...current, es: event.target.checked }))} />
+            Español
+          </label>
         </div>
       </fieldset>
       <label className="mt-6 flex gap-3 text-sm font-bold leading-6 text-[#385245]">

@@ -4,13 +4,14 @@ import crypto from "node:crypto";
 import { headers } from "next/headers";
 import { EMAIL_CATEGORIES, offeredEmailCategories, type EmailCategory, type PreferenceView } from "@/lib/email-categories";
 import { toLanguage, type Language } from "@/lib/i18n";
-import { getSenderGroupIdsForCategories } from "@/lib/devotional-sender-groups";
+import { languagesFromCheckboxes, languagesFromScope, normalizeLanguages, sameLanguages } from "@/lib/subscriber-languages";
+import { getManagedSenderGroupIds, getSenderGroupIdsForSubscription } from "@/lib/devotional-sender-groups";
 import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "@/lib/subscription-email-content";
 import { hasConfirmedSubscriptionState, type ConfirmationEvidence, type SubscriberStatus } from "@/lib/subscription-status";
 import { reactivateSenderSubscriber } from "@/lib/sender-reactivation";
 import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
-import { syncSubscriberToSenderGroups } from "@/lib/sender-subscriber-groups";
+import { reconcileSubscriberSenderGroups } from "@/lib/sender-subscriber-groups";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -56,6 +57,7 @@ const MESSAGES = {
     consent: "Please acknowledge the privacy and consent statement.",
     prefLink: "This preference link is missing or invalid.",
     prefCategory: "Choose at least one email category or unsubscribe from all.",
+    prefLanguage: "Choose at least one language or unsubscribe from all.",
     prefSave: "Preferences could not be saved.",
     prefExpired: "This preference link is invalid or expired.",
     preferencesSaved: "Subscription preferences could not be saved.",
@@ -69,6 +71,7 @@ const MESSAGES = {
     consent: "Por favor, aceptá la declaración de privacidad y consentimiento.",
     prefLink: "Este enlace de preferencias falta o no es válido.",
     prefCategory: "Elegí al menos una categoría de correo o cancelá todas las suscripciones.",
+    prefLanguage: "Elegí al menos un idioma o cancelá todas las suscripciones.",
     prefSave: "No se pudieron guardar las preferencias.",
     prefExpired: "Este enlace de preferencias no es válido o venció.",
     preferencesSaved: "No se pudieron guardar las preferencias de suscripción.",
@@ -82,6 +85,7 @@ export function validateSubscriberFields(formData: FormData, language: Language 
   const email = String(formData.get("email") ?? "").trim();
   const normalizedEmail = normalizeEmail(email);
   const categories = readSelectedCategories(formData, language);
+  const languages = languagesFromScope(formData.get("languageScope"), language);
   const consent = formData.get("privacyConsent") === "on";
   const website = String(formData.get("website") ?? "").trim();
 
@@ -91,21 +95,23 @@ export function validateSubscriberFields(formData: FormData, language: Language 
   if (!categories.length) return { error: m.category };
   if (!consent) return { error: m.consent };
 
-  return { value: { firstName, email, normalizedEmail, categories } };
+  return { value: { firstName, email, normalizedEmail, categories, languages } };
 }
 
 export function validatePreferenceFields(formData: FormData, language: Language = "en") {
   const m = MESSAGES[language];
   const firstName = String(formData.get("firstName") ?? "").trim().replace(/\s+/g, " ");
   const categories = readSelectedCategories(formData, language);
+  const languages = languagesFromCheckboxes(formData);
   const unsubscribeAll = formData.get("unsubscribeAll") === "on";
   const token = String(formData.get("token") ?? "").trim();
 
   if (!token) return { error: m.prefLink };
   if (!firstName || firstName.length > 120) return { error: m.firstName };
   if (!unsubscribeAll && !categories.length) return { error: m.prefCategory };
+  if (!unsubscribeAll && !languages.length) return { error: m.prefLanguage };
 
-  return { value: { firstName, categories, token, unsubscribeAll } };
+  return { value: { firstName, categories, languages, token, unsubscribeAll } };
 }
 
 function tokenHash(token: string) {
@@ -182,22 +188,42 @@ function devotionalContextFromMetadata(metadata: unknown): DevotionalContext | n
   return typeof slug === "string" && typeof title === "string" ? { slug, title } : null;
 }
 
-// Group sync runs only for confirmed subscribers, so an unconfirmed address is
-// never created in Sender.
-async function syncConfirmedSubscriber(input: { subscriberId: string; email: string; firstName: string; categories: EmailCategory[]; devotionalSlug?: string | null; language?: Language }) {
-  // The Sender groups (and the automations attached to them) are English. Español subscribers are
-  // kept in Supabase only until Español groups exist.
-  if (input.language === "es") return;
+// Keeps the subscriber's Sender.net groups exactly in step with what they chose. There is one Sender
+// record per email address; its groups are rebuilt from what is stored in Supabase right now (their
+// language(s) and active categories), so a group is added when a choice is added and removed when it
+// is dropped or they unsubscribe. A confirmed subscriber is the only one ever added: an unconfirmed
+// address is never created in Sender.
+async function syncConfirmedSubscriber(input: { subscriberId: string; email?: string; firstName?: string; categories?: EmailCategory[]; devotionalSlug?: string | null; language?: Language }) {
   const supabase = getClient();
+  const { data: subscriber } = await supabase
+    .from("email_subscribers")
+    .select("email, first_name, status, languages, sender_contact_id")
+    .eq("id", input.subscriberId)
+    .maybeSingle();
+  if (!subscriber) return;
 
-  const groupIds = getSenderGroupIdsForCategories(input.categories, input.devotionalSlug);
-  if (!groupIds.length) return;
+  const confirmed = subscriber.status === "confirmed";
+  const { data: activeRows } = confirmed
+    ? await supabase.from("email_subscription_preferences").select("category").eq("subscriber_id", input.subscriberId).eq("status", "active")
+    : { data: [] as { category: string }[] };
+  const categories = (activeRows ?? []).map((row) => row.category as EmailCategory).filter((category) => EMAIL_CATEGORIES.includes(category));
+  const languages = normalizeLanguages(subscriber.languages);
+
+  const groupIds = confirmed ? getSenderGroupIdsForSubscription(languages, categories, input.devotionalSlug) : [];
+  const managed = getManagedSenderGroupIds();
+  // Series groups are joined through a series signup, so they only come off when English devotionals do.
+  const wantsEnglishDevotionals = confirmed && languages.includes("en") && categories.includes("devotionals");
+  const managedGroupIds = [...managed.fixed, ...(wantsEnglishDevotionals ? [] : managed.series)];
+
+  // Someone who was never added to Sender and has nothing to join is left alone.
+  if (!groupIds.length && !subscriber.sender_contact_id) return;
 
   await supabase.from("email_subscribers").update({ sender_sync_status: "pending", sender_sync_error: null }).eq("id", input.subscriberId);
-  const result = await syncSubscriberToSenderGroups({
-    email: input.email,
-    firstName: input.firstName,
-    groupIds,
+  const result = await reconcileSubscriberSenderGroups({
+    email: subscriber.email,
+    firstName: subscriber.first_name,
+    desiredGroupIds: groupIds,
+    managedGroupIds,
   });
 
   if (result.ok) {
@@ -219,7 +245,7 @@ async function syncConfirmedSubscriber(input: { subscriberId: string; email: str
     message_type: "preference_sync",
     status: "failed",
     error: result.error.slice(0, 300),
-    metadata: { categories: input.categories, groupIds },
+    metadata: { categories, languages, groupIds },
   });
 }
 
@@ -369,7 +395,7 @@ export async function requestSubscription(formData: FormData, language: Language
   const supabase = getClient();
   const { data: existing, error: existingError } = await supabase
     .from("email_subscribers")
-    .select("id, status, confirmed_at, language")
+    .select("id, status, confirmed_at, language, languages")
     .eq("normalized_email", fields.value.normalizedEmail)
     .maybeSingle();
   if (existingError) return { error: m.submit };
@@ -390,16 +416,17 @@ export async function requestSubscription(formData: FormData, language: Language
     source: devotionalContext.value ? "devotional_start" : "general_subscribe",
     devotional: devotionalContext.value,
     language,
+    languages: fields.value.languages,
   };
 
-  // A confirmed subscriber signing up in the other language is not switched on the spot, because
-  // anyone could otherwise change someone else's language by typing their address. The request
-  // waits in pending_language and takes effect when they click the confirmation link, which is sent
-  // in the new language and lists the categories they asked for.
-  if (existing && existingIsConfirmed && toLanguage(existing.language) !== language) {
-    const { error: pendingError } = await supabase.from("email_subscribers").update({ pending_language: language }).eq("id", existing.id);
+  // A confirmed subscriber who signs up with a different language choice is not changed on the spot,
+  // because anyone could otherwise change someone else's languages by typing their address. The new
+  // choice waits in pending_languages and takes effect when they click the confirmation link, which is
+  // sent in the language of the form they used and lists the categories they asked for.
+  if (existing && existingIsConfirmed && !sameLanguages(existing.languages, fields.value.languages)) {
+    const { error: pendingError } = await supabase.from("email_subscribers").update({ pending_languages: fields.value.languages }).eq("id", existing.id);
     if (pendingError) return { error: m.submit };
-    await recordConsentEvent(existing.id, "subscription_requested", fields.value.categories, { ...consentMetadata, languageSwitch: true });
+    await recordConsentEvent(existing.id, "subscription_requested", fields.value.categories, { ...consentMetadata, languageChange: true });
     if (await hasRecentSuccessfulDelivery(existing.id, "confirmation")) return { submitted: true };
     const switchAccess = await createAccessToken(existing.id, "confirmation");
     const switchDelivery = await deliverConfirmationEmail({
@@ -467,7 +494,9 @@ export async function requestSubscription(formData: FormData, language: Language
     suppressed_at: null,
     sender_sync_status: "not_configured",
     language,
+    languages: fields.value.languages,
     pending_language: null,
+    pending_languages: null,
   };
   const subscriberResult = subscriberId
     ? await supabase.from("email_subscribers").update(subscriberPayload).eq("id", subscriberId)
@@ -544,12 +573,13 @@ export async function confirmSubscriptionToken(token: string) {
   const now = new Date().toISOString();
   const { data: subscriber } = await supabase
     .from("email_subscribers")
-    .select("email, first_name, language, pending_language, confirmed_at")
+    .select("email, first_name, language, languages, pending_languages, confirmed_at")
     .eq("id", tokenResult.subscriberId)
     .maybeSingle();
   const currentLanguage = toLanguage(subscriber?.language);
-  const nextLanguage = subscriber?.pending_language ? toLanguage(subscriber.pending_language) : currentLanguage;
-  const switching = nextLanguage !== currentLanguage;
+  const currentLanguages = normalizeLanguages(subscriber?.languages);
+  const nextLanguages = subscriber?.pending_languages?.length ? normalizeLanguages(subscriber.pending_languages) : currentLanguages;
+  const switching = !sameLanguages(currentLanguages, nextLanguages);
   const { data: requestEvent } = await supabase
     .from("email_consent_events")
     .select("metadata, categories")
@@ -559,11 +589,16 @@ export async function confirmSubscriptionToken(token: string) {
     .limit(1)
     .maybeSingle();
   const devotionalContext = devotionalContextFromMetadata(requestEvent?.metadata);
+  // The language of the form they used becomes their primary language, which decides the language of
+  // their confirmation and preference-link emails and pages. It must be one of their chosen languages.
+  const requestedPrimary = toLanguage((requestEvent?.metadata as { language?: unknown } | null)?.language);
+  const nextLanguage = switching
+    ? (nextLanguages.includes(requestedPrimary) ? requestedPrimary : nextLanguages[0])
+    : currentLanguage;
 
   if (switching) {
-    // Language switch for an already-confirmed subscriber: keep what they already receive that exists
-    // in the new language, and add what they just asked for.
-    const offered = offeredEmailCategories(nextLanguage);
+    // Already-confirmed subscriber with a new language choice: keep what they already receive and add
+    // what they just asked for.
     const requested = ((requestEvent?.categories ?? []) as string[]).filter((category): category is EmailCategory => (EMAIL_CATEGORIES as readonly string[]).includes(category));
     const { data: activeRows } = await supabase
       .from("email_subscription_preferences")
@@ -571,7 +606,7 @@ export async function confirmSubscriptionToken(token: string) {
       .eq("subscriber_id", tokenResult.subscriberId)
       .eq("status", "active");
     const active = (activeRows ?? []).map((row) => row.category as EmailCategory);
-    categories = [...new Set([...active, ...requested])].filter((category) => offered.includes(category));
+    categories = [...new Set([...active, ...requested])];
   }
   if (!categories.length) return { status: "invalid" as const, categories: [] as EmailCategory[], language: currentLanguage };
 
@@ -580,12 +615,14 @@ export async function confirmSubscriptionToken(token: string) {
     confirmed_at: switching ? (subscriber?.confirmed_at ?? now) : now,
     unsubscribed_at: null,
     language: nextLanguage,
+    languages: nextLanguages,
     pending_language: null,
+    pending_languages: null,
     sender_sync_status: "not_configured",
   }).eq("id", tokenResult.subscriberId);
   if (subscriberError) return { status: "invalid" as const, categories: [] as EmailCategory[], language: currentLanguage };
   await replacePreferences(tokenResult.subscriberId, categories, "active");
-  await recordConsentEvent(tokenResult.subscriberId, "double_opt_in_confirmed", categories, { ...(await requestMetadata()), language: nextLanguage, ...(switching ? { languageSwitch: true } : {}) });
+  await recordConsentEvent(tokenResult.subscriberId, "double_opt_in_confirmed", categories, { ...(await requestMetadata()), language: nextLanguage, languages: nextLanguages, ...(switching ? { languageChange: true } : {}) });
   if (subscriber) {
     await syncConfirmedSubscriber({
       subscriberId: tokenResult.subscriberId,
@@ -630,12 +667,13 @@ export async function loadPreferenceToken(token: string): Promise<PreferenceView
   const tokenResult = await readToken(token, "management", false);
   if (tokenResult.status !== "valid" || !tokenResult.subscriberId) return null;
   const supabase = getClient();
-  const { data: subscriber } = await supabase.from("email_subscribers").select("id, first_name, email, status, language").eq("id", tokenResult.subscriberId).maybeSingle();
+  const { data: subscriber } = await supabase.from("email_subscribers").select("id, first_name, email, status, language, languages").eq("id", tokenResult.subscriberId).maybeSingle();
   if (!subscriber || !["confirmed", "unsubscribed"].includes(subscriber.status)) return null;
   const { data: preferences } = await supabase.from("email_subscription_preferences").select("category, status").eq("subscriber_id", subscriber.id);
   return {
     subscriberId: subscriber.id,
     language: toLanguage(subscriber.language),
+    languages: normalizeLanguages(subscriber.languages),
     firstName: subscriber.first_name,
     emailMasked: maskEmail(subscriber.email),
     categories: ((preferences ?? []) as Preference[]).filter((preference) => preference.status === "active").map((preference) => preference.category),
@@ -653,14 +691,27 @@ export async function savePreferences(formData: FormData, language: Language = "
   const now = new Date().toISOString();
   const categories = fields.value.unsubscribeAll ? [] : fields.value.categories;
   const status = fields.value.unsubscribeAll ? "unsubscribed" : "confirmed";
+  const { data: current } = await supabase.from("email_subscribers").select("language, languages").eq("id", tokenResult.subscriberId).maybeSingle();
+  // Unsubscribing from everything keeps the languages on file; otherwise they are what was just chosen.
+  const languages = fields.value.unsubscribeAll ? normalizeLanguages(current?.languages) : fields.value.languages;
+  // The primary language (the language of their confirmation and preference-link emails) must be one of
+  // the languages they still want.
+  const primary = languages.includes(toLanguage(current?.language)) ? toLanguage(current?.language) : languages[0];
   const { error } = await supabase.from("email_subscribers").update({
     first_name: fields.value.firstName,
     status,
+    language: primary,
+    languages,
+    pending_language: null,
+    pending_languages: null,
     unsubscribed_at: fields.value.unsubscribeAll ? now : null,
     sender_sync_status: "not_configured",
   }).eq("id", tokenResult.subscriberId);
   if (error) return { error: m.prefSave };
   await replacePreferences(tokenResult.subscriberId, categories, "active");
-  await recordConsentEvent(tokenResult.subscriberId, fields.value.unsubscribeAll ? "unsubscribed" : "preference_changed", categories, await requestMetadata());
+  await recordConsentEvent(tokenResult.subscriberId, fields.value.unsubscribeAll ? "unsubscribed" : "preference_changed", categories, { ...(await requestMetadata()), language: primary, languages });
+  // Groups follow the choice: dropped languages and categories leave their Sender groups, and
+  // unsubscribing from everything removes the subscriber from all of them.
+  await syncConfirmedSubscriber({ subscriberId: tokenResult.subscriberId });
   return { saved: true, unsubscribed: fields.value.unsubscribeAll };
 }

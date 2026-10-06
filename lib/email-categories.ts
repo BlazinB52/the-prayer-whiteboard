@@ -7,8 +7,9 @@ export const EMAIL_CATEGORY_LABELS: Record<EmailCategory, string> = {
   devotionals: "7-Day Devotionals",
 };
 
-// Weekly Updates have no Spanish version, so the Español form and preferences page leave them out.
-export const ESPANOL_EMAIL_CATEGORIES = ["teachings", "devotionals"] as const satisfies readonly EmailCategory[];
+// Both cards offer the same three choices. Which language(s) a choice is delivered in comes from the
+// subscriber's language selection, not from the category.
+export const ESPANOL_EMAIL_CATEGORIES = ["weekly_updates", "teachings", "devotionals"] as const satisfies readonly EmailCategory[];
 
 export const EMAIL_CATEGORY_LABELS_ES: Record<EmailCategory, string> = {
   weekly_updates: "Actualizaciones semanales",
@@ -27,6 +28,7 @@ export function offeredEmailCategories(language: "en" | "es" = "en"): readonly E
 export type PreferenceView = {
   subscriberId: string;
   language: "en" | "es";
+  languages: ("en" | "es")[];
   firstName: string;
   emailMasked: string;
   categories: EmailCategory[];

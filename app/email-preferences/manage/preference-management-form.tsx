@@ -14,6 +14,7 @@ export function PreferenceManagementForm({ preference }: { preference: Preferenc
     devotionals: preference.categories.includes("devotionals"),
   });
   const [unsubscribeAll, setUnsubscribeAll] = useState(false);
+  const [languages, setLanguages] = useState({ en: preference.languages.includes("en"), es: preference.languages.includes("es") });
 
   if (state.saved) {
     return <p role="status" className="rounded-2xl border border-[#326048]/20 bg-[#e7efe9] p-5 font-bold leading-7 text-[#244a3a]">{state.unsubscribed ? "You have been unsubscribed from Prayer Whiteboard email updates." : "Your Prayer Whiteboard email preferences were saved."}</p>;
@@ -38,6 +39,19 @@ export function PreferenceManagementForm({ preference }: { preference: Preferenc
               {EMAIL_CATEGORY_LABELS[category]}
             </label>
           ))}
+        </div>
+      </fieldset>
+      <fieldset className="mt-6" disabled={unsubscribeAll}>
+        <legend className="text-sm font-extrabold text-[#385245]">Email language</legend>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="flex min-h-14 items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-4 text-sm font-bold text-[#385245]">
+            <input name="language_en" type="checkbox" checked={languages.en} onChange={(event) => setLanguages((current) => ({ ...current, en: event.target.checked }))} />
+            English
+          </label>
+          <label className="flex min-h-14 items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-4 text-sm font-bold text-[#385245]">
+            <input name="language_es" type="checkbox" checked={languages.es} onChange={(event) => setLanguages((current) => ({ ...current, es: event.target.checked }))} />
+            Español
+          </label>
         </div>
       </fieldset>
       <label className="mt-6 flex gap-3 text-sm font-bold leading-6 text-[#385245]">

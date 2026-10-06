@@ -35,7 +35,7 @@ test("the already-confirmed merge branch backfills a missing confirmed_at instea
   const source = await readFile("lib/email-subscriptions.ts", "utf8");
   const confirmedBranch = source.match(/if \(existing && existingIsConfirmed\)[\s\S]*?let subscriberId/)?.[0] ?? "";
   assert.match(confirmedBranch, /confirmed_at: existing\.confirmed_at \?\? new Date\(\)\.toISOString\(\)/);
-  assert.match(source, /\.select\("id, status, confirmed_at, language"\)/);
+  assert.match(source, /\.select\("id, status, confirmed_at, language, languages"\)/);
 });
 
 test("already-confirmed 5787 signup preserves its slug through Sender group resolution", async () => {
@@ -121,11 +121,11 @@ test("every selected category is synced to Sender and sync failures are recorded
   const source = await readFile("lib/email-subscriptions.ts", "utf8");
   const sync = source.match(/async function syncConfirmedSubscriber[\s\S]*?\n}/)?.[0] ?? "";
 
-  assert.match(sync, /getSenderGroupIdsForCategories\(input\.categories, input\.devotionalSlug\)/);
-  assert.match(sync, /if \(!groupIds\.length\) return;/);
+  assert.match(sync, /getSenderGroupIdsForSubscription\(languages, categories, input\.devotionalSlug\)/);
+  assert.match(sync, /if \(!groupIds\.length && !subscriber\.sender_contact_id\) return;/);
   assert.match(sync, /message_type: "preference_sync"/);
   assert.match(sync, /status: "failed"/);
-  assert.match(sync, /metadata: \{ categories: input\.categories, groupIds \}/);
+  assert.match(sync, /metadata: \{ categories, languages, groupIds \}/);
 });
 
 test("confirmation result copy lists one active category", () => {
@@ -196,7 +196,7 @@ test("admin subscribers page searches and paginates server-side", async () => {
   const source = await readFile("app/admin/subscribers/page.tsx", "utf8");
   assert.match(source, /const PAGE_SIZE = 25/);
   assert.match(source, /searchParams/);
-  assert.match(source, /\.select\("id, first_name, email, status, language, pending_language, confirmed_at, updated_at, sender_sync_status, sender_sync_error", \{ count: "exact" \}\)/);
+  assert.match(source, /\.select\("id, first_name, email, status, language, languages, pending_language, pending_languages, confirmed_at, updated_at, sender_sync_status, sender_sync_error", \{ count: "exact" \}\)/);
   assert.match(source, /\.range\(from, to\)/);
   assert.match(source, /\.or\(`first_name\.ilike/);
   assert.match(source, /Showing \$\{firstShown\}-\$\{lastShown\} of \$\{total\}/);

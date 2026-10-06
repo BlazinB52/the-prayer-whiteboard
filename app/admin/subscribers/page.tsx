@@ -15,7 +15,9 @@ type SubscriberRow = {
   email: string;
   status: string;
   language: string | null;
+  languages: string[] | null;
   pending_language: string | null;
+  pending_languages: string[] | null;
   confirmed_at: string | null;
   updated_at: string;
   sender_sync_status: string;
@@ -23,6 +25,11 @@ type SubscriberRow = {
 };
 
 const PAGE_SIZE = 25;
+
+function languageLabel(languages: string[] | null, fallback: string | null) {
+  const list = languages?.length ? languages : [fallback === "es" ? "es" : "en"];
+  return list.map((language) => (language === "es" ? "Español" : "English")).join(" + ");
+}
 
 function formatDate(value: string | null) {
   if (!value) return "Not set";
@@ -48,7 +55,7 @@ export default async function AdminSubscribersPage({ searchParams }: { searchPar
 
   let subscriberQuery = supabase
     .from("email_subscribers")
-    .select("id, first_name, email, status, language, pending_language, confirmed_at, updated_at, sender_sync_status, sender_sync_error", { count: "exact" })
+    .select("id, first_name, email, status, language, languages, pending_language, pending_languages, confirmed_at, updated_at, sender_sync_status, sender_sync_error", { count: "exact" })
     .order("updated_at", { ascending: false })
     .range(from, to);
 
@@ -122,7 +129,7 @@ export default async function AdminSubscribersPage({ searchParams }: { searchPar
                 return (
                   <article key={subscriber.id} className="grid gap-3 border-b border-[#284a3b]/10 px-5 py-4 text-sm last:border-b-0 md:grid-cols-[1fr_0.8fr_1fr_1fr_1fr_1fr]">
                     <div><p className="font-extrabold text-[#243d31]">{subscriber.first_name}</p><p className="mt-1 text-[#607066]">{maskEmail(subscriber.email)}</p></div>
-                    <p className="font-bold text-[#385245]"><span className="capitalize">{subscriber.status}</span><span className="mt-1 block text-xs font-extrabold uppercase tracking-wider text-[#946332]">{subscriber.language === "es" ? "Español" : "English"}{subscriber.pending_language ? ` → ${subscriber.pending_language === "es" ? "Español" : "English"} (awaiting confirmation)` : ""}</span></p>
+                    <p className="font-bold text-[#385245]"><span className="capitalize">{subscriber.status}</span><span className="mt-1 block text-xs font-extrabold uppercase tracking-wider text-[#946332]">{languageLabel(subscriber.languages, subscriber.language)}{subscriber.pending_languages?.length ? ` → ${languageLabel(subscriber.pending_languages, null)} (awaiting confirmation)` : ""}</span></p>
                     <p className="text-[#607066]">{categories.length ? categories.map((category) => EMAIL_CATEGORY_LABELS[category]).join(", ") : "None"}</p>
                     <p className="text-[#607066]">{formatDate(subscriber.confirmed_at)}</p>
                     <p className="text-[#607066]">{formatDate(lastPreferenceUpdateBySubscriber.get(subscriber.id) ?? subscriber.updated_at)}</p>

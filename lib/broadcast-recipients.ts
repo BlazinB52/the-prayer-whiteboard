@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { EmailCategory } from "@/lib/email-categories";
+import { normalizeLanguages } from "@/lib/subscriber-languages";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const PAGE_SIZE = 100;
@@ -20,18 +21,21 @@ export async function loadConfirmedRecipients(category: EmailCategory, language:
     const from = page * PAGE_SIZE;
     const { data, error } = await supabase
       .from("email_subscription_preferences")
-      .select("subscriber_id, email_subscribers!inner(id, first_name, email, status)")
+      .select("subscriber_id, email_subscribers!inner(id, first_name, email, status, languages)")
       .eq("category", category)
       .eq("status", "active")
       .eq("email_subscribers.status", "confirmed")
-      .eq("email_subscribers.language", language)
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw new Error(`Recipient lookup failed: ${error.message}`);
     if (!data?.length) break;
 
-    for (const row of data as unknown as { email_subscribers: { id: string; first_name: string; email: string } }[]) {
+    for (const row of data as unknown as { email_subscribers: { id: string; first_name: string; email: string; languages: string[] | null } }[]) {
       const subscriber = row.email_subscribers;
-      if (subscriber?.email) recipients.push({ id: subscriber.id, firstName: subscriber.first_name, email: subscriber.email });
+      // Only subscribers who chose this language are mailed. An English send never reaches someone who
+      // chose Español only, and the other way round; someone who chose both gets both.
+      if (subscriber?.email && normalizeLanguages(subscriber.languages).includes(language)) {
+        recipients.push({ id: subscriber.id, firstName: subscriber.first_name, email: subscriber.email });
+      }
     }
 
     if (data.length < PAGE_SIZE) break;

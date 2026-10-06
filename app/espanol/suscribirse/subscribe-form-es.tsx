@@ -10,7 +10,7 @@ const initialState: SubscribeStateEs = {};
 
 export function SubscribeFormEs() {
   const [state, action, pending] = useActionState(submitSubscriptionEs, initialState);
-  const [selected, setSelected] = useState<Record<string, boolean>>({ teachings: false, devotionals: false });
+  const [selected, setSelected] = useState<Record<string, boolean>>({ weekly_updates: false, teachings: false, devotionals: false });
   const allSelected = useMemo(() => ESPANOL_EMAIL_CATEGORIES.every((category) => selected[category]), [selected]);
 
   const result = state.submitted ? (
@@ -42,12 +42,12 @@ export function SubscribeFormEs() {
         <legend className="text-sm font-extrabold text-[#385245]">Elegí tus actualizaciones por correo</legend>
         <button
           type="button"
-          onClick={() => setSelected({ teachings: !allSelected, devotionals: !allSelected })}
+          onClick={() => setSelected({ weekly_updates: !allSelected, teachings: !allSelected, devotionals: !allSelected })}
           className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-[#284a3b]/15 bg-white px-4 text-sm font-extrabold text-[#244a3a] transition hover:border-[#a85e32]/40 hover:text-[#a85e32]"
         >
           Seleccionar todo
         </button>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
           {ESPANOL_EMAIL_CATEGORIES.map((category: EmailCategory) => (
             <label key={category} className="flex min-h-14 items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-4 text-sm font-bold text-[#385245]">
               <input
@@ -62,6 +62,19 @@ export function SubscribeFormEs() {
               </span>
             </label>
           ))}
+        </div>
+      </fieldset>
+      <fieldset className="mt-6">
+        <legend className="text-sm font-extrabold text-[#385245]">Idioma de los correos</legend>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="flex min-h-14 items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-4 text-sm font-bold text-[#385245]">
+            <input name="languageScope" type="radio" value="own" defaultChecked />
+            <span>Solo en español</span>
+          </label>
+          <label className="flex min-h-14 items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-4 text-sm font-bold text-[#385245]">
+            <input name="languageScope" type="radio" value="both" />
+            <span>Español e inglés</span>
+          </label>
         </div>
       </fieldset>
       <label className="mt-6 flex gap-3 text-sm font-bold leading-6 text-[#385245]">
@@ -87,7 +100,7 @@ export function SubscribeFormEs() {
         {state.submitted ? "Tus preferencias de correo" : "Elegí tus actualizaciones por correo"}
       </h1>
       <p className="mt-5 max-w-2xl text-base leading-7 text-[#52645a]">
-        Suscribite a los correos de The Prayer Whiteboard que querás recibir. Elegí las nuevas enseñanzas, los devocionales de 7 días, o ambos.
+        Suscribite a los correos de The Prayer Whiteboard que querás recibir. Elegí las actualizaciones semanales, las nuevas enseñanzas, los devocionales de 7 días, o todos.
       </p>
       <div className="mt-8">{result}</div>
     </>

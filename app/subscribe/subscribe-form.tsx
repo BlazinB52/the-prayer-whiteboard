@@ -74,6 +74,19 @@ export function SubscribeForm({ devotional }: { devotional: { slug: string; titl
           ))}
         </div>
       </fieldset>
+      <fieldset className="mt-6">
+        <legend className="text-sm font-extrabold text-[#385245]">Email language</legend>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="flex min-h-14 items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-4 text-sm font-bold text-[#385245]">
+            <input name="languageScope" type="radio" value="own" defaultChecked />
+            <span>English only</span>
+          </label>
+          <label className="flex min-h-14 items-center gap-3 rounded-xl border border-[#284a3b]/10 bg-white px-4 text-sm font-bold text-[#385245]">
+            <input name="languageScope" type="radio" value="both" />
+            <span>English and Español (both)</span>
+          </label>
+        </div>
+      </fieldset>
       <label className="mt-6 flex gap-3 text-sm font-bold leading-6 text-[#385245]">
         <input name="privacyConsent" type="checkbox" required className="mt-1" />
         <span>

@@ -22,7 +22,7 @@ const tools = [
     href: "/admin/cm/those-in-authority",
   },
   {
-    title: "Teaching Review",
+    title: "Full Teaching - Review",
     description: "Propose changes to draft teachings. Changes are proposals only until an Administrator accepts them.",
     status: "Available",
     href: "/admin/cm/teaching-review",

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { requireContentManager } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
-  title: "Teaching Review",
+  title: "Full Teaching - Review",
   robots: { index: false, follow: false },
 };
 
@@ -55,7 +55,7 @@ export default async function TeachingReviewListPage() {
     <main className="min-h-screen bg-[#f7f2e8] px-5 py-8 text-[#243126] sm:px-8 sm:py-12">
       <div className="mx-auto max-w-4xl">
         <Link href="/admin/cm" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Content Management</Link>
-        <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31] sm:text-5xl">Teaching Review</h1>
+        <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31] sm:text-5xl">Full Teaching - Review</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
           Choose a draft teaching to review. Your edits are proposals only: the teaching does not change until an Administrator accepts them.
         </p>

@@ -107,7 +107,7 @@ export default async function TeachingReviewEditPage({
   return (
     <main className="min-h-screen bg-[#f7f2e8] px-5 py-8 text-[#243126] sm:px-8 sm:py-12">
       <div className="mx-auto max-w-3xl">
-        <Link href="/admin/cm/teaching-review" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Teaching Review</Link>
+        <Link href="/admin/cm/teaching-review" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Full Teaching - Review</Link>
         <p className="mt-4 text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Review mode</p>
         <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31] sm:text-4xl">{teaching.title}</h1>
         <p className="mt-3 rounded-xl border border-[#a85e32]/20 bg-[#fff8f1] px-4 py-3 text-sm font-bold leading-6 text-[#6b4a2a]">

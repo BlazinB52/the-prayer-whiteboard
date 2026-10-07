@@ -63,11 +63,49 @@ function expandLabeledLine(line: string) {
   return [line];
 }
 
+// Other ways a label is commonly typed in Word: with no colon, "Anchor Scripture" in the singular, or
+// "Devotional Reading" for the spiritual mechanic. Each is read as the label it stands for.
+const LABEL_VARIANTS: Record<string, string> = {
+  "anchor scripture": "Anchor Scriptures:",
+  "anchor scripture:": "Anchor Scriptures:",
+  "anchor scriptures": "Anchor Scriptures:",
+  "the spiritual mechanic": "The Spiritual Mechanic:",
+  "spiritual mechanic": "The Spiritual Mechanic:",
+  "spiritual mechanic:": "The Spiritual Mechanic:",
+  "devotional reading": "The Spiritual Mechanic:",
+  "devotional reading:": "The Spiritual Mechanic:",
+  "today's confession": "Today's Confession:",
+  "5-minute journal prompt": "5-Minute Journal Prompt:",
+  "prayer activation exercise": "Prayer Activation Exercise:",
+};
+
+function canonicalLabel(line: string) {
+  const folded = foldLabel(line).replace(/\s+/g, " ");
+  const variant = LABEL_VARIANTS[folded];
+  if (variant) return variant;
+  return LABELS.find((label) => foldLabel(label).replace(/:$/, "") === folded.replace(/:$/, "")) ?? null;
+}
+
+// An anchor Scripture typed as "Reference (KJV) - the verse words" with no quotation marks becomes
+// the standard Reference (KJV) — "the verse words". The wording itself is never changed.
+const UNQUOTED_ANCHOR = /^(.*?\([^()]+\))\s*-\s*([^"\s].*)$/;
+function quoteBareAnchor(line: string) {
+  if (line.includes('"')) return line;
+  const match = line.match(UNQUOTED_ANCHOR);
+  return match ? `${match[1].trim()} - "${match[2].trim()}"` : line;
+}
+
 function normalizeLines(text: string) {
   const lines: string[] = [];
   for (const rawLine of text.replace(/\r\n?/g, "\n").split("\n")) {
-    const line = cleanText(rawLine);
+    // Leftover **bold** markers from pasted text are not part of the wording.
+    const line = cleanText(rawLine.replace(/\*\*/g, ""));
     if (!line) continue;
+    const label = canonicalLabel(line);
+    if (label) {
+      lines.push(label);
+      continue;
+    }
     for (const expanded of expandLabeledLine(line)) {
       lines.push(expanded);
     }
@@ -79,7 +117,9 @@ function readBlock(section: string[], key: LabelKey) {
   const aliases = LABEL_ALIASES[key] as readonly string[];
   const start = section.findIndex((line) => aliases.includes(line));
   if (start === -1) {
-    throw new Error(`Missing "${aliases[0]}" (Spanish: "${aliases[1]}") in ${section[0]}.`);
+    // Name the label in the language of this day's own heading, so an English file is never told about Spanish.
+    const label = SPANISH_DAY_HEADING_PATTERN.test(section[0]) ? aliases[1] : aliases[0];
+    throw new Error(`Missing "${label}" in ${section[0]}. The label must be on its own line, spelled exactly like this.`);
   }
 
   let end = section.length;
@@ -114,7 +154,7 @@ function parseDay(section: string[]): ImportedDevotionalDay {
   const match = section[0].match(DAY_HEADING_PATTERN);
   if (!match) throw new Error(`Invalid day heading: ${section[0]}`);
 
-  const anchorScriptures = readBlock(section, "anchorScriptures");
+  const anchorScriptures = readBlock(section, "anchorScriptures").map(quoteBareAnchor);
   const devotionalReading = readBlock(section, "spiritualMechanic");
   const confession = readBlock(section, "confession");
   const journalPrompt = readBlock(section, "journalPrompt");

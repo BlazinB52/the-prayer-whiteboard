@@ -124,10 +124,35 @@ test("English devotional files are still detected as English", () => {
   assert.equal(parsed.language, "en");
 });
 
-test("a missing label names both the English and the Spanish wording", () => {
+test("a missing label is named in the language of the file, never both", () => {
   const broken = diaEspanol(1).replace("Confesión de hoy:\nConfesión 1.\n", "");
   assert.throws(
     () => parseDevotionalText(["Título", broken, ...[2, 3, 4, 5, 6, 7].map(diaEspanol)].join("\n")),
-    /Missing "Today's Confession:" \(Spanish: "Confesión de hoy:"\)/,
+    (error) => /Missing "Confesión de hoy:"/.test(error.message) && !/Today's Confession|Spanish:/.test(error.message),
   );
+  const english = day(1).replace("Today's Confession:\nConfession 1.\n", "");
+  assert.throws(
+    () => parseDevotionalText(["Title", english, ...[2, 3, 4, 5, 6, 7].map(day)].join("\n")),
+    (error) => /Missing "Today's Confession:"/.test(error.message) && !/Confesión|Spanish/.test(error.message),
+  );
+});
+
+test("labels typed without a colon, 'Anchor Scripture', 'Devotional Reading' and stray ** markers are understood", () => {
+  const loose = (n) => `Day ${n}: Loose Day ${n}
+Anchor Scripture
+**Ephesians 5:11, 14 (KJV) —**  And have no fellowship with darkness.
+Devotional Reading
+Reading ${n}.
+Today’s Confession
+Confession ${n}.
+5-Minute Journal Prompt
+Prompt ${n}.
+Prayer Activation Exercise
+Activation ${n}.`;
+  const parsed = parseDevotionalText(["Title", ...[1, 2, 3, 4, 5, 6, 7].map(loose)].join("\n"));
+  assert.equal(parsed.days.length, 7);
+  assert.equal(parsed.days[0].devotional_reading, "Reading 1.");
+  assert.equal(parsed.days[0].confession, "Confession 1.");
+  assert.deepEqual(parsed.days[0].anchor_scriptures, ['Ephesians 5:11, 14 (KJV) — "And have no fellowship with darkness."']);
+  assert.equal(parsed.language, "en");
 });

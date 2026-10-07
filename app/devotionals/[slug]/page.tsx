@@ -50,7 +50,7 @@ export default async function PublicDevotionalPage({ params }: { params: Promise
             <BookOpenCheck aria-hidden="true" size={15} />
             {t.sevenDayDevotional}
           </p>
-          <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">
+          <h1 className="mt-5 text-3xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-4xl">
             {series.title}
           </h1>
           <p className="mt-6 text-lg leading-8 text-[#52645a]">{formatInlineText(description)}</p>

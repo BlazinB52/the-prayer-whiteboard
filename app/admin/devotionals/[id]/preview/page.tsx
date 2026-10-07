@@ -43,7 +43,7 @@ export default async function AdminStandaloneDevotionalPreviewPage({ params }: {
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
         <header className="border-b border-[#284a3b]/15 pb-8">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">7-Day Devotional</p>
-          <h1 className="mt-3 text-4xl font-extrabold leading-tight text-[#243d31] sm:text-6xl">{devotional.title}</h1>
+          <h1 className="mt-3 text-3xl font-extrabold leading-tight text-[#243d31] sm:text-4xl">{devotional.title}</h1>
           <p className="mt-4 text-sm font-bold text-[#607066]">Teaching: Not attached to a teaching</p>
           <p className="mt-2 text-sm font-bold text-[#607066]">Saved status: {devotional.status}</p>
           <DevotionalTextBlock text={devotional.introduction} className="mt-6 text-lg leading-8 text-[#52645a]" emptyText="Not saved." />

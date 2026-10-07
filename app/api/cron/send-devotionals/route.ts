@@ -1,10 +1,12 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { processDevotionalQueue } from "@/lib/devotional-send";
+import { scheduleContinuation } from "@/lib/send-deliveries";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Sends are sequential and throttled, so allow the full function budget.
+// Sends are sequential and throttled. A request stops sending at about 40s and hands the rest to
+// the resume route, so no single request depends on finishing the whole list.
 export const maxDuration = 60;
 
 function timingSafeEqual(a: string, b: string) {
@@ -29,6 +31,8 @@ export async function GET(request: Request) {
     // (Wednesday is day 1 through Tuesday is day 7), so the run needs neither a
     // parent teaching's publish date nor any per-subscriber state.
     const result = await processDevotionalQueue();
+    // Out of time, not out of subscribers: hand the rest to the resume route.
+    if (result.status === "incomplete") scheduleContinuation("/api/cron/send-devotionals/resume", { Authorization: `Bearer ${secret}` }, { ledger_id: result.ledgerId });
     return NextResponse.json(result, { status: 200 });
   } catch {
     return NextResponse.json({ error: "Devotional run failed." }, { status: 500 });

@@ -105,7 +105,8 @@ test("the run is driven by the most recently published devotional series", async
 test("a day is claimed in the ledger before any send", async () => {
   const source = await readFile("lib/devotional-send.ts", "utf8");
   const claimIndex = source.indexOf("await claimDay(devotional.id, dayNumber, teaching?.id ?? null)");
-  const sendIndex = source.indexOf("sendSenderTransactionalEmail(");
+  // Sending lives in deliverDay(), which only runs once the day is claimed.
+  const sendIndex = source.indexOf("return deliverDay({ ledgerId");
 
   assert.match(source, /error\.code === "23505"/);
   assert.ok(claimIndex > 0 && sendIndex > claimIndex, "claim must happen before any send");
@@ -163,11 +164,11 @@ test("the whole confirmed devotional list receives the day, throttled", async ()
   const source = await readFile("lib/devotional-send.ts", "utf8");
 
   assert.match(source, /loadConfirmedRecipients\("devotionals"\)/);
-  assert.match(source, /await sleep\(THROTTLE_MS\);/);
+  assert.match(source, /throttleMs: THROTTLE_MS/);
   // error is not-null in production (schema drift from the migration file), so
   // a clean run must still write a non-null value or the update silently fails
   // and leaves the row stuck on 'sending' forever.
-  assert.match(source, /error: failedCount \? \{ sentCount, failedCount, failures \} : \{\}/);
+  assert.match(source, /error: finished && failedCount \? \{ sentCount: run\.sentCount, failedCount, failures: run\.failures \} : \{\}/);
   assert.match(source, /if \(ledgerUpdateError\) throw new Error/);
 });
 

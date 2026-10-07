@@ -71,7 +71,8 @@ test("the teaching webhook only acts on published teaching rows", async () => {
 test("a teaching broadcast is claimed before sending so repeat webhooks cannot double-send", async () => {
   const source = await readFile("lib/teaching-broadcast.ts", "utf8");
   const claimIndex = source.indexOf("await claimBroadcast(teachingId)");
-  const sendIndex = source.indexOf("sendSenderTransactionalEmail(");
+  // Sending lives in deliver(), which only runs once the ledger row is claimed.
+  const sendIndex = source.indexOf("return deliver(found.teaching, broadcastId)");
 
   assert.match(source, /error\.code === "23505"/);
   assert.ok(claimIndex > 0 && sendIndex > claimIndex, "claim must happen before any send");
@@ -105,8 +106,9 @@ test("both broadcasts share one confirmed-recipient query", async () => {
 test("per-recipient failures are stored in the single ledger row", async () => {
   const source = await readFile("lib/teaching-broadcast.ts", "utf8");
 
-  assert.match(source, /MAX_RECORDED_FAILURES/);
-  assert.match(source, /error: failedCount \? \{ sentCount, failedCount, failures \} : null/);
+  const deliveries = await readFile("lib/send-deliveries.ts", "utf8");
+  assert.match(deliveries, /MAX_RECORDED_FAILURES/);
+  assert.match(source, /error: finished && failedTotal \? \{ sentCount: run\.sentCount, failedCount: failedTotal, failures: run\.failures \} : null/);
 });
 
 test("service_role can read the content tables the broadcasts re-read", async () => {

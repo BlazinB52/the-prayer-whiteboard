@@ -1,0 +1,156 @@
+import "server-only";
+
+import { after } from "next/server";
+import type { BroadcastRecipient } from "@/lib/broadcast-recipients";
+import { siteUrl } from "@/lib/email-subscriptions";
+import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
+import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
+
+// The routes are capped at 60s. Stop starting new sends well before that so the ledger is always
+// written, then hand the remainder to a follow-up request.
+export const SEND_TIME_BUDGET_MS = 40_000;
+// A claim left in 'sending' this long means the request that made it was cut off mid-send.
+const STALE_CLAIM_MS = 5 * 60 * 1000;
+const MAX_RECORDED_FAILURES = 25;
+
+export type DeliveryKind = "teaching" | "devotional";
+export type EmailContent = { subject: string; html: string; text: string };
+export type DeliveryRun = {
+  recipientCount: number;
+  sentCount: number;
+  failedCount: number;
+  remainingCount: number;
+  failures: { subscriberId: string; reason: string }[];
+};
+
+function getClient() {
+  const supabase = createServiceRoleClient();
+  if (!supabase) throw new Error("Send storage is not configured.");
+  return supabase;
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Claims one recipient. Returns false when someone already sent (or is sending) to them, so two
+// overlapping runs can never both mail the same subscriber.
+async function claimDelivery(kind: DeliveryKind, ledgerId: string, subscriberId: string) {
+  const supabase = getClient();
+  const { error } = await supabase
+    .from("email_send_deliveries")
+    .insert({ kind, ledger_id: ledgerId, subscriber_id: subscriberId, status: "sending" });
+  if (!error) return true;
+  if (error.code !== "23505") throw new Error(`Delivery could not be claimed: ${error.message}`);
+
+  // Only a failed send, or a claim abandoned by a cut-off request, may be taken again.
+  const staleBefore = new Date(Date.now() - STALE_CLAIM_MS).toISOString();
+  const { data, error: reclaimError } = await supabase
+    .from("email_send_deliveries")
+    .update({ status: "sending", reason: null, updated_at: new Date().toISOString() })
+    .eq("kind", kind)
+    .eq("ledger_id", ledgerId)
+    .eq("subscriber_id", subscriberId)
+    .or(`status.eq.failed,and(status.eq.sending,updated_at.lt.${staleBefore})`)
+    .select("subscriber_id");
+  if (reclaimError) throw new Error(`Delivery could not be reclaimed: ${reclaimError.message}`);
+  return (data?.length ?? 0) > 0;
+}
+
+async function recordDelivery(kind: DeliveryKind, ledgerId: string, subscriberId: string, status: "sent" | "failed", reason?: string) {
+  await getClient()
+    .from("email_send_deliveries")
+    .update({ status, reason: reason ?? null, updated_at: new Date().toISOString() })
+    .eq("kind", kind)
+    .eq("ledger_id", ledgerId)
+    .eq("subscriber_id", subscriberId);
+}
+
+async function loadSentSubscriberIds(kind: DeliveryKind, ledgerId: string) {
+  const supabase = getClient();
+  const sent = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("email_send_deliveries")
+      .select("subscriber_id")
+      .eq("kind", kind)
+      .eq("ledger_id", ledgerId)
+      .eq("status", "sent")
+      .range(from, from + 999);
+    if (error) throw new Error(`Delivery lookup failed: ${error.message}`);
+    for (const row of data ?? []) sent.add(row.subscriber_id as string);
+    if ((data?.length ?? 0) < 1000) break;
+  }
+  return sent;
+}
+
+// Mails every recipient who has no 'sent' delivery for this ledger row yet, stopping when the time
+// budget is spent. Safe to call repeatedly: finished recipients are skipped, never mailed twice.
+export async function deliverToRecipients(input: {
+  kind: DeliveryKind;
+  ledgerId: string;
+  recipients: BroadcastRecipient[];
+  buildEmail: (recipient: BroadcastRecipient) => EmailContent;
+  throttleMs: number;
+}): Promise<DeliveryRun> {
+  const { kind, ledgerId, recipients } = input;
+  const deadline = Date.now() + SEND_TIME_BUDGET_MS;
+  const alreadySent = await loadSentSubscriberIds(kind, ledgerId);
+  const pending = recipients.filter((recipient) => !alreadySent.has(recipient.id));
+
+  let sentThisRun = 0;
+  let failedCount = 0;
+  let attempted = 0;
+  const failures: DeliveryRun["failures"] = [];
+
+  for (const recipient of pending) {
+    if (Date.now() >= deadline) break;
+    attempted += 1;
+    if (!(await claimDelivery(kind, ledgerId, recipient.id))) continue;
+
+    const email = input.buildEmail(recipient);
+    try {
+      const result = await sendSenderTransactionalEmail({
+        toEmail: recipient.email,
+        toName: recipient.firstName,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      });
+      if (result.ok) {
+        sentThisRun += 1;
+        await recordDelivery(kind, ledgerId, recipient.id, "sent");
+      } else {
+        failedCount += 1;
+        await recordDelivery(kind, ledgerId, recipient.id, "failed", result.reason);
+        if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: result.reason });
+        if (isSuppressionRejection(result)) await markSubscriberSuppressed(recipient.id);
+      }
+    } catch {
+      // One bad recipient must not abandon the rest of the list.
+      failedCount += 1;
+      await recordDelivery(kind, ledgerId, recipient.id, "failed", "exception");
+      if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: "exception" });
+    }
+
+    await sleep(input.throttleMs);
+  }
+
+  return {
+    recipientCount: recipients.length,
+    sentCount: recipients.length - pending.length + sentThisRun,
+    failedCount,
+    remainingCount: pending.length - attempted,
+    failures,
+  };
+}
+
+// Hands an unfinished send to a follow-up request once this response has gone out.
+export function scheduleContinuation(path: string, headers: Record<string, string>, body: Record<string, string>) {
+  after(async () => {
+    await fetch(`${siteUrl()}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...headers },
+      body: JSON.stringify(body),
+    }).catch(() => undefined);
+  });
+}

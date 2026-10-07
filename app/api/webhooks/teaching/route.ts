@@ -1,10 +1,12 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { scheduleContinuation } from "@/lib/send-deliveries";
 import { broadcastTeaching } from "@/lib/teaching-broadcast";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Fan-out is sequential and throttled, so allow the full function budget.
+// Fan-out is sequential and throttled. A request stops sending at about 40s and hands the rest to
+// the resume route, so no single request depends on finishing the whole list.
 export const maxDuration = 60;
 
 type WebhookPayload = {
@@ -57,6 +59,8 @@ export async function POST(request: Request) {
     // again, so they are a success for the webhook, not a retryable error.
     if (outcome.status === "duplicate") return NextResponse.json({ skipped: "already_broadcast" }, { status: 200 });
     if (outcome.status === "not_publishable") return NextResponse.json({ skipped: "not_published" }, { status: 200 });
+    // Out of time, not out of subscribers: hand the rest to the resume route.
+    if (outcome.status === "incomplete") scheduleContinuation("/api/webhooks/teaching/resume", { "x-webhook-secret": secret }, { teaching_id: teachingId });
     return NextResponse.json(outcome, { status: 200 });
   } catch {
     return NextResponse.json({ error: "Broadcast failed." }, { status: 500 });

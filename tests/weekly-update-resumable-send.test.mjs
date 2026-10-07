@@ -48,3 +48,26 @@ test("sending to one subscriber is admin-only, real (no [TEST]) and limited to c
   assert.match(fn, /loadConfirmedRecipients\("weekly_updates"\)/);
   assert.ok(fn.indexOf("claimDelivery(") < fn.indexOf("sendSenderTransactionalEmail("));
 });
+
+test("teaching and devotional sends are resumable through the shared delivery loop", async () => {
+  const shared = await readFile("lib/send-deliveries.ts", "utf8");
+  assert.match(shared, /SEND_TIME_BUDGET_MS = 40_000/);
+  assert.match(shared, /Date\.now\(\) >= deadline/);
+  assert.ok(shared.indexOf("claimDelivery(kind, ledgerId, recipient.id)") < shared.indexOf("sendSenderTransactionalEmail({"));
+  assert.match(shared, /alreadySent\.has\(recipient\.id\)/);
+
+  const teaching = await readFile("lib/teaching-broadcast.ts", "utf8");
+  const devotional = await readFile("lib/devotional-send.ts", "utf8");
+  assert.match(teaching, /finished \? status : "sending"/);
+  assert.match(devotional, /finished \? status : "sending"/);
+  assert.equal(teaching.includes("sendSenderTransactionalEmail("), false);
+  assert.equal(devotional.includes("sendSenderTransactionalEmail("), false);
+
+  const teachingResume = await readFile("app/api/webhooks/teaching/resume/route.ts", "utf8");
+  const devotionalResume = await readFile("app/api/cron/send-devotionals/resume/route.ts", "utf8");
+  assert.ok(teachingResume.indexOf("status: 401") < teachingResume.indexOf("request.json()"));
+  assert.ok(devotionalResume.indexOf("status: 401") < devotionalResume.indexOf("request.json()"));
+  for (const route of ["app/api/webhooks/teaching/route.ts", "app/api/cron/send-devotionals/route.ts"]) {
+    assert.match(await readFile(route, "utf8"), /status === "incomplete"\) scheduleContinuation\(/);
+  }
+});

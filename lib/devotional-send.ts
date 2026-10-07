@@ -5,28 +5,26 @@ import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
 import { devotionalDayForWeekday, devotionalTimeZone } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
-import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
-import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
+import { deliverToRecipients } from "@/lib/send-deliveries";
 import { getSpanishDevotionalIds } from "@/lib/spanish-devotionals";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const THROTTLE_MS = 150;
-const MAX_RECORDED_FAILURES = 25;
 
 export type DevotionalRunResult =
   | { status: "no_devotional" }
   | { status: "outside_window" }
   | { status: "no_day_content"; dayNumber: number }
   | { status: "duplicate"; dayNumber: number }
-  | { status: "sent" | "failed"; dayNumber: number; recipientCount: number; sentCount: number; failedCount: number };
+  | { status: "no_broadcast" }
+  | { status: "already_complete" }
+  | { status: "sent" | "failed" | "incomplete"; ledgerId: string; dayNumber: number; recipientCount: number; sentCount: number; failedCount: number; remainingCount: number };
 
 function getClient() {
   const supabase = createServiceRoleClient();
   if (!supabase) throw new Error("Devotional send storage is not configured.");
   return supabase;
 }
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Claiming the ledger row first is the idempotency guard: the unique
 // (devotional_id, day_number) index rejects a second blast for the same day of
@@ -75,6 +73,18 @@ async function resolveAssignedTeaching(devotionalId: string) {
   return null;
 }
 
+const DAY_COLUMNS = "day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation";
+
+type DayContent = {
+  day_number: number;
+  title: string;
+  anchor_scriptures: string[] | null;
+  devotional_reading: string;
+  confession: string;
+  journal_prompt: string;
+  prayer_activation: string;
+};
+
 export async function processDevotionalQueue(now = new Date()): Promise<DevotionalRunResult> {
   const supabase = getClient();
 
@@ -110,7 +120,7 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
 
   const { data: day } = await supabase
     .from("teaching_devotional_days")
-    .select("day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
+    .select(DAY_COLUMNS)
     .eq("devotional_id", devotional.id)
     .eq("day_number", dayNumber)
     .maybeSingle();
@@ -120,8 +130,23 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
   const ledgerId = await claimDay(devotional.id, dayNumber, teaching?.id ?? null);
   if (!ledgerId) return { status: "duplicate", dayNumber };
 
+  return deliverDay({ ledgerId, devotional, day: day as DayContent, dayNumber, totalDays, teaching });
+}
+
+// Mails every confirmed recipient who has no 'sent' delivery for this day yet, stopping when the time
+// budget is spent. Safe to call repeatedly: finished recipients are skipped, so a resume never double-sends.
+async function deliverDay(input: {
+  ledgerId: string;
+  devotional: { id: string; slug: string; title: string };
+  day: DayContent;
+  dayNumber: number;
+  totalDays: number;
+  teaching: { slug: string } | null;
+}): Promise<DevotionalRunResult> {
+  const supabase = getClient();
+  const { ledgerId, devotional, day, dayNumber, totalDays, teaching } = input;
+
   const recipients = await loadConfirmedRecipients("devotionals");
-  await supabase.from("email_devotional_broadcast_ledger").update({ recipient_count: recipients.length }).eq("id", ledgerId);
 
   const base = siteUrl();
   // The email reads through to the assigned teaching when there is one, since
@@ -131,11 +156,12 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
   const preferencesUrl = `${base}/email-preferences`;
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
 
-  let sentCount = 0;
-  const failures: { subscriberId: string; reason: string }[] = [];
-
-  for (const recipient of recipients) {
-    const email = buildDevotionalDayEmail({
+  const run = await deliverToRecipients({
+    kind: "devotional",
+    ledgerId,
+    recipients,
+    throttleMs: THROTTLE_MS,
+    buildEmail: () => buildDevotionalDayEmail({
       dayNumber: day.day_number,
       totalDays,
       title: day.title,
@@ -148,42 +174,63 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
       readUrl,
       preferencesUrl,
       copyrightDisclaimer,
-    });
+    }),
+  });
 
-    try {
-      const result = await sendSenderTransactionalEmail({
-        toEmail: recipient.email,
-        toName: recipient.firstName,
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-      });
-      if (result.ok) {
-        sentCount += 1;
-      } else {
-        if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: result.reason });
-        if (isSuppressionRejection(result)) await markSubscriberSuppressed(recipient.id);
-      }
-    } catch {
-      // One bad recipient must not abandon the rest of the list.
-      if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: "exception" });
-    }
-
-    await sleep(THROTTLE_MS);
-  }
-
-  const failedCount = recipients.length - sentCount;
-  const status = failedCount && !sentCount ? "failed" : "sent";
+  const finished = run.remainingCount === 0;
+  const failedCount = run.recipientCount - run.sentCount;
+  const status = !finished ? "incomplete" : failedCount && !run.sentCount ? "failed" : "sent";
   // error is not-null in production even though it isn't declared that way in
   // the migration (schema drift), so a fully successful run must still write
   // something — writing null here silently failed the update and left the row
   // stuck on 'sending' forever, which then blocked every future day sharing
   // its day_number under the idempotency guard.
   const { error: ledgerUpdateError } = await supabase.from("email_devotional_broadcast_ledger").update({
-    status,
-    error: failedCount ? { sentCount, failedCount, failures } : {},
+    status: finished ? status : "sending",
+    recipient_count: run.recipientCount,
+    error: finished && failedCount ? { sentCount: run.sentCount, failedCount, failures: run.failures } : {},
   }).eq("id", ledgerId);
   if (ledgerUpdateError) throw new Error(`Devotional ledger could not be finalized: ${ledgerUpdateError.message}`);
 
-  return { status, dayNumber, recipientCount: recipients.length, sentCount, failedCount };
+  return { status, ledgerId, dayNumber, recipientCount: run.recipientCount, sentCount: run.sentCount, failedCount, remainingCount: run.remainingCount };
+}
+
+// Finishes a day's send that was cut off. The day, series and link are rebuilt from the ledger row,
+// and only subscribers without a 'sent' delivery are mailed.
+export async function resumeDevotionalBroadcast(ledgerId: string): Promise<DevotionalRunResult> {
+  const supabase = getClient();
+  const { data: ledger, error } = await supabase
+    .from("email_devotional_broadcast_ledger")
+    .select("id, status, devotional_id, day_number")
+    .eq("id", ledgerId)
+    .maybeSingle();
+  if (error) throw new Error(`Devotional ledger lookup failed: ${error.message}`);
+  if (!ledger) return { status: "no_broadcast" };
+  if (ledger.status === "sent") return { status: "already_complete" };
+  if (!ledger.devotional_id) return { status: "no_devotional" };
+
+  const { data: devotional } = await supabase
+    .from("teaching_devotionals")
+    .select("id, slug, title, status")
+    .eq("id", ledger.devotional_id)
+    .maybeSingle();
+  if (!devotional || devotional.status !== "published") return { status: "no_devotional" };
+
+  const { count: totalDays } = await supabase
+    .from("teaching_devotional_days")
+    .select("id", { count: "exact", head: true })
+    .eq("devotional_id", devotional.id);
+  if (!totalDays) return { status: "no_devotional" };
+
+  const dayNumber = ledger.day_number as number;
+  const { data: day } = await supabase
+    .from("teaching_devotional_days")
+    .select(DAY_COLUMNS)
+    .eq("devotional_id", devotional.id)
+    .eq("day_number", dayNumber)
+    .maybeSingle();
+  if (!day) return { status: "no_day_content", dayNumber };
+
+  const teaching = await resolveAssignedTeaching(devotional.id);
+  return deliverDay({ ledgerId, devotional, day: day as DayContent, dayNumber, totalDays, teaching });
 }

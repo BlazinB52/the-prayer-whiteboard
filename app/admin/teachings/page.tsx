@@ -19,6 +19,7 @@ type TeachingRow = {
   gathering_date: string | null;
   status: string;
   is_featured: boolean;
+  ready_to_publish_at: string | null;
   updated_at: string;
 };
 
@@ -34,6 +35,7 @@ function TeachingGroup({ heading, teachings, emptyText }: { heading: string; tea
             const row = (
               <>
                 <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{teaching.title}</span>
+                {teaching.status === "draft" && teaching.ready_to_publish_at ? <span className="rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a4fb4]">Ready to publish</span> : null}
                 {teaching.is_featured ? <span className="rounded-full bg-[#f0cb83] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#20382e]">Featured</span> : null}
                 {teaching.teaching_type === "deep_dive" ? <span className="rounded-full bg-[#20382e] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#f0cb83]">Deep Dive</span> : null}
                 <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{teaching.status}</span>
@@ -63,7 +65,7 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
   const { supabase } = await requireAdmin();
   const { data: teachings, error } = await supabase
     .from("teachings")
-    .select("id, title, teaching_type, language, gathering_date, status, is_featured, updated_at")
+    .select("id, title, teaching_type, language, gathering_date, status, is_featured, ready_to_publish_at, updated_at")
     .order("updated_at", { ascending: false });
 
   if (error) {

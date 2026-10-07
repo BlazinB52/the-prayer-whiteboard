@@ -35,7 +35,17 @@ const deepDiveConfirmationMessage = [
   "Publish this Deep Dive now?",
 ].join("\n");
 
-export function PublishFeatureButton({ action, teachingType = "standard", language = "en" }: { action: Action; teachingType?: "standard" | "deep_dive"; language?: "en" | "es" }) {
+// The email notice is inserted just above the final question, so the Administrator reads it last, right
+// before answering. (The Español messages already say no email is sent.)
+function withEmailNotice(message: string, notice: string | undefined) {
+  if (!notice) return message;
+  const lines = message.split("\n");
+  const question = lines.pop() ?? "";
+  lines.pop(); // the blank line before the question
+  return [...lines, "", notice, "", question].join("\n");
+}
+
+export function PublishFeatureButton({ action, teachingType = "standard", language = "en", emailNotice }: { action: Action; teachingType?: "standard" | "deep_dive"; language?: "en" | "es"; emailNotice?: string }) {
   const [state, formAction, isPending] = useActionState(action, {});
   const isDeepDive = teachingType === "deep_dive";
   const isEspanol = language === "es";
@@ -44,7 +54,7 @@ export function PublishFeatureButton({ action, teachingType = "standard", langua
     <form
       action={formAction}
       onSubmit={(event) => {
-        if (!window.confirm(isEspanol ? (isDeepDive ? espanolDeepDiveConfirmationMessage : espanolConfirmationMessage) : isDeepDive ? deepDiveConfirmationMessage : confirmationMessage)) {
+        if (!window.confirm(isEspanol ? (isDeepDive ? espanolDeepDiveConfirmationMessage : espanolConfirmationMessage) : withEmailNotice(isDeepDive ? deepDiveConfirmationMessage : confirmationMessage, emailNotice))) {
           event.preventDefault();
         }
       }}

@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "../lib/subscription-email-content.ts";
-import { confirmationCopy, categoryLabels } from "../lib/subscription-confirmation-view.ts";
-import { offeredEmailCategories } from "../lib/email-categories.ts";
+import { confirmationCopy } from "../lib/subscription-confirmation-view.ts";
 
 test("the confirmation email is fully Spanish for Español subscribers and unchanged for English", () => {
   const input = { firstName: "María", categories: ["teachings", "devotionals"], confirmationUrl: "https://example.test/espanol/suscribirse/confirmar?token=abc", expiresAt: "2026-10-08T12:00:00Z" };

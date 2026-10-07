@@ -28,6 +28,12 @@ const tools = [
     href: "/admin/chalkboards",
   },
   {
+    title: "Teaching Revisions",
+    description: "Review changes that co-editors propose to draft teachings, and accept or reject each one.",
+    status: "Available",
+    href: "/admin/teaching-revisions",
+  },
+  {
     title: "Content Management",
     description: "Points of Agreement and other content shared with content managers.",
     status: "Available",
@@ -72,7 +78,13 @@ const tools = [
 ];
 
 export default async function AdminDashboardPage() {
-  const { user } = await requireAdmin();
+  const { supabase, user } = await requireAdmin();
+  // How many co-editor revisions are waiting for a decision. If the revision tables are not there yet
+  // the count is simply left out.
+  const { count: awaitingReview } = await supabase
+    .from("content_revisions")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "submitted");
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] px-5 py-8 text-[#243126] sm:px-8 sm:py-12">
@@ -104,9 +116,15 @@ export default async function AdminDashboardPage() {
                 <article className="min-h-44 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-lg shadow-[#4d5f52]/8 transition hover:-translate-y-0.5 hover:border-[#a85e32]/30">
                   <div className="flex items-start justify-between gap-4">
                     <h2 className="text-2xl font-extrabold text-[#243d31]">{tool.title}</h2>
-                    <span className="shrink-0 rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">
-                      {tool.status}
-                    </span>
+                    {tool.href === "/admin/teaching-revisions" && awaitingReview ? (
+                      <span className="shrink-0 rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a4fb4]">
+                        {awaitingReview} awaiting review
+                      </span>
+                    ) : (
+                      <span className="shrink-0 rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">
+                        {tool.status}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-5 max-w-sm leading-7 text-[#607066]">{tool.description}</p>
                 </article>

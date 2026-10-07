@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { deleteTeaching, publishAndFeatureTeaching, unpublishTeaching, updateTeaching } from "../../actions";
+import { deleteTeaching, publishAndFeatureTeaching, setTeachingReady, unpublishTeaching, updateTeaching } from "../../actions";
 import { TeachingForm } from "../../teaching-form";
 import { ContentWorkspace } from "../../content-workspace";
 import { DeleteTeachingButton } from "../../delete-teaching-button";
@@ -19,6 +19,8 @@ import {
   updateSection,
 } from "../../content-actions";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { getPublishEmailInfo } from "@/lib/publish-email-info";
+import { publishEmailNotice } from "@/lib/publish-email-notice";
 
 export const metadata: Metadata = {
   title: "Edit Teaching Draft",
@@ -30,8 +32,8 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-export default async function EditTeachingPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function EditTeachingPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ready?: string }> }) {
+  const [{ id }, flags] = await Promise.all([params, searchParams]);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
     notFound();
   }
@@ -39,7 +41,7 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
   const { supabase } = await requireAdmin();
   const { data: teaching, error } = await supabase
     .from("teachings")
-    .select("id, slug, title, is_featured, updated_at, teaching_type, language, gathering_date, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, status, chalkboard_asset_id")
+    .select("id, slug, title, is_featured, ready_to_publish_at, updated_at, teaching_type, language, gathering_date, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, status, chalkboard_asset_id")
     .eq("id", id)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -80,6 +82,13 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
     label: chalkboard.canonical_name ?? chalkboard.title,
     language: (chalkboard.language === "es" ? "es" : "en") as "en" | "es",
   }));
+  // Co-editor proposals still waiting on a decision. Publishing closes them (and deletes their text),
+  // so say so here instead of letting it come as a surprise.
+  const { count: pendingRevisionCount } = teaching.status === "draft"
+    ? await supabase.from("content_revisions").select("id", { count: "exact", head: true }).eq("teaching_id", id).eq("status", "submitted")
+    : { count: 0 };
+  // What publishing would email, shown before the Administrator presses Publish.
+  const publishNotice = publishEmailNotice(await getPublishEmailInfo(supabase, id, teaching.language === "es" ? "es" : "en"));
   const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title, language: (footer.language === "es" ? "es" : "en") as "en" | "es" }));
 
   const categoryItems = (categories ?? []).map((category) => ({
@@ -185,11 +194,36 @@ export default async function EditTeachingPage({ params }: { params: Promise<{ i
           <p className="mt-3 text-sm leading-6 text-[#607066]">Create, edit, preview, publish, or unpublish the devotional without changing this teaching&apos;s publication or homepage-feature status.</p>
           <Link href={`/admin/teachings/${id}/devotional`} className="admin-secondary-button mt-4 inline-flex items-center justify-center">Manage 7-Day Devotional</Link>
         </section>
+        {pendingRevisionCount ? (
+          <p role="status" className="mt-8 rounded-xl border border-[#1a4fb4]/20 bg-[#e8f0fe] px-4 py-3 text-sm font-bold leading-6 text-[#1a3f8a]">
+            {pendingRevisionCount} co-editor {pendingRevisionCount === 1 ? "revision is" : "revisions are"} waiting for your review. Publishing this teaching closes {pendingRevisionCount === 1 ? "it" : "them"} and deletes the proposed wording.{" "}
+            <Link href="/admin/teaching-revisions" className="underline underline-offset-2">Review {pendingRevisionCount === 1 ? "it" : "them"} first</Link>.
+          </p>
+        ) : null}
+        {teaching.status === "draft" ? (
+          <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Ready to publish</p>
+            {flags.ready === "marked" ? <p role="status" className="mt-3 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Marked as ready to publish.</p> : null}
+            {flags.ready === "cleared" ? <p role="status" className="mt-3 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">The ready mark was removed.</p> : null}
+            {flags.ready === "error" ? <p role="alert" className="mt-3 text-sm font-bold text-[#a2472c]">The ready mark could not be changed.</p> : null}
+            <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">{teaching.ready_to_publish_at ? "Marked ready to publish" : "Not marked ready"}</h2>
+            <p className="mt-3 text-sm leading-6 text-[#607066]">
+              Use this to show that a finished draft is waiting for the right day. It is only a note: it does not publish the teaching and does not send any email. The teaching stays a private draft until you press Publish below.
+              {teaching.ready_to_publish_at ? <> Marked ready on {new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Chicago" }).format(new Date(teaching.ready_to_publish_at))}.</> : null}
+            </p>
+            <form action={setTeachingReady.bind(null, id, !teaching.ready_to_publish_at)} className="mt-4">
+              <button type="submit" className="admin-secondary-button">{teaching.ready_to_publish_at ? "Remove ready mark" : "Mark as ready to publish"}</button>
+            </form>
+          </section>
+        ) : null}
         <section className="mt-8 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-5">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
           <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">{teaching.language === "es" ? "Publish to the Español homepage" : teaching.teaching_type === "deep_dive" ? "Publish this Deep Dive" : "Feature this teaching on the homepage"}</h2>
           <p className="mt-3 text-sm leading-6 text-[#607066]">{teaching.language === "es" ? "Publishing makes this teaching public on the Español homepage (/espanol) and features it there. The English homepage is not changed, and no email is sent to subscribers." : teaching.teaching_type === "deep_dive" ? "Publishing makes this Deep Dive public in the Deep Dives collection without replacing the featured homepage teaching." : "Publishing makes this teaching public, replaces the current homepage feature without unpublishing it, and keeps the stored gathering date unchanged."}</p>
-          <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} teachingType={teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard"} language={teaching.language === "es" ? "es" : "en"} />
+          <p className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold leading-6 ${publishNotice.kind === "email" ? "border-[#a2472c]/30 bg-[#fbeeea] text-[#7d2f1a]" : "border-[#284a3b]/10 bg-white/70 text-[#385245]"}`}>
+            {publishNotice.kind === "email" ? "Email: " : ""}{publishNotice.text}
+          </p>
+          <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} teachingType={teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard"} language={teaching.language === "es" ? "es" : "en"} emailNotice={publishNotice.text} />
         </section>
         {teaching.status === "published" ? (
           <section className="mt-8 rounded-2xl border border-[#a2472c]/20 bg-[#fff8f1] p-5">

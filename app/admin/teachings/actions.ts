@@ -316,6 +316,26 @@ export async function updateTeaching(
   return { saved: true };
 }
 
+// Marks a finished draft as ready to publish, or removes the mark. It is only a note for the Administrator:
+// it does not publish anything and does not send any email.
+export async function setTeachingReady(id: string, ready: boolean) {
+  const { supabase } = await requireAdmin();
+  if (!UUID_PATTERN.test(id)) redirect("/admin/teachings");
+
+  const { data, error } = await supabase
+    .from("teachings")
+    .update({ ready_to_publish_at: ready ? new Date().toISOString() : null })
+    .eq("id", id)
+    .eq("status", "draft")
+    .select("id")
+    .maybeSingle();
+  if (error || !data) redirect(`/admin/teachings/${id}/edit?ready=error`);
+
+  revalidatePath("/admin/teachings");
+  revalidatePath(`/admin/teachings/${id}/edit`);
+  redirect(`/admin/teachings/${id}/edit?ready=${ready ? "marked" : "cleared"}`);
+}
+
 export async function publishAndFeatureTeaching(
   id: string,
   previousState: PublishTeachingState,

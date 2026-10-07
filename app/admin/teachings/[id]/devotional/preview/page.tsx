@@ -76,7 +76,7 @@ function DevotionalDayPreview({ dayNumber, day }: { dayNumber: number; day?: Dev
     <section className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
       <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Day {dayNumber}</p>
       <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">{day?.title || "Untitled day"}</h2>
-      <Field title="Anchor Scriptures">{day?.anchor_scriptures?.length ? <ul className="list-disc space-y-1 pl-5">{day.anchor_scriptures.map((scripture) => <li key={scripture}>{formatInlineText(scripture, { links: true })}</li>)}</ul> : <p>Not saved.</p>}</Field>
+      <Field title="Anchor Scriptures">{day?.anchor_scriptures?.length ? <ul className="list-none space-y-1 pl-5">{day.anchor_scriptures.map((scripture) => <li key={scripture}>{formatInlineText(scripture, { links: true })}</li>)}</ul> : <p>Not saved.</p>}</Field>
       <Field title="Devotional Reading"><DevotionalTextBlock text={day?.devotional_reading} emptyText="Not saved." /></Field>
       <Field title="Today's Confession"><DevotionalTextBlock text={day?.confession} emptyText="Not saved." /></Field>
       <Field title="5-Minute Journal Prompt"><DevotionalTextBlock text={day?.journal_prompt} emptyText="Not saved." /></Field>

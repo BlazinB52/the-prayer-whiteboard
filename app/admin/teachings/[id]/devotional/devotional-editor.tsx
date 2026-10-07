@@ -93,10 +93,15 @@ export function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: numbe
           Day title
           <input name="title" value={values.title} onChange={(event) => updateValue("title", event.target.value)} maxLength={180} className="admin-input" />
         </label>
-        <label className="block text-sm font-bold text-[#385245]">
-          Anchor Scriptures <span className="block text-xs font-normal text-[#607066]">Enter one Scripture passage per line. Each passage may include the reference and complete Scripture text, up to {anchorScriptureLimitLabel} characters.</span>
-          <textarea name="anchorScriptures" value={values.anchorScriptures} onChange={(event) => updateValue("anchorScriptures", event.target.value)} rows={4} className="admin-input resize-y py-3" />
-        </label>
+        <FormattedTextarea
+          label="Anchor Scriptures"
+          help={`Enter one Scripture passage per line. Each passage may include the reference and complete Scripture text, up to ${anchorScriptureLimitLabel} characters.`}
+          name="anchorScriptures"
+          value={values.anchorScriptures}
+          onValueChange={(value) => updateValue("anchorScriptures", value)}
+          rows={4}
+          bullets={false}
+        />
         <FormattedTextarea label="Devotional Reading" name="devotionalReading" value={values.devotionalReading} onValueChange={(value) => updateValue("devotionalReading", value)} maxLength={12000} rows={9} />
         <FormattedTextarea label="Today's Confession" name="confession" value={values.confession} onValueChange={(value) => updateValue("confession", value)} maxLength={3000} rows={4} />
         <FormattedTextarea label="5-Minute Journal Prompt" name="journalPrompt" value={values.journalPrompt} onValueChange={(value) => updateValue("journalPrompt", value)} maxLength={3000} rows={4} />

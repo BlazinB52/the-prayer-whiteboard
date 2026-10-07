@@ -79,7 +79,7 @@ export default async function PublicDevotionalDayPage({ params }: { params: Prom
         </header>
         <div className="mt-8 space-y-8">
           <DevotionalField title={t.anchorScriptures}>
-            <ul className="list-disc space-y-2 pl-6">{(day as DevotionalDay).anchor_scriptures.map((scripture) => <li key={scripture}>{formatInlineText(scripture, { links: true })}</li>)}</ul>
+            <ul className="list-none space-y-2 pl-6">{(day as DevotionalDay).anchor_scriptures.map((scripture) => <li key={scripture}>{formatInlineText(scripture, { links: true })}</li>)}</ul>
           </DevotionalField>
           <DevotionalField title={t.devotionalReading}><DevotionalTextBlock text={day.devotional_reading} /></DevotionalField>
           <DevotionalField title={t.confession}><DevotionalTextBlock text={day.confession} /></DevotionalField>

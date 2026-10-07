@@ -5,6 +5,7 @@ import { WeeklyUpdateEditor, type WeeklyUpdateChalkboardOption, type WeeklyUpdat
 import { WeeklyUpdateDeleteButton, WeeklyUpdateStatusButton } from "./status-buttons";
 import { WeeklyUpdateTestSendForm } from "./test-send-form";
 import { FinishSendingButton } from "./finish-sending-button";
+import { SendToSubscriberForm } from "./send-to-subscriber-form";
 import { WeeklyUpdateContent } from "@/app/weekly-update/weekly-update-content";
 import { ContentFooter } from "@/app/content-footer";
 import { requireAdmin } from "@/lib/supabase/admin";
@@ -159,6 +160,12 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                     <details className="mt-5">
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit title or replace document</summary>
                       <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialTitle={update.title} initialChalkboardAssetIds={chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} chalkboards={chalkboardOptions} footers={footerOptions} /></div>
+                    </details>
+                  ) : null}
+                  {update.is_current && update.status === "published" ? (
+                    <details className="mt-5">
+                      <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Send to one subscriber who missed it</summary>
+                      <div className="mt-4"><SendToSubscriberForm weeklyUpdateId={update.id} /></div>
                     </details>
                   ) : null}
                   {update.status !== "archived" ? (

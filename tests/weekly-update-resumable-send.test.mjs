@@ -38,3 +38,13 @@ test("the resume route accepts only the webhook secret or an admin session", () 
   assert.ok(resumeRoute.indexOf("status: 401") < resumeRoute.indexOf("request.json()"));
   assert.ok(resumeRoute.indexOf("status: 401") < resumeRoute.indexOf("resumeWeeklyUpdateBroadcast(weeklyUpdateId)"));
 });
+
+test("sending to one subscriber is admin-only, real (no [TEST]) and limited to confirmed subscribers", async () => {
+  const route = await readFile("app/api/admin/weekly-update/send-to-subscriber/route.ts", "utf8");
+  assert.match(route, /getAuthorizedUser\(\)/);
+  assert.ok(route.indexOf("status: 401") < route.indexOf("request.json()"));
+  const fn = broadcast.slice(broadcast.indexOf("export async function sendWeeklyUpdateToSubscriber"));
+  assert.doesNotMatch(fn, /\[TEST\]/);
+  assert.match(fn, /loadConfirmedRecipients\("weekly_updates"\)/);
+  assert.ok(fn.indexOf("claimDelivery(") < fn.indexOf("sendSenderTransactionalEmail("));
+});

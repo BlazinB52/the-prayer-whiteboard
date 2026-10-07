@@ -219,3 +219,55 @@ export async function resumeWeeklyUpdateBroadcast(weeklyUpdateId: string): Promi
 
   return deliver(update, ledger.id as string);
 }
+
+export type SingleSendOutcome =
+  | { status: "sent"; email: string }
+  | { status: "already_sent" }
+  | { status: "not_publishable" }
+  | { status: "not_subscribed" }
+  | { status: "failed"; reason: string };
+
+// Sends the current published update to one confirmed subscriber, for someone who joined after the
+// broadcast ran. It uses the same delivery record as the broadcast, so the person is never mailed
+// twice, and it only ever mails an address that is a confirmed weekly update subscriber.
+export async function sendWeeklyUpdateToSubscriber(weeklyUpdateId: string, rawEmail: string): Promise<SingleSendOutcome> {
+  const update = await loadPublishableUpdate(weeklyUpdateId);
+  if (!update) return { status: "not_publishable" };
+
+  const email = rawEmail.trim().toLowerCase();
+  const recipients = await loadConfirmedRecipients("weekly_updates");
+  const recipient = recipients.find((candidate) => candidate.email.trim().toLowerCase() === email);
+  if (!recipient) return { status: "not_subscribed" };
+
+  if (!(await claimDelivery(update.id, recipient.id))) return { status: "already_sent" };
+
+  const base = siteUrl();
+  const content = buildWeeklyUpdateEmail({
+    title: update.title,
+    bodyMarkdown: update.body_markdown,
+    convertedContent: update.converted_content as never,
+    weeklyUpdateUrl: `${base}/weekly-update`,
+    preferencesUrl: `${base}/email-preferences`,
+    copyrightDisclaimer: await getEmailCopyrightDisclaimer(base),
+  });
+
+  let result;
+  try {
+    result = await sendSenderTransactionalEmail({ toEmail: recipient.email, toName: recipient.firstName, subject: content.subject, html: content.html, text: content.text });
+  } catch {
+    await recordDelivery(update.id, recipient.id, "failed", "exception");
+    return { status: "failed", reason: "exception" };
+  }
+  if (!result.ok) {
+    await recordDelivery(update.id, recipient.id, "failed", result.reason);
+    if (isSuppressionRejection(result)) await markSubscriberSuppressed(recipient.id);
+    return { status: "failed", reason: result.reason };
+  }
+  await recordDelivery(update.id, recipient.id, "sent");
+
+  // Keep the broadcast record's counts in step with the delivery table.
+  const sentCount = (await loadSentSubscriberIds(update.id)).size;
+  const supabase = getClient();
+  await supabase.from("email_broadcast_events").update({ sent_count: sentCount, recipient_count: Math.max(recipients.length, sentCount) }).eq("weekly_update_id", update.id);
+  return { status: "sent", email: recipient.email };
+}

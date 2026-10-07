@@ -4,6 +4,7 @@ import { archiveWeeklyUpdate, createWeeklyUpdate, deleteWeeklyUpdate, publishWee
 import { WeeklyUpdateEditor, type WeeklyUpdateChalkboardOption, type WeeklyUpdateFooterOption } from "./weekly-update-editor";
 import { WeeklyUpdateDeleteButton, WeeklyUpdateStatusButton } from "./status-buttons";
 import { WeeklyUpdateTestSendForm } from "./test-send-form";
+import { FinishSendingButton } from "./finish-sending-button";
 import { WeeklyUpdateContent } from "@/app/weekly-update/weekly-update-content";
 import { ContentFooter } from "@/app/content-footer";
 import { requireAdmin } from "@/lib/supabase/admin";
@@ -58,6 +59,18 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
   }
   const emailLookup = await getWeeklyUpdateEmailLookup(supabase);
   const currentUpdate = (updates ?? []).find((item) => item.is_current);
+  const { data: unfinishedSends } = await supabase
+    .from("email_broadcast_events")
+    .select("weekly_update_id, status, recipient_count")
+    .neq("status", "sent");
+  const { data: deliveredRows } = await supabase
+    .from("email_broadcast_deliveries")
+    .select("weekly_update_id")
+    .eq("status", "sent")
+    .in("weekly_update_id", (unfinishedSends ?? []).map((row) => row.weekly_update_id as string));
+  const deliveredByUpdate = new Map<string, number>();
+  for (const row of deliveredRows ?? []) deliveredByUpdate.set(row.weekly_update_id as string, (deliveredByUpdate.get(row.weekly_update_id as string) ?? 0) + 1);
+  const unfinishedByUpdate = new Map((unfinishedSends ?? []).map((row) => [row.weekly_update_id as string, row]));
   const footerIdByUpdate = new Map((footerAssignments ?? []).map((assignment) => [assignment.weekly_update_id as string, assignment.footer_id as string]));
 
   return (
@@ -119,6 +132,9 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   </div>
                   {update.status !== "archived" ? (
                     <p role="note" className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold ${publishNotice.kind === "email" ? "border-[#946332]/30 bg-[#fbf1e1] text-[#7a4a1d]" : "border-[#284a3b]/15 bg-[#f4f6f1] text-[#385245]"}`}>{publishNotice.text}</p>
+                  ) : null}
+                  {update.is_current && update.status === "published" && unfinishedByUpdate.has(update.id) ? (
+                    <FinishSendingButton weeklyUpdateId={update.id} sentCount={deliveredByUpdate.get(update.id) ?? 0} recipientCount={unfinishedByUpdate.get(update.id)?.recipient_count ?? 0} />
                   ) : null}
                   {notes.length && update.status !== "archived" ? (
                     <div className="mt-4 rounded-xl border border-[#284a3b]/15 bg-[#fffdf8] p-4">

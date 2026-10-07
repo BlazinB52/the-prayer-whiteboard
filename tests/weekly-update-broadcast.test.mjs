@@ -90,12 +90,14 @@ test("the webhook only acts on current published weekly update rows", async () =
 test("a broadcast is claimed before sending so repeat webhooks cannot double-send", async () => {
   const source = await readFile("lib/weekly-update-broadcast.ts", "utf8");
   const claimIndex = source.indexOf("await claimBroadcast(weeklyUpdateId)");
-  const sendIndex = source.indexOf("sendSenderTransactionalEmail(");
+  // Sending lives in deliver(), which only runs once the ledger row is claimed.
+  const sendIndex = source.indexOf("return deliver(update, broadcastId)");
 
   assert.match(source, /error\.code === "23505"/);
   assert.ok(claimIndex > 0 && sendIndex > claimIndex, "claim must happen before any send");
   // Webhook payloads are untrusted, so publish state is re-read from the row.
-  assert.ok(source.indexOf('.from("weekly_updates")') < claimIndex);
+  assert.match(source, /\.from\("weekly_updates"\)/);
+  assert.ok(source.indexOf("loadPublishableUpdate(weeklyUpdateId)", source.indexOf("export async function broadcastWeeklyUpdate")) < claimIndex);
   assert.match(source, /update\.status !== "published" \|\| update\.is_current !== true/);
 });
 

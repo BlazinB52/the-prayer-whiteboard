@@ -10,11 +10,20 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const THROTTLE_MS = 120;
 const MAX_RECORDED_FAILURES = 25;
+// The routes are capped at 60s. Stop starting new sends well before that so the ledger is always
+// written, then hand the remainder to a follow-up request.
+const TIME_BUDGET_MS = 40_000;
+// A claim left in 'sending' this long means the request that made it was cut off mid-send.
+const STALE_CLAIM_MS = 5 * 60 * 1000;
 
 export type BroadcastOutcome =
   | { status: "duplicate" }
   | { status: "not_publishable" }
-  | { status: "sent" | "partial" | "failed"; recipientCount: number; sentCount: number; failedCount: number };
+  | { status: "no_broadcast" }
+  | { status: "already_complete" }
+  | { status: "sent" | "partial" | "failed" | "incomplete"; recipientCount: number; sentCount: number; failedCount: number; remainingCount: number };
+
+type WeeklyUpdateRow = { id: string; title: string; body_markdown: string; converted_content: unknown };
 
 function getClient() {
   const supabase = createServiceRoleClient();
@@ -40,39 +49,98 @@ async function claimBroadcast(weeklyUpdateId: string) {
   return data.id as string;
 }
 
-export async function broadcastWeeklyUpdate(weeklyUpdateId: string): Promise<BroadcastOutcome> {
+// The webhook payload is untrusted input; re-read the row and re-check the
+// publish state before mailing anyone.
+async function loadPublishableUpdate(weeklyUpdateId: string) {
   const supabase = getClient();
-
-  // The webhook payload is untrusted input; re-read the row and re-check the
-  // publish state before mailing anyone.
-  const { data: update, error: updateError } = await supabase
+  const { data: update, error } = await supabase
     .from("weekly_updates")
     .select("id, title, body_markdown, converted_content, status, is_current")
     .eq("id", weeklyUpdateId)
     .maybeSingle();
-  if (updateError) throw new Error(`Weekly update lookup failed: ${updateError.message}`);
-  if (!update || update.status !== "published" || update.is_current !== true) return { status: "not_publishable" };
+  if (error) throw new Error(`Weekly update lookup failed: ${error.message}`);
+  if (!update || update.status !== "published" || update.is_current !== true) return null;
+  return update as WeeklyUpdateRow;
+}
 
-  const broadcastId = await claimBroadcast(weeklyUpdateId);
-  if (!broadcastId) return { status: "duplicate" };
+// Claims one recipient. Returns false when another request already sent (or is sending) to them,
+// so two overlapping runs can never both mail the same subscriber.
+async function claimDelivery(weeklyUpdateId: string, subscriberId: string) {
+  const supabase = getClient();
+  const { error } = await supabase
+    .from("email_broadcast_deliveries")
+    .insert({ weekly_update_id: weeklyUpdateId, subscriber_id: subscriberId, status: "sending" });
+  if (!error) return true;
+  if (error.code !== "23505") throw new Error(`Delivery could not be claimed: ${error.message}`);
+
+  // Only a failed send, or a claim abandoned by a cut-off request, may be taken again.
+  const staleBefore = new Date(Date.now() - STALE_CLAIM_MS).toISOString();
+  const { data, error: reclaimError } = await supabase
+    .from("email_broadcast_deliveries")
+    .update({ status: "sending", reason: null, updated_at: new Date().toISOString() })
+    .eq("weekly_update_id", weeklyUpdateId)
+    .eq("subscriber_id", subscriberId)
+    .or(`status.eq.failed,and(status.eq.sending,updated_at.lt.${staleBefore})`)
+    .select("subscriber_id");
+  if (reclaimError) throw new Error(`Delivery could not be reclaimed: ${reclaimError.message}`);
+  return (data?.length ?? 0) > 0;
+}
+
+async function recordDelivery(weeklyUpdateId: string, subscriberId: string, status: "sent" | "failed", reason?: string) {
+  const supabase = getClient();
+  await supabase
+    .from("email_broadcast_deliveries")
+    .update({ status, reason: reason ?? null, updated_at: new Date().toISOString() })
+    .eq("weekly_update_id", weeklyUpdateId)
+    .eq("subscriber_id", subscriberId);
+}
+
+async function loadSentSubscriberIds(weeklyUpdateId: string) {
+  const supabase = getClient();
+  const sent = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("email_broadcast_deliveries")
+      .select("subscriber_id")
+      .eq("weekly_update_id", weeklyUpdateId)
+      .eq("status", "sent")
+      .range(from, from + 999);
+    if (error) throw new Error(`Delivery lookup failed: ${error.message}`);
+    for (const row of data ?? []) sent.add(row.subscriber_id as string);
+    if ((data?.length ?? 0) < 1000) break;
+  }
+  return sent;
+}
+
+// Mails every confirmed recipient who has no 'sent' delivery yet, stopping when the time budget is
+// spent. Safe to call repeatedly: finished recipients are skipped, so a resume never double-sends.
+async function deliver(update: WeeklyUpdateRow, broadcastId: string): Promise<BroadcastOutcome> {
+  const supabase = getClient();
+  const deadline = Date.now() + TIME_BUDGET_MS;
 
   const recipients = await loadConfirmedRecipients("weekly_updates");
-  await supabase.from("email_broadcast_events").update({ recipient_count: recipients.length }).eq("id", broadcastId);
+  const alreadySent = await loadSentSubscriberIds(update.id);
+  const pending = recipients.filter((recipient) => !alreadySent.has(recipient.id));
 
   const base = siteUrl();
   const weeklyUpdateUrl = `${base}/weekly-update`;
   const preferencesUrl = `${base}/email-preferences`;
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
 
-  let sentCount = 0;
+  let sentThisRun = 0;
   let failedCount = 0;
+  let attempted = 0;
   const failures: { subscriberId: string; reason: string }[] = [];
 
-  for (const recipient of recipients) {
+  for (const recipient of pending) {
+    if (Date.now() >= deadline) break;
+    attempted += 1;
+    if (!(await claimDelivery(update.id, recipient.id))) continue;
+
     const email = buildWeeklyUpdateEmail({
       title: update.title,
       bodyMarkdown: update.body_markdown,
-      convertedContent: update.converted_content,
+      convertedContent: update.converted_content as never,
       weeklyUpdateUrl,
       preferencesUrl,
       copyrightDisclaimer,
@@ -87,30 +155,67 @@ export async function broadcastWeeklyUpdate(weeklyUpdateId: string): Promise<Bro
         text: email.text,
       });
       if (result.ok) {
-        sentCount += 1;
+        sentThisRun += 1;
+        await recordDelivery(update.id, recipient.id, "sent");
       } else {
         failedCount += 1;
+        await recordDelivery(update.id, recipient.id, "failed", result.reason);
         if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: result.reason });
         if (isSuppressionRejection(result)) await markSubscriberSuppressed(recipient.id);
       }
     } catch {
       // One bad recipient must not abandon the rest of the list.
       failedCount += 1;
+      await recordDelivery(update.id, recipient.id, "failed", "exception");
       if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: "exception" });
     }
 
     await sleep(THROTTLE_MS);
   }
 
-  const status = failedCount === 0 ? "sent" : sentCount ? "partial" : "failed";
+  const sentCount = alreadySent.size + sentThisRun;
+  const remainingCount = pending.length - attempted;
+  const finished = remainingCount === 0;
+  const status = !finished ? "incomplete" : failedCount === 0 ? "sent" : sentCount ? "partial" : "failed";
+
   const { error: ledgerUpdateError } = await supabase.from("email_broadcast_events").update({
-    status,
-    sent_count: sentCount,
-    failed_count: failedCount,
+    status: finished ? status : "sending",
+    recipient_count: recipients.length,
+    sent_count: Math.min(sentCount, recipients.length),
+    failed_count: Math.min(failedCount, Math.max(recipients.length - sentCount, 0)),
     error: failedCount ? `${failedCount} recipient(s) failed.` : null,
     metadata: { title: update.title, failures },
   }).eq("id", broadcastId);
   if (ledgerUpdateError) throw new Error(`Weekly update ledger could not be finalized: ${ledgerUpdateError.message}`);
 
-  return { status, recipientCount: recipients.length, sentCount, failedCount };
+  return { status, recipientCount: recipients.length, sentCount, failedCount, remainingCount };
+}
+
+export async function broadcastWeeklyUpdate(weeklyUpdateId: string): Promise<BroadcastOutcome> {
+  const update = await loadPublishableUpdate(weeklyUpdateId);
+  if (!update) return { status: "not_publishable" };
+
+  const broadcastId = await claimBroadcast(weeklyUpdateId);
+  if (!broadcastId) return { status: "duplicate" };
+
+  return deliver(update, broadcastId);
+}
+
+// Finishes a broadcast that was cut off (or partly failed). Mails only subscribers without a 'sent'
+// delivery, so it is safe to run again and again until it reports sent.
+export async function resumeWeeklyUpdateBroadcast(weeklyUpdateId: string): Promise<BroadcastOutcome> {
+  const update = await loadPublishableUpdate(weeklyUpdateId);
+  if (!update) return { status: "not_publishable" };
+
+  const supabase = getClient();
+  const { data: ledger, error } = await supabase
+    .from("email_broadcast_events")
+    .select("id, status")
+    .eq("weekly_update_id", weeklyUpdateId)
+    .maybeSingle();
+  if (error) throw new Error(`Broadcast lookup failed: ${error.message}`);
+  if (!ledger) return { status: "no_broadcast" };
+  if (ledger.status === "sent") return { status: "already_complete" };
+
+  return deliver(update, ledger.id as string);
 }

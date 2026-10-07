@@ -1,7 +1,5 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
-import { scheduleContinuation } from "@/lib/send-deliveries";
-import { broadcastTeaching } from "@/lib/teaching-broadcast";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,16 +51,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ skipped: "not_published" }, { status: 200 });
   }
 
-  try {
-    const outcome = await broadcastTeaching(teachingId);
-    // Duplicates are the expected path when a published teaching is edited
-    // again, so they are a success for the webhook, not a retryable error.
-    if (outcome.status === "duplicate") return NextResponse.json({ skipped: "already_broadcast" }, { status: 200 });
-    if (outcome.status === "not_publishable") return NextResponse.json({ skipped: "not_published" }, { status: 200 });
-    // Out of time, not out of subscribers: hand the rest to the resume route.
-    if (outcome.status === "incomplete") scheduleContinuation("/api/webhooks/teaching/resume", { "x-webhook-secret": secret }, { teaching_id: teachingId });
-    return NextResponse.json(outcome, { status: 200 });
-  } catch {
-    return NextResponse.json({ error: "Broadcast failed." }, { status: 500 });
-  }
+  // Publishing a teaching no longer emails subscribers. The email is sent only when an Administrator asks
+  // for it (POST /api/admin/teaching/send-email), so this endpoint accepts the call and does nothing.
+  return NextResponse.json({ skipped: "manual_send_only" }, { status: 200 });
 }

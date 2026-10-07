@@ -58,7 +58,8 @@ test("the teaching webhook rejects unauthenticated callers before doing any work
   assert.match(source, /x-webhook-secret/);
   assert.match(source, /status: 401/);
   assert.ok(source.indexOf("timingSafeEqual(provided, secret)") < source.indexOf("request.json()"));
-  assert.ok(source.indexOf("timingSafeEqual(provided, secret)") < source.indexOf("broadcastTeaching(teachingId)"));
+  // Publishing no longer starts a send, so the webhook never reaches a broadcast at all.
+  assert.equal(source.includes("broadcastTeaching("), false);
 });
 
 test("the teaching webhook only acts on published teaching rows", async () => {

@@ -67,7 +67,8 @@ test("teaching and devotional sends are resumable through the shared delivery lo
   const devotionalResume = await readFile("app/api/cron/send-devotionals/resume/route.ts", "utf8");
   assert.ok(teachingResume.indexOf("status: 401") < teachingResume.indexOf("request.json()"));
   assert.ok(devotionalResume.indexOf("status: 401") < devotionalResume.indexOf("request.json()"));
-  for (const route of ["app/api/webhooks/teaching/route.ts", "app/api/cron/send-devotionals/route.ts"]) {
+  // The teaching send now starts from the Administrator's Send email button instead of the publish webhook.
+  for (const route of ["app/api/admin/teaching/send-email/route.ts", "app/api/cron/send-devotionals/route.ts"]) {
     assert.match(await readFile(route, "utf8"), /status === "incomplete"\) scheduleContinuation\(/);
   }
 });

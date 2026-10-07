@@ -21,8 +21,10 @@ import {
 import { requireAdmin } from "@/lib/supabase/admin";
 import { TranslationPicker } from "@/app/admin/translations/translation-picker";
 import { loadTranslationOptions } from "@/lib/translation-options";
-import { getPublishEmailInfo } from "@/lib/publish-email-info";
 import { publishEmailNotice } from "@/lib/publish-email-notice";
+import { teachingEmailSendNotice } from "@/lib/teaching-email-send-notice";
+import { getTeachingEmailState } from "@/lib/teaching-email-state";
+import { SendTeachingEmailButton } from "../../send-email-box";
 
 export const metadata: Metadata = {
   title: "Edit Teaching Draft",
@@ -94,8 +96,9 @@ export default async function EditTeachingPage({ params, searchParams }: { param
   const { count: pendingRevisionCount } = teaching.status === "draft"
     ? await supabase.from("content_revisions").select("id", { count: "exact", head: true }).eq("teaching_id", id).eq("status", "submitted")
     : { count: 0 };
-  // What publishing would email, shown before the Administrator presses Publish.
-  const publishNotice = publishEmailNotice(await getPublishEmailInfo(supabase, id, teaching.language === "es" ? "es" : "en"));
+  // Publishing never emails anyone; the email is sent separately, on purpose, from the Email subscribers box.
+  const publishNotice = publishEmailNotice({ language: teaching.language === "es" ? "es" : "en" });
+  const emailSend = teachingEmailSendNotice(await getTeachingEmailState(supabase, id, teaching.status, teaching.language === "es" ? "es" : "en"));
   const translation = await loadTranslationOptions(supabase, "teachings", id, teaching.language === "es" ? "es" : "en");
   const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title, language: (footer.language === "es" ? "es" : "en") as "en" | "es" }));
 
@@ -240,11 +243,22 @@ export default async function EditTeachingPage({ params, searchParams }: { param
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
           <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">{teaching.language === "es" ? "Publish to the Español homepage" : teaching.teaching_type === "deep_dive" ? "Publish this Deep Dive" : "Feature this teaching on the homepage"}</h2>
           <p className="mt-3 text-sm leading-6 text-[#607066]">{teaching.language === "es" ? "Publishing makes this teaching public on the Español homepage (/espanol) and features it there. The English homepage is not changed, and no email is sent to subscribers." : teaching.teaching_type === "deep_dive" ? "Publishing makes this Deep Dive public in the Deep Dives collection without replacing the featured homepage teaching." : "Publishing makes this teaching public, replaces the current homepage feature without unpublishing it, and keeps the stored gathering date unchanged."}</p>
-          <p className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold leading-6 ${publishNotice.kind === "email" ? "border-[#a2472c]/30 bg-[#fbeeea] text-[#7d2f1a]" : "border-[#284a3b]/10 bg-white/70 text-[#385245]"}`}>
-            {publishNotice.kind === "email" ? "Email: " : ""}{publishNotice.text}
+          <p className="mt-4 rounded-xl border border-[#284a3b]/10 bg-white/70 px-4 py-3 text-sm font-bold leading-6 text-[#385245]">
+            {publishNotice.text}
           </p>
           <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} teachingType={teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard"} language={teaching.language === "es" ? "es" : "en"} emailNotice={publishNotice.text} />
         </section>
+        {teaching.language !== "es" ? (
+          <section id="email-subscribers" className="mt-8 rounded-2xl border border-[#946332]/25 bg-[#fffaf0] p-5">
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Email subscribers</p>
+            <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Send this teaching by email</h2>
+            <p className="mt-3 text-sm leading-6 text-[#607066]">Publishing and featuring this teaching never sends any email. The email goes out only when you press the button below, once the teaching is published and its link works.</p>
+            <p className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold leading-6 ${emailSend.kind === "ready" || emailSend.kind === "resume" ? "border-[#a2472c]/30 bg-[#fbeeea] text-[#7d2f1a]" : "border-[#284a3b]/10 bg-white/70 text-[#385245]"}`}>
+              {emailSend.text}
+            </p>
+            {emailSend.canSend ? <SendTeachingEmailButton teachingId={id} label={emailSend.buttonLabel} confirmMessage={emailSend.confirm} /> : null}
+          </section>
+        ) : null}
         {teaching.status === "published" ? (
           <section className="mt-8 rounded-2xl border border-[#a2472c]/20 bg-[#fff8f1] p-5">
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Unpublish</p>

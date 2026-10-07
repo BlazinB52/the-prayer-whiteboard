@@ -3,54 +3,22 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { publishEmailNotice } from "../lib/publish-email-notice.ts";
 
-test("the publish notice says exactly how many subscribers get emailed, and that it cannot be unsent", () => {
-  const many = publishEmailNotice({ language: "en", alreadySent: false, recipientCount: 42 });
-  assert.equal(many.kind, "email");
-  assert.match(many.text, /Publishing emails 42 subscribers who chose New Teachings, within moments\./);
-  assert.match(many.text, /An email cannot be unsent/);
-  assert.match(many.text, /editing the teaching later does not send it again/);
-  assert.match(many.text, /leave the teaching as a draft/);
-
-  const one = publishEmailNotice({ language: "en", alreadySent: false, recipientCount: 1 });
-  assert.match(one.text, /emails 1 subscriber who chose/);
-  assert.doesNotMatch(one.text, /1 subscribers/);
-
-  const unknown = publishEmailNotice({ language: "en", alreadySent: false, recipientCount: null });
-  assert.equal(unknown.kind, "email");
-  assert.match(unknown.text, /every subscriber who chose New Teachings/);
+test("publishing says it does not email anyone, and points to the separate send", () => {
+  const en = publishEmailNotice({ language: "en" });
+  assert.equal(en.kind, "none");
+  assert.match(en.text, /Publishing does not email subscribers/);
+  assert.match(en.text, /Email subscribers box/);
+  assert.match(publishEmailNotice({ language: "es" }).text, /No email is sent/);
 });
 
-test("the publish notice is quiet only when nothing will really be sent", () => {
-  assert.equal(publishEmailNotice({ language: "es", alreadySent: false, recipientCount: 99 }).kind, "none");
-  assert.match(publishEmailNotice({ language: "es", alreadySent: false, recipientCount: 99 }).text, /No email is sent/);
-  const resent = publishEmailNotice({ language: "en", alreadySent: true, recipientCount: 99 });
-  assert.equal(resent.kind, "none");
-  assert.match(resent.text, /already sent/);
-  const nobody = publishEmailNotice({ language: "en", alreadySent: false, recipientCount: 0 });
-  assert.equal(nobody.kind, "none");
-  assert.match(nobody.text, /No subscribers are signed up/);
-});
-
-test("the number shown is the number the broadcast would email", async () => {
-  const info = await readFile("lib/publish-email-info.ts", "utf8");
-  const broadcast = await readFile("lib/teaching-broadcast.ts", "utf8");
-  assert.match(info, /loadConfirmedRecipients\("teachings", "en"\)/);
-  assert.match(broadcast, /loadConfirmedRecipients\("teachings"\)/, "the broadcast reads the same category, English by default");
-  assert.match(info, /email_teaching_broadcast_events/, "an already-sent teaching is recognised from the broadcast ledger");
-  assert.match(info, /if \(language === "es"\)/);
-});
-
-test("the Publish section shows the email notice and the confirmation repeats it", async () => {
+test("the Publish section and its confirmation make no promise to email anyone", async () => {
   const page = await readFile("app/admin/teachings/[id]/edit/page.tsx", "utf8");
-  assert.match(page, /publishEmailNotice\(await getPublishEmailInfo\(supabase, id,/);
-  assert.match(page, /emailNotice=\{publishNotice\.text\}/);
-  assert.match(page, /publishNotice\.kind === "email" \? "Email: " : ""/);
+  assert.match(page, /publishEmailNotice\(\{ language:/);
+  assert.doesNotMatch(page, /getPublishEmailInfo/);
+  assert.doesNotMatch(page, /Publishing emails/);
   const button = await readFile("app/admin/teachings/publish-feature-button.tsx", "utf8");
   assert.match(button, /function withEmailNotice\(message: string, notice: string \| undefined\)/);
   assert.match(button, /withEmailNotice\(isDeepDive \? deepDiveConfirmationMessage : confirmationMessage, emailNotice\)/);
-  // The Español confirmations already say no email is sent, so they are left as they were.
-  assert.match(button, /No email is sent to subscribers\./);
-  assert.doesNotMatch(button, /withEmailNotice\(isDeepDive \? espanol/);
 });
 
 test("the Ready marker is Administrator-only, drafts-only, and only a note", async () => {

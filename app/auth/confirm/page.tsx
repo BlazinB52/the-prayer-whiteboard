@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import Link from "next/link";
 import { isStaffLinkType } from "@/lib/staff-links";
 import { confirmStaffLink } from "./actions";
 
-export const metadata: Metadata = {
-  title: "Continue to Your Account",
-  robots: { index: false, follow: false },
-  referrer: "no-referrer",
-};
+export const metadata: Metadata = { ...buildPageMetadata({ title: "Continue to Your Account", path: "/auth/confirm", noindex: true }), referrer: "no-referrer" };
 
 export const dynamic = "force-dynamic";
 

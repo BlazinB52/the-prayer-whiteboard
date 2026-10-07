@@ -7,6 +7,8 @@ import { importStandaloneDevotionalText, publishStandaloneDevotional, unpublishS
 import { PublishDevotionalButton, UnpublishDevotionalButton } from "@/app/admin/teachings/devotional-buttons";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { TranslationPicker } from "@/app/admin/translations/translation-picker";
+import { loadTranslationOptions } from "@/lib/translation-options";
 
 export const metadata: Metadata = {
   title: "Manage Devotional",
@@ -47,6 +49,7 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
     .order("day_number", { ascending: true });
 
   const assignedTeachings = teachings ?? [];
+  const translation = await loadTranslationOptions(supabase, "teaching_devotionals", devotional.id, devotional.language === "es" ? "es" : "en");
 
   // Co-editor proposals still waiting on a decision. Publishing closes them (and deletes their text),
   // so say so here instead of letting it come as a surprise.
@@ -82,6 +85,8 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
         {messages.imported === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional text imported as a draft.</p> : null}
         {messages.published === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional published.</p> : null}
         {messages.unpublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional unpublished and returned to draft.</p> : null}
+
+        <TranslationPicker kind="teaching_devotionals" id={devotional.id} language={devotional.language === "es" ? "es" : "en"} currentId={translation.currentId} options={translation.options} revalidate={`/admin/devotionals/${devotional.id}`} noun="devotional" />
 
         <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
           <h2 className="text-2xl font-extrabold text-[#243d31]">Teaching Association</h2>

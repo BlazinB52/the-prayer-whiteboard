@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PublicFooter } from "@/app/public-footer";
@@ -6,10 +7,7 @@ import { PublicHeader } from "@/app/public-header";
 import { loadPreferenceToken } from "@/lib/email-subscriptions";
 import { PreferenceManagementForm } from "./preference-management-form";
 
-export const metadata: Metadata = {
-  title: "Manage Email Preferences",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Manage Email Preferences", path: "/email-preferences/manage", noindex: true });
 
 export default async function ManageEmailPreferencesPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token = "" } = await searchParams;

@@ -1,18 +1,28 @@
 /* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
+import { buildPageMetadata, STATIC_TRANSLATIONS } from "@/lib/alternates";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Layers, Sparkles } from "lucide-react";
 import { PublicFooterEs } from "@/app/public-footer-es";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { formatInlineText } from "@/app/formatted-text";
+import { JsonLd } from "@/app/json-ld";
 import { getEspanolHomepageData } from "@/lib/espanol-home-data";
+import { LOGO_PATH, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: { absolute: "The Prayer Whiteboard | Oración y Escritura" },
-  description: "Un lugar de encuentro para las enseñanzas del grupo de oración y para crecer juntos en la Palabra de Dios.",
-  alternates: { canonical: "/espanol", languages: { en: "/", es: "/espanol" } },
+  ...buildPageMetadata({ title: { absolute: "The Prayer Whiteboard | Oración y Escritura" }, description: "Un lugar de encuentro para las enseñanzas del grupo de oración y para crecer juntos en la Palabra de Dios.", path: "/espanol", language: "es", pair: STATIC_TRANSLATIONS.home }),
   robots: { index: true, follow: true },
+};
+
+const ESPANOL_DESCRIPTION = "Un lugar de encuentro para las enseñanzas del grupo de oración y para crecer juntos en la Palabra de Dios.";
+const espanolJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "Organization", "@id": `${SITE_URL}/#organization`, name: SITE_NAME, url: SITE_URL, logo: absoluteUrl(LOGO_PATH), description: ESPANOL_DESCRIPTION },
+    { "@type": "WebSite", "@id": `${SITE_URL}/espanol#website`, name: SITE_NAME, url: absoluteUrl("/espanol"), description: ESPANOL_DESCRIPTION, inLanguage: "es", publisher: { "@id": `${SITE_URL}/#organization` } },
+  ],
 };
 
 const nav = [
@@ -35,6 +45,7 @@ export default async function EspanolHomePage() {
 
   return (
     <main lang="es" className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
+      <JsonLd data={espanolJsonLd} />
       <PublicHeader variant="es" maxWidthClassName="max-w-6xl" nav={nav} />
 
       <section className="relative">
@@ -175,7 +186,7 @@ export default async function EspanolHomePage() {
         </section>
       ) : null}
 
-      <PublicFooterEs />
+      <PublicFooterEs englishHref={STATIC_TRANSLATIONS.home.en} />
       <ReturnToTop />
     </main>
   );

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import { Landmark } from "lucide-react";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
@@ -11,11 +12,7 @@ import {
 } from "@/lib/those-in-authority";
 import { LeaderGrid, type LeaderCard } from "./leader-grid";
 
-export const metadata: Metadata = {
-  title: "Pray for Those in Authority",
-  description: "Join The Prayer Whiteboard in praying for leaders and all who are in authority.",
-  alternates: { canonical: "/those-in-authority" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Pray for Those in Authority", description: "Join The Prayer Whiteboard in praying for leaders and all who are in authority.", path: "/those-in-authority" });
 
 export default async function ThoseInAuthorityPage() {
   const supabase = await createClient();

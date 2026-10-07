@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Layers } from "lucide-react";
 import { PublicFooter } from "@/app/public-footer";
@@ -6,11 +7,7 @@ import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
-  title: "Deep Dives",
-  description: "Deeper Prayer Whiteboard teachings for mature study in God's Word.",
-  alternates: { canonical: "/deep-dives" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Deep Dives", description: "Deeper Prayer Whiteboard teachings for mature study in God's Word.", path: "/deep-dives" });
 
 type DeepDiveTeaching = {
   id: string;

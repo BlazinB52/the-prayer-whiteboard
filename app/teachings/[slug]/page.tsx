@@ -19,6 +19,9 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createClient } from "@/lib/supabase/server";
 import { JsonLd } from "@/app/json-ld";
 import { LOGO_PATH, NOINDEX, SITE_NAME, SITE_URL, absoluteUrl, teachingOgImagePath, truncateDescription } from "@/lib/seo";
+import { buildPageMetadata, otherLanguagePath } from "@/lib/alternates";
+import { getTeachingPair } from "@/lib/translations";
+import { TranslationLink } from "@/app/translation-link";
 import { PrintToPdfButton } from "./print-to-pdf-button";
 
 
@@ -38,13 +41,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const description = truncateDescription(data.summary || data.central_theme || data.introduction);
   const canonical = `/teachings/${slug}`;
   const images = [{ url: teachingOgImagePath(slug), alt: `${data.title} ${ui(language).chalkboardSuffix}` }];
-  return {
-    title: data.title,
-    description,
-    alternates: { canonical },
-    openGraph: { type: "article", siteName: SITE_NAME, locale: language === "es" ? "es_SV" : undefined, title: data.title, description, url: canonical, images, publishedTime: data.published_at ?? undefined, modifiedTime: data.updated_at ?? undefined },
-    twitter: { card: "summary_large_image", title: data.title, description, images: images.map((image) => image.url) },
-  };
+  const pair = await getTeachingPair(slug, language);
+  return buildPageMetadata({ title: data.title, description, path: canonical, language, pair, type: "article", images, publishedTime: data.published_at, modifiedTime: data.updated_at });
 }
 
 export default async function StructuredTeachingPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -55,6 +53,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
   const teachingType: TeachingType = teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard";
   const language = toLanguage(teaching.language);
   const t = ui(language);
+  const twinHref = otherLanguagePath(await getTeachingPair(slug, language), language);
 
   const signer = createServiceRoleClient();
   const [{ data: categories, error: categoriesError }, { data: sections, error: sectionsError }, { data: assignments }, { data: footerAssignment }, { data: emailDisclaimer }] = await Promise.all([
@@ -105,6 +104,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
         </div>
       </div>
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
+        {twinHref ? <p className="teaching-print-toolbar mb-6"><TranslationLink href={twinHref} target={language === "es" ? "en" : "es"} /></p> : null}
         <header className={`public-teaching-header border-b pb-8 ${teachingType === "deep_dive" ? "border-[#20382e]/20" : "border-[#284a3b]/15"}`}><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">{teachingType === "deep_dive" ? t.deepDive : t.brandEyebrow}</p>{teachingType === "deep_dive" ? <Link href={t.deepDivesPath} className="mt-3 inline-flex rounded-full bg-[#20382e] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#f0cb83]">{t.deepDivesCollection}</Link> : null}<h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{teaching.title}</h1>{teaching.gathering_date ? <p className="mt-4 text-sm font-bold text-[#607066]">{formatLongDate(teaching.gathering_date, language)}</p> : null}{teaching.central_theme ? <p className="mt-5 text-lg font-bold text-[#385245]">{formatInlineText(teaching.central_theme, { links: true })}</p> : null}{teaching.introduction ? <TextParagraphs text={teaching.introduction} className="mt-5 text-[#52645a]" /> : null}</header>
         <div className="mt-8 space-y-8">{assetsWithUrls.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} language={language} />)}</div>
         <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2><div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}><PublicSection sectionId={section.id} title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}</div></section>)}</div>
@@ -114,7 +114,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
           : <ScriptureCopyrightNotice printOnly content={emailDisclaimer?.content?.trim() || FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER} baseUrl={siteUrl()} />}
       </article>
       {language === "es" ? null : <EmailUpdatesCta copy={t.emailCtaCopy} />}
-      {language === "es" ? <PublicFooterEs /> : <PublicFooter />}
+      {language === "es" ? <PublicFooterEs englishHref={twinHref} /> : <PublicFooter spanishHref={twinHref} />}
       <ReturnToTop />
     </main>
   );

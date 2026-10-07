@@ -5,7 +5,8 @@ const contactEmail = "theprayerwhiteboard@gmail.com";
 const linkClassName = "inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f1c66f]";
 
 // The footer for every Español page. Every link stays inside the Español pages.
-export function PublicFooterEs() {
+// englishHref: the English version of the current page; the English homepage when it has none.
+export function PublicFooterEs({ englishHref }: { englishHref?: string | null } = {}) {
   return (
     <footer lang="es" className="public-site-footer bg-[#1d352b] px-5 py-9 text-center text-[#d8e5dd] sm:px-8">
       <BookOpenText aria-hidden="true" className="mx-auto text-[#efc775]" size={28} />
@@ -17,7 +18,7 @@ export function PublicFooterEs() {
         <Link href="/espanol/privacidad" className={linkClassName}>Privacidad</Link>
         <Link href="/espanol/derechos-de-autor" className={linkClassName}>Derechos de autor</Link>
         <a href={`mailto:${contactEmail}`} className={linkClassName}>Contacto</a>
-        <Link href="/" className={linkClassName}>English</Link>
+        <Link href={englishHref || "/"} hrefLang="en" lang="en" className={linkClassName}>English</Link>
       </div>
     </footer>
   );

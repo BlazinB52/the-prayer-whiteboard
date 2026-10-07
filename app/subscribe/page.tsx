@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata, STATIC_TRANSLATIONS } from "@/lib/alternates";
 import Link from "next/link";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
@@ -6,11 +7,7 @@ import { ReturnToTop } from "@/app/return-to-top";
 import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { SubscribeForm } from "./subscribe-form";
 
-export const metadata: Metadata = {
-  title: "Email Updates",
-  description: "Choose the Prayer Whiteboard emails you would like to receive.",
-  alternates: { canonical: "/subscribe" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Email Updates", description: "Choose the Prayer Whiteboard emails you would like to receive.", path: "/subscribe", pair: STATIC_TRANSLATIONS.subscribe });
 
 export default async function SubscribePage({ searchParams }: { searchParams: Promise<{ devotional?: string; category?: string }> }) {
   const { devotional: requestedSlug, category } = await searchParams;
@@ -25,7 +22,7 @@ export default async function SubscribePage({ searchParams }: { searchParams: Pr
         <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Email Updates</p>
         <SubscribeForm devotional={devotional ? { slug: devotional.slug, title: devotional.title } : null} />
       </section>
-      <PublicFooter />
+      <PublicFooter spanishHref={STATIC_TRANSLATIONS.subscribe.es} />
       <ReturnToTop />
     </main>
   );

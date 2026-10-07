@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import Link from "next/link";
 import { ArrowRight, BookOpenCheck, CalendarDays } from "lucide-react";
 import { PublicFooter } from "@/app/public-footer";
@@ -15,12 +16,7 @@ import {
   type PublicDevotionalSeries,
 } from "@/lib/public-devotionals";
 
-export const metadata: Metadata = {
-  title: "7-Day Devotionals",
-  description:
-    "Browse Prayer Whiteboard 7-day devotional series and start receiving devotional emails.",
-  alternates: { canonical: "/devotionals" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "7-Day Devotionals", description: "Browse Prayer Whiteboard 7-day devotional series and start receiving devotional emails.", path: "/devotionals" });
 
 export default async function DevotionalsPage() {
   const series = await getPublishedDevotionalSeries();
@@ -131,10 +127,8 @@ function FeaturedDevotional({ series }: { series: PublicDevotionalSeries }) {
 }
 
 function DevotionalArchiveCard({ series, isCurrent }: { series: PublicDevotionalSeries; isCurrent: boolean }) {
-  // Clicking a card reads the devotional directly rather than landing on the
-  // subscribe/overview page: the associated teaching's devotional page when
-  // there is one, otherwise day one of the standalone series.
-  const readHref = series.teaching ? `/teachings/${series.teaching.slug}/devotional` : `/devotionals/${series.slug}/day/1`;
+  // Clicking a card opens the devotional at its canonical address; a standalone series goes straight to day one.
+  const readHref = series.teaching ? getDevotionalReadPath(series) : `/devotionals/${series.slug}/day/1`;
 
   return (
     <article className="flex min-h-[260px] flex-col rounded-3xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">

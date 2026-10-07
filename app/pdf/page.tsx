@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import { FileText } from "lucide-react";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
@@ -15,11 +16,7 @@ const pdfNavigation = [
   { href: "/subscribe", label: "Email Updates" },
 ];
 
-export const metadata: Metadata = {
-  title: "Teaching Handout",
-  description: "Printable resources from The Prayer Whiteboard.",
-  alternates: { canonical: "https://theprayerwhiteboard.com/pdf" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Teaching Handout", description: "Printable resources from The Prayer Whiteboard.", path: "https://theprayerwhiteboard.com/pdf" });
 
 type PrintablePdfLinkRow = {
   id: string;

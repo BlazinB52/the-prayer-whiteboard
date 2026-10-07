@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { TranslationPicker } from "@/app/admin/translations/translation-picker";
+import { loadTranslationOptions } from "@/lib/translation-options";
 import { assignExistingDevotional, createDevotional, importDevotionalText, publishDevotional, removeDevotionalAssignment, unpublishDevotional, updateDevotionalDay, updateDevotionalSeries } from "../../devotional-actions";
 import { PublishDevotionalButton, UnpublishDevotionalButton } from "../../devotional-buttons";
 import { CreateDevotionalForm } from "./create-devotional-form";
@@ -41,6 +43,8 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
       .order("title", { ascending: true }),
   ]);
   const devotional = (devotionals ?? []).find((item) => item.id === assignment?.devotional_id) ?? null;
+
+  const translation = devotional ? await loadTranslationOptions(supabase, "teaching_devotionals", devotional.id, devotional.language === "es" ? "es" : "en") : null;
 
   const { data: days } = devotional
     ? await supabase
@@ -82,6 +86,8 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
           assignAction={assignExistingDevotional.bind(null, teaching.id)}
           removeAction={removeDevotionalAssignment.bind(null, teaching.id)}
         />
+
+        {devotional && translation ? <TranslationPicker kind="teaching_devotionals" id={devotional.id} language={devotional.language === "es" ? "es" : "en"} currentId={translation.currentId} options={translation.options} revalidate={`/admin/teachings/${teaching.id}/devotional`} noun="devotional" /> : null}
 
         <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
           <h2 className="text-2xl font-extrabold text-[#243d31]">Import From Text File</h2>

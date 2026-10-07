@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata, STATIC_TRANSLATIONS } from "@/lib/alternates";
 import Link from "next/link";
 import { FormattedTextBlocks } from "@/app/formatted-text";
 import { PublicFooter } from "@/app/public-footer";
@@ -6,11 +7,7 @@ import { PublicHeader } from "@/app/public-header";
 import { FALLBACK_FULL_PAGE_COPYRIGHT_DISCLAIMER, safeCopyrightReturnToPath } from "@/lib/copyright-disclaimer-format";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
-  title: "Copyright Disclaimers",
-  description: "Copyright acknowledgments and permissions for The Prayer Whiteboard.",
-  alternates: { canonical: "/copyright-disclaimers" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Copyright Disclaimers", description: "Copyright acknowledgments and permissions for The Prayer Whiteboard.", path: "/copyright-disclaimers", pair: STATIC_TRANSLATIONS.copyright });
 
 type PageProps = {
   searchParams?: Promise<{ returnTo?: string | string[] }>;
@@ -49,7 +46,7 @@ export default async function CopyrightDisclaimersPage({ searchParams }: PagePro
           {returnLabel(returnTo)}
         </Link>
       </article>
-      <PublicFooter />
+      <PublicFooter spanishHref={STATIC_TRANSLATIONS.copyright.es} />
     </main>
   );
 }

@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import Link from "next/link";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { confirmSubscriptionToken } from "@/lib/email-subscriptions";
 import { categoryLabels, confirmationCopy } from "@/lib/subscription-confirmation-view";
 
-export const metadata: Metadata = {
-  title: "Confirm Subscription",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Confirm Subscription", path: "/subscribe/confirm", noindex: true });
 
 export default async function ConfirmSubscriptionPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token = "" } = await searchParams;

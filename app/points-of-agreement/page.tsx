@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import { ArrowRight, HeartHandshake } from "lucide-react";
 import { PublicFooter } from "@/app/public-footer";
 import { ScriptureCopyrightNotice } from "@/app/scripture-copyright-notice";
@@ -14,11 +15,7 @@ import {
 } from "@/lib/points-of-agreement";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = {
-  title: "Prayer & Intercession Guide",
-  description: "Join The Prayer Whiteboard in active Points of Agreement.",
-  alternates: { canonical: "/points-of-agreement" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Prayer & Intercession Guide", description: "Join The Prayer Whiteboard in active Points of Agreement.", path: "/points-of-agreement" });
 
 export default async function PointsOfAgreementPage() {
   const supabase = await createClient();

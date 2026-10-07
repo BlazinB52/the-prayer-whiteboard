@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -11,11 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { WeeklyUpdateContent } from "./weekly-update-content";
 import { WeeklyUpdatePrintButton } from "./print-button";
 
-export const metadata: Metadata = {
-  title: "Weekly Update",
-  description: "The current weekly update from The Prayer Whiteboard.",
-  alternates: { canonical: "/weekly-update" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Weekly Update", description: "The current weekly update from The Prayer Whiteboard.", path: "/weekly-update" });
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

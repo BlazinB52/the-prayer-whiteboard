@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import { AnalyticsOptOutControls } from "./analytics-opt-out-controls";
 import { PublicFooter } from "../public-footer";
 import { PublicHeader } from "../public-header";
 
-export const metadata: Metadata = {
-  title: "Analytics Opt-Out",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Analytics Opt-Out", path: "/analytics-opt-out", noindex: true });
 
 export default function AnalyticsOptOutPage() {
   return (

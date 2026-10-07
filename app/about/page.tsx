@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -8,11 +9,7 @@ import { ReturnToTop } from "@/app/return-to-top";
 
 const contactEmail = "theprayerwhiteboard@gmail.com";
 
-export const metadata: Metadata = {
-  title: "About",
-  description: "The Prayer Whiteboard mission artwork and Matthew 18:19.",
-  alternates: { canonical: "/about" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "About", description: "The Prayer Whiteboard mission artwork and Matthew 18:19.", path: "/about" });
 
 export default function AboutPage() {
   return (

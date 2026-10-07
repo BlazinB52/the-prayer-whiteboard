@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import type { Metadata } from "next";
+import { buildPageMetadata, STATIC_TRANSLATIONS } from "@/lib/alternates";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -40,10 +41,7 @@ const homepageNav = [
 ];
 
 export const metadata: Metadata = {
-  title: { absolute: "The Prayer Whiteboard | Prayer & Scripture" },
-  description:
-    "A welcoming home for prayer-group teachings, points of agreement, and growing together in God's Word.",
-  alternates: { canonical: "/" },
+  ...buildPageMetadata({ title: { absolute: "The Prayer Whiteboard | Prayer & Scripture" }, description: "A welcoming home for prayer-group teachings, points of agreement, and growing together in God's Word.", path: "/", pair: STATIC_TRANSLATIONS.home }),
   robots: { index: true, follow: true },
 };
 
@@ -346,7 +344,7 @@ function FeaturedHomepage({ data, weeklyUpdate }: { data: FeaturedHomepageData; 
       <section id="latest" className="bg-[#244a3a] px-5 py-14 text-white sm:px-8 sm:py-20"><div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start"><div><p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">{date}</p><h2 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">{data.teaching.title}</h2><p className="mt-5 text-base leading-7 text-[#dce8e1]">{formatInlineText(description)}</p><HomepageTeachingActions slug={data.teaching.slug} hasPublishedDevotional={data.teaching.hasPublishedDevotional} devotionalSlug={data.teaching.devotionalSlug} variant="dark" className="mt-7" /></div>{data.teasers.length ? <div className="grid gap-4 sm:grid-cols-2">{data.teasers.map((teaser, index) => <HomepageTeaserCard key={teaser.id} teaser={teaser} href={teachingPath} index={index} />)}</div> : null}</div></section>
       <StaticHomepageLowerSections previousGatherings={data.previousGatherings} />
       <EmailUpdatesCta copy="Stay connected with The Prayer Whiteboard. Subscribe to the Weekly Updates, teachings, and devotionals you choose." />
-      <PublicFooter />
+      <PublicFooter spanishHref="/espanol" />
       <ReturnToTop />
     </main>
   );
@@ -635,7 +633,7 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
       <DeepDivesInvitation />
 
       <EmailUpdatesCta copy="Stay connected with The Prayer Whiteboard. Subscribe to the Weekly Updates, teachings, and devotionals you choose." />
-      <PublicFooter />
+      <PublicFooter spanishHref="/espanol" />
       <ReturnToTop />
     </main>
   );

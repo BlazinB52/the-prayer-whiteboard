@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
+import { buildPageMetadata, STATIC_TRANSLATIONS } from "@/lib/alternates";
 import Link from "next/link";
 import { PublicFooterEs } from "@/app/public-footer-es";
 import { PublicHeader } from "@/app/public-header";
 
 // Spanish translation of /privacy, drafted for review. Keep it in step with the English policy.
-export const metadata: Metadata = {
-  title: "Política de privacidad",
-  description: "Cómo The Prayer Whiteboard maneja la información de suscripción por correo electrónico.",
-  alternates: { canonical: "/espanol/privacidad" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Política de privacidad", description: "Cómo The Prayer Whiteboard maneja la información de suscripción por correo electrónico.", path: "/espanol/privacidad", language: "es", pair: STATIC_TRANSLATIONS.privacy });
 
 export default function PoliticaDePrivacidadPage() {
   return (
@@ -29,7 +26,7 @@ export default function PoliticaDePrivacidadPage() {
         <h2 className="mt-8 text-2xl font-extrabold text-[#243d31]">Contacto</h2>
         <p className="mt-3">Las preguntas sobre esta política pueden enviarse a <a href="mailto:theprayerwhiteboard@gmail.com" className="font-bold text-[#9d5a2f] underline underline-offset-2">theprayerwhiteboard@gmail.com</a>.</p>
       </article>
-      <PublicFooterEs />
+      <PublicFooterEs englishHref={STATIC_TRANSLATIONS.privacy.en} />
     </main>
   );
 }

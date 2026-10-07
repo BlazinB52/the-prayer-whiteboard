@@ -24,7 +24,7 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: P
         <section className="grid w-full max-w-4xl overflow-hidden rounded-[2rem] border border-[#284a3b]/10 bg-[#fffdf8] shadow-2xl shadow-[#4d5f52]/15 md:grid-cols-[0.9fr_1.1fr]">
           <div className="bg-[#244a3a] px-7 py-10 text-white sm:px-10 sm:py-12">
             <Link href="/" className="text-sm font-extrabold text-[#f1c66f]">
-              The Whiteboard
+              The Prayer Whiteboard
             </Link>
             <div className="mt-16 max-w-xs">
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#f0cb83]">

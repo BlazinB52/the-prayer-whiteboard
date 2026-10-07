@@ -11,6 +11,9 @@ import { DEVOTIONAL_DAY_NUMBERS, splitParagraphs, type DevotionalDay } from "@/l
 import { getPublishedDevotionalSeriesByTeachingSlug } from "@/lib/public-devotionals";
 import { toLanguage, ui } from "@/lib/i18n";
 import { NOINDEX, truncateDescription } from "@/lib/seo";
+import { buildPageMetadata, devotionalOverviewTitle, otherLanguagePath } from "@/lib/alternates";
+import { getDevotionalPair } from "@/lib/translations";
+import { TranslationLink } from "@/app/translation-link";
 import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -19,12 +22,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!devotional) return { title: "Devotional", robots: NOINDEX };
 
   const language = toLanguage(devotional.language);
-  return {
-    title: `${devotional.title} | ${ui(language).sevenDayDevotional}`,
+  // The series lives at /devotionals/[slug]; this teaching-scoped URL is a duplicate of it, so the
+  // canonical, og:url and language alternates all describe that address.
+  return buildPageMetadata({
+    title: devotionalOverviewTitle(devotional.title, ui(language).sevenDayDevotional),
     description: truncateDescription(splitParagraphs(devotional.introduction)[0] ?? (language === "es" ? `Un devocional de 7 días para ${devotional.teaching.title}.` : `A 7-Day Devotional for ${devotional.teaching.title}.`)),
-    // The series lives at /devotionals/[slug]; this teaching-scoped URL is a duplicate of it.
-    alternates: { canonical: `/devotionals/${devotional.slug}` },
-  };
+    path: `/devotionals/${devotional.slug}`,
+    language,
+    pair: await getDevotionalPair(devotional.slug, language),
+  });
 }
 
 export default async function DevotionalOverviewPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -42,11 +48,13 @@ export default async function DevotionalOverviewPage({ params }: { params: Promi
   if (daysError) notFound();
   const language = toLanguage(devotional.language);
   const t = ui(language);
+  const twinHref = otherLanguagePath(await getDevotionalPair(devotional.slug, language), language);
 
   return (
     <main lang={language} className="min-h-screen bg-[#f7f2e8] text-[#243126]">
       <PublicHeader variant={language} maxWidthClassName="max-w-4xl" />
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
+        {twinHref ? <p className="mb-6"><TranslationLink href={twinHref} target={language === "es" ? "en" : "es"} /></p> : null}
         <header className="border-b border-[#284a3b]/15 pb-8">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">{t.sevenDayDevotional}</p>
           <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{devotional.title}</h1>
@@ -67,7 +75,7 @@ export default async function DevotionalOverviewPage({ params }: { params: Promi
         </div>
         <Link href={`/teachings/${slug}`} className="mt-10 inline-flex items-center gap-2 font-extrabold text-[#244a3a]">{t.returnToTeaching} <ArrowRight aria-hidden="true" size={18} /></Link>
       </article>
-      {language === "es" ? <PublicFooterEs /> : <PublicFooter />}
+      {language === "es" ? <PublicFooterEs englishHref={twinHref} /> : <PublicFooter spanishHref={twinHref} />}
       <ReturnToTop />
     </main>
   );

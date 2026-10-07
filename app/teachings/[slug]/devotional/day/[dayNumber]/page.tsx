@@ -13,6 +13,9 @@ import type { DevotionalDay } from "@/lib/devotionals";
 import { getDevotionalDayDescription, getPublishedDevotionalSeriesByTeachingSlug } from "@/lib/public-devotionals";
 import { toLanguage, ui } from "@/lib/i18n";
 import { NOINDEX } from "@/lib/seo";
+import { buildPageMetadata, dayHeading, otherLanguagePath } from "@/lib/alternates";
+import { getDevotionalPair } from "@/lib/translations";
+import { TranslationLink } from "@/app/translation-link";
 import { createClient } from "@/lib/supabase/server";
 
 function parseDayNumber(value: string) {
@@ -37,12 +40,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .maybeSingle();
 
   if (!day) return { title: "Devotional", robots: NOINDEX };
-  const t = ui(toLanguage(devotional.language));
-  return {
-    title: `${t.dayFallback(dayNumber)}: ${day.title} | ${devotional.title}`,
+  const language = toLanguage(devotional.language);
+  return buildPageMetadata({
+    title: `${dayHeading(ui(language).dayFallback(dayNumber), day.title)} | ${devotional.title}`,
     description: getDevotionalDayDescription({ day_number: dayNumber, devotional_reading: day.devotional_reading }, devotional),
-    alternates: { canonical: `/devotionals/${devotional.slug}/day/${dayNumber}` },
-  };
+    path: `/devotionals/${devotional.slug}/day/${dayNumber}`,
+    language,
+    pair: await getDevotionalPair(devotional.slug, language, `/day/${dayNumber}`),
+  });
 }
 
 export default async function DevotionalDayPage({ params }: { params: Promise<{ slug: string; dayNumber: string }> }) {
@@ -64,11 +69,13 @@ export default async function DevotionalDayPage({ params }: { params: Promise<{ 
   if (dayError || !day) notFound();
   const language = toLanguage(devotional.language);
   const t = ui(language);
+  const twinHref = otherLanguagePath(await getDevotionalPair(devotional.slug, language, `/day/${dayNumber}`), language);
 
   return (
     <main lang={language} className="min-h-screen bg-[#f7f2e8] text-[#243126]">
       <PublicHeader variant={language} maxWidthClassName="max-w-3xl" end={<Link href={`/teachings/${slug}/devotional`} className="shrink-0 text-sm font-extrabold text-[#244a3a]">{t.devotionalOverview}</Link>} />
       <article className="mx-auto max-w-3xl px-5 py-10 sm:px-8 sm:py-16">
+        {twinHref ? <p className="mb-6"><TranslationLink href={twinHref} target={language === "es" ? "en" : "es"} /></p> : null}
         <header className="border-b border-[#284a3b]/15 pb-8">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">{t.dayOfSeven(dayNumber)}</p>
           <h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-5xl">{day.title}</h1>
@@ -92,7 +99,7 @@ export default async function DevotionalDayPage({ params }: { params: Promise<{ 
           <Link href={`/teachings/${slug}`}>{t.returnToTeaching}</Link>
         </div>
       </article>
-      {language === "es" ? <PublicFooterEs /> : <PublicFooter />}
+      {language === "es" ? <PublicFooterEs englishHref={twinHref} /> : <PublicFooter spanishHref={twinHref} />}
       <ReturnToTop />
     </main>
   );

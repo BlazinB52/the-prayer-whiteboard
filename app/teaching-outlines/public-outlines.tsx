@@ -6,6 +6,7 @@ import { PublicFooterEs } from "@/app/public-footer-es";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { OutlineContent } from "@/app/teaching-outlines/outline-content";
+import { STATIC_TRANSLATIONS } from "@/lib/alternates";
 import { createClient } from "@/lib/supabase/server";
 import { OUTLINE_BUCKET, type OutlineBlock } from "@/lib/teaching-outlines";
 
@@ -67,13 +68,13 @@ function formatDate(value: string, locale: string) {
   return new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function Shell({ language, children, width = "max-w-5xl" }: { language: OutlineLanguage; children: React.ReactNode; width?: string }) {
+function Shell({ language, children, width = "max-w-5xl", twinHref }: { language: OutlineLanguage; children: React.ReactNode; width?: string; twinHref?: string }) {
   const copy = COPY[language];
   return (
     <main lang={copy.lang} className="min-h-screen bg-[#f7f2e8] text-[#243126]">
       <PublicHeader variant={language} maxWidthClassName={width} nav={[...copy.nav]} />
       {children}
-      {language === "es" ? <PublicFooterEs /> : <PublicFooter />}
+      {language === "es" ? <PublicFooterEs englishHref={twinHref} /> : <PublicFooter spanishHref={twinHref} />}
       <ReturnToTop />
     </main>
   );
@@ -101,7 +102,7 @@ export async function OutlineLibraryPage({ language }: { language: OutlineLangua
     .filter((group) => group.rows.length);
 
   return (
-    <Shell language={language}>
+    <Shell language={language} twinHref={language === "es" ? STATIC_TRANSLATIONS.teacherResources.en : STATIC_TRANSLATIONS.teacherResources.es}>
       <section className="bg-[#20382e] px-5 py-12 text-[#f8f1df] sm:px-8 sm:py-16">
         <div className="mx-auto max-w-5xl">
           <span className="grid size-12 place-items-center rounded-2xl bg-[#f0cb83] text-[#20382e]"><ListChecks aria-hidden="true" size={25} /></span>

@@ -46,10 +46,10 @@ export function getDevotionalStartPath(series: Pick<PublicDevotionalSeries, "slu
   return `/subscribe?category=devotionals&devotional=${encodeURIComponent(series.slug)}`;
 }
 
-// A standalone series has no teaching page to read, so callers fall back to the
-// devotional's own page.
-export function getDevotionalReadPath(series: Pick<PublicDevotionalSeries, "slug" | "teaching">) {
-  return series.teaching ? `/teachings/${series.teaching.slug}/devotional` : `/devotionals/${series.slug}`;
+// Always the canonical series address. The teaching-scoped /teachings/[slug]/devotional route still
+// works for old links, but nothing on the site points to it.
+export function getDevotionalReadPath(series: Pick<PublicDevotionalSeries, "slug">) {
+  return `/devotionals/${series.slug}`;
 }
 
 export function getDevotionalDescription(series: Pick<PublicDevotionalSeries, "title" | "introduction" | "teaching"> & { language?: "en" | "es" }) {

@@ -3,7 +3,8 @@ import { BookOpenText } from "lucide-react";
 
 const contactEmail = "theprayerwhiteboard@gmail.com";
 
-export function PublicFooter() {
+// spanishHref: the Español version of the current page, when it has one.
+export function PublicFooter({ spanishHref }: { spanishHref?: string | null } = {}) {
   return (
     <footer className="public-site-footer bg-[#1d352b] px-5 py-9 text-center text-[#d8e5dd] sm:px-8">
       <BookOpenText aria-hidden="true" className="mx-auto text-[#efc775]" size={28} />
@@ -28,6 +29,11 @@ export function PublicFooter() {
         <a href={`mailto:${contactEmail}`} className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f1c66f]">
           Contact
         </a>
+        {spanishHref ? (
+          <Link href={spanishHref} hrefLang="es" lang="es" className="inline-flex min-h-10 items-center underline-offset-4 transition hover:text-[#f0cb83] hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f1c66f]">
+            Leer en español
+          </Link>
+        ) : null}
       </div>
     </footer>
   );

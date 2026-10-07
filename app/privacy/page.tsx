@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
+import { buildPageMetadata, STATIC_TRANSLATIONS } from "@/lib/alternates";
 import Link from "next/link";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description: "How The Prayer Whiteboard handles email subscription information.",
-  alternates: { canonical: "/privacy" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Privacy Policy", description: "How The Prayer Whiteboard handles email subscription information.", path: "/privacy", pair: STATIC_TRANSLATIONS.privacy });
 
 export default function PrivacyPage() {
   return (
@@ -28,7 +25,7 @@ export default function PrivacyPage() {
         <h2 className="mt-8 text-2xl font-extrabold text-[#243d31]">Contact</h2>
         <p className="mt-3">Questions about this policy may be sent to <a href="mailto:theprayerwhiteboard@gmail.com" className="font-bold text-[#9d5a2f] underline underline-offset-2">theprayerwhiteboard@gmail.com</a>.</p>
       </article>
-      <PublicFooter />
+      <PublicFooter spanishHref={STATIC_TRANSLATIONS.privacy.es} />
     </main>
   );
 }

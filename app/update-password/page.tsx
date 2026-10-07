@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getStaffSession } from "@/lib/supabase/admin";
 import { UpdatePasswordForm } from "./update-password-form";
 
-export const metadata: Metadata = {
-  title: "Choose a Password",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Choose a Password", path: "/update-password", noindex: true });
 
 export const dynamic = "force-dynamic";
 

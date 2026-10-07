@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import Link from "next/link";
 import { PublicFooterEs } from "@/app/public-footer-es";
 import { PublicHeader } from "@/app/public-header";
 import { PreferenceRequestFormEs } from "./preference-request-form-es";
 
-export const metadata: Metadata = {
-  title: "Preferencias de correo",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Preferencias de correo", path: "/espanol/preferencias", language: "es", noindex: true });
 
 export default function PreferenciasPage() {
   return (

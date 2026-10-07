@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata } from "@/lib/alternates";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PublicFooterEs } from "@/app/public-footer-es";
@@ -6,10 +7,7 @@ import { PublicHeader } from "@/app/public-header";
 import { loadPreferenceToken } from "@/lib/email-subscriptions";
 import { PreferenceManagementFormEs } from "./preference-management-form-es";
 
-export const metadata: Metadata = {
-  title: "Administrar preferencias de correo",
-  robots: { index: false, follow: false },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Administrar preferencias de correo", path: "/espanol/preferencias/administrar", language: "es", noindex: true });
 
 export default async function AdministrarPreferenciasPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
   const { token = "" } = await searchParams;

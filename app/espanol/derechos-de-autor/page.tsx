@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildPageMetadata, STATIC_TRANSLATIONS } from "@/lib/alternates";
 import Link from "next/link";
 import { FormattedTextBlocks } from "@/app/formatted-text";
 import { PublicFooterEs } from "@/app/public-footer-es";
@@ -9,11 +10,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 // Displays the long Español (El Salvador) copyright footer; edit that footer in /admin/footers to change it.
 // Public access to footers is limited to ones assigned to published content, so this reads that one
 // footer id on the server instead.
-export const metadata: Metadata = {
-  title: "Derechos de autor",
-  description: "Reconocimientos de derechos de autor y permisos de The Prayer Whiteboard.",
-  alternates: { canonical: "/espanol/derechos-de-autor" },
-};
+export const metadata: Metadata = buildPageMetadata({ title: "Derechos de autor", description: "Reconocimientos de derechos de autor y permisos de The Prayer Whiteboard.", path: "/espanol/derechos-de-autor", language: "es", pair: STATIC_TRANSLATIONS.copyright });
 
 export default async function EspanolCopyrightPage() {
   const supabase = createServiceRoleClient();
@@ -44,7 +41,7 @@ export default async function EspanolCopyrightPage() {
           Volver a The Prayer Whiteboard
         </Link>
       </article>
-      <PublicFooterEs />
+      <PublicFooterEs englishHref={STATIC_TRANSLATIONS.copyright.en} />
     </main>
   );
 }

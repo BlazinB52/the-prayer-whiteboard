@@ -19,6 +19,8 @@ import {
   updateSection,
 } from "../../content-actions";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { TranslationPicker } from "@/app/admin/translations/translation-picker";
+import { loadTranslationOptions } from "@/lib/translation-options";
 import { getPublishEmailInfo } from "@/lib/publish-email-info";
 import { publishEmailNotice } from "@/lib/publish-email-notice";
 
@@ -94,6 +96,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
     : { count: 0 };
   // What publishing would email, shown before the Administrator presses Publish.
   const publishNotice = publishEmailNotice(await getPublishEmailInfo(supabase, id, teaching.language === "es" ? "es" : "en"));
+  const translation = await loadTranslationOptions(supabase, "teachings", id, teaching.language === "es" ? "es" : "en");
   const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title, language: (footer.language === "es" ? "es" : "en") as "en" | "es" }));
 
   const categoryItems = (categories ?? []).map((category) => ({
@@ -196,6 +199,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
           chalkboards={chalkboardOptions}
           footers={footerOptions}
         />
+        <TranslationPicker kind="teachings" id={id} language={teaching.language === "es" ? "es" : "en"} currentId={translation.currentId} options={translation.options} revalidate={`/admin/teachings/${id}/edit`} noun="teaching" />
         <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Devotional</p>
           <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">7-Day Devotional</h2>

@@ -3,7 +3,7 @@
 // 20261006030000_content_revisions.sql (revision_field_info); keep the two in step.
 
 // "devotional" and "day" are the devotional review (lib/devotional-revisions.ts); the rest are the teaching review.
-export type RevisionTargetKind = "teaching" | "category" | "section" | "devotional" | "day";
+export type RevisionTargetKind = "teaching" | "category" | "section" | "devotional" | "day" | "weekly_update";
 
 export type TeachingRow = {
   id: string;
@@ -47,7 +47,7 @@ export function fieldId(kind: RevisionTargetKind, targetId: string | null, field
 export function parseFieldId(id: string): { targetKind: RevisionTargetKind; targetId: string | null; fieldKey: string } | null {
   const [kind, target, ...rest] = id.split(":");
   const fieldKey = rest.join(":");
-  if ((kind !== "teaching" && kind !== "category" && kind !== "section" && kind !== "devotional" && kind !== "day") || !target || !fieldKey) return null;
+  if ((kind !== "teaching" && kind !== "category" && kind !== "section" && kind !== "devotional" && kind !== "day" && kind !== "weekly_update") || !target || !fieldKey) return null;
   return { targetKind: kind, targetId: target === NO_TARGET ? null : target, fieldKey };
 }
 

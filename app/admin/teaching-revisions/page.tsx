@@ -5,7 +5,7 @@ import { clearRevisionHistory } from "./actions";
 import { ConfirmButton } from "./confirm-button";
 
 export const metadata: Metadata = {
-  title: "Teaching & Devotional Revisions",
+  title: "Revisions",
   robots: { index: false, follow: false },
 };
 
@@ -38,7 +38,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
   const { data, error } = await supabase
     .from("content_revisions")
     .select("id, teaching_id, subject_type, subject_title, status, submitted_by_name, submitted_at, completed_at, completed_by_name, review_note, total_changes, accepted_count, rejected_count, overridden_count, updated_at")
-    .in("subject_type", ["teaching", "devotional"])
+    .in("subject_type", ["teaching", "devotional", "weekly_update"])
     .order("updated_at", { ascending: false });
 
   const revisions = (data ?? []) as RevisionRow[];
@@ -51,9 +51,9 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
       <div className="mx-auto max-w-5xl">
         <Link href="/admin" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to dashboard</Link>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-8">
-          <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Teaching &amp; Devotional Revisions</h1>
+          <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Revisions</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
-            Co-editors propose changes to draft teachings and devotionals here. Nothing changes until you accept it. When a teaching or devotional is published, its review text is deleted.
+            Co-editors propose changes to draft teachings, devotionals and weekly updates here. Nothing changes until you accept it. When one is published, its review text is deleted.
           </p>
         </header>
 
@@ -71,7 +71,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
               {awaiting.map((revision) => (
                 <li key={revision.id}>
                   <Link href={`/admin/teaching-revisions/${revision.id}`} className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-3 transition hover:bg-[#e7efe9]/60">
-                    <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}{revision.subject_type === "devotional" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Devotional</span> : null}</span>
+                    <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}{revision.subject_type === "devotional" || revision.subject_type === "weekly_update" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">{revision.subject_type === "weekly_update" ? "Weekly update" : "Devotional"}</span> : null}</span>
                     <span className="text-sm text-[#607066]">{revision.submitted_by_name ?? "Unknown"}</span>
                     <span className="rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a4fb4]">{revision.total_changes} {revision.total_changes === 1 ? "change" : "changes"}</span>
                     <span className="hidden w-40 shrink-0 text-right text-sm text-[#607066] sm:inline">{formatDateTime(revision.submitted_at)}</span>
@@ -93,7 +93,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
               {drafts.map((revision) => (
                 <li key={revision.id}>
                   <Link href={`/admin/teaching-revisions/${revision.id}`} className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-3 transition hover:bg-[#e7efe9]/60">
-                    <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}{revision.subject_type === "devotional" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Devotional</span> : null}</span>
+                    <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}{revision.subject_type === "devotional" || revision.subject_type === "weekly_update" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">{revision.subject_type === "weekly_update" ? "Weekly update" : "Devotional"}</span> : null}</span>
                     <span className="text-sm text-[#607066]">{revision.submitted_by_name ?? "Unknown"}</span>
                     <span className="rounded-full bg-[#eee7da] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Not submitted</span>
                   </Link>
@@ -114,7 +114,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
             <ul className="divide-y divide-[#284a3b]/10">
               {finished.map((revision) => (
                 <li key={revision.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-3 text-sm">
-                  <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}{revision.subject_type === "devotional" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Devotional</span> : null}</span>
+                  <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}{revision.subject_type === "devotional" || revision.subject_type === "weekly_update" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">{revision.subject_type === "weekly_update" ? "Weekly update" : "Devotional"}</span> : null}</span>
                   <span className="text-[#607066]">by {revision.submitted_by_name ?? "unknown"}</span>
                   <span className="text-[#607066]">
                     {revision.status === "completed"

@@ -18,15 +18,19 @@ function refresh(revisionId?: string) {
   revalidatePath("/admin");
   revalidatePath("/admin/teachings");
   revalidatePath("/admin/devotionals");
+  revalidatePath("/admin/weekly-updates");
 }
 
 type AdminSupabase = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
 
 // A revision belongs to a teaching or a devotional; each has its own review functions in the database.
-async function usesDevotionalFunctions(supabase: AdminSupabase, revisionId: string) {
+async function revisionSubject(supabase: AdminSupabase, revisionId: string) {
   const { data } = await supabase.from("content_revisions").select("subject_type").eq("id", revisionId).maybeSingle();
-  return data?.subject_type === "devotional";
+  return data?.subject_type === "devotional" ? "devotional" : data?.subject_type === "weekly_update" ? "weekly_update" : "teaching";
 }
+
+const REVIEW_ONE = { teaching: "review_teaching_revision_change", devotional: "review_devotional_revision_change", weekly_update: "review_weekly_update_revision_change" } as const;
+const REVIEW_ALL = { teaching: "review_all_teaching_revision_changes", devotional: "review_all_devotional_revision_changes", weekly_update: "review_all_weekly_update_revision_changes" } as const;
 
 // Every action below is Administrator-only twice over: requireAdmin() turns away anyone else here,
 // and the database functions refuse a non-Administrator on their own.
@@ -40,8 +44,8 @@ export async function reviewChange(formData: FormData) {
 
   // "accept_anyway" is the Administrator choosing to replace newer wording with a stale proposal. It is a
   // separate, explicit button on one change at a time; Accept All never does it.
-  const devotional = await usesDevotionalFunctions(supabase, revisionId);
-  const { data, error } = await supabase.rpc(devotional ? "review_devotional_revision_change" : "review_teaching_revision_change", {
+  const subject = await revisionSubject(supabase, revisionId);
+  const { data, error } = await supabase.rpc(REVIEW_ONE[subject], {
     p_change_id: changeId,
     p_decision: decision === "reject" ? "reject" : "accept",
     p_note: String(formData.get("note") ?? "").trim() || null,
@@ -60,8 +64,8 @@ export async function reviewAllChanges(formData: FormData) {
   if (!UUID_PATTERN.test(revisionId) || !["accept", "reject"].includes(decision)) redirect("/admin/teaching-revisions");
   const { supabase } = await requireAdmin();
 
-  const devotional = await usesDevotionalFunctions(supabase, revisionId);
-  const { data, error } = await supabase.rpc(devotional ? "review_all_devotional_revision_changes" : "review_all_teaching_revision_changes", { p_revision_id: revisionId, p_decision: decision });
+  const subject = await revisionSubject(supabase, revisionId);
+  const { data, error } = await supabase.rpc(REVIEW_ALL[subject], { p_revision_id: revisionId, p_decision: decision });
   if (error) redirect(back(revisionId, { error: friendlyRevisionError(error.message) }));
   refresh(revisionId);
   const result = (data ?? {}) as { finished?: boolean; skipped_stale?: number };

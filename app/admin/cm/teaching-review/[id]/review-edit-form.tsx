@@ -22,7 +22,7 @@ export type ReviewFormField = {
 
 type Action = (state: TeachingReviewState, formData: FormData) => Promise<TeachingReviewState>;
 
-export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }: { action: Action; fields: ReviewFormField[]; canEdit: boolean; subject?: "teaching" | "devotional" }) {
+export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }: { action: Action; fields: ReviewFormField[]; canEdit: boolean; subject?: "teaching" | "devotional" | "weekly update" }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((field) => [field.id, field.value])));
   const setValue = (id: string, value: string) => setValues((current) => ({ ...current, [id]: value }));

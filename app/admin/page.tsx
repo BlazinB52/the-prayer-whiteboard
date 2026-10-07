@@ -28,8 +28,8 @@ const tools = [
     href: "/admin/chalkboards",
   },
   {
-    title: "Teaching & Devotional Revisions",
-    description: "Review changes that co-editors propose to draft teachings and devotionals, and accept or reject each one.",
+    title: "Revisions",
+    description: "Review changes that co-editors propose to draft teachings, devotionals and weekly updates, and accept or reject each one.",
     status: "Available",
     href: "/admin/teaching-revisions",
   },

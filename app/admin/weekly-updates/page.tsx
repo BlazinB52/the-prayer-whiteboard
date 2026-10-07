@@ -60,6 +60,13 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
   }
   const emailLookup = await getWeeklyUpdateEmailLookup(supabase);
   const currentUpdate = (updates ?? []).find((item) => item.is_current);
+  // Co-editor proposals still waiting on a decision, per weekly update. Publishing closes them (and deletes
+  // their text), so each draft says so instead of letting it come as a surprise.
+  const { data: waitingRevisions } = await supabase.from("content_revisions").select("weekly_update_id").eq("subject_type", "weekly_update").eq("status", "submitted");
+  const waitingByUpdate = new Map<string, number>();
+  for (const revision of waitingRevisions ?? []) {
+    if (revision.weekly_update_id) waitingByUpdate.set(revision.weekly_update_id, (waitingByUpdate.get(revision.weekly_update_id) ?? 0) + 1);
+  }
   const { data: unfinishedSends } = await supabase
     .from("email_broadcast_events")
     .select("weekly_update_id, status, recipient_count")
@@ -131,6 +138,12 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       {!update.is_current ? <WeeklyUpdateDeleteButton action={deleteWeeklyUpdate} weeklyUpdateId={update.id} title={update.title} /> : null}
                     </div>
                   </div>
+                  {update.status === "draft" && waitingByUpdate.get(update.id) ? (
+                    <p role="status" className="mt-4 rounded-xl border border-[#1a4fb4]/20 bg-[#e8f0fe] px-4 py-3 text-sm font-bold leading-6 text-[#1a3f8a]">
+                      {waitingByUpdate.get(update.id)} co-editor {waitingByUpdate.get(update.id) === 1 ? "revision is" : "revisions are"} waiting for your review. Publishing this update closes {waitingByUpdate.get(update.id) === 1 ? "it" : "them"} and deletes the proposed wording.{" "}
+                      <Link href="/admin/teaching-revisions" className="underline underline-offset-2">Review {waitingByUpdate.get(update.id) === 1 ? "it" : "them"} first</Link>.
+                    </p>
+                  ) : null}
                   {update.status !== "archived" ? (
                     <p role="note" className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold ${publishNotice.kind === "email" ? "border-[#946332]/30 bg-[#fbf1e1] text-[#7a4a1d]" : "border-[#284a3b]/15 bg-[#f4f6f1] text-[#385245]"}`}>{publishNotice.text}</p>
                   ) : null}

@@ -74,7 +74,7 @@ test("the Administrator pages show devotional revisions and send each decision t
   assert.match(actions, /review_devotional_revision_change/);
   assert.match(actions, /review_all_devotional_revision_changes/);
   const list = await readFile("app/admin/teaching-revisions/page.tsx", "utf8");
-  assert.match(list, /\.in\("subject_type", \["teaching", "devotional"\]\)/);
+  assert.match(list, /\.in\("subject_type", \["teaching", "devotional", "weekly_update"\]\)/);
   const detail = await readFile("app/admin/teaching-revisions/[revisionId]/page.tsx", "utf8");
   assert.match(detail, /buildDevotionalEditableFields/);
   const editPage = await readFile("app/admin/devotionals/[id]/page.tsx", "utf8");

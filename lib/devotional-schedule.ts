@@ -1,13 +1,17 @@
 // Devotional days are pinned to the day of the week. They are not paced off a
 // parent teaching's publish date and not off a per-subscriber counter:
 //
-//   Wednesday  day 1
-//   Thursday   day 2
-//   Friday     day 3
-//   Saturday   day 4
-//   Sunday     day 5
-//   Monday     day 6
-//   Tuesday    day 7
+//   Saturday   day 1
+//   Sunday     day 2
+//   Monday     day 3
+//   Tuesday    day 4
+//   Wednesday  day 5
+//   Thursday   day 6
+//   Friday     day 7
+//
+// A cycle always starts on a Saturday with the oldest queued series (see pickNextQueuedSeries), runs
+// to Friday, and the next Saturday starts the next queued series. No cycle starts before
+// DEVOTIONAL_QUEUE_START_DATE.
 //
 // The weekday is read in DEVOTIONAL_TIME_ZONE rather than in the cron host's
 // zone, so the morning run lands on the intended slot no matter where it fires
@@ -24,14 +28,46 @@ export function devotionalTimeZone() {
 }
 
 const DAY_NUMBER_BY_WEEKDAY: Record<string, number> = {
-  Wednesday: 1,
-  Thursday: 2,
-  Friday: 3,
-  Saturday: 4,
-  Sunday: 5,
-  Monday: 6,
-  Tuesday: 7,
+  Saturday: 1,
+  Sunday: 2,
+  Monday: 3,
+  Tuesday: 4,
+  Wednesday: 5,
+  Thursday: 6,
+  Friday: 7,
 };
+
+// The first Saturday a queued cycle may start. Nothing is mailed before this date.
+export const DEFAULT_DEVOTIONAL_QUEUE_START_DATE = "2026-10-10";
+
+export function devotionalQueueStartDate() {
+  const configured = (process.env.DEVOTIONAL_QUEUE_START_DATE ?? "").trim();
+  return /^d{4}-d{2}-d{2}$/.test(configured) ? configured : DEFAULT_DEVOTIONAL_QUEUE_START_DATE;
+}
+
+// Today's calendar date (YYYY-MM-DD) in the configured zone.
+export function devotionalLocalDate(now: Date, timeZone = DEFAULT_DEVOTIONAL_TIME_ZONE) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+export function isBeforeDevotionalQueueStart(now: Date, timeZone = DEFAULT_DEVOTIONAL_TIME_ZONE, startDate = devotionalQueueStartDate()) {
+  return devotionalLocalDate(now, timeZone) < startDate;
+}
+
+export type QueuedSeries = { id: string; published_at: string | null };
+
+// The next series to start on a Saturday: the oldest published one that has never been mailed and
+// was published after the most recently mailed series. The "after" rule keeps old series that were
+// published before the queue existed (and never mailed) from being sent as if they were new.
+// `candidates` must already be ordered oldest published first.
+export function pickNextQueuedSeries<T extends QueuedSeries>(candidates: T[], mailedIds: Set<string>, lastMailedPublishedAt: string | null) {
+  for (const candidate of candidates) {
+    if (mailedIds.has(candidate.id)) continue;
+    if (lastMailedPublishedAt && (!candidate.published_at || candidate.published_at <= lastMailedPublishedAt)) continue;
+    return candidate;
+  }
+  return null;
+}
 
 export function devotionalWeekdayName(now: Date, timeZone = DEFAULT_DEVOTIONAL_TIME_ZONE) {
   return new Intl.DateTimeFormat("en-US", { timeZone, weekday: "long" }).format(now);

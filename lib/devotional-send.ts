@@ -3,7 +3,7 @@ import "server-only";
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
-import { devotionalDayForWeekday, devotionalTimeZone } from "@/lib/devotional-schedule";
+import { devotionalDayForWeekday, devotionalTimeZone, isBeforeDevotionalQueueStart, pickNextQueuedSeries } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { deliverToRecipients } from "@/lib/send-deliveries";
 import { getSpanishDevotionalIds } from "@/lib/spanish-devotionals";
@@ -85,23 +85,86 @@ type DayContent = {
   prayer_activation: string;
 };
 
-export async function processDevotionalQueue(now = new Date()): Promise<DevotionalRunResult> {
+type SeriesRow = { id: string; slug: string; title: string; status: string; published_at: string | null };
+
+// A cycle starts on a Saturday with the oldest queued series. Series are queued by publishing them:
+// a series published mid-cycle simply waits, and starts the Saturday after the current one ends.
+// Español series are never mailed: the subscriber list is English, so they are skipped here.
+async function nextQueuedDevotional(spanishIds: Set<string>): Promise<SeriesRow | null> {
   const supabase = getClient();
 
-  // The most recently published series drives the run. It is read straight off
-  // teaching_devotionals, so a series authored standalone is eligible on the
-  // same terms as one that started life inside a teaching.
-  // Español series are never mailed: the subscriber list is English, so they are skipped here.
-  const { data: candidates, error: devotionalError } = await supabase
+  // What has already been mailed, and which of those was published most recently.
+  const { data: mailedRows, error: mailedError } = await supabase
+    .from("email_devotional_broadcast_ledger")
+    .select("devotional_id")
+    .not("devotional_id", "is", null)
+    .limit(2000);
+  if (mailedError) throw new Error(`Devotional ledger lookup failed: ${mailedError.message}`);
+  const mailedIds = new Set((mailedRows ?? []).map((row) => row.devotional_id as string));
+
+  let lastMailedPublishedAt: string | null = null;
+  if (mailedIds.size) {
+    const { data: mailedSeries } = await supabase
+      .from("teaching_devotionals")
+      .select("published_at")
+      .in("id", [...mailedIds])
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .limit(1);
+    lastMailedPublishedAt = (mailedSeries?.[0]?.published_at as string | null) ?? null;
+  }
+
+  const { data: candidates, error } = await supabase
     .from("teaching_devotionals")
-    .select("id, slug, title, status, published_at, updated_at")
+    .select("id, slug, title, status, published_at")
     .eq("status", "published")
-    .order("published_at", { ascending: false, nullsFirst: false })
-    .order("updated_at", { ascending: false })
-    .limit(25);
-  if (devotionalError) throw new Error(`Devotional lookup failed: ${devotionalError.message}`);
+    .not("published_at", "is", null)
+    .order("published_at", { ascending: true })
+    .limit(100);
+  if (error) throw new Error(`Devotional lookup failed: ${error.message}`);
+
+  return pickNextQueuedSeries(((candidates ?? []) as SeriesRow[]).filter((candidate) => !spanishIds.has(candidate.id)), mailedIds, lastMailedPublishedAt);
+}
+
+// Sunday through Friday continue the series that started on Saturday: the series of the latest ledger
+// row, as long as that row is from this cycle (within the last six and a half days) and not ahead of today.
+async function activeCycleDevotional(dayNumber: number, now: Date, spanishIds: Set<string>): Promise<SeriesRow | null> {
+  const supabase = getClient();
+  const { data: latest, error } = await supabase
+    .from("email_devotional_broadcast_ledger")
+    .select("devotional_id, day_number, created_at")
+    .not("devotional_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`Devotional ledger lookup failed: ${error.message}`);
+  if (!latest || !latest.devotional_id || (latest.day_number as number) > dayNumber) return null;
+  if (now.getTime() - new Date(latest.created_at as string).getTime() > 6.5 * 24 * 60 * 60 * 1000) return null;
+  if (spanishIds.has(latest.devotional_id as string)) return null;
+
+  const { data: devotional } = await supabase
+    .from("teaching_devotionals")
+    .select("id, slug, title, status, published_at")
+    .eq("id", latest.devotional_id)
+    .eq("status", "published")
+    .maybeSingle();
+  return (devotional as SeriesRow | null) ?? null;
+}
+
+export async function processDevotionalQueue(now = new Date()): Promise<DevotionalRunResult> {
+  const supabase = getClient();
+  const timeZone = devotionalTimeZone();
+
+  // Nothing is mailed before the queue start date.
+  if (isBeforeDevotionalQueueStart(now, timeZone)) return { status: "outside_window" };
+
+  // Today's weekday alone decides the day number: Saturday is day 1 through Friday day 7.
+  const dayNumber = devotionalDayForWeekday({ now, timeZone });
+  if (!dayNumber) return { status: "outside_window" };
+
   const spanishIds = await getSpanishDevotionalIds(supabase);
-  const devotional = (candidates ?? []).find((candidate) => !spanishIds.has(candidate.id));
+  const devotional = dayNumber === 1
+    ? await nextQueuedDevotional(spanishIds)
+    : await activeCycleDevotional(dayNumber, now, spanishIds);
   if (!devotional) return { status: "no_devotional" };
 
   const { count: totalDays } = await supabase
@@ -109,14 +172,8 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
     .select("id", { count: "exact", head: true })
     .eq("devotional_id", devotional.id);
   if (!totalDays) return { status: "no_devotional" };
-
-  // Today's weekday alone decides the day number.
-  const dayNumber = devotionalDayForWeekday({
-    now,
-    totalDays,
-    timeZone: devotionalTimeZone(),
-  });
-  if (!dayNumber) return { status: "outside_window" };
+  // A series shorter than seven days has nothing to send on the last weekdays.
+  if (dayNumber > totalDays) return { status: "outside_window" };
 
   const { data: day } = await supabase
     .from("teaching_devotional_days")

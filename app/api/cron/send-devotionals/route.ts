@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
   try {
     // The day number comes from today's weekday in DEVOTIONAL_TIME_ZONE alone
-    // (Wednesday is day 1 through Tuesday is day 7), so the run needs neither a
+    // (Saturday is day 1 through Friday is day 7), so the run needs neither a
     // parent teaching's publish date nor any per-subscriber state.
     const result = await processDevotionalQueue();
     // Out of time, not out of subscribers: hand the rest to the resume route.

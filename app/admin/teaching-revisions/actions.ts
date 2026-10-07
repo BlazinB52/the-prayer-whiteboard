@@ -17,6 +17,15 @@ function refresh(revisionId?: string) {
   if (revisionId) revalidatePath(`/admin/teaching-revisions/${revisionId}`);
   revalidatePath("/admin");
   revalidatePath("/admin/teachings");
+  revalidatePath("/admin/devotionals");
+}
+
+type AdminSupabase = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
+
+// A revision belongs to a teaching or a devotional; each has its own review functions in the database.
+async function usesDevotionalFunctions(supabase: AdminSupabase, revisionId: string) {
+  const { data } = await supabase.from("content_revisions").select("subject_type").eq("id", revisionId).maybeSingle();
+  return data?.subject_type === "devotional";
 }
 
 // Every action below is Administrator-only twice over: requireAdmin() turns away anyone else here,
@@ -31,7 +40,8 @@ export async function reviewChange(formData: FormData) {
 
   // "accept_anyway" is the Administrator choosing to replace newer wording with a stale proposal. It is a
   // separate, explicit button on one change at a time; Accept All never does it.
-  const { data, error } = await supabase.rpc("review_teaching_revision_change", {
+  const devotional = await usesDevotionalFunctions(supabase, revisionId);
+  const { data, error } = await supabase.rpc(devotional ? "review_devotional_revision_change" : "review_teaching_revision_change", {
     p_change_id: changeId,
     p_decision: decision === "reject" ? "reject" : "accept",
     p_note: String(formData.get("note") ?? "").trim() || null,
@@ -50,7 +60,8 @@ export async function reviewAllChanges(formData: FormData) {
   if (!UUID_PATTERN.test(revisionId) || !["accept", "reject"].includes(decision)) redirect("/admin/teaching-revisions");
   const { supabase } = await requireAdmin();
 
-  const { data, error } = await supabase.rpc("review_all_teaching_revision_changes", { p_revision_id: revisionId, p_decision: decision });
+  const devotional = await usesDevotionalFunctions(supabase, revisionId);
+  const { data, error } = await supabase.rpc(devotional ? "review_all_devotional_revision_changes" : "review_all_teaching_revision_changes", { p_revision_id: revisionId, p_decision: decision });
   if (error) redirect(back(revisionId, { error: friendlyRevisionError(error.message) }));
   refresh(revisionId);
   const result = (data ?? {}) as { finished?: boolean; skipped_stale?: number };

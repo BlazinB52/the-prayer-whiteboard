@@ -47,6 +47,12 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
     .order("day_number", { ascending: true });
 
   const assignedTeachings = teachings ?? [];
+
+  // Co-editor proposals still waiting on a decision. Publishing closes them (and deletes their text),
+  // so say so here instead of letting it come as a surprise.
+  const { count: pendingRevisionCount } = devotional.status === "draft"
+    ? await supabase.from("content_revisions").select("id", { count: "exact", head: true }).eq("devotional_id", devotional.id).eq("status", "submitted")
+    : { count: 0 };
   const dayActions = Object.fromEntries(
     DEVOTIONAL_DAY_NUMBERS.map((dayNumber) => [dayNumber, updateStandaloneDevotionalDay.bind(null, devotional.id, dayNumber)]),
   ) as Record<number, Parameters<typeof DevotionalDayForms>[0]["actions"][number]>;
@@ -64,6 +70,13 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
             <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{devotional.status}</span>
           </div>
         </header>
+
+        {pendingRevisionCount ? (
+          <p role="status" className="mt-6 rounded-xl border border-[#1a4fb4]/20 bg-[#e8f0fe] px-4 py-3 text-sm font-bold leading-6 text-[#1a3f8a]">
+            {pendingRevisionCount} co-editor {pendingRevisionCount === 1 ? "revision is" : "revisions are"} waiting for your review. Publishing this devotional closes {pendingRevisionCount === 1 ? "it" : "them"} and deletes the proposed wording.{" "}
+            <Link href="/admin/teaching-revisions" className="underline underline-offset-2">Review {pendingRevisionCount === 1 ? "it" : "them"} first</Link>.
+          </p>
+        ) : null}
 
         {messages.created === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional created as a draft. Write the seven days below, or import them from a text file.</p> : null}
         {messages.imported === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional text imported as a draft.</p> : null}

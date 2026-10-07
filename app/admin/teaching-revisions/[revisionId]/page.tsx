@@ -12,6 +12,7 @@ import {
   type SectionRow,
   type TeachingRow,
 } from "@/lib/teaching-revisions";
+import { buildDevotionalEditableFields, type DevotionalDayRow, type DevotionalRow } from "@/lib/devotional-revisions";
 import { cancelRevision, reviewAllChanges, reviewChange } from "../actions";
 import { ConfirmButton } from "../confirm-button";
 
@@ -25,6 +26,8 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3
 type RevisionRow = {
   id: string;
   teaching_id: string | null;
+  devotional_id: string | null;
+  subject_type: "teaching" | "devotional" | "weekly_update";
   subject_title: string;
   status: "draft" | "submitted" | "completed" | "cancelled";
   submitted_by_name: string | null;
@@ -44,9 +47,9 @@ function formatDateTime(value: string | null) {
 }
 
 const MESSAGES: Record<string, string> = {
-  accepted: "Change accepted and applied to the teaching.",
+  accepted: "Change accepted and applied.",
   accepted_anyway: "Change accepted anyway. The current wording was replaced with the proposal.",
-  rejected: "Change rejected. The teaching was not changed.",
+  rejected: "Change rejected. Nothing was changed.",
   finished: "That was the last change. The review is finished and its wording has been deleted.",
   accept: "All remaining changes were accepted and applied.",
   reject: "All remaining changes were rejected.",
@@ -65,7 +68,7 @@ export default async function TeachingRevisionReviewPage({
   const { supabase } = await requireAdmin();
   const { data: revisionData } = await supabase
     .from("content_revisions")
-    .select("id, teaching_id, subject_title, status, submitted_by_name, submitted_at, completed_at, completed_by_name, review_note, total_changes, accepted_count, rejected_count, overridden_count")
+    .select("id, teaching_id, devotional_id, subject_type, subject_title, status, submitted_by_name, submitted_at, completed_at, completed_by_name, review_note, total_changes, accepted_count, rejected_count, overridden_count")
     .eq("id", revisionId)
     .maybeSingle();
   if (!revisionData) notFound();
@@ -73,7 +76,18 @@ export default async function TeachingRevisionReviewPage({
 
   const open = revision.status === "submitted" || revision.status === "draft";
   const teachingId = revision.teaching_id;
+  const devotionalId = revision.devotional_id;
+  const isDevotional = revision.subject_type === "devotional";
+  const subject = isDevotional ? "devotional" : "teaching";
 
+  const [devotionalResult, devotionalDaysResult] = await Promise.all([
+    open && devotionalId
+      ? supabase.from("teaching_devotionals").select("id, title, introduction, status").eq("id", devotionalId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    open && devotionalId
+      ? supabase.from("teaching_devotional_days").select("id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation").eq("devotional_id", devotionalId).order("day_number", { ascending: true })
+      : Promise.resolve({ data: [] }),
+  ]);
   const [teachingResult, categoriesResult, sectionsResult, changesResult] = await Promise.all([
     open && teachingId
       ? supabase.from("teachings").select("id, title, status, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text").eq("id", teachingId).maybeSingle()
@@ -94,15 +108,20 @@ export default async function TeachingRevisionReviewPage({
   ]);
 
   const teaching = teachingResult.data as (TeachingRow & { status: string }) | null;
-  const fields = teaching ? buildEditableFields(teaching, (categoriesResult.data ?? []) as CategoryRow[], (sectionsResult.data ?? []) as SectionRow[]) : [];
+  const devotional = devotionalResult.data as (DevotionalRow & { status: string }) | null;
+  const fields = devotional
+    ? buildDevotionalEditableFields(devotional, (devotionalDaysResult.data ?? []) as DevotionalDayRow[])
+    : teaching
+      ? buildEditableFields(teaching, (categoriesResult.data ?? []) as CategoryRow[], (sectionsResult.data ?? []) as SectionRow[])
+      : [];
   const changes = ((changesResult.data ?? []) as RevisionChangeRow[]);
   const pending = changes.filter((change) => change.change_status === "pending");
-  const teachingIsDraft = teaching?.status === "draft";
+  const teachingIsDraft = (devotional ?? teaching)?.status === "draft";
 
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-4xl">
-        <Link href="/admin/teaching-revisions" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Teaching Revisions</Link>
+        <Link href="/admin/teaching-revisions" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Revisions</Link>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-6">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Revision for review</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31] sm:text-4xl">{revision.subject_title}</h1>
@@ -112,6 +131,7 @@ export default async function TeachingRevisionReviewPage({
             {revision.submitted_at ? <div><dt className="inline font-bold text-[#385245]">Submitted </dt><dd className="inline">{formatDateTime(revision.submitted_at)}</dd></div> : null}
             {revision.completed_at ? <div><dt className="inline font-bold text-[#385245]">Finished </dt><dd className="inline">{formatDateTime(revision.completed_at)}{revision.completed_by_name ? ` by ${revision.completed_by_name}` : ""}</dd></div> : null}
           </dl>
+          {isDevotional && devotionalId ? <Link href={`/admin/devotionals/${devotionalId}`} className="mt-4 inline-flex text-sm font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Open the devotional editor</Link> : null}
           {teachingId ? <Link href={`/admin/teachings/${teachingId}/edit`} className="mt-4 inline-flex text-sm font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Open the teaching editor</Link> : null}
         </header>
 
@@ -136,9 +156,9 @@ export default async function TeachingRevisionReviewPage({
                 This is a draft. The editor has not submitted it, so there is nothing to decide yet. You can close it if it was abandoned.
               </p>
             ) : null}
-            {!teachingIsDraft && teaching ? (
+            {!teachingIsDraft && (teaching || devotional) ? (
               <p role="alert" className="mt-6 rounded-xl border border-[#c49a3a]/40 bg-[#fbf4e1] px-4 py-3 text-sm font-bold text-[#6b5013]">
-                This teaching is no longer a draft, so changes can no longer be applied. Close this revision.
+                This {subject} is no longer a draft, so changes can no longer be applied. Close this revision.
               </p>
             ) : null}
 
@@ -168,8 +188,8 @@ export default async function TeachingRevisionReviewPage({
 
                     {stale ? (
                       <div role="alert" className="mt-4 rounded-xl border border-[#c49a3a]/40 bg-[#fbf4e1] p-4 text-sm leading-6 text-[#6b5013]">
-                        <p className="font-extrabold">The teaching changed after this was proposed.</p>
-                        <p className="mt-1">{info.found ? "Accept is turned off so newer work is not overwritten by accident. You can reject it, ask the editor to submit a new revision from the current text, or use Accept anyway to replace the current wording with this proposal." : "The part of the teaching this refers to no longer exists. Reject it."}</p>
+                        <p className="font-extrabold">The {subject} changed after this was proposed.</p>
+                        <p className="mt-1">{info.found ? "Accept is turned off so newer work is not overwritten by accident. You can reject it, ask the editor to submit a new revision from the current text, or use Accept anyway to replace the current wording with this proposal." : `The part of the ${subject} this refers to no longer exists. Reject it.`}</p>
                         {info.current !== null ? (
                           <details className="mt-2">
                             <summary className="cursor-pointer font-extrabold">Show the current approved text</summary>
@@ -193,7 +213,7 @@ export default async function TeachingRevisionReviewPage({
                             <ConfirmButton
                               name="decision"
                               value="accept_anyway"
-                              message="Accept this change anyway? The teaching's current wording for this field will be replaced with the proposed wording. The newer text will be lost (you can still see it under 'Show the current approved text' before you decide)."
+                              message={`Accept this change anyway? The ${subject}'s current wording for this field will be replaced with the proposed wording. The newer text will be lost (you can still see it under 'Show the current approved text' before you decide).`}
                               className="min-h-12 rounded-xl border border-[#c49a3a] bg-[#fbf4e1] px-5 font-extrabold text-[#6b5013] transition hover:bg-[#f5e8bd]"
                             >
                               Accept anyway
@@ -216,12 +236,12 @@ export default async function TeachingRevisionReviewPage({
                   <form action={reviewAllChanges}>
                     <input type="hidden" name="revisionId" value={revision.id} />
                     <input type="hidden" name="decision" value="accept" />
-                    <ConfirmButton message={`Accept all ${pending.length} remaining changes and apply them to the teaching? Any change whose text moved since it was proposed is skipped.`} className="admin-primary-button"><span>Accept All Remaining</span></ConfirmButton>
+                    <ConfirmButton message={`Accept all ${pending.length} remaining changes and apply them to the ${subject}? Any change whose text moved since it was proposed is skipped.`} className="admin-primary-button"><span>Accept All Remaining</span></ConfirmButton>
                   </form>
                   <form action={reviewAllChanges}>
                     <input type="hidden" name="revisionId" value={revision.id} />
                     <input type="hidden" name="decision" value="reject" />
-                    <ConfirmButton message={`Reject all ${pending.length} remaining changes? The teaching will not be changed.`} className="admin-secondary-button">Reject All Remaining</ConfirmButton>
+                    <ConfirmButton message={`Reject all ${pending.length} remaining changes? The ${subject} will not be changed.`} className="admin-secondary-button">Reject All Remaining</ConfirmButton>
                   </form>
                 </div>
               </section>

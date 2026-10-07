@@ -150,8 +150,8 @@ test("Administrator actions require an Administrator and call the decision funct
   const source = await readFile("app/admin/teaching-revisions/actions.ts", "utf8");
   assert.equal((source.match(/await requireAdmin\(\)/g) ?? []).length, 4);
   assert.doesNotMatch(source, /service-role|createServiceRoleClient/);
-  assert.doesNotMatch(source, /\.from\(/);
-  for (const name of ["review_teaching_revision_change", "review_all_teaching_revision_changes", "cancel_teaching_revision", "purge_revision_history"]) {
+  assert.deepEqual([...source.matchAll(/\.from\("([a-z_]+)"\)/g)].map((match) => match[1]), ["content_revisions"], "the only table access reads which kind of revision this is");
+  for (const name of ["review_teaching_revision_change", "review_all_teaching_revision_changes", "cancel_teaching_revision", "purge_revision_history", "review_devotional_revision_change", "review_all_devotional_revision_changes"]) {
     assert.match(source, new RegExp(name));
   }
 });
@@ -172,7 +172,8 @@ test("each page uses the right sign-in check", async () => {
 
 test("the submit button warns that proposals do not change the teaching", async () => {
   const form = await readFile("app/admin/cm/teaching-review/[id]/review-edit-form.tsx", "utf8");
-  assert.match(form, /Changes made here are proposals only\. The approved teaching will not change until an Administrator accepts them\./);
+  assert.match(form, /Changes made here are proposals only\. The approved \{subject\} will not change until an Administrator accepts them\./);
+  assert.match(form, /subject = "teaching"/, "the wording defaults to teaching; the devotional review passes its own");
   assert.match(form, /Save Draft/);
   assert.match(form, /Submit for Admin Review/);
 });
@@ -226,7 +227,7 @@ test("the Accept anyway button appears only on a stale change that still exists,
   const page = await readFile("app/admin/teaching-revisions/[revisionId]/page.tsx", "utf8");
   assert.match(page, /stale && info\.found && teachingIsDraft/);
   assert.match(page, /value="accept_anyway"/);
-  assert.match(page, /The teaching's current wording for this field will be replaced with the proposed wording/);
+  assert.match(page, /current wording for this field will be replaced with the proposed wording/);
   assert.match(page, /Accept anyway/);
   const button = await readFile("app/admin/teaching-revisions/confirm-button.tsx", "utf8");
   assert.match(button, /window\.confirm\(message\)/);

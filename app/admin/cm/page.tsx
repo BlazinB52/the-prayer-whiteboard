@@ -28,6 +28,12 @@ const tools = [
     href: "/admin/cm/teaching-review",
   },
   {
+    title: "Devotional - Review",
+    description: "Propose changes to draft 7-day devotionals. Changes are proposals only until an Administrator accepts them.",
+    status: "Available",
+    href: "/admin/cm/devotional-review",
+  },
+  {
     title: "Teaching Outlines",
     description: "Upload teacher's outlines from Word and file them by category.",
     status: "Available",

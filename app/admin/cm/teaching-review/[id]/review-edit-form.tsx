@@ -22,7 +22,7 @@ export type ReviewFormField = {
 
 type Action = (state: TeachingReviewState, formData: FormData) => Promise<TeachingReviewState>;
 
-export function ReviewEditForm({ action, fields, canEdit }: { action: Action; fields: ReviewFormField[]; canEdit: boolean }) {
+export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }: { action: Action; fields: ReviewFormField[]; canEdit: boolean; subject?: "teaching" | "devotional" }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((field) => [field.id, field.value])));
   const setValue = (id: string, value: string) => setValues((current) => ({ ...current, [id]: value }));
@@ -82,7 +82,7 @@ export function ReviewEditForm({ action, fields, canEdit }: { action: Action; fi
       ))}
 
       <div className="sticky bottom-0 -mx-1 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-4 shadow-xl shadow-[#4d5f52]/10">
-        <p className="text-sm leading-6 text-[#607066]">Changes made here are proposals only. The approved teaching will not change until an Administrator accepts them.</p>
+        <p className="text-sm leading-6 text-[#607066]">Changes made here are proposals only. The approved {subject} will not change until an Administrator accepts them.</p>
         {state.error ? <p role="alert" className="mt-3 text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
         {state.saved ? <p role="status" className="mt-3 text-sm font-bold text-[#326048]">Draft saved ({state.savedCount ?? 0} {state.savedCount === 1 ? "change" : "changes"}).</p> : null}
         {canEdit ? (

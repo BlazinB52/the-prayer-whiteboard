@@ -1,4 +1,5 @@
 import { button, escapeHtml } from "./subscription-email-content.ts";
+import { formattedBlocksHtml, formattedBlocksText, formattedInlineHtml, formattedInlineText } from "./formatted-email-text.ts";
 import type { EmailCopyrightDisclaimer } from "./copyright-disclaimer-format.ts";
 
 // The day link is resolved from the devotional's own slug rather than from a
@@ -19,23 +20,22 @@ function field(title: string, bodyHtml: string) {
 
 function scripturesFieldHtml(scriptures: string[]) {
   if (!scriptures.length) return "";
-  return field("Anchor Scriptures", `<ul style="margin:0;padding-left:20px;line-height:1.7;">${scriptures.map((scripture) => `<li style="margin:0 0 8px;">${escapeHtml(scripture)}</li>`).join("")}</ul>`);
+  return field("Anchor Scriptures", scriptures.map((scripture) => `<p style="margin:0 0 8px;padding-left:20px;line-height:1.7;">${formattedInlineHtml(scripture)}</p>`).join(""));
 }
 
 function textFieldHtml(title: string, text: string | null) {
   if (!text?.trim()) return "";
-  const paragraphs = text.trim().split(/\n{2,}/).map((paragraph) => `<p style="margin:0 0 10px;line-height:1.7;">${escapeHtml(paragraph).replace(/\n/g, "<br />")}</p>`).join("");
-  return field(title, paragraphs);
+  return field(title, formattedBlocksHtml(text));
 }
 
 function scripturesText(scriptures: string[]) {
   if (!scriptures.length) return "";
-  return `\nAnchor Scriptures\n${scriptures.map((scripture) => `- ${scripture}`).join("\n")}`;
+  return `\nAnchor Scriptures\n${scriptures.map((scripture) => `  ${formattedInlineText(scripture)}`).join("\n")}`;
 }
 
 function textFieldText(title: string, text: string | null) {
   if (!text?.trim()) return "";
-  return `\n${title}\n${text.trim()}`;
+  return `\n${title}\n${formattedBlocksText(text)}`;
 }
 
 export function buildDevotionalDayEmail(input: {
@@ -67,7 +67,7 @@ export function buildDevotionalDayEmail(input: {
             <tr>
               <td style="padding:28px 24px;">
                 <p style="margin:0 0 4px;color:#946332;font-size:12px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;">The Prayer Whiteboard</p>
-                <p style="margin:0 0 18px;color:#8a9a90;font-size:13px;">7-Day Devotional: ${escapeHtml(input.seriesTitle)}</p>
+                <p style="margin:0 0 18px;color:#8a9a90;font-size:13px;">${escapeHtml(input.seriesTitle)}</p>
                 <p style="margin:0 0 6px;color:#946332;font-size:12px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;">${escapeHtml(dayLabel.toUpperCase())}</p>
                 <h1 style="margin:0 0 6px;color:#243d31;font-size:23px;line-height:1.2;">${escapeHtml(input.title)}</h1>
                 <p style="margin:0 0 22px;color:#52645a;font-size:14px;font-style:italic;"><strong style="font-style:normal;">For</strong> ${escapeHtml(input.seriesTitle)}</p>
@@ -94,7 +94,7 @@ export function buildDevotionalDayEmail(input: {
 
   const text = [
     "THE PRAYER WHITEBOARD",
-    `7-Day Devotional: ${input.seriesTitle}`,
+    input.seriesTitle,
     "",
     dayLabel.toUpperCase(),
     input.title,

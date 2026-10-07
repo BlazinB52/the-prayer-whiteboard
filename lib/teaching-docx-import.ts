@@ -307,7 +307,12 @@ function parseScripture(text: string): { reference: string; translation: string;
   }
   const curly = quotation.startsWith("“") && quotation.endsWith("”");
   const straight = quotation.startsWith('"') && quotation.endsWith('"');
-  if (quotation.length < 3 || !(curly || straight)) return { error: "the quotation must be enclosed in matching quotation marks." };
+  // The Scripture Quote is a block by itself, so quotation marks are optional. A quotation that opens or
+  // closes with a quotation mark but not a matching pair is still an error, since it is probably a typo.
+  const hasQuoteMark = /^["“”]|["“”]$/.test(quotation);
+  if (!quotation) return { error: "the quotation is missing." };
+  if (hasQuoteMark && !(curly || straight)) return { error: "the quotation has an unmatched quotation mark: use a matching pair, or none." };
+  if (quotation.length < 3 || (hasQuoteMark && quotation.length < 3)) return { error: "the quotation is too short." };
   return { reference, translation, quotation };
 }
 

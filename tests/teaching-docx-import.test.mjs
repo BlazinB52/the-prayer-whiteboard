@@ -138,10 +138,17 @@ test("an unrecognized or wrongly cased translation is an error", () => {
 test("Scripture Quote requires an em dash and matching quotation marks", () => {
   const hyphen = withReplaced(isRomans, ["ScriptureQuote", "Romans 8:1 (ESV) - “There is therefore now no condemnation.”"]);
   assertError(parse(hyphen), /em dash/);
-  const unquoted = withReplaced(isRomans, ["ScriptureQuote", "Romans 8:1 (ESV) — There is therefore now no condemnation."]);
-  assertError(parse(unquoted), /matching quotation marks/);
   const mismatched = withReplaced(isRomans, ["ScriptureQuote", 'Romans 8:1 (ESV) — “There is therefore now no condemnation."']);
-  assertError(parse(mismatched), /matching quotation marks/);
+  assertError(parse(mismatched), /unmatched quotation mark/);
+  const openOnly = withReplaced(isRomans, ["ScriptureQuote", "Romans 8:1 (ESV) — “There is therefore now no condemnation."]);
+  assertError(parse(openOnly), /unmatched quotation mark/);
+});
+
+test("a Scripture Quote without quotation marks is accepted, because it is a block by itself", () => {
+  const unquoted = withReplaced(isRomans, ["ScriptureQuote", "Romans 8:1 (ESV) — There is therefore now no condemnation."]);
+  const result = parse(unquoted);
+  assert.equal(result.ok, true, result.errors.join(" "));
+  assert.equal(result.teaching.categories[0].sections[3].quotation, "There is therefore now no condemnation.");
 });
 
 test("metadata content styled as Heading 1 is an error and does not become a category", () => {

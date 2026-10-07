@@ -150,7 +150,10 @@ export default async function EditTeachingPage({ params, searchParams }: { param
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-3xl">
-        <Link href="/admin/teachings" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Teachings</Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/admin/teachings" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Teachings</Link>
+          <a href="#delete-teaching" className="text-sm font-extrabold text-[#a2472c] hover:underline">Delete this teaching</a>
+        </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Edit Teaching</h1>
           <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{teaching.status}</span>
@@ -258,7 +261,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
           moveSectionActions={moveSectionActions}
           deleteSectionActions={deleteSectionActions}
         />
-        <section className="mt-8 rounded-2xl border border-[#a2472c]/30 bg-[#fff3ed] p-5">
+        <section id="delete-teaching" className="mt-8 scroll-mt-6 rounded-2xl border border-[#a2472c]/30 bg-[#fff3ed] p-5">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#a2472c]">Danger zone</p>
           <h2 className="mt-2 text-2xl font-extrabold text-[#5d2b1f]">Delete teaching</h2>
           <DeleteTeachingButton action={deleteTeaching.bind(null, id)} />

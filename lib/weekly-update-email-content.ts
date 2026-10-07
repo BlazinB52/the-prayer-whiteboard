@@ -6,10 +6,43 @@ import type { WeeklyUpdateBlock, WeeklyUpdateInline } from "./weekly-update-docx
 // published page. Blocks come from converted_content; body_markdown is the
 // fallback for updates converted before structured blocks existed.
 
+const STORED_LINK = /\[([^\]\n]+)\]\(([^\s)]+)\)/g;
+
+function safeHttpUrl(value: string) {
+  if (!/^https?:\/\//i.test(value)) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+// Escapes the text, and turns the stored [label](address) form into a real link. Only http and https
+// addresses become links; anything else is shown as its label.
+export function linkedHtml(text: string) {
+  let html = "";
+  let last = 0;
+  STORED_LINK.lastIndex = 0;
+  for (let match = STORED_LINK.exec(text); match; match = STORED_LINK.exec(text)) {
+    html += escapeHtml(text.slice(last, match.index));
+    const url = safeHttpUrl(match[2]);
+    html += url
+      ? `<a href="${escapeHtml(url)}" style="color:#244a3a;text-decoration:underline;">${escapeHtml(match[1])}</a>`
+      : escapeHtml(match[1]);
+    last = match.index + match[0].length;
+  }
+  return html + escapeHtml(text.slice(last));
+}
+
+function plainLinkText(text: string) {
+  return text.replace(STORED_LINK, (_match, label: string, url: string) => (label === url ? url : `${label} (${url})`));
+}
+
 function inlineHtml(children: WeeklyUpdateInline[]) {
   return children
     .map((child) => {
-      let html = escapeHtml(child.text);
+      let html = linkedHtml(child.text);
       if (child.bold) html = `<strong>${html}</strong>`;
       if (child.italic) html = `<em>${html}</em>`;
       return html;
@@ -18,7 +51,7 @@ function inlineHtml(children: WeeklyUpdateInline[]) {
 }
 
 function inlineText(children: WeeklyUpdateInline[]) {
-  return children.map((child) => child.text).join("");
+  return plainLinkText(children.map((child) => child.text).join(""));
 }
 
 function isWeeklyUpdateBlock(value: unknown): value is WeeklyUpdateBlock {

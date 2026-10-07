@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { archiveWeeklyUpdate, createWeeklyUpdate, deleteWeeklyUpdate, publishWeeklyUpdate, updateWeeklyUpdate } from "./actions";
+import { archiveWeeklyUpdate, createWeeklyUpdate, deleteWeeklyUpdate, publishWeeklyUpdate, setWeeklyUpdateReady, updateWeeklyUpdate } from "./actions";
 import { WeeklyUpdateEditor, type WeeklyUpdateChalkboardOption, type WeeklyUpdateFooterOption } from "./weekly-update-editor";
 import { WeeklyUpdateDeleteButton, WeeklyUpdateStatusButton } from "./status-buttons";
 import { WeeklyUpdateTestSendForm } from "./test-send-form";
 import { WeeklyUpdateContent } from "@/app/weekly-update/weekly-update-content";
 import { ContentFooter } from "@/app/content-footer";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { getWeeklyUpdateEmailLookup } from "@/lib/weekly-update-publish-info";
+import { weeklyUpdatePublishNotice } from "@/lib/weekly-update-publish-notice";
+import type { ConversionNote } from "@/lib/weekly-update-docx";
 
 export const metadata: Metadata = {
   title: "Weekly Updates",
@@ -18,13 +21,13 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(value));
 }
 
-export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchParams: Promise<{ created?: string; published?: string; archived?: string; deleted?: string }> }) {
+export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchParams: Promise<{ created?: string; published?: string; archived?: string; deleted?: string; ready?: string }> }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
   const [{ data: updates, error }, { data: chalkboards }, { data: chalkboardAssignments }, { data: footers }, { data: footerAssignments }] = await Promise.all([
     supabase
       .from("weekly_updates")
-      .select("id, title, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id")
+      .select("id, title, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, conversion_report, ready_to_publish_at")
       .order("is_current", { ascending: false })
       .order("updated_at", { ascending: false }),
     supabase
@@ -53,6 +56,8 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
     current.push(assignment.chalkboard_asset_id);
     chalkboardIdsByUpdate.set(assignment.weekly_update_id, current);
   }
+  const emailLookup = await getWeeklyUpdateEmailLookup(supabase);
+  const currentUpdate = (updates ?? []).find((item) => item.is_current);
   const footerIdByUpdate = new Map((footerAssignments ?? []).map((assignment) => [assignment.weekly_update_id as string, assignment.footer_id as string]));
 
   return (
@@ -72,6 +77,10 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         {params.archived === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Weekly update archived.</p> : null}
         {params.deleted === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Weekly update deleted.</p> : null}
 
+        {params.ready === "marked" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Marked as ready to publish. Nothing was published or emailed.</p> : null}
+        {params.ready === "cleared" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Ready to publish mark removed.</p> : null}
+        {params.ready === "error" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">The ready mark could not be changed. Only drafts can be marked.</p> : null}
+
         <section className="py-8">
           <article className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8 sm:p-6">
             <h2 className="text-2xl font-extrabold text-[#243d31]">New weekly update</h2>
@@ -84,11 +93,18 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
           {error ? <p className="mt-4 text-sm font-bold text-[#a2472c]">Weekly updates could not be loaded.</p> : null}
           {updates?.length ? (
             <div className="mt-5 grid gap-5">
-              {updates.map((update) => (
+              {updates.map((update) => {
+                const notes = ((update.conversion_report as { notes?: ConversionNote[] } | null)?.notes ?? []);
+                const publishNotice = weeklyUpdatePublishNotice({
+                  alreadySent: emailLookup.sentIds.has(update.id),
+                  recipientCount: emailLookup.recipientCount,
+                  replacesTitle: currentUpdate && currentUpdate.id !== update.id ? currentUpdate.title : null,
+                });
+                return (
                 <article key={update.id} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{update.is_current ? "Current" : update.status}</p>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{update.is_current ? "Current" : update.status}{update.status === "draft" && update.ready_to_publish_at ? <span className="ml-2 rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black tracking-wider text-[#1a4fb4]">Ready to publish</span> : null}</p>
                       <h3 className="mt-2 text-2xl font-extrabold text-[#243d31]">{update.title}</h3>
                       <p className="mt-2 text-sm text-[#607066]">Published: {formatDate(update.published_at)}{update.archived_at ? ` · Archived: ${formatDate(update.archived_at)}` : ""}</p>
                       <p className="mt-1 text-sm text-[#607066]">Source document: <span className="font-bold text-[#385245]">{update.source_document_file_name ?? "Not retained"}</span></p>
@@ -96,11 +112,33 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <p className="mt-1 text-sm text-[#607066]">Footer: <span className="font-bold text-[#385245]">{footerLabels.get(footerIdByUpdate.get(update.id) ?? "") ?? "None selected"}</span></p>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      {update.status !== "archived" ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate} weeklyUpdateId={update.id} intent="publish" label="Publish current" /> : null}
+                      {update.status !== "archived" ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate} weeklyUpdateId={update.id} intent="publish" label="Publish current" confirmMessage={publishNotice.confirm} /> : null}
                       {update.status !== "archived" ? <WeeklyUpdateStatusButton action={archiveWeeklyUpdate} weeklyUpdateId={update.id} intent="archive" label="Archive" variant="danger" /> : null}
                       {!update.is_current ? <WeeklyUpdateDeleteButton action={deleteWeeklyUpdate} weeklyUpdateId={update.id} title={update.title} /> : null}
                     </div>
                   </div>
+                  {update.status !== "archived" ? (
+                    <p role="note" className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold ${publishNotice.kind === "email" ? "border-[#946332]/30 bg-[#fbf1e1] text-[#7a4a1d]" : "border-[#284a3b]/15 bg-[#f4f6f1] text-[#385245]"}`}>{publishNotice.text}</p>
+                  ) : null}
+                  {notes.length && update.status !== "archived" ? (
+                    <div className="mt-4 rounded-xl border border-[#284a3b]/15 bg-[#fffdf8] p-4">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Upload check</p>
+                      <ul className="mt-2 space-y-2">
+                        {notes.map((note) => (
+                          <li key={note.code} className={`rounded-lg px-3 py-2 text-sm ${note.level === "warning" ? "bg-[#fbf1e1] font-bold text-[#7a4a1d]" : "bg-[#f4f6f1] text-[#385245]"}`}>
+                            <span className="mr-2 text-[10px] font-black uppercase tracking-wider">{note.level === "warning" ? "Check" : "Note"}</span>{note.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : update.status === "draft" && update.conversion_report ? (
+                    <p className="mt-4 text-sm font-bold text-[#326048]">Upload check: nothing was lost or changed in the conversion.</p>
+                  ) : null}
+                  {update.status === "draft" ? (
+                    <form action={setWeeklyUpdateReady.bind(null, update.id, !update.ready_to_publish_at)} className="mt-4">
+                      <button type="submit" className="admin-secondary-button">{update.ready_to_publish_at ? "Remove ready mark" : "Mark as ready to publish"}</button>
+                    </form>
+                  ) : null}
                   {update.status !== "archived" ? (
                     <details className="mt-5">
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit title or replace document</summary>
@@ -121,7 +159,8 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                     </div>
                   </details>
                 </article>
-              ))}
+                );
+              })}
             </div>
           ) : <p className="mt-4 text-sm text-[#607066]">No weekly updates have been created yet.</p>}
         </section>

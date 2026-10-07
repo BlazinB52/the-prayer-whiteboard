@@ -1,4 +1,3 @@
-import "server-only";
 import { inflateRawSync } from "node:zlib";
 
 export type WeeklyUpdateInline = {
@@ -13,6 +12,15 @@ export type WeeklyUpdateBlock =
   | { type: "list"; items: WeeklyUpdateInline[][] }
   | { type: "quote"; children: WeeklyUpdateInline[] }
   | { type: "divider" };
+
+/**
+ * What the converter did that the Administrator should know about before publishing. "warning" means
+ * the meaning or content may differ from the Word file; "info" is a small formatting difference.
+ */
+export type ConversionNote = { level: "warning" | "info"; code: string; message: string };
+export type ConversionReport = { notes: ConversionNote[] };
+
+type ConversionStats = { linksKept: number; linksLost: number; inferredHeadings: number };
 
 type ZipEntry = {
   name: string;
@@ -132,7 +140,9 @@ function isOnProperty(runProperties: string, tagName: "b" | "i") {
   return !/w:val="(?:0|false)"/i.test(match[1]);
 }
 
-function normalizeInlines(children: WeeklyUpdateInline[]) {
+// trimEdges is off for the runs inside a link, so a space at either end of a link's text is kept; the
+// paragraph as a whole is trimmed once, after the links are in place.
+function normalizeInlines(children: WeeklyUpdateInline[], trimEdges = true) {
   const merged: WeeklyUpdateInline[] = [];
   for (const child of children) {
     const text = child.text.replace(/\s+/g, " ");
@@ -144,8 +154,8 @@ function normalizeInlines(children: WeeklyUpdateInline[]) {
       merged.push({ ...child, text });
     }
   }
-  if (merged[0]) merged[0].text = merged[0].text.trimStart();
-  if (merged[merged.length - 1]) merged[merged.length - 1].text = merged[merged.length - 1].text.trimEnd();
+  if (trimEdges && merged[0]) merged[0].text = merged[0].text.trimStart();
+  if (trimEdges && merged[merged.length - 1]) merged[merged.length - 1].text = merged[merged.length - 1].text.trimEnd();
   return merged.filter((child) => child.text);
 }
 
@@ -153,9 +163,87 @@ function paragraphText(children: WeeklyUpdateInline[]) {
   return children.map((child) => child.text).join("").trim();
 }
 
-function parseRuns(paragraphXml: string) {
+// Only web addresses are kept as links, the same rule the rest of the site uses. Characters that would
+// end a link early in the stored [text](address) form are percent-encoded.
+function safeHttpUrl(value: string | null | undefined) {
+  const raw = String(value ?? "").trim();
+  if (!/^https?:\/\//i.test(raw)) return null;
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+  } catch {
+    return null;
+  }
+  return raw.replace(/\s/g, "%20").replace(/\(/g, "%28").replace(/\)/g, "%29");
+}
+
+// Wraps text in the stored link form the website and email already understand, keeping any spaces
+// at either end outside the brackets.
+function wrapLink(text: string, url: string) {
+  const parts = /^(\s*)([\s\S]*?)(\s*)$/.exec(text);
+  const label = (parts?.[2] ?? text).replace(/\[/g, "(").replace(/\]/g, ")").replace(/\s+/g, " ");
+  if (!label) return text;
+  return `${parts?.[1] ?? ""}[${label}](${url})${parts?.[3] ?? ""}`;
+}
+
+const STORED_LINK = /\[([^\]\n]+)\]\(([^\s)]+)\)/g;
+
+// The plain-text version reads "label (address)" instead of the stored form.
+function plainLinks(text: string) {
+  return text.replace(STORED_LINK, (_match, label: string, url: string) => (label === url ? url : `${label} (${url})`));
+}
+
+// Word sometimes splits one link into neighbouring links to the same address. They read as one link.
+function mergeAdjacentLinks(text: string) {
+  let current = text;
+  for (let pass = 0; pass < 20; pass += 1) {
+    const next = current.replace(/\[([^\]\n]+)\]\(([^\s)]+)\)(\s*)\[([^\]\n]+)\]\(\2\)/g, "[$1$3$4]($2)");
+    if (next === current) break;
+    current = next;
+  }
+  return current;
+}
+
+function parseRelationships(xml: string | null) {
+  const links = new Map<string, string>();
+  if (!xml) return links;
+  for (const relationship of xml.match(/<Relationship\b[^>]*>/g) ?? []) {
+    const id = attrValue(relationship, "Id");
+    const type = attrValue(relationship, "Type");
+    const target = attrValue(relationship, "Target");
+    if (id && target && type && /hyperlink$/i.test(type)) links.set(id, target);
+  }
+  return links;
+}
+
+function parseRuns(paragraphXml: string, links: Map<string, string>, stats: ConversionStats) {
   const children: WeeklyUpdateInline[] = [];
-  const runMatches = paragraphXml.match(/<w:r\b[\s\S]*?<\/w:r>/g) ?? [];
+  // A hyperlink wraps its own runs; anything else is a plain run. The alternation consumes a whole
+  // hyperlink first, so its inner runs are never read twice.
+  const tokens = paragraphXml.match(/<w:hyperlink\b[^>]*>[\s\S]*?<\/w:hyperlink>|<w:r\b[\s\S]*?<\/w:r>/g) ?? [];
+  for (const token of tokens) {
+    if (!token.startsWith("<w:hyperlink")) {
+      children.push(...extractRuns(token));
+      continue;
+    }
+    const inner = normalizeInlines(extractRuns(token), false);
+    if (!inner.length) continue;
+    const relationshipId = attrValue(token.slice(0, token.indexOf(">")), "r:id");
+    const url = relationshipId ? safeHttpUrl(links.get(relationshipId)) : null;
+    if (url) {
+      stats.linksKept += 1;
+      for (const part of inner) children.push({ ...part, text: wrapLink(part.text, url) });
+    } else {
+      stats.linksLost += 1;
+      children.push(...inner);
+    }
+  }
+  return normalizeInlines(children).map((child) => ({ ...child, text: mergeAdjacentLinks(child.text) }));
+}
+
+function extractRuns(xml: string) {
+  const children: WeeklyUpdateInline[] = [];
+  const runMatches = xml.match(/<w:r\b[\s\S]*?<\/w:r>/g) ?? [];
   for (const run of runMatches) {
     if (/<w:br\b[^>]*w:type="page"/i.test(run)) continue;
     const runProperties = /<w:rPr\b[\s\S]*?<\/w:rPr>/i.exec(run)?.[0] ?? "";
@@ -172,7 +260,7 @@ function parseRuns(paragraphXml: string) {
       }
     }
   }
-  return normalizeInlines(children);
+  return children;
 }
 
 function isDivider(paragraphXml: string, text: string) {
@@ -206,17 +294,79 @@ function looksLikeInferredHeading(children: WeeklyUpdateInline[], text: string) 
   return children.every((child) => child.bold && child.text.trim());
 }
 
-export function convertDocxToWeeklyUpdate(buffer: Buffer): { blocks: WeeklyUpdateBlock[]; plainText: string } {
+function count(pattern: RegExp, text: string) {
+  return (text.match(pattern) ?? []).length;
+}
+
+function plural(n: number, one: string, many: string) {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
+function buildReport(documentXml: string, numberingXml: string | null, hasComments: boolean, stats: ConversionStats): ConversionReport {
+  const notes: ConversionNote[] = [];
+  const insertions = count(/<w:(?:ins|moveTo)\b/g, documentXml);
+  const deletions = count(/<w:(?:del|moveFrom)\b/g, documentXml);
+  if (insertions + deletions > 0) {
+    notes.push({
+      level: "warning",
+      code: "tracked_changes",
+      message: `This document still has unresolved tracked changes (${plural(insertions, "insertion", "insertions")}, ${plural(deletions, "deletion", "deletions")}). The text was converted as if every change had been accepted: inserted wording is included and deleted wording is left out. If that is not what you want, open the file in Word, use Review > Accept All (or reject the ones you do not want), and upload it again.`,
+    });
+  }
+  if (stats.linksLost > 0) {
+    notes.push({ level: "warning", code: "links_lost", message: `${plural(stats.linksLost, "link was", "links were")} not kept. Only web addresses that start with http:// or https:// can be links; email links and links to other places in the document become plain words.` });
+  }
+  const fieldLinks = count(/<w:instrText\b[^>]*>\s*HYPERLINK\b/gi, documentXml);
+  if (fieldLinks > 0) {
+    notes.push({ level: "warning", code: "field_links", message: `${plural(fieldLinks, "link is", "links are")} stored in an older Word style and could not be kept. Re-insert ${fieldLinks === 1 ? "it" : "them"} in Word (Insert > Link) and upload again.` });
+  }
+  const images = count(/<w:(?:drawing|pict|object)\b/g, documentXml);
+  if (images > 0) {
+    notes.push({ level: "warning", code: "images", message: `${plural(images, "picture or drawing is", "pictures or drawings are")} not included. A weekly update's picture is chosen separately, in the chalkboard list above.` });
+  }
+  const tables = count(/<w:tbl\b/g, documentXml);
+  if (tables > 0) {
+    notes.push({ level: "warning", code: "tables", message: `${plural(tables, "table was", "tables were")} flattened: each cell now appears as its own paragraph, with no grid.` });
+  }
+  const numbered = numberingXml ? /<w:numFmt\b[^>]*w:val="(?!bullet|none)[^"]*"/i.test(numberingXml) : false;
+  const nested = /<w:ilvl\b[^>]*w:val="[1-9]/.test(documentXml);
+  if (nested || (numbered && /<w:numPr\b/.test(documentXml))) {
+    notes.push({ level: "warning", code: "lists", message: "Lists are shown as one bulleted list. Numbers and sub-items (indented levels) are not kept." });
+  }
+  const notesCount = count(/<w:(?:footnoteReference|endnoteReference)\b/g, documentXml);
+  if (notesCount > 0) {
+    notes.push({ level: "warning", code: "footnotes", message: `${plural(notesCount, "footnote or endnote is", "footnotes or endnotes are")} not included.` });
+  }
+  if (/<w:txbxContent\b/.test(documentXml)) {
+    notes.push({ level: "warning", code: "text_boxes", message: "This document has text boxes. Their text may appear out of place or twice." });
+  }
+  if (stats.inferredHeadings > 0) {
+    notes.push({ level: "info", code: "inferred_headings", message: `${plural(stats.inferredHeadings, "short bold line was", "short bold lines were")} shown as a heading because it was not given a Heading style in Word.` });
+  }
+  if (/<w:u\b[^>]*w:val="(?!none)[^"]*"/.test(documentXml) || /<w:color\b[^>]*w:val="(?!auto|000000)[^"]+"/i.test(documentXml) || /<w:highlight\b/.test(documentXml)) {
+    notes.push({ level: "info", code: "formatting", message: "Underlining, text colors and highlighting are not kept. Bold and italics are." });
+  }
+  if (hasComments) {
+    notes.push({ level: "info", code: "comments", message: "Word comments are ignored and do not appear." });
+  }
+  notes.sort((a, b) => (a.level === b.level ? 0 : a.level === "warning" ? -1 : 1));
+  return { notes };
+}
+
+export function convertDocxToWeeklyUpdate(buffer: Buffer): { blocks: WeeklyUpdateBlock[]; plainText: string; report: ConversionReport } {
   if (buffer.byteLength > MAX_DOCX_BYTES) throw new Error("DOCX file exceeds the 8 MiB limit.");
   const entries = readZipEntries(buffer);
   const documentXml = readZipText(buffer, entries, "word/document.xml");
   if (!documentXml) throw new Error("DOCX document body is missing.");
   const styles = parseStyles(readZipText(buffer, entries, "word/styles.xml"));
+  const links = parseRelationships(readZipText(buffer, entries, "word/_rels/document.xml.rels"));
+  const numberingXml = readZipText(buffer, entries, "word/numbering.xml");
+  const stats: ConversionStats = { linksKept: 0, linksLost: 0, inferredHeadings: 0 };
   const paragraphs = documentXml.match(/<w:p\b[\s\S]*?<\/w:p>/g) ?? [];
   const blocks: WeeklyUpdateBlock[] = [];
 
   for (const paragraph of paragraphs) {
-    const children = parseRuns(paragraph);
+    const children = parseRuns(paragraph, links, stats);
     const text = paragraphText(children);
     if (!text) continue;
 
@@ -243,6 +393,7 @@ export function convertDocxToWeeklyUpdate(buffer: Buffer): { blocks: WeeklyUpdat
     }
 
     if (looksLikeInferredHeading(children, text)) {
+      stats.inferredHeadings += 1;
       blocks.push({ type: "heading", level: 3, children });
       continue;
     }
@@ -260,8 +411,9 @@ export function convertDocxToWeeklyUpdate(buffer: Buffer): { blocks: WeeklyUpdat
     blocks,
     plainText: blocks.map((block) => {
       if (block.type === "divider") return "---";
-      if (block.type === "list") return block.items.map((item) => `- ${paragraphText(item)}`).join("\n");
-      return paragraphText(block.children);
+      if (block.type === "list") return block.items.map((item) => `- ${plainLinks(paragraphText(item))}`).join("\n");
+      return plainLinks(paragraphText(block.children));
     }).join("\n\n"),
+    report: buildReport(documentXml, numberingXml, entries.has("word/comments.xml"), stats),
   };
 }

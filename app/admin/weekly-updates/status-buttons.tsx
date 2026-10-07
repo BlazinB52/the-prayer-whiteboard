@@ -5,14 +5,20 @@ import type { WeeklyUpdateActionState } from "./actions";
 
 type Action = (state: WeeklyUpdateActionState, formData: FormData) => Promise<WeeklyUpdateActionState>;
 
-export function WeeklyUpdateStatusButton({ action, weeklyUpdateId, intent, label, variant = "primary" }: { action: Action; weeklyUpdateId: string; intent: "publish" | "archive"; label: string; variant?: "primary" | "danger" }) {
+export function WeeklyUpdateStatusButton({ action, weeklyUpdateId, intent, label, variant = "primary", confirmMessage }: { action: Action; weeklyUpdateId: string; intent: "publish" | "archive"; label: string; variant?: "primary" | "danger"; confirmMessage?: string }) {
   const [state, formAction, pending] = useActionState(action, {});
   const className = variant === "danger"
     ? "min-h-11 rounded-xl bg-[#a2472c] px-5 font-extrabold text-white transition hover:bg-[#8f3823] disabled:cursor-not-allowed disabled:opacity-60"
     : "admin-primary-button";
 
   return (
-    <form action={formAction} className="space-y-2">
+    <form
+      action={formAction}
+      className="space-y-2"
+      onSubmit={(event) => {
+        if (confirmMessage && !window.confirm(confirmMessage)) event.preventDefault();
+      }}
+    >
       <input type="hidden" name="weeklyUpdateId" value={weeklyUpdateId} />
       <input type="hidden" name="intent" value={intent} />
       <button type="submit" disabled={pending} className={className}><span className="!text-white">{pending ? "Working..." : label}</span></button>

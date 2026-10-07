@@ -203,6 +203,7 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
       title: title.value,
       body_markdown: docx.value.converted.plainText,
       converted_content: docx.value.converted.blocks,
+      conversion_report: docx.value.converted.report,
       source_document_storage_path: stored.path,
       source_document_file_name: docx.value.fileName,
       chalkboard_asset_id: chalkboard.value?.[0] ?? null,
@@ -247,6 +248,9 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
     storedPath = stored.path;
     update.body_markdown = docx.value.converted.plainText;
     update.converted_content = docx.value.converted.blocks;
+    update.conversion_report = docx.value.converted.report;
+    // New content has not been checked yet, so any earlier "Ready to publish" mark no longer applies.
+    update.ready_to_publish_at = null;
     update.source_document_storage_path = stored.path;
     update.source_document_file_name = docx.value.fileName;
   }
@@ -271,6 +275,25 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
   revalidatePath("/weekly-update");
   revalidatePath("/");
   return { saved: true };
+}
+
+// Marks a finished draft as ready to publish, or removes the mark. It is only a note for the Administrator:
+// it does not publish anything and does not send any email.
+export async function setWeeklyUpdateReady(id: string, ready: boolean) {
+  const { supabase } = await requireAdmin();
+  if (!UUID_PATTERN.test(id)) redirect("/admin/weekly-updates");
+
+  const { data, error } = await supabase
+    .from("weekly_updates")
+    .update({ ready_to_publish_at: ready ? new Date().toISOString() : null })
+    .eq("id", id)
+    .eq("status", "draft")
+    .select("id")
+    .maybeSingle();
+  if (error || !data) redirect("/admin/weekly-updates?ready=error");
+
+  revalidatePath("/admin/weekly-updates");
+  redirect(`/admin/weekly-updates?ready=${ready ? "marked" : "cleared"}`);
 }
 
 export async function publishWeeklyUpdate(previousState: WeeklyUpdateActionState, formData: FormData): Promise<WeeklyUpdateActionState> {

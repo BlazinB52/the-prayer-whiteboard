@@ -82,6 +82,11 @@ export default async function EditTeachingPage({ params, searchParams }: { param
     label: chalkboard.canonical_name ?? chalkboard.title,
     language: (chalkboard.language === "es" ? "es" : "en") as "en" | "es",
   }));
+  // The devotional attached to this teaching, if any, shown in the Devotional section below.
+  const { data: devotionalAssignment } = await supabase.from("teaching_devotional_assignments").select("devotional_id").eq("teaching_id", id).maybeSingle();
+  const { data: assignedDevotional } = devotionalAssignment
+    ? await supabase.from("teaching_devotionals").select("id, title, status").eq("id", devotionalAssignment.devotional_id).maybeSingle()
+    : { data: null };
   // Co-editor proposals still waiting on a decision. Publishing closes them (and deletes their text),
   // so say so here instead of letting it come as a surprise.
   const { count: pendingRevisionCount } = teaching.status === "draft"
@@ -191,6 +196,14 @@ export default async function EditTeachingPage({ params, searchParams }: { param
         <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Devotional</p>
           <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">7-Day Devotional</h2>
+          {assignedDevotional ? (
+            <p className="mt-3 text-sm text-[#607066]">
+              Attached devotional: <Link href={`/admin/devotionals/${assignedDevotional.id}`} className="font-extrabold text-[#243d31] underline underline-offset-2">{assignedDevotional.title}</Link>{" "}
+              <span className="ml-1 rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{assignedDevotional.status}</span>
+            </p>
+          ) : (
+            <p className="mt-3 text-sm text-[#607066]">No devotional is attached to this teaching.</p>
+          )}
           <p className="mt-3 text-sm leading-6 text-[#607066]">Create, edit, preview, publish, or unpublish the devotional without changing this teaching&apos;s publication or homepage-feature status.</p>
           <Link href={`/admin/teachings/${id}/devotional`} className="admin-secondary-button mt-4 inline-flex items-center justify-center">Manage 7-Day Devotional</Link>
         </section>

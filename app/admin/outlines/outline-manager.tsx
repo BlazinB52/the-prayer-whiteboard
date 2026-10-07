@@ -46,7 +46,7 @@ function TeachingOptions({ teachings }: { teachings: ManagerTeaching[] }) {
   );
 }
 
-function UploadSection({ categories, teachings, canManageCategories }: { categories: ManagerCategory[]; teachings: ManagerTeaching[]; canManageCategories: boolean }) {
+function UploadSection({ categories, teachings, isAdmin }: { categories: ManagerCategory[]; teachings: ManagerTeaching[]; isAdmin: boolean }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [preview, setPreview] = useState<OutlinePreview | null>(null);
@@ -101,7 +101,7 @@ function UploadSection({ categories, teachings, canManageCategories }: { categor
     <section className="border-b border-[#284a3b]/10 py-7">
       <h2 className="text-xl font-extrabold text-[#243d31]">Upload an outline</h2>
       {categories.length === 0 ? (
-        <p className="mt-3 text-sm text-[#607066]">{canManageCategories ? "Add a category below first, then come back to upload." : "There are no categories yet. Ask an Administrator to add one."}</p>
+        <p className="mt-3 text-sm text-[#607066]">{isAdmin ? "Add a category below first, then come back to upload." : "There are no categories yet. Ask an Administrator to add one."}</p>
       ) : (
         <form ref={formRef} onSubmit={(event) => { event.preventDefault(); handlePreview(); }} className="mt-4 space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -178,10 +178,14 @@ function UploadSection({ categories, teachings, canManageCategories }: { categor
                       <select name="teachingId" defaultValue="" disabled={pending} className="admin-input"><TeachingOptions teachings={teachings} /></select>
                       <span className="mt-1 block text-xs font-normal text-[#607066]">Optional. The public outline links to this teaching.</span>
                     </label>
-                    <label className="flex items-center gap-3 self-center text-sm font-bold text-[#385245]">
-                      <input name="publish" type="checkbox" defaultChecked className="h-5 w-5 accent-[#326048]" disabled={pending} />
-                      Publish now (uncheck to save as a draft)
-                    </label>
+                    {isAdmin ? (
+                      <label className="flex items-center gap-3 self-center text-sm font-bold text-[#385245]">
+                        <input name="publish" type="checkbox" defaultChecked className="h-5 w-5 accent-[#326048]" disabled={pending} />
+                        Publish now (uncheck to save as a draft)
+                      </label>
+                    ) : (
+                      <p className="self-center text-sm font-bold text-[#385245]">This will be saved as a draft. An Administrator publishes it after review.</p>
+                    )}
                   </div>
 
                   <div className="max-h-[32rem] overflow-y-auto rounded-xl border border-[#284a3b]/10 bg-white p-5">
@@ -282,7 +286,7 @@ function CategoriesSection({ categories, counts }: { categories: ManagerCategory
   );
 }
 
-function OutlineList({ categories, outlines, teachings }: { categories: ManagerCategory[]; outlines: ManagerOutline[]; teachings: ManagerTeaching[] }) {
+function OutlineList({ categories, outlines, teachings, isAdmin }: { categories: ManagerCategory[]; outlines: ManagerOutline[]; teachings: ManagerTeaching[]; isAdmin: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -310,7 +314,10 @@ function OutlineList({ categories, outlines, teachings }: { categories: ManagerC
             <div key={category.id}>
               <h3 className="text-sm font-black uppercase tracking-wider text-[#946332]">{category.name}</h3>
               <ul className="mt-3 space-y-3">
-                {rows.map((outline) => (
+                {rows.map((outline) => {
+                  // A content manager edits drafts for review; a published outline is changed by an Administrator.
+                  const locked = !isAdmin && outline.status === "published";
+                  return (
                   <li key={outline.id} className="rounded-xl border border-[#284a3b]/10 bg-[#fffdf8] p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -327,19 +334,21 @@ function OutlineList({ categories, outlines, teachings }: { categories: ManagerC
                     <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-extrabold">
                       <Link href={`/admin/outlines/${outline.id}`} className="text-[#946332] hover:text-[#a85e32]">View</Link>
                       <a href={outline.downloadHref} className="text-[#946332] hover:text-[#a85e32]">Download .docx</a>
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => run(() => setOutlineStatus(outline.id, outline.status === "published" ? "draft" : "published"))}
-                        className="text-[#244a3a] hover:text-[#a85e32]"
-                      >
-                        {outline.status === "published" ? "Unpublish" : "Publish"}
-                      </button>
+                      {isAdmin ? (
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => run(() => setOutlineStatus(outline.id, outline.status === "published" ? "draft" : "published"))}
+                          className="text-[#244a3a] hover:text-[#a85e32]"
+                        >
+                          {outline.status === "published" ? "Unpublish" : "Publish"}
+                        </button>
+                      ) : null}
                       <label className="flex items-center gap-2 font-bold text-[#385245]">
                         Category
                         <select
                           value={outline.categoryId}
-                          disabled={pending}
+                          disabled={pending || locked}
                           onChange={(event) => run(() => moveOutlineToCategory(outline.id, event.target.value))}
                           className="rounded-lg border border-[#284a3b]/20 bg-white px-2 py-1 text-sm"
                         >
@@ -350,24 +359,28 @@ function OutlineList({ categories, outlines, teachings }: { categories: ManagerC
                         Teaching
                         <select
                           value={outline.teachingId ?? ""}
-                          disabled={pending}
+                          disabled={pending || locked}
                           onChange={(event) => run(() => setOutlineTeaching(outline.id, event.target.value))}
                           className="max-w-56 rounded-lg border border-[#284a3b]/20 bg-white px-2 py-1 text-sm"
                         >
                           <TeachingOptions teachings={teachings} />
                         </select>
                       </label>
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => { if (window.confirm(`Delete "${outline.title}"? This also removes the stored Word file.`)) run(() => deleteOutline(outline.id)); }}
-                        className="text-[#a2472c] hover:underline"
-                      >
-                        Delete
-                      </button>
+                      {isAdmin ? (
+                        <button
+                          type="button"
+                          disabled={pending}
+                          onClick={() => { if (window.confirm(`Delete "${outline.title}"? This also removes the stored Word file.`)) run(() => deleteOutline(outline.id)); }}
+                          className="text-[#a2472c] hover:underline"
+                        >
+                          Delete
+                        </button>
+                      ) : null}
+                      {locked ? <span className="text-xs font-bold text-[#607066]">Published: only an Administrator can change it.</span> : null}
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           );
@@ -377,15 +390,15 @@ function OutlineList({ categories, outlines, teachings }: { categories: ManagerC
   );
 }
 
-export function OutlineManager({ categories, outlines, teachings, canManageCategories = false }: { categories: ManagerCategory[]; outlines: ManagerOutline[]; teachings: ManagerTeaching[]; canManageCategories?: boolean }) {
+export function OutlineManager({ categories, outlines, teachings, isAdmin = false }: { categories: ManagerCategory[]; outlines: ManagerOutline[]; teachings: ManagerTeaching[]; isAdmin?: boolean }) {
   const counts = new Map<string, number>();
   for (const outline of outlines) counts.set(outline.categoryId, (counts.get(outline.categoryId) ?? 0) + 1);
 
   return (
     <>
-      <UploadSection categories={categories} teachings={teachings} canManageCategories={canManageCategories} />
-      {canManageCategories ? <CategoriesSection categories={categories} counts={counts} /> : null}
-      <OutlineList categories={categories} outlines={outlines} teachings={teachings} />
+      <UploadSection categories={categories} teachings={teachings} isAdmin={isAdmin} />
+      {isAdmin ? <CategoriesSection categories={categories} counts={counts} /> : null}
+      <OutlineList categories={categories} outlines={outlines} teachings={teachings} isAdmin={isAdmin} />
     </>
   );
 }

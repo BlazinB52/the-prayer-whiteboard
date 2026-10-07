@@ -22,10 +22,10 @@ test("a content manager can still file and move outlines, so those actions stay 
 
 test("the page shows category management only to an Administrator", async () => {
   const page = await readFile("app/admin/outlines/page.tsx", "utf8");
-  assert.match(page, /canManageCategories=\{role === "admin"\}/);
+  assert.match(page, /isAdmin=\{role === "admin"\}/);
   const manager = await readFile("app/admin/outlines/outline-manager.tsx", "utf8");
-  assert.match(manager, /\{canManageCategories \? <CategoriesSection/);
-  assert.match(manager, /canManageCategories = false/, "the safe default hides it");
+  assert.match(manager, /\{isAdmin \? <CategoriesSection/);
+  assert.match(manager, /isAdmin = false/, "the safe default hides it");
 });
 
 test("the migration makes category writes Administrator-only and leaves reading open", async () => {

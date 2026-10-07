@@ -51,6 +51,13 @@ async function readOutlineFile(formData: FormData) {
   return { file, buffer, result: parseOutlineDocx(buffer, file.name) };
 }
 
+// Publishing, unpublishing, deleting and managing categories are Administrator-only. A content manager
+// can upload (as a draft) and edit a draft for review. The database enforces the same limits.
+async function requireOutlineAdmin(message: string) {
+  const { supabase, role } = await requireContentManager();
+  return role === "admin" ? { supabase } : { supabase: null, error: message };
+}
+
 /** Step 1: convert the document and return a preview. Nothing is saved. */
 export async function previewOutline(formData: FormData): Promise<OutlinePreviewState> {
   await requireContentManager();
@@ -75,7 +82,7 @@ export async function previewOutline(formData: FormData): Promise<OutlinePreview
  * .docx is stored first and removed again if the row cannot be saved.
  */
 export async function saveOutline(formData: FormData): Promise<OutlineActionState> {
-  const { supabase } = await requireContentManager();
+  const { supabase, role } = await requireContentManager();
   const read = await readOutlineFile(formData);
   if ("error" in read) return { error: read.error };
   if (!read.result.ok || !read.result.outline) return { error: "This document still has problems. Fix them in Word and preview it again." };
@@ -88,7 +95,8 @@ export async function saveOutline(formData: FormData): Promise<OutlineActionStat
   if (categoryId.error || !categoryId.value) return { error: "Choose a category." };
   const teachingId = validateOptionalOutlineId(formData.get("teachingId"));
   if (teachingId.error) return { error: teachingId.error };
-  const publish = formData.get("publish") === "on";
+  // Only an Administrator can publish. A content manager's upload is always saved as a draft for review.
+  const publish = role === "admin" && formData.get("publish") === "on";
 
   const { data: category } = await supabase.from("outline_categories").select("id").eq("id", categoryId.value).maybeSingle();
   if (!category) return { error: "That category no longer exists. Choose another." };
@@ -131,7 +139,9 @@ export async function saveOutline(formData: FormData): Promise<OutlineActionStat
 }
 
 export async function setOutlineStatus(id: string, status: "draft" | "published"): Promise<OutlineActionState> {
-  const { supabase } = await requireContentManager();
+  const admin = await requireOutlineAdmin("Only an Administrator can publish or unpublish an outline.");
+  if (!admin.supabase) return { error: admin.error };
+  const { supabase } = admin;
   const idResult = validateOutlineId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
 
@@ -146,34 +156,38 @@ export async function setOutlineStatus(id: string, status: "draft" | "published"
 }
 
 export async function moveOutlineToCategory(id: string, categoryId: string): Promise<OutlineActionState> {
-  const { supabase } = await requireContentManager();
+  const { supabase, role } = await requireContentManager();
   const idResult = validateOutlineId(id);
   const categoryResult = validateOutlineId(categoryId);
   if (idResult.error || !idResult.value || categoryResult.error || !categoryResult.value) return { error: "That record could not be found." };
 
-  const { error } = await supabase.from("teaching_outlines").update({ category_id: categoryResult.value }).eq("id", idResult.value);
+  const { data, error } = await supabase.from("teaching_outlines").update({ category_id: categoryResult.value }).eq("id", idResult.value).select("id");
   if (error) return { error: "The category could not be changed." };
+  if (!data?.length) return { error: role === "admin" ? "That outline could not be found." : "Only a draft outline can be changed. An Administrator edits published outlines." };
 
   revalidateOutlinePaths();
   return { ok: true };
 }
 
 export async function setOutlineTeaching(id: string, teachingId: string): Promise<OutlineActionState> {
-  const { supabase } = await requireContentManager();
+  const { supabase, role } = await requireContentManager();
   const idResult = validateOutlineId(id);
   const teachingResult = validateOptionalOutlineId(teachingId);
   if (idResult.error || !idResult.value) return { error: idResult.error };
   if (teachingResult.error) return { error: teachingResult.error };
 
-  const { error } = await supabase.from("teaching_outlines").update({ teaching_id: teachingResult.value }).eq("id", idResult.value);
+  const { data, error } = await supabase.from("teaching_outlines").update({ teaching_id: teachingResult.value }).eq("id", idResult.value).select("id");
   if (error) return { error: "The related teaching could not be changed." };
+  if (!data?.length) return { error: role === "admin" ? "That outline could not be found." : "Only a draft outline can be changed. An Administrator edits published outlines." };
 
   revalidateOutlinePaths();
   return { ok: true };
 }
 
 export async function deleteOutline(id: string): Promise<OutlineActionState> {
-  const { supabase } = await requireContentManager();
+  const admin = await requireOutlineAdmin("Only an Administrator can delete an outline.");
+  if (!admin.supabase) return { error: admin.error };
+  const { supabase } = admin;
   const idResult = validateOutlineId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
 
@@ -189,8 +203,7 @@ export async function deleteOutline(id: string): Promise<OutlineActionState> {
 // Categories are an Administrator-only function. Content managers can file outlines under the existing
 // categories but cannot add, rename or delete them (the database enforces this too).
 async function requireCategoryAdmin() {
-  const { supabase, role } = await requireContentManager();
-  return role === "admin" ? { supabase } : { supabase: null, error: "Only an Administrator can add, rename or delete categories." };
+  return requireOutlineAdmin("Only an Administrator can add, rename or delete categories.");
 }
 
 export async function createOutlineCategory(name: string, nameEs: string): Promise<OutlineActionState> {

@@ -186,8 +186,17 @@ export async function deleteOutline(id: string): Promise<OutlineActionState> {
   return { ok: true };
 }
 
+// Categories are an Administrator-only function. Content managers can file outlines under the existing
+// categories but cannot add, rename or delete them (the database enforces this too).
+async function requireCategoryAdmin() {
+  const { supabase, role } = await requireContentManager();
+  return role === "admin" ? { supabase } : { supabase: null, error: "Only an Administrator can add, rename or delete categories." };
+}
+
 export async function createOutlineCategory(name: string, nameEs: string): Promise<OutlineActionState> {
-  const { supabase } = await requireContentManager();
+  const admin = await requireCategoryAdmin();
+  if (!admin.supabase) return { error: admin.error };
+  const { supabase } = admin;
   const nameResult = validateOutlineCategoryName(name);
   if (nameResult.error || !nameResult.value) return { error: nameResult.error };
   const spanish = validateOptionalSpanishName(nameEs);
@@ -216,7 +225,9 @@ export async function createOutlineCategory(name: string, nameEs: string): Promi
 }
 
 export async function renameOutlineCategory(id: string, name: string, nameEs: string): Promise<OutlineActionState> {
-  const { supabase } = await requireContentManager();
+  const admin = await requireCategoryAdmin();
+  if (!admin.supabase) return { error: admin.error };
+  const { supabase } = admin;
   const idResult = validateOutlineId(id);
   const nameResult = validateOutlineCategoryName(name);
   if (idResult.error || !idResult.value) return { error: idResult.error };
@@ -232,7 +243,9 @@ export async function renameOutlineCategory(id: string, name: string, nameEs: st
 }
 
 export async function deleteOutlineCategory(id: string): Promise<OutlineActionState> {
-  const { supabase } = await requireContentManager();
+  const admin = await requireCategoryAdmin();
+  if (!admin.supabase) return { error: admin.error };
+  const { supabase } = admin;
   const idResult = validateOutlineId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
 

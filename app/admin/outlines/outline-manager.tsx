@@ -46,7 +46,7 @@ function TeachingOptions({ teachings }: { teachings: ManagerTeaching[] }) {
   );
 }
 
-function UploadSection({ categories, teachings }: { categories: ManagerCategory[]; teachings: ManagerTeaching[] }) {
+function UploadSection({ categories, teachings, canManageCategories }: { categories: ManagerCategory[]; teachings: ManagerTeaching[]; canManageCategories: boolean }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [preview, setPreview] = useState<OutlinePreview | null>(null);
@@ -101,7 +101,7 @@ function UploadSection({ categories, teachings }: { categories: ManagerCategory[
     <section className="border-b border-[#284a3b]/10 py-7">
       <h2 className="text-xl font-extrabold text-[#243d31]">Upload an outline</h2>
       {categories.length === 0 ? (
-        <p className="mt-3 text-sm text-[#607066]">Add a category below first, then come back to upload.</p>
+        <p className="mt-3 text-sm text-[#607066]">{canManageCategories ? "Add a category below first, then come back to upload." : "There are no categories yet. Ask an Administrator to add one."}</p>
       ) : (
         <form ref={formRef} onSubmit={(event) => { event.preventDefault(); handlePreview(); }} className="mt-4 space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -377,14 +377,14 @@ function OutlineList({ categories, outlines, teachings }: { categories: ManagerC
   );
 }
 
-export function OutlineManager({ categories, outlines, teachings }: { categories: ManagerCategory[]; outlines: ManagerOutline[]; teachings: ManagerTeaching[] }) {
+export function OutlineManager({ categories, outlines, teachings, canManageCategories = false }: { categories: ManagerCategory[]; outlines: ManagerOutline[]; teachings: ManagerTeaching[]; canManageCategories?: boolean }) {
   const counts = new Map<string, number>();
   for (const outline of outlines) counts.set(outline.categoryId, (counts.get(outline.categoryId) ?? 0) + 1);
 
   return (
     <>
-      <UploadSection categories={categories} teachings={teachings} />
-      <CategoriesSection categories={categories} counts={counts} />
+      <UploadSection categories={categories} teachings={teachings} canManageCategories={canManageCategories} />
+      {canManageCategories ? <CategoriesSection categories={categories} counts={counts} /> : null}
       <OutlineList categories={categories} outlines={outlines} teachings={teachings} />
     </>
   );

@@ -68,7 +68,7 @@ export default async function AdminOutlinesPage() {
             Teaching outlines could not be loaded. If this is the first time using this tool, the database update for outlines may not be applied yet.
           </p>
         ) : (
-          <OutlineManager categories={categories} outlines={outlines} teachings={teachings} />
+          <OutlineManager categories={categories} outlines={outlines} teachings={teachings} canManageCategories={role === "admin"} />
         )}
       </div>
     </main>

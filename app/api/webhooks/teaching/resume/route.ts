@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { scheduleContinuation } from "@/lib/send-deliveries";
+import { getAuthorizedUser } from "@/lib/supabase/admin";
 import { resumeTeachingBroadcast } from "@/lib/teaching-broadcast";
 
 export const runtime = "nodejs";
@@ -17,12 +18,13 @@ function timingSafeEqual(a: string, b: string) {
 }
 
 // Continues a teaching broadcast that ran out of time. Called by the broadcast itself with the
-// webhook secret; mails only subscribers who have not been sent the teaching, then chains itself
+// webhook secret, and by the admin "Finish sending" button with an admin session; mails only subscribers who have not been sent the teaching, then chains itself
 // until nothing is left.
 export async function POST(request: Request) {
   const secret = process.env.SUPABASE_WEBHOOK_SECRET ?? "";
   const provided = request.headers.get("x-webhook-secret") ?? "";
-  if (!secret || !provided || !timingSafeEqual(provided, secret)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const hasSecret = Boolean(secret && provided && timingSafeEqual(provided, secret));
+  if (!hasSecret && !(await getAuthorizedUser())) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   let teachingId = "";
   try {
@@ -35,7 +37,7 @@ export async function POST(request: Request) {
 
   try {
     const outcome = await resumeTeachingBroadcast(teachingId);
-    if (outcome.status === "incomplete") scheduleContinuation("/api/webhooks/teaching/resume", { "x-webhook-secret": secret }, { teaching_id: teachingId });
+    if (outcome.status === "incomplete" && secret) scheduleContinuation("/api/webhooks/teaching/resume", { "x-webhook-secret": secret }, { teaching_id: teachingId });
     return NextResponse.json(outcome, { status: 200 });
   } catch {
     return NextResponse.json({ error: "Resume failed." }, { status: 500 });

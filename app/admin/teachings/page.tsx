@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { FinishTeachingSendButton } from "./finish-teaching-send-button";
 
 export const metadata: Metadata = {
   title: "Teachings",
@@ -72,6 +73,17 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
     return <main className="admin-shell"><p className="text-sm font-bold text-[#a2472c]">Teachings could not be loaded.</p></main>;
   }
 
+  // Sends that did not reach everyone. Only sends with per-recipient records are offered a button,
+  // because finishing an older send could not tell who already got it.
+  const { data: unfinished } = await supabase.from("email_teaching_broadcast_events").select("id, teaching_id").neq("status", "sent");
+  const unfinishedSends: { teachingId: string; title: string; sentCount: number }[] = [];
+  for (const ledger of unfinished ?? []) {
+    const { count } = await supabase.from("email_send_deliveries").select("subscriber_id", { count: "exact", head: true }).eq("kind", "teaching").eq("ledger_id", ledger.id).eq("status", "sent");
+    const teaching = (teachings ?? []).find((item) => item.id === ledger.teaching_id);
+    const { count: anyRows } = await supabase.from("email_send_deliveries").select("subscriber_id", { count: "exact", head: true }).eq("kind", "teaching").eq("ledger_id", ledger.id);
+    if (teaching && teaching.status === "published" && anyRows) unfinishedSends.push({ teachingId: teaching.id, title: teaching.title, sentCount: count ?? 0 });
+  }
+
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-6xl">
@@ -87,6 +99,7 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
           </div>
         </header>
 
+        {unfinishedSends.map((send) => <FinishTeachingSendButton key={send.teachingId} teachingId={send.teachingId} title={send.title} sentCount={send.sentCount} />)}
         {params.saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching saved successfully.</p> : null}
         {params.published === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching published and featured on the homepage.</p> : null}
         {params.espanolPublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Teaching published to the Español homepage (/espanol). The English homepage was not changed and no email was sent.</p> : null}

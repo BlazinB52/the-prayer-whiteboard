@@ -72,3 +72,17 @@ test("teaching and devotional sends are resumable through the shared delivery lo
     assert.match(await readFile(route, "utf8"), /status === "incomplete"\) scheduleContinuation\(/);
   }
 });
+
+test("teaching resume accepts an admin session and refuses legacy sends with no delivery records", async () => {
+  const route = await readFile("app/api/webhooks/teaching/resume/route.ts", "utf8");
+  assert.match(route, /getAuthorizedUser\(\)/);
+  assert.ok(route.indexOf("status: 401") < route.indexOf("request.json()"));
+
+  const teaching = await readFile("lib/teaching-broadcast.ts", "utf8");
+  assert.match(teaching, /!deliveryRows && \(ledger\.recipient_count as number\) > 0\) return \{ status: "already_complete" \}/);
+  assert.ok(teaching.indexOf("deliveryRows") < teaching.indexOf("return deliver(found.teaching, ledger.id as string)"));
+
+  const page = await readFile("app/admin/teachings/page.tsx", "utf8");
+  assert.match(page, /anyRows/);
+  assert.match(page, /FinishTeachingSendButton/);
+});

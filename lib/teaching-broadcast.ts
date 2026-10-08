@@ -117,12 +117,21 @@ export async function resumeTeachingBroadcast(teachingId: string): Promise<Teach
 
   const { data: ledger, error } = await getClient()
     .from("email_teaching_broadcast_events")
-    .select("id, status")
+    .select("id, status, recipient_count")
     .eq("teaching_id", teachingId)
     .maybeSingle();
   if (error) throw new Error(`Teaching broadcast lookup failed: ${error.message}`);
   if (!ledger) return { status: "no_broadcast" };
   if (ledger.status === "sent") return { status: "already_complete" };
+
+  // A send from before per-recipient records existed has no way to say who was mailed, so resuming it
+  // would mail everyone a second copy. Treat it as complete.
+  const { count: deliveryRows } = await getClient()
+    .from("email_send_deliveries")
+    .select("subscriber_id", { count: "exact", head: true })
+    .eq("kind", "teaching")
+    .eq("ledger_id", ledger.id);
+  if (!deliveryRows && (ledger.recipient_count as number) > 0) return { status: "already_complete" };
 
   return deliver(found.teaching, ledger.id as string);
 }

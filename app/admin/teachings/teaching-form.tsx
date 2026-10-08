@@ -102,7 +102,7 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
         <input name="centralTheme" value={draftValues.centralTheme} onChange={handleChange} maxLength={400} className="admin-input" />
       </label>
       <FormattedTextarea label="Introduction" name="introduction" value={draftValues.introduction} onValueChange={(value) => setDraftValues((current) => ({ ...current, introduction: value }))} maxLength={5000} rows={6} />
-      <FormattedTextarea label="Short summary" name="summary" value={draftValues.summary} onValueChange={(value) => setDraftValues((current) => ({ ...current, summary: value }))} maxLength={500} rows={4} />
+      <FormattedTextarea label="Short summary" name="summary" value={draftValues.summary} onValueChange={(value) => setDraftValues((current) => ({ ...current, summary: value }))} maxLength={600} rows={4} />
       {showHomepageTeasers ? (
         <fieldset className="space-y-4 rounded-xl border border-[#284a3b]/10 bg-white/70 p-4">
           <div>

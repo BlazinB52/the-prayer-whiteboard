@@ -80,7 +80,7 @@ export function buildEditableFields(teaching: TeachingRow, categories: CategoryR
   teachingField("title", "Title", teaching.title, 160, false, 1, false);
   teachingField("central_theme", "Central theme", teaching.central_theme, 400, false, 1, false);
   teachingField("introduction", "Introduction", teaching.introduction, 5000, true, 6, true);
-  teachingField("summary", "Short summary", teaching.summary, 500, true, 4, true);
+  teachingField("summary", "Short summary", teaching.summary, 600, true, 4, true);
   teachingField("teaser_1_heading", "Homepage teaser 1 heading", teaching.teaser_1_heading, 100, false, 1, false);
   teachingField("teaser_1_text", "Homepage teaser 1 text", teaching.teaser_1_text, 300, true, 3, false);
   teachingField("teaser_2_heading", "Homepage teaser 2 heading", teaching.teaser_2_heading, 100, false, 1, false);

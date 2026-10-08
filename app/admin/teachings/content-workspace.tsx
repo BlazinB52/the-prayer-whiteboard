@@ -387,8 +387,8 @@ function SectionPreview({ content, title, highlightHorizontalAlignment }: { cont
   ) : value.format === "scripture" ? (
     <>
       {value.introduction ? <div className="space-y-3"><TextParagraphs text={value.introduction} /></div> : null}
-      <p className="font-bold text-[#385245]">{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">(<ScriptureTranslationLabel translation={String(value.translation)} />)</span> : null}</p>
-      {value.quotation ? <div className="mt-2 space-y-3 italic"><TextParagraphs text={value.quotation} /></div> : null}
+      <p className="text-lg font-extrabold text-[#243126]">{String(value.reference ?? "")}{value.translation ? <> (<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</p>
+      {value.quotation ? <blockquote className="mt-3 border-l-4 border-[#d9d9d9] pl-6 text-lg leading-8 text-[#243126]"><TextParagraphs text={value.quotation} /></blockquote> : null}
     </>
   ) : (
     <div className={value.format === "takeaway" ? "space-y-3 font-bold text-[#385245]" : "space-y-3"}><TextParagraphs text={value.text} /></div>

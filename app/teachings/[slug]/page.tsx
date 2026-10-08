@@ -150,7 +150,7 @@ function SectionContent({ value, isCallout = false, alignment = "left" }: { valu
   if (value.format === "bullets" && Array.isArray(value.bullets)) return <><TextParagraphs text={value.introduction} /><ul className={isCallout ? `${getCalloutBulletListClassName(alignment)} mt-3` : "mt-3 list-disc space-y-2 pl-6"}>{value.bullets.map((bullet) => <li key={String(bullet)}>{formatInlineText(bullet, { links: true })}</li>)}</ul><TextParagraphs text={value.conclusion} className="mt-3" /></>;
   if (value.format === "scripture") {
     const hasIntroduction = getParagraphs(value.introduction).length > 0;
-    return <div>{hasIntroduction ? <TextParagraphs text={value.introduction} /> : null}<p className={`${hasIntroduction ? "mt-3 " : ""}font-bold text-[#385245]`}>{String(value.reference ?? "")}{value.translation ? <span className="ml-2 font-normal text-[#607066]">(<ScriptureTranslationLabel translation={String(value.translation)} />)</span> : null}</p><div className="mt-2 italic"><TextParagraphs text={value.quotation} /></div></div>;
+    return <div>{hasIntroduction ? <TextParagraphs text={value.introduction} /> : null}<p className={`${hasIntroduction ? "mt-3 " : ""}text-lg font-extrabold text-[#243126]`}>{String(value.reference ?? "")}{value.translation ? <> (<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</p><blockquote className="mt-3 border-l-4 border-[#d9d9d9] pl-6 text-lg leading-8 text-[#243126]"><TextParagraphs text={value.quotation} /></blockquote></div>;
   }
   return <TextParagraphs text={value.text} className={value.format === "takeaway" ? "font-bold text-[#385245]" : undefined} />;
 }

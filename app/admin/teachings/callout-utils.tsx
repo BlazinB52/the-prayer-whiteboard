@@ -108,8 +108,8 @@ function renderSectionBody({ value, title }: { value: SectionContentValue; title
       <>
         {shouldShowTitle && title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
         {value.introduction ? <TextParagraphs text={value.introduction} className="space-y-3 text-[#52645a]" /> : null}
-        <p className="mt-3 font-bold text-[#385245]">{String(value.reference ?? "")} {value.translation ? <span className="font-normal text-[#607066]">(<ScriptureTranslationLabel translation={String(value.translation)} />)</span> : null}</p>
-        {value.quotation ? <div className="mt-2 space-y-3 italic text-[#52645a]"><TextParagraphs text={value.quotation} className="space-y-3" /></div> : null}
+        <p className="mt-3 text-lg font-extrabold text-[#243126]">{String(value.reference ?? "")} {value.translation ? <>(<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</p>
+        {value.quotation ? <blockquote className="mt-3 border-l-4 border-[#d9d9d9] pl-6 text-lg leading-8 text-[#243126]"><TextParagraphs text={value.quotation} className="space-y-3" /></blockquote> : null}
       </>
     );
   }
@@ -152,8 +152,8 @@ export function CalloutSection({ title, value, callout, alignment = "left", clas
           ) : value.format === "scripture" ? (
             <>
               {value.introduction ? <TextParagraphs text={value.introduction} className="space-y-3" /> : null}
-              <p className="font-bold text-[#385245]">{String(value.reference ?? "")} {value.translation ? <span className="font-normal text-[#607066]">(<ScriptureTranslationLabel translation={String(value.translation)} />)</span> : null}</p>
-              {value.quotation ? <div className="mt-2 space-y-3 italic"><TextParagraphs text={value.quotation} className="space-y-3" /></div> : null}
+              <p className="text-lg font-extrabold text-[#243126]">{String(value.reference ?? "")} {value.translation ? <>(<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</p>
+              {value.quotation ? <blockquote className="mt-3 border-l-4 border-[#d9d9d9] pl-6 text-lg leading-8 text-[#243126]"><TextParagraphs text={value.quotation} className="space-y-3" /></blockquote> : null}
             </>
           ) : (
             <TextParagraphs text={value.text} className={value.format === "takeaway" ? "space-y-3 font-bold text-[#385245]" : "space-y-3"} />

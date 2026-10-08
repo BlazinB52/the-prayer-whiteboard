@@ -91,8 +91,9 @@ async function deliver(teaching: TeachingRow, broadcastId: string): Promise<Teac
     status: finished ? status : "sending",
     recipient_count: run.recipientCount,
     // All per-recipient failure detail lives in this one column, so a broadcast
-    // costs a single row no matter how large the list is.
-    error: finished && failedTotal ? { sentCount: run.sentCount, failedCount: failedTotal, failures: run.failures } : null,
+    // costs a single row no matter how large the list is. error is not-null in production, so a clean or
+    // unfinished run writes an empty object; null made this update fail and left the row stuck on sending.
+    error: finished && failedTotal ? { sentCount: run.sentCount, failedCount: failedTotal, failures: run.failures } : {},
   }).eq("id", broadcastId);
   if (ledgerUpdateError) throw new Error(`Teaching ledger could not be finalized: ${ledgerUpdateError.message}`);
 

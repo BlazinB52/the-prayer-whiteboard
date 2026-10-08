@@ -109,7 +109,7 @@ test("per-recipient failures are stored in the single ledger row", async () => {
 
   const deliveries = await readFile("lib/send-deliveries.ts", "utf8");
   assert.match(deliveries, /MAX_RECORDED_FAILURES/);
-  assert.match(source, /error: finished && failedTotal \? \{ sentCount: run\.sentCount, failedCount: failedTotal, failures: run\.failures \} : null/);
+  assert.match(source, /error: finished && failedTotal \? \{ sentCount: run\.sentCount, failedCount: failedTotal, failures: run\.failures \} : {}/);
 });
 
 test("service_role can read the content tables the broadcasts re-read", async () => {

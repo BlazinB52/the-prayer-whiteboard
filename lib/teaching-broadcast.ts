@@ -3,7 +3,7 @@ import "server-only";
 import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { siteUrl } from "@/lib/email-subscriptions";
-import { deliverToRecipients } from "@/lib/send-deliveries";
+import { deliverToRecipients, sendDeliveriesStore } from "@/lib/send-deliveries";
 import { buildTeachingEmail } from "@/lib/teaching-email-content";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -69,8 +69,7 @@ async function deliver(teaching: TeachingRow, broadcastId: string): Promise<Teac
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
 
   const run = await deliverToRecipients({
-    kind: "teaching",
-    ledgerId: broadcastId,
+    store: sendDeliveriesStore("teaching", broadcastId),
     recipients,
     throttleMs: THROTTLE_MS,
     buildEmail: (recipient) => buildTeachingEmail({

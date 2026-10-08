@@ -5,7 +5,7 @@ import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
 import { devotionalDayForWeekday, devotionalTimeZone, isBeforeDevotionalQueueStart, pickNextQueuedSeries } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
-import { deliverToRecipients } from "@/lib/send-deliveries";
+import { deliverToRecipients, sendDeliveriesStore } from "@/lib/send-deliveries";
 import { getSpanishDevotionalIds } from "@/lib/spanish-devotionals";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
@@ -214,8 +214,7 @@ async function deliverDay(input: {
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
 
   const run = await deliverToRecipients({
-    kind: "devotional",
-    ledgerId,
+    store: sendDeliveriesStore("devotional", ledgerId),
     recipients,
     throttleMs: THROTTLE_MS,
     buildEmail: () => buildDevotionalDayEmail({

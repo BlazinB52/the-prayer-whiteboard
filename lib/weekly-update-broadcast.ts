@@ -3,16 +3,13 @@ import "server-only";
 import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { siteUrl } from "@/lib/email-subscriptions";
+import { deliverToRecipients, type DeliveryStore } from "@/lib/send-deliveries";
 import { isSuppressionRejection, markSubscriberSuppressed } from "@/lib/sender-suppression";
 import { buildWeeklyUpdateEmail } from "@/lib/weekly-update-email-content";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const THROTTLE_MS = 120;
-const MAX_RECORDED_FAILURES = 25;
-// The routes are capped at 60s. Stop starting new sends well before that so the ledger is always
-// written, then hand the remainder to a follow-up request.
-const TIME_BUDGET_MS = 40_000;
 // A claim left in 'sending' this long means the request that made it was cut off mid-send.
 const STALE_CLAIM_MS = 5 * 60 * 1000;
 
@@ -112,69 +109,42 @@ async function loadSentSubscriberIds(weeklyUpdateId: string) {
   return sent;
 }
 
-// Mails every confirmed recipient who has no 'sent' delivery yet, stopping when the time budget is
-// spent. Safe to call repeatedly: finished recipients are skipped, so a resume never double-sends.
+function weeklyDeliveryStore(weeklyUpdateId: string): DeliveryStore {
+  return {
+    loadSent: () => loadSentSubscriberIds(weeklyUpdateId),
+    claim: (subscriberId) => claimDelivery(weeklyUpdateId, subscriberId),
+    record: (subscriberId, status, reason) => recordDelivery(weeklyUpdateId, subscriberId, status, reason),
+  };
+}
+
+// Mails every confirmed recipient who has no 'sent' delivery yet, a few at a time, stopping when the
+// time budget is spent. Safe to call repeatedly: finished recipients are skipped, so a resume never
+// double-sends.
 async function deliver(update: WeeklyUpdateRow, broadcastId: string): Promise<BroadcastOutcome> {
   const supabase = getClient();
-  const deadline = Date.now() + TIME_BUDGET_MS;
 
   const recipients = await loadConfirmedRecipients("weekly_updates");
-  const alreadySent = await loadSentSubscriberIds(update.id);
-  const pending = recipients.filter((recipient) => !alreadySent.has(recipient.id));
 
   const base = siteUrl();
   const weeklyUpdateUrl = `${base}/weekly-update`;
   const preferencesUrl = `${base}/email-preferences`;
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
 
-  let sentThisRun = 0;
-  let failedCount = 0;
-  let attempted = 0;
-  const failures: { subscriberId: string; reason: string }[] = [];
-
-  for (const recipient of pending) {
-    if (Date.now() >= deadline) break;
-    attempted += 1;
-    if (!(await claimDelivery(update.id, recipient.id))) continue;
-
-    const email = buildWeeklyUpdateEmail({
+  const run = await deliverToRecipients({
+    store: weeklyDeliveryStore(update.id),
+    recipients,
+    throttleMs: THROTTLE_MS,
+    buildEmail: () => buildWeeklyUpdateEmail({
       title: update.title,
       bodyMarkdown: update.body_markdown,
       convertedContent: update.converted_content as never,
       weeklyUpdateUrl,
       preferencesUrl,
       copyrightDisclaimer,
-    });
+    }),
+  });
 
-    try {
-      const result = await sendSenderTransactionalEmail({
-        toEmail: recipient.email,
-        toName: recipient.firstName,
-        subject: email.subject,
-        html: email.html,
-        text: email.text,
-      });
-      if (result.ok) {
-        sentThisRun += 1;
-        await recordDelivery(update.id, recipient.id, "sent");
-      } else {
-        failedCount += 1;
-        await recordDelivery(update.id, recipient.id, "failed", result.reason);
-        if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: result.reason });
-        if (isSuppressionRejection(result)) await markSubscriberSuppressed(recipient.id);
-      }
-    } catch {
-      // One bad recipient must not abandon the rest of the list.
-      failedCount += 1;
-      await recordDelivery(update.id, recipient.id, "failed", "exception");
-      if (failures.length < MAX_RECORDED_FAILURES) failures.push({ subscriberId: recipient.id, reason: "exception" });
-    }
-
-    await sleep(THROTTLE_MS);
-  }
-
-  const sentCount = alreadySent.size + sentThisRun;
-  const remainingCount = pending.length - attempted;
+  const { sentCount, failedCount, remainingCount } = run;
   const finished = remainingCount === 0;
   const status = !finished ? "incomplete" : failedCount === 0 ? "sent" : sentCount ? "partial" : "failed";
 
@@ -184,7 +154,7 @@ async function deliver(update: WeeklyUpdateRow, broadcastId: string): Promise<Br
     sent_count: Math.min(sentCount, recipients.length),
     failed_count: Math.min(failedCount, Math.max(recipients.length - sentCount, 0)),
     error: failedCount ? `${failedCount} recipient(s) failed.` : null,
-    metadata: { title: update.title, failures },
+    metadata: { title: update.title, failures: run.failures },
   }).eq("id", broadcastId);
   if (ledgerUpdateError) throw new Error(`Weekly update ledger could not be finalized: ${ledgerUpdateError.message}`);
 
@@ -210,12 +180,20 @@ export async function resumeWeeklyUpdateBroadcast(weeklyUpdateId: string): Promi
   const supabase = getClient();
   const { data: ledger, error } = await supabase
     .from("email_broadcast_events")
-    .select("id, status")
+    .select("id, status, recipient_count")
     .eq("weekly_update_id", weeklyUpdateId)
     .maybeSingle();
   if (error) throw new Error(`Broadcast lookup failed: ${error.message}`);
   if (!ledger) return { status: "no_broadcast" };
   if (ledger.status === "sent") return { status: "already_complete" };
+
+  // A send from before per-recipient records existed cannot say who was mailed, so resuming it would
+  // mail everyone a second copy. Treat it as complete.
+  const { count: deliveryRows } = await supabase
+    .from("email_broadcast_deliveries")
+    .select("subscriber_id", { count: "exact", head: true })
+    .eq("weekly_update_id", weeklyUpdateId);
+  if (!deliveryRows && (ledger.recipient_count as number) > 0) return { status: "already_complete" };
 
   return deliver(update, ledger.id as string);
 }

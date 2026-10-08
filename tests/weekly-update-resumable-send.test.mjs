@@ -5,19 +5,27 @@ import test from "node:test";
 const broadcast = await readFile("lib/weekly-update-broadcast.ts", "utf8");
 const resumeRoute = await readFile("app/api/webhooks/weekly-update/resume/route.ts", "utf8");
 const webhookRoute = await readFile("app/api/webhooks/weekly-update/route.ts", "utf8");
+const shared = await readFile("lib/send-deliveries.ts", "utf8");
 const migration = await readFile("supabase/migrations/20261006070000_weekly_update_deliveries.sql", "utf8");
 
 test("a send stops before the 60s function limit and reports what is left", () => {
-  const budget = Number(broadcast.match(/TIME_BUDGET_MS = ([\d_]+)/)?.[1].replaceAll("_", ""));
+  const budget = Number(shared.match(/SEND_TIME_BUDGET_MS = ([\d_]+)/)?.[1].replaceAll("_", ""));
   assert.ok(budget > 0 && budget <= 45_000);
-  assert.match(broadcast, /Date\.now\(\) >= deadline/);
-  assert.match(broadcast, /status: "incomplete"|"incomplete"/);
+  assert.match(shared, /Date\.now\(\) < deadline/);
+  assert.match(shared, /remainingCount: pending\.length - taken/);
   assert.match(broadcast, /finished \? status : "sending"/);
+  assert.match(broadcast, /deliverToRecipients\(/);
+});
+
+test("emails go out a few at a time, not one by one", () => {
+  const concurrency = Number(shared.match(/SEND_CONCURRENCY = (\d+)/)?.[1]);
+  assert.ok(concurrency >= 3 && concurrency <= 8, "enough to finish a small list in one request, few enough for Sender");
+  assert.match(shared, /Promise\.all\(Array\.from\(\{ length:/);
 });
 
 test("every recipient is claimed before sending and finished recipients are skipped", () => {
-  assert.ok(broadcast.indexOf("claimDelivery(update.id, recipient.id)") < broadcast.indexOf("sendSenderTransactionalEmail({"));
-  assert.match(broadcast, /alreadySent\.has\(recipient\.id\)/);
+  assert.ok(shared.indexOf("store.claim(recipient.id)") < shared.indexOf("sendSenderTransactionalEmail({"));
+  assert.match(shared, /alreadySent\.has\(recipient\.id\)/);
   assert.match(broadcast, /\.eq\("status", "sent"\)/);
   assert.match(migration, /primary key \(weekly_update_id, subscriber_id\)/);
 });
@@ -50,10 +58,9 @@ test("sending to one subscriber is admin-only, real (no [TEST]) and limited to c
 });
 
 test("teaching and devotional sends are resumable through the shared delivery loop", async () => {
-  const shared = await readFile("lib/send-deliveries.ts", "utf8");
   assert.match(shared, /SEND_TIME_BUDGET_MS = 40_000/);
-  assert.match(shared, /Date\.now\(\) >= deadline/);
-  assert.ok(shared.indexOf("claimDelivery(kind, ledgerId, recipient.id)") < shared.indexOf("sendSenderTransactionalEmail({"));
+  assert.match(shared, /Date\.now\(\) < deadline/);
+  assert.ok(shared.indexOf("store.claim(recipient.id)") < shared.indexOf("sendSenderTransactionalEmail({"));
   assert.match(shared, /alreadySent\.has\(recipient\.id\)/);
 
   const teaching = await readFile("lib/teaching-broadcast.ts", "utf8");
@@ -85,4 +92,27 @@ test("teaching resume accepts an admin session and refuses legacy sends with no 
   const page = await readFile("app/admin/teachings/page.tsx", "utf8");
   assert.match(page, /anyRows/);
   assert.match(page, /FinishTeachingSendButton/);
+});
+
+test("the weekly update uses the same delivery loop and refuses legacy sends on resume", () => {
+  assert.match(broadcast, /store: weeklyDeliveryStore\(update\.id\)/);
+  assert.match(broadcast, /!deliveryRows && \(ledger\.recipient_count as number\) > 0\) return \{ status: "already_complete" \}/);
+});
+
+test("a daily safety net finishes stuck sends and alerts when something still needs attention", async () => {
+  const stuck = await readFile("lib/stuck-sends.ts", "utf8");
+  const cron = await readFile("app/api/cron/finish-stuck-sends/route.ts", "utf8");
+  const vercel = JSON.parse(await readFile("vercel.json", "utf8"));
+
+  assert.ok(vercel.crons.some((entry) => entry.path === "/api/cron/finish-stuck-sends" && /^\d+ \d+ \* \* \*$/.test(entry.schedule)), "daily, which every Vercel plan allows");
+  assert.match(stuck, /resumeWeeklyUpdateBroadcast\(/);
+  assert.match(stuck, /resumeTeachingBroadcast\(/);
+  assert.match(stuck, /resumeDevotionalBroadcast\(/);
+  assert.match(stuck, /\.eq\("status", "sending"\)\.lt\("created_at", before\)/);
+  assert.match(stuck, /too_old/);
+  assert.match(stuck, /ADMIN_ALERT_EMAIL/);
+
+  assert.match(cron, /timingSafeEqual\(provided, secret\)/);
+  assert.ok(cron.indexOf("status: 401") < cron.indexOf("await run(secret)"));
+  assert.match(cron, /continueAfter/);
 });

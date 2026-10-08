@@ -225,13 +225,13 @@ test("a Sender suppression rejection parks the subscriber instead of retrying de
 });
 
 test("every broadcast sender parks a suppressed recipient instead of retrying them forever", async () => {
-  for (const file of ["lib/send-deliveries.ts", "lib/weekly-update-broadcast.ts"]) {
+  for (const file of ["lib/send-deliveries.ts"]) {
     const source = await readFile(file, "utf8");
     assert.match(source, /import \{ isSuppressionRejection, markSubscriberSuppressed \} from "@\/lib\/sender-suppression"/, `${file} imports the shared suppression helpers`);
     assert.match(source, /if \(isSuppressionRejection\(result\)\) await markSubscriberSuppressed\(recipient\.id\)/, `${file} marks a suppressed recipient`);
   }
   // Teaching and devotional sends go through the shared sender above.
-  for (const file of ["lib/devotional-send.ts", "lib/teaching-broadcast.ts"]) {
+  for (const file of ["lib/devotional-send.ts", "lib/teaching-broadcast.ts", "lib/weekly-update-broadcast.ts"]) {
     assert.match(await readFile(file, "utf8"), /deliverToRecipients\(/, `${file} uses the shared delivery loop`);
   }
 });

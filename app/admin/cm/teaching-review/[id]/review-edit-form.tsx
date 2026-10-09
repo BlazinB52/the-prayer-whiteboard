@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
+import { TrackedText } from "@/lib/tracked-text";
 import type { TeachingReviewState } from "../actions";
 
 export type ReviewFormField = {
@@ -27,6 +28,15 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((field) => [field.id, field.value])));
   const setValue = (id: string, value: string) => setValues((current) => ({ ...current, [id]: value }));
 
+  // The wording as it stood when Save Draft was last pressed, so the editor can read exactly what they
+  // are about to send. A draft saved in an earlier visit is shown the same way when the page opens.
+  const [initialValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((field) => [field.id, field.value])));
+  const [lastSubmitted, setLastSubmitted] = useState<Record<string, string> | null>(null);
+  const summaryRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (state.saved) summaryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [state]);
+
   // Group the fields under their heading so a long teaching stays easy to scan.
   const groups: { context: string; items: ReviewFormField[] }[] = [];
   for (const field of fields) {
@@ -37,8 +47,15 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }
 
   const changedCount = fields.filter((field) => values[field.id].trim() !== field.base.trim()).length;
 
+  const savedValues = state.saved && lastSubmitted ? lastSubmitted : initialValues;
+  const savedChanges = fields.filter((field) => (savedValues[field.id] ?? field.base).trim() !== field.base.trim());
+
   return (
-    <form action={formAction} className="mt-8 space-y-8">
+    <form
+      action={formAction}
+      onSubmit={() => setLastSubmitted(values)}
+      className="mt-8 space-y-8"
+    >
       {groups.map((group) => (
         <section key={group.context} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8 sm:p-6">
           <h2 className="text-lg font-extrabold text-[#243d31]">{group.context}</h2>
@@ -80,6 +97,27 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }
           </div>
         </section>
       ))}
+
+      {savedChanges.length ? (
+        <section ref={summaryRef} aria-labelledby="saved-changes-heading" className="scroll-mt-4 rounded-2xl border border-[#1a4fb4]/20 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8 sm:p-6">
+          <h2 id="saved-changes-heading" className="text-lg font-extrabold text-[#243d31]">
+            Your saved changes ({savedChanges.length})
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-[#607066]">
+            This is what the Administrator will see. <span className="rounded bg-[#fdecea] px-1 text-[#b3261e] line-through">Red struck-through</span> wording is removed and{" "}
+            <span className="rounded bg-[#e8f0fe] px-1 text-[#1a4fb4] underline">blue underlined</span> wording is added. Check it, then press Submit for Admin Review.
+          </p>
+          <div className="mt-4 space-y-4">
+            {savedChanges.map((field) => (
+              <article key={field.id} className="rounded-xl border border-[#284a3b]/10 bg-white p-4">
+                <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#946332]">{field.context}</p>
+                <h3 className="mt-1 text-base font-extrabold text-[#243d31]">{field.label}</h3>
+                <div className="mt-2"><TrackedText original={field.base} proposed={savedValues[field.id]} /></div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="sticky bottom-0 -mx-1 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-4 shadow-xl shadow-[#4d5f52]/10">
         <p className="text-sm leading-6 text-[#607066]">Changes made here are proposals only. The approved {subject} will not change until an Administrator accepts them.</p>

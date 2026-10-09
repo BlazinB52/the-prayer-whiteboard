@@ -91,7 +91,10 @@ export function buildEditableFields(teaching: TeachingRow, categories: CategoryR
     for (const section of sections.filter((item) => item.category_id === category.id).sort((a, b) => a.sort_order - b.sort_order)) {
       const data = content(section);
       const format = text(data.format);
-      const context = `${category.title} › ${section.title} (${FORMAT_LABELS[format] ?? "Section"})`;
+      // A scripture section names its Bible version, so a reviewer can proof the verse against the right text.
+      // The version itself is not editable here (it decides the copyright notice); it is shown for reference.
+      const translation = format === "scripture" ? text(data.translation).trim() : "";
+      const context = `${category.title} › ${section.title} (${FORMAT_LABELS[format] ?? "Section"}${translation ? ` · ${translation}` : ""})`;
       const add = (fieldKey: string, label: string, current: string, maxLength: number, multiline: boolean, rows: number, formatted: boolean) => {
         fields.push({ id: fieldId("section", section.id, fieldKey), targetKind: "section", targetId: section.id, fieldKey, label, context, current, maxLength, multiline, rows, formatted });
       };
@@ -105,8 +108,8 @@ export function buildEditableFields(teaching: TeachingRow, categories: CategoryR
         add("conclusion", "Concluding text", text(data.conclusion), 12000, true, 3, true);
       } else if (format === "scripture") {
         add("introduction", "Introductory note", text(data.introduction), 12000, true, 3, true);
-        add("reference", "Scripture reference", text(data.reference), 240, false, 1, false);
-        add("quotation", "Scripture quotation", text(data.quotation), 12000, true, 5, true);
+        add("reference", translation ? `Scripture reference (${translation})` : "Scripture reference", text(data.reference), 240, false, 1, false);
+        add("quotation", translation ? `Scripture quotation (${translation})` : "Scripture quotation", text(data.quotation), 12000, true, 5, true);
       }
     }
   }

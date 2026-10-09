@@ -69,6 +69,16 @@ test("the shared copyright notice shows the disclosures URL as visible text and 
   assert.match(component, /replace\(\/\\bAMP\\b\/g, "\[AMP\]\(https:\/\/www\.lockman\.org\)"\)/);
 });
 
+test("the Spanish print notice swaps in the disclosures URL even though 'aquí' ends in an accented letter", async () => {
+  const component = await readFile("app/scripture-copyright-notice.tsx", "utf8");
+  assert.doesNotMatch(component, /\\baquí\\b/, "\\b does not treat the accented í as a word character, so this never matches");
+  assert.match(component, /\(\?<!\[\\p\{L\}\]\)aquí\(\?!\[\\p\{L\}\]\)\/u/);
+
+  const sentence = "Los reconocimientos de derechos de autor y permisos completos se pueden ver aquí.";
+  const swapped = sentence.replace(/(?<![\p{L}])aquí(?![\p{L}])/u, "https://example.org/x");
+  assert.equal(swapped.endsWith("https://example.org/x."), true);
+});
+
 test("Points of Agreement renders quotes through the link-aware formatter and always shows a visible copyright notice", async () => {
   const source = await readFile("app/points-of-agreement/page.tsx", "utf8");
 

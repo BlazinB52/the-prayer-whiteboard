@@ -7,7 +7,7 @@ import { canonicalCopyrightDisclaimerUrl } from "@/lib/copyright-disclaimer-form
 export function ScriptureCopyrightNotice({ content, baseUrl, printOnly = false, language = "en" }: { content: string; baseUrl: string; printOnly?: boolean; language?: "en" | "es" }) {
   const spanish = language === "es";
   const spanishUrl = `${baseUrl.replace(/\/+$/, "")}/espanol/derechos-de-autor`;
-  const text = (spanish ? content.replace(/\baquí\b/, spanishUrl) : content.replace(/\bhere\b/, canonicalCopyrightDisclaimerUrl(baseUrl)))
+  const text = (spanish ? content.replace(/(?<![\p{L}])aquí(?![\p{L}])/u, spanishUrl) : content.replace(/\bhere\b/, canonicalCopyrightDisclaimerUrl(baseUrl)))
     .replace(/\bAMPC\b/g, "[AMPC](https://www.lockman.org)")
     .replace(/\bAMP\b/g, "[AMP](https://www.lockman.org)");
 

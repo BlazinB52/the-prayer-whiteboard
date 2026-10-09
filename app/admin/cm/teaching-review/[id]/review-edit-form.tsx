@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { usePathname } from "next/navigation";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 import { TrackedText } from "@/lib/tracked-text";
 import type { TeachingReviewState } from "../actions";
@@ -21,6 +22,51 @@ export type ReviewFormField = {
   changedSince: string | null;
 };
 
+// "Proofed" ticks are a private reminder for the editor, kept in this browser only. They are never sent
+// to the server and have no effect on what is saved or submitted.
+const PROOFED_EVENT = "review-proofed-change";
+
+function useProofed(storageKey: string) {
+  const raw = useSyncExternalStore(
+    (notify) => {
+      window.addEventListener(PROOFED_EVENT, notify);
+      window.addEventListener("storage", notify);
+      return () => {
+        window.removeEventListener(PROOFED_EVENT, notify);
+        window.removeEventListener("storage", notify);
+      };
+    },
+    () => {
+      try {
+        return window.localStorage.getItem(storageKey) ?? "";
+      } catch {
+        return "";
+      }
+    },
+    () => "",
+  );
+  const proofed = useMemo(() => {
+    try {
+      const parsed: unknown = raw ? JSON.parse(raw) : [];
+      return new Set<string>(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []);
+    } catch {
+      return new Set<string>();
+    }
+  }, [raw]);
+  const toggle = (key: string, checked: boolean) => {
+    const next = new Set(proofed);
+    if (checked) next.add(key);
+    else next.delete(key);
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify([...next]));
+    } catch {
+      // Storage can be unavailable (private window); the reminder simply will not stick.
+    }
+    window.dispatchEvent(new Event(PROOFED_EVENT));
+  };
+  return { proofed, toggle };
+}
+
 type Action = (state: TeachingReviewState, formData: FormData) => Promise<TeachingReviewState>;
 
 export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }: { action: Action; fields: ReviewFormField[]; canEdit: boolean; subject?: "teaching" | "devotional" | "weekly update" }) {
@@ -30,6 +76,9 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }
 
   // The wording as it stood when Save Draft was last pressed, so the editor can read exactly what they
   // are about to send. A draft saved in an earlier visit is shown the same way when the page opens.
+  const pathname = usePathname();
+  const { proofed, toggle: setProofed } = useProofed(`review-proofed:${pathname}`);
+
   const [initialValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((field) => [field.id, field.value])));
   const [lastSubmitted, setLastSubmitted] = useState<Record<string, string> | null>(null);
   const summaryRef = useRef<HTMLElement>(null);
@@ -45,6 +94,18 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }
     else groups.push({ context: field.context, items: [field] });
   }
 
+  // Cards are named by their heading, with a counter when two cards share one, so a tick stays with its card.
+  const seen: Record<string, number> = {};
+  const cardKeys = groups.map((group) => {
+    seen[group.context] = (seen[group.context] ?? 0) + 1;
+    return `${group.context}#${seen[group.context]}`;
+  });
+  const proofedCount = cardKeys.filter((key) => proofed.has(key)).length;
+  const jumpToNextUnproofed = () => {
+    const index = cardKeys.findIndex((key) => !proofed.has(key));
+    if (index >= 0) document.getElementById(`proof-card-${index}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const changedCount = fields.filter((field) => values[field.id].trim() !== field.base.trim()).length;
 
   const savedValues = state.saved && lastSubmitted ? lastSubmitted : initialValues;
@@ -56,8 +117,8 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }
       onSubmit={() => setLastSubmitted(values)}
       className="mt-8 space-y-8"
     >
-      {groups.map((group) => (
-        <section key={group.context} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8 sm:p-6">
+      {groups.map((group, groupIndex) => (
+        <section key={cardKeys[groupIndex]} id={`proof-card-${groupIndex}`} className="scroll-mt-4 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8 sm:p-6">
           <h2 className="text-lg font-extrabold text-[#243d31]">{group.context}</h2>
           <div className="mt-4 space-y-5">
             {group.items.map((field) => (
@@ -95,6 +156,15 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }
               </div>
             ))}
           </div>
+          <label className={`mt-5 flex w-fit cursor-pointer items-center gap-3 rounded-xl border px-4 py-2 text-sm font-extrabold ${proofed.has(cardKeys[groupIndex]) ? "border-[#326048]/30 bg-[#e7efe9] text-[#326048]" : "border-[#284a3b]/15 bg-white text-[#385245]"}`}>
+            <input
+              type="checkbox"
+              checked={proofed.has(cardKeys[groupIndex])}
+              onChange={(event) => setProofed(cardKeys[groupIndex], event.target.checked)}
+              className="size-5 accent-[#326048]"
+            />
+            I have proofed this card
+          </label>
         </section>
       ))}
 
@@ -120,6 +190,15 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }
       ) : null}
 
       <div className="sticky bottom-0 -mx-1 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-4 shadow-xl shadow-[#4d5f52]/10">
+        <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-[#385245]">
+          <span>Proofed {proofedCount} of {groups.length} cards</span>
+          {proofedCount < groups.length ? (
+            <button type="button" onClick={jumpToNextUnproofed} className="font-extrabold text-[#946332] underline hover:text-[#a85e32]">Jump to next unproofed card</button>
+          ) : (
+            <span className="text-[#326048]">All cards proofed</span>
+          )}
+          <span className="font-normal text-[#607066]">(a private reminder, saved in this browser only)</span>
+        </p>
         <p className="text-sm leading-6 text-[#607066]">Changes made here are proposals only. The approved {subject} will not change until an Administrator accepts them.</p>
         {state.error ? <p role="alert" className="mt-3 text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
         {state.saved ? <p role="status" className="mt-3 text-sm font-bold text-[#326048]">Draft saved ({state.savedCount ?? 0} {state.savedCount === 1 ? "change" : "changes"}).</p> : null}

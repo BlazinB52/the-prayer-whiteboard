@@ -9,18 +9,22 @@
 //   node --env-file=.env.local scripts/verify-quote-translations.mjs
 
 import { createClient } from "@supabase/supabase-js";
+import { bookNameOf, spanishToEnglishReference } from "./lib/spanish-books.mjs";
 
 const VERSIONS = ["NIV", "ESV", "NKJV", "KJV", "AMPC", "AMP"];
+// Spanish quotes are compared against these (BibleGateway version codes).
+const SPANISH_VERSIONS = ["RVR1960", "NVI", "LBLA", "NBLA", "DHH", "NTV", "RVA-2015", "TLA"];
 const cache = new Map();
 
 function normalize(text) {
   return text
+    .normalize("NFC")
     .toLowerCase()
     .replace(/[‘’]/g, "'")
-    .replace(/[“”]/g, '"')
+    .replace(/[“”«»]/g, '"')
     .replace(/\[[^\]]*\]/g, " ")
     .replace(/\([^)]*\)/g, " ")
-    .replace(/[^a-z0-9' ]+/g, " ")
+    .replace(/[^\p{L}\p{N}' ]+/gu, " ")
     // Quote marks around a phrase aren't wording (a quote may use 'single' marks
     // where the translation uses "double"); keep only apostrophes inside words.
     .replace(/(^|\s)'+/g, "$1")
@@ -73,12 +77,12 @@ function overlap(fragments, passage) {
   return total ? hit / total : 0;
 }
 
-async function matchesFor(reference, quote) {
+async function matchesFor(reference, quote, versions = VERSIONS) {
   const fragments = fragmentsOf(quote);
   if (!fragments.length) return { matches: [], note: "too short to compare" };
   const matches = [];
   const scores = [];
-  for (const version of VERSIONS) {
+  for (const version of versions) {
     const passage = await fetchPassage(reference, version);
     if (!passage) { scores.push([version, -1]); continue; }
     if (fragments.every((fragment) => passage.includes(fragment))) matches.push(version);
@@ -115,23 +119,21 @@ function bibleComLink(reference, version) {
   return `https://www.bible.com/bible/${id}/${book}.${match[2]}.${verses}.${version}`;
 }
 
-// The verifier compares against English translations only, so Spanish quotes
-// (book names like "Filipenses") are counted and skipped rather than reported
-// as meaningless 0% mismatches.
-let skippedNonEnglish = 0;
 function isEnglishBook(reference) {
-  const book = reference.match(/^(.+?)\s\d+:\d+/)?.[1]?.toLowerCase();
+  const book = bookNameOf(reference);
   return Boolean(book && BIBLE_COM_BOOKS[book]);
 }
+
+const TAG_SOURCE = "AMPC|AMP|NKJV|ESV|NIV|KJV|RVR1960|NVI|LBLA|NBLA|DHH|NTV|RVA-2015|TLA";
 
 function splitReferenceAndQuote(line) {
   // Read the reference by its book/chapter:verse shape, so a missing opening
   // quote mark (or a colon inside the quote) can't shift where it ends.
-  const match = line.match(/^\s*((?:[1-3]\s)?[A-Za-z]+(?:\s[A-Za-z]+)*\s\d+:\d+[a-z]?(?:\s*[–-]\s*\d+(?::\d+)?[a-z]?)?)\s*(?:\((?:AMPC|AMP|NKJV|ESV|NIV|KJV)\))?\s*(?::|—|–|-)\s*(.+)$/s);
+  const match = line.match(new RegExp(`^\\s*((?:[1-3]\\s)?[\\p{L}]+(?:\\s[\\p{L}]+)*\\s\\d+:\\d+[a-z]?(?:\\s*[–-]\\s*\\d+(?::\\d+)?[a-z]?)?)\\s*(?:\\((?:${TAG_SOURCE})\\))?\\s*(?::|—|–|-)\\s*(.+)$`, "su"));
   if (!match) return null;
   return {
     reference: match[1].replace(/(\d)[a-z](?=\s*[–-])/, "$1").replace(/\s+/g, " "),
-    quote: match[2].replace(/^[“"'\s]+/, "").replace(/[”"'\s]+$/, ""),
+    quote: match[2].replace(/^[“"'«\s]+/, "").replace(/[”"'»\s]+$/, ""),
   };
 }
 
@@ -141,6 +143,7 @@ if (!url || !key) throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_
 const supabase = createClient(url, key);
 
 const items = [];
+const problems = [];
 
 const { data: days } = await supabase
   .from("teaching_devotional_days")
@@ -148,11 +151,41 @@ const { data: days } = await supabase
 for (const day of days ?? []) {
   const devotional = Array.isArray(day.teaching_devotionals) ? day.teaching_devotionals[0] : day.teaching_devotionals;
   for (const line of day.anchor_scriptures ?? []) {
-    const tag = line.match(/\((AMPC|AMP|NKJV|ESV|NIV|KJV)\)/)?.[1] ?? "NONE";
+    const tag = line.match(new RegExp(`\\((${TAG_SOURCE})\\)`))?.[1] ?? "NONE";
     const parsed = splitReferenceAndQuote(line);
     if (!parsed) continue;
-    if (!isEnglishBook(parsed.reference)) { skippedNonEnglish += 1; continue; }
-    items.push({ where: `${devotional?.title} Day ${day.day_number}`, tag, ...parsed });
+    const where = `${devotional?.title} Day ${day.day_number}`;
+    if (isEnglishBook(parsed.reference)) {
+      items.push({ where, tag, ...parsed });
+    } else {
+      const searchReference = spanishToEnglishReference(parsed.reference);
+      if (searchReference) items.push({ where, tag, ...parsed, searchReference, versions: SPANISH_VERSIONS });
+      else problems.push({ where, text: `unrecognized book name in "${parsed.reference}"` });
+    }
+  }
+}
+
+// Spanish teachings (any status): structured Scripture blocks and verbatim
+// "**Reference (TAG)** *– quote*" lines inside prose. One-line summaries use a
+// hyphen ("*- ...") and are paraphrases, so they are not checked.
+const { data: spanishTeachings } = await supabase.from("teachings").select("id, slug").eq("language", "es");
+for (const teaching of spanishTeachings ?? []) {
+  const { data: sections } = await supabase.from("teaching_sections").select("title, status, content").eq("teaching_id", teaching.id);
+  for (const section of sections ?? []) {
+    const content = section.content ?? {};
+    const where = `${teaching.slug} [${section.status}] ${section.title}`;
+    const addSpanish = (reference, tag, quote) => {
+      const searchReference = spanishToEnglishReference(reference);
+      if (searchReference) items.push({ where, tag, reference, quote, searchReference, versions: SPANISH_VERSIONS });
+      else problems.push({ where, text: `unrecognized book name in "${reference}"` });
+    };
+    if (content.format === "scripture" && content.reference && content.quotation) {
+      addSpanish(content.reference, content.translation || "NONE", String(content.quotation).replace(/^[“"'«\s]+/, "").replace(/[”"'»\s]+$/, ""));
+    }
+    if (typeof content.text === "string") {
+      const pattern = new RegExp(`\\*\\*((?:[1-3]\\s)?[\\p{L}]+(?:\\s[\\p{L}]+)*\\s\\d+:\\d+[a-z]?(?:[–-]\\d+)?)(?:\\s*\\((${TAG_SOURCE})\\))?\\*\\*\\s*\\*–\\s*([^*]+)\\*`, "gu");
+      for (const match of content.text.matchAll(pattern)) addSpanish(match[1], match[2] ?? "NONE", match[3].trim());
+    }
   }
 }
 
@@ -166,10 +199,8 @@ items.push(
 
 // ---- Points of Agreement: read the live public rows (same view the page uses) ----
 const REF_SOURCE = String.raw`(?:[1-3]\s)?[A-Za-z]+(?:\s[A-Za-z]+)*\s\d+:\d+[a-z]?(?:\s*[–-]\s*\d+(?::\d+)?[a-z]?)?`;
-const TAG_SOURCE = "AMPC|AMP|NKJV|ESV|NIV|KJV|RVR1960";
 const cleanReference = (ref) => ref.replace(/(\d)[a-z](?=\s*[–-])/, "$1").replace(/\s+/g, " ").trim();
 const cleanQuote = (quote) => quote.replace(/^[“"'\s*]+/, "").replace(/[”"'\s*]+$/, "");
-const problems = [];
 
 // A scripture line is either "REF (TAG) — quote" (reference first, often bold)
 // or "quote — REF (TAG)" (reference last).
@@ -226,14 +257,16 @@ if (pointsError) {
 
 let mismatches = 0;
 for (const item of items) {
-  const { matches, best, note, closest } = await matchesFor(item.reference, item.quote);
+  const versions = item.versions ?? VERSIONS;
+  const lookupReference = item.searchReference ?? item.reference;
+  const { matches, best, note, closest } = await matchesFor(lookupReference, item.quote, versions);
   const ok = item.tag !== "NONE" && matches.includes(item.tag);
   if (ok) continue;
 
   mismatches += 1;
   // Link to the translation it was tagged with, else the one it matched or came closest to.
-  const linkVersion = VERSIONS.includes(item.tag) ? item.tag : (matches[0] ?? best);
-  const link = linkVersion ? bibleComLink(item.reference, linkVersion) : null;
+  const linkVersion = versions.includes(item.tag) ? item.tag : (matches[0] ?? best);
+  const link = linkVersion ? bibleComLink(lookupReference, linkVersion) : null;
   const quoteShown = item.quote.length > 140 ? `${item.quote.slice(0, 140)}...` : item.quote;
   console.log(`CHECK  [${item.where}] ${item.reference}`);
   console.log(`  tagged: ${item.tag}   exact match: ${matches.join("/") || "none"}   closest: ${closest ?? note}`);
@@ -246,9 +279,6 @@ for (const problem of problems) {
   console.log(`CHECK  [${problem.where}]`);
   console.log(`  could not check: ${problem.text.length > 160 ? `${problem.text.slice(0, 160)}...` : problem.text}`);
   console.log("");
-}
-if (skippedNonEnglish) {
-  console.log(`Skipped ${skippedNonEnglish} Spanish quotations (this verifier only compares against English translations).\n`);
 }
 const total = items.length + problems.length;
 console.log(mismatches

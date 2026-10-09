@@ -115,6 +115,15 @@ function bibleComLink(reference, version) {
   return `https://www.bible.com/bible/${id}/${book}.${match[2]}.${verses}.${version}`;
 }
 
+// The verifier compares against English translations only, so Spanish quotes
+// (book names like "Filipenses") are counted and skipped rather than reported
+// as meaningless 0% mismatches.
+let skippedNonEnglish = 0;
+function isEnglishBook(reference) {
+  const book = reference.match(/^(.+?)\s\d+:\d+/)?.[1]?.toLowerCase();
+  return Boolean(book && BIBLE_COM_BOOKS[book]);
+}
+
 function splitReferenceAndQuote(line) {
   // Read the reference by its book/chapter:verse shape, so a missing opening
   // quote mark (or a colon inside the quote) can't shift where it ends.
@@ -141,7 +150,9 @@ for (const day of days ?? []) {
   for (const line of day.anchor_scriptures ?? []) {
     const tag = line.match(/\((AMPC|AMP|NKJV|ESV|NIV|KJV)\)/)?.[1] ?? "NONE";
     const parsed = splitReferenceAndQuote(line);
-    if (parsed) items.push({ where: `${devotional?.title} Day ${day.day_number}`, tag, ...parsed });
+    if (!parsed) continue;
+    if (!isEnglishBook(parsed.reference)) { skippedNonEnglish += 1; continue; }
+    items.push({ where: `${devotional?.title} Day ${day.day_number}`, tag, ...parsed });
   }
 }
 
@@ -151,15 +162,67 @@ items.push(
   { where: "Shuttering teaching", tag: "NKJV", reference: "2 Corinthians 5:21", quote: "For He made Him who knew no sin to be sin for us, that we might become the righteousness of God in Him." },
   { where: "Shuttering teaching", tag: "NKJV", reference: "Jeremiah 23:6", quote: "In His days Judah will be saved, and Israel will dwell safely; now this is His name by which He will be called: THE LORD OUR RIGHTEOUSNESS." },
   { where: "Shuttering teaching", tag: "NKJV", reference: "Proverbs 29:2", quote: "When the righteous are in authority, the people rejoice; but when a wicked man rules, the people groan." },
-  { where: "Points of Agreement", tag: "NONE", reference: "Ephesians 6:17-18", quote: "Take the helmet of salvation and the sword of the Spirit, which is the word of God. Praying in the Spirit always..." },
-  { where: "Points of Agreement", tag: "NONE", reference: "2 Chronicles 20:15-17", quote: "Be not afraid or dismayed at this great multitude, for the battle is not yours, but God's... Take our positions, stand still, and see the deliverance of the Lord..." },
-  { where: "Points of Agreement", tag: "NONE", reference: "Psalm 33:12", quote: "Blessed is the nation whose God is the Lord..." },
-  { where: "Points of Agreement", tag: "NONE", reference: "Proverbs 29:2", quote: "When the righteous rule, the people rejoice..." },
-  { where: "Points of Agreement", tag: "NONE", reference: "Jeremiah 49:38", quote: "I will set My throne in Elam" },
-  { where: "Points of Agreement", tag: "NONE", reference: "Luke 21:28", quote: "When these things begin to happen, look up and lift up your heads, because your redemption draws near." },
-  { where: "Points of Agreement", tag: "NONE", reference: "Exodus 14:13", quote: "Stand still and see the salvation of the Lord... The Egyptians whom you see today, you shall see again no more forever." },
-  { where: "Points of Agreement", tag: "NONE", reference: "Matthew 18:19", quote: "Again I say to you, if two of you agree on earth about anything they ask, it will be done for them by my Father in heaven." },
 );
+
+// ---- Points of Agreement: read the live public rows (same view the page uses) ----
+const REF_SOURCE = String.raw`(?:[1-3]\s)?[A-Za-z]+(?:\s[A-Za-z]+)*\s\d+:\d+[a-z]?(?:\s*[–-]\s*\d+(?::\d+)?[a-z]?)?`;
+const TAG_SOURCE = "AMPC|AMP|NKJV|ESV|NIV|KJV|RVR1960";
+const cleanReference = (ref) => ref.replace(/(\d)[a-z](?=\s*[–-])/, "$1").replace(/\s+/g, " ").trim();
+const cleanQuote = (quote) => quote.replace(/^[“"'\s*]+/, "").replace(/[”"'\s*]+$/, "");
+const problems = [];
+
+// A scripture line is either "REF (TAG) — quote" (reference first, often bold)
+// or "quote — REF (TAG)" (reference last).
+function parsePointsLine(rawLine) {
+  const line = rawLine.replace(/\*\*/g, "").trim();
+  if (!line) return null;
+  const refFirst = line.match(new RegExp(`^(${REF_SOURCE})\\s*(?:\\((${TAG_SOURCE})\\))?\\s*[—–-]+\\s*(.+)$`, "s"));
+  if (refFirst) return { reference: cleanReference(refFirst[1]), tag: refFirst[2] ?? "NONE", quote: cleanQuote(refFirst[3]) };
+  const refLast = line.match(new RegExp(`^(.+?)\\s*[—–-]+\\s*(${REF_SOURCE})\\s*(?:\\((${TAG_SOURCE})\\))?\\s*$`, "s"));
+  if (refLast) return { reference: cleanReference(refLast[2]), tag: refLast[3] ?? "NONE", quote: cleanQuote(refLast[1]) };
+  return { unparsed: line };
+}
+
+function addPointsItem(where, parsed) {
+  if (!parsed) return;
+  if (parsed.unparsed) problems.push({ where, text: parsed.unparsed });
+  else items.push({ where, ...parsed });
+}
+
+const publicKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+if (!publicKey) throw new Error("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is required to read the Points of Agreement rows.");
+const publicSupabase = createClient(url, publicKey);
+
+const { data: guide, error: guideError } = await publicSupabase
+  .from("public_points_of_agreement_guide_settings")
+  .select("opening_scripture, opening_scripture_reference, footer_quotation, footer_scripture_reference")
+  .maybeSingle();
+if (guideError || !guide) {
+  problems.push({ where: "Points of Agreement guide settings", text: `could not be read (${guideError?.message ?? "no row"})` });
+} else {
+  for (const [label, quote, referenceField] of [
+    ["Points of Agreement opening quote", guide.opening_scripture, guide.opening_scripture_reference],
+    ["Points of Agreement closing quote", guide.footer_quotation, guide.footer_scripture_reference],
+  ]) {
+    const ref = String(referenceField ?? "").match(new RegExp(`^\\s*(${REF_SOURCE})\\s*(?:\\((${TAG_SOURCE})\\))?`));
+    if (!ref || !quote) problems.push({ where: label, text: `could not read a reference from "${referenceField ?? ""}"` });
+    else items.push({ where: label, reference: cleanReference(ref[1]), tag: ref[2] ?? "NONE", quote: cleanQuote(String(quote)) });
+  }
+}
+
+const { data: points, error: pointsError } = await publicSupabase
+  .from("public_points_of_agreement")
+  .select("point_of_agreement, scripture, display_order")
+  .order("display_order", { ascending: true });
+if (pointsError) {
+  problems.push({ where: "Points of Agreement rows", text: `could not be read (${pointsError.message})` });
+} else {
+  (points ?? []).forEach((point, index) => {
+    for (const line of String(point.scripture ?? "").split(/\r?\n/)) {
+      addPointsItem(`Points of Agreement Focus ${index + 1}: ${point.point_of_agreement}`, parsePointsLine(line));
+    }
+  });
+}
 
 let mismatches = 0;
 for (const item of items) {
@@ -178,6 +241,16 @@ for (const item of items) {
   if (link) console.log(`  verify: ${link}`);
   console.log("");
 }
+for (const problem of problems) {
+  mismatches += 1;
+  console.log(`CHECK  [${problem.where}]`);
+  console.log(`  could not check: ${problem.text.length > 160 ? `${problem.text.slice(0, 160)}...` : problem.text}`);
+  console.log("");
+}
+if (skippedNonEnglish) {
+  console.log(`Skipped ${skippedNonEnglish} Spanish quotations (this verifier only compares against English translations).\n`);
+}
+const total = items.length + problems.length;
 console.log(mismatches
-  ? `${mismatches} of ${items.length} quotations need attention.`
-  : `All ${items.length} quotations match their translation tags.`);
+  ? `${mismatches} of ${total} quotations need attention.`
+  : `All ${total} quotations match their translation tags.`);

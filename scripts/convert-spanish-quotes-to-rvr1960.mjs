@@ -22,7 +22,9 @@ import { spanishToEnglishReference } from "./lib/spanish-books.mjs";
 
 const APPLY = process.env.APPLY === "true";
 const BACKUP_DIR = process.env.BACKUP_DIR ?? ".";
-const MAX_WORDS = 60;
+// The American Bible Society allows RVR1960 quotations only while they stay under
+// 25% of the work, so devotional anchor lines are kept short (override with MAX_WORDS).
+const MAX_WORDS = Number(process.env.MAX_WORDS ?? 30);
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SECRET_KEY;
@@ -70,7 +72,8 @@ function excerpt(text) {
   const cut = words.slice(0, MAX_WORDS).join(" ");
   // Prefer ending on a full sentence, then on a clause; never mid-clause.
   const sentenceEnd = cut.lastIndexOf(".");
-  const clauseEnd = Math.max(cut.lastIndexOf(";"), cut.lastIndexOf(":"), cut.lastIndexOf(","));
+  const strongBreak = Math.max(cut.lastIndexOf(";"), cut.lastIndexOf(":"));
+  const clauseEnd = strongBreak > cut.length * 0.4 ? strongBreak : cut.lastIndexOf(",");
   const boundary = sentenceEnd > cut.length * 0.4 ? sentenceEnd + 1 : clauseEnd > cut.length * 0.4 ? clauseEnd : -1;
   const base = boundary > 0 ? cut.slice(0, boundary) : cut;
   return { text: base.replace(/[.,;:\s]+$/, ""), truncated: true };

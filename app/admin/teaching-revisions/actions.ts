@@ -94,3 +94,10 @@ export async function clearRevisionHistory(formData: FormData) {
   refresh();
   redirect(`/admin/teaching-revisions?cleared=${typeof data === "number" ? data : 0}`);
 }
+
+// Called when an Administrator opens a submitted revision. The database only records the first time.
+export async function markRevisionOpened(revisionId: string) {
+  if (!UUID_PATTERN.test(revisionId)) return;
+  const { supabase } = await requireAdmin();
+  await supabase.rpc("mark_revision_opened", { p_revision_id: revisionId });
+}

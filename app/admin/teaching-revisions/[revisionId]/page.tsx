@@ -16,6 +16,7 @@ import { buildDevotionalEditableFields, type DevotionalDayRow, type DevotionalRo
 import { weeklyUpdateEditableFields, type WeeklyUpdateReviewFieldRow } from "@/lib/weekly-update-revisions";
 import { cancelRevision, reviewAllChanges, reviewChange } from "../actions";
 import { ConfirmButton } from "../confirm-button";
+import { MarkOpened } from "../mark-opened";
 
 export const metadata: Metadata = {
   title: "Review Revision",
@@ -135,6 +136,7 @@ export default async function TeachingRevisionReviewPage({
 
   return (
     <main className="admin-shell">
+      {revision.status === "submitted" ? <MarkOpened revisionId={revision.id} /> : null}
       <div className="mx-auto max-w-4xl">
         <Link href="/admin/teaching-revisions" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Revisions</Link>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-6">

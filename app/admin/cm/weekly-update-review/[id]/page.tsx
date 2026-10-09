@@ -6,6 +6,7 @@ import { TrackedText } from "@/lib/tracked-text";
 import { weeklyUpdateEditableFields, type WeeklyUpdateReviewFieldRow } from "@/lib/weekly-update-revisions";
 import { describeChange, normalizeRevisionText, type RevisionChangeRow } from "@/lib/teaching-revisions";
 import { ReviewEditForm, type ReviewFormField } from "../../teaching-review/[id]/review-edit-form";
+import { RecallRevisionButton } from "../../recall-button";
 import { saveWeeklyUpdateReview } from "../actions";
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ type RevisionRow = {
   submitted_at: string | null;
   completed_at: string | null;
   total_changes: number;
+  admin_opened_at: string | null;
   accepted_count: number;
   rejected_count: number;
 };
@@ -35,7 +37,7 @@ export default async function WeeklyUpdateReviewEditPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ submitted?: string; discarded?: string; new?: string }>;
+  searchParams: Promise<{ submitted?: string; discarded?: string; recalled?: string; new?: string }>;
 }) {
   const [{ id }, flags] = await Promise.all([params, searchParams]);
   if (!UUID_PATTERN.test(id)) notFound();
@@ -48,7 +50,7 @@ export default async function WeeklyUpdateReviewEditPage({
     supabase.rpc("weekly_update_review_fields", { p_weekly_update_id: id }),
     supabase
       .from("content_revisions")
-      .select("id, status, submitted_at, completed_at, total_changes, accepted_count, rejected_count")
+      .select("id, status, submitted_at, completed_at, total_changes, admin_opened_at, accepted_count, rejected_count")
       .eq("subject_type", "weekly_update")
       .eq("weekly_update_id", id)
       .eq("submitted_by", user.id)
@@ -104,6 +106,7 @@ export default async function WeeklyUpdateReviewEditPage({
         </p>
 
         {flags.submitted === "1" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Submitted. An Administrator will review your changes.</p> : null}
+        {flags.recalled === "1" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Taken back. Your changes are saved as a draft again, so you can keep editing and submit when ready.</p> : null}
         {flags.discarded === "1" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Your draft was discarded.</p> : null}
 
         {showWaiting && submitted ? (
@@ -125,6 +128,7 @@ export default async function WeeklyUpdateReviewEditPage({
                 </article>
               );
             })}
+            <RecallRevisionButton subject="weekly-update" subjectId={id} revisionId={submitted.id} opened={submitted.admin_opened_at !== null} />
             <Link href={`/admin/cm/weekly-update-review/${id}?new=1`} className="admin-secondary-button inline-flex items-center justify-center">Start a new revision</Link>
           </section>
         ) : (

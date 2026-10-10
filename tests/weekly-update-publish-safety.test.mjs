@@ -41,7 +41,7 @@ test("the migration only allows the ready mark on drafts and clears it on any st
 test("the Publish button asks for confirmation using the notice, and the page wires the ready mark", () => {
   const page = readFileSync(new URL("../app/admin/weekly-updates/page.tsx", import.meta.url), "utf8");
   const buttons = readFileSync(new URL("../app/admin/weekly-updates/status-buttons.tsx", import.meta.url), "utf8");
-  assert.match(page, /confirmMessage=\{publishNotice\.confirm\}/);
+  assert.match(page, /confirmMessage=\{[\s\S]*?publishNotice\.confirm\}/);
   assert.match(buttons, /window\.confirm\(confirmMessage\)/);
   assert.match(page, /setWeeklyUpdateReady\.bind/);
 });

@@ -56,3 +56,21 @@ export async function saveWeeklyUpdateReview(weeklyUpdateId: string, _previous: 
   revalidatePath(`/admin/cm/weekly-update-review/${weeklyUpdateId}`);
   return { saved: true, savedCount: typeof savedCount === "number" ? savedCount : changes.length };
 }
+
+// A Content Manager says the draft is OK to publish (or withdraws that). The database function checks
+// who is calling and that the draft was sent for proofing; this is only the doorway to it.
+export async function setWeeklyUpdateProofedOk(weeklyUpdateId: string, ok: boolean) {
+  if (!UUID_PATTERN.test(weeklyUpdateId)) redirect("/admin/cm/weekly-update-review");
+  const { supabase } = await requireContentManager();
+
+  const { error } = await supabase.rpc("set_weekly_update_proofed_ok", { p_weekly_update_id: weeklyUpdateId, p_ok: ok });
+  if (error) {
+    const reason = /Submit or discard/i.test(error.message) ? "open_changes" : "error";
+    redirect(`/admin/cm/weekly-update-review/${weeklyUpdateId}?proofed=${reason}`);
+  }
+
+  revalidatePath("/admin/cm/weekly-update-review");
+  revalidatePath(`/admin/cm/weekly-update-review/${weeklyUpdateId}`);
+  revalidatePath("/admin/weekly-updates");
+  redirect(`/admin/cm/weekly-update-review/${weeklyUpdateId}?proofed=${ok ? "ok" : "withdrawn"}`);
+}

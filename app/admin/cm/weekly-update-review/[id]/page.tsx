@@ -7,7 +7,7 @@ import { weeklyUpdateEditableFields, type WeeklyUpdateReviewFieldRow } from "@/l
 import { describeChange, normalizeRevisionText, type RevisionChangeRow } from "@/lib/teaching-revisions";
 import { ReviewEditForm, type ReviewFormField } from "../../teaching-review/[id]/review-edit-form";
 import { RecallRevisionButton } from "../../recall-button";
-import { saveWeeklyUpdateReview } from "../actions";
+import { saveWeeklyUpdateReview, setWeeklyUpdateProofedOk } from "../actions";
 
 export const metadata: Metadata = {
   title: "Review Weekly Update",
@@ -37,13 +37,13 @@ export default async function WeeklyUpdateReviewEditPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ submitted?: string; discarded?: string; recalled?: string; new?: string }>;
+  searchParams: Promise<{ submitted?: string; discarded?: string; recalled?: string; new?: string; proofed?: string }>;
 }) {
   const [{ id }, flags] = await Promise.all([params, searchParams]);
   if (!UUID_PATTERN.test(id)) notFound();
 
   const { supabase, user } = await requireContentManager();
-  const { data: update } = await supabase.from("weekly_updates").select("id, title, status").eq("id", id).eq("status", "draft").maybeSingle();
+  const { data: update } = await supabase.from("weekly_updates").select("id, title, status, proofed_ok_at, proofed_ok_by_name").eq("id", id).eq("status", "draft").not("sent_to_proofing_at", "is", null).maybeSingle();
   if (!update) notFound();
 
   const [{ data: fieldRows }, { data: revisions }] = await Promise.all([
@@ -105,6 +105,29 @@ export default async function WeeklyUpdateReviewEditPage({
           Changes made here are proposals only. The approved weekly update will not change until an Administrator accepts them.
         </p>
 
+        <section className={`mt-4 rounded-2xl border p-5 ${update.proofed_ok_at ? "border-[#326048]/25 bg-[#e7efe9]" : "border-[#946332]/30 bg-[#fbf1e1]"}`}>
+          {update.proofed_ok_at ? (
+            <>
+              <p className="font-extrabold text-[#326048]">You marked this OK to publish{update.proofed_ok_by_name ? ` (${update.proofed_ok_by_name})` : ""} on {formatDateTime(update.proofed_ok_at)}.</p>
+              <p className="mt-1 text-sm leading-6 text-[#385245]">The Administrator can now finish it. If you find something else, withdraw your OK first.</p>
+              <form action={setWeeklyUpdateProofedOk.bind(null, id, false)} className="mt-3">
+                <button type="submit" className="admin-secondary-button">Withdraw my OK</button>
+              </form>
+            </>
+          ) : (
+            <>
+              <p className="font-extrabold text-[#7a4a1d]">When you have finished proofing, mark it OK to publish.</p>
+              <p className="mt-1 text-sm leading-6 text-[#7a4a1d]">Do this whether or not you made changes. The Administrator waits for your OK before moving it on. If you propose changes, submit them first.</p>
+              <form action={setWeeklyUpdateProofedOk.bind(null, id, true)} className="mt-3">
+                <button type="submit" className="admin-secondary-button">OK to publish</button>
+              </form>
+            </>
+          )}
+        </section>
+        {flags.proofed === "ok" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Marked OK to publish. The Administrator will see it.</p> : null}
+        {flags.proofed === "withdrawn" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Your OK was withdrawn.</p> : null}
+        {flags.proofed === "open_changes" ? <p role="alert" className="mt-4 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">You have proposed changes that are not submitted yet. Submit or discard them below, then mark it OK to publish.</p> : null}
+        {flags.proofed === "error" ? <p role="alert" className="mt-4 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">That could not be saved. The Administrator may have taken this back from proofing.</p> : null}
         {flags.submitted === "1" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Submitted. An Administrator will review your changes.</p> : null}
         {flags.recalled === "1" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Taken back. Your changes are saved as a draft again, so you can keep editing and submit when ready.</p> : null}
         {flags.discarded === "1" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Your draft was discarded.</p> : null}

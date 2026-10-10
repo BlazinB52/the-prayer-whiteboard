@@ -29,7 +29,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
   const [{ data: updates, error }, { data: chalkboards }, { data: chalkboardAssignments }, { data: footers }, { data: footerAssignments }] = await Promise.all([
     supabase
       .from("weekly_updates")
-      .select("id, title, language, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, conversion_report, ready_to_publish_at, sent_to_proofing_at, proofed_ok_at, proofed_ok_by_name")
+      .select("id, title, language, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, conversion_report, ready_to_publish_at, sent_to_proofing_at")
       .order("is_current", { ascending: false })
       .order("updated_at", { ascending: false }),
     supabase
@@ -74,6 +74,18 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
   for (const revision of waitingRevisions ?? []) {
     if (revision.weekly_update_id) waitingByUpdate.set(revision.weekly_update_id, (waitingByUpdate.get(revision.weekly_update_id) ?? 0) + 1);
   }
+  // Who each draft was sent to, and where each one is: waiting, or submitted with or without proposed changes.
+  const sentDraftIds = (updates ?? []).filter((item) => item.status === "draft" && item.sent_to_proofing_at).map((item) => item.id);
+  const { data: proofingRows } = sentDraftIds.length
+    ? await supabase.from("weekly_update_proofings").select("weekly_update_id, user_id, user_name, submitted_at").in("weekly_update_id", sentDraftIds).order("user_name", { ascending: true })
+    : { data: [] as { weekly_update_id: string; user_id: string; user_name: string | null; submitted_at: string | null }[] };
+  const { data: proofRevisions } = sentDraftIds.length
+    ? await supabase.from("content_revisions").select("id, weekly_update_id, submitted_by, total_changes").eq("subject_type", "weekly_update").eq("status", "submitted").in("weekly_update_id", sentDraftIds)
+    : { data: [] as { id: string; weekly_update_id: string; submitted_by: string; total_changes: number }[] };
+  const proofsByUpdate = new Map<string, NonNullable<typeof proofingRows>>();
+  for (const row of proofingRows ?? []) proofsByUpdate.set(row.weekly_update_id, [...(proofsByUpdate.get(row.weekly_update_id) ?? []), row]);
+  const proofRevisionByKey = new Map((proofRevisions ?? []).map((row) => [`${row.weekly_update_id}:${row.submitted_by}`, row]));
+
   const { data: unfinishedSends } = await supabase
     .from("email_broadcast_events")
     .select("weekly_update_id, status, recipient_count")
@@ -108,7 +120,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         {params.proofing === "sent" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Sent to the Content Managers for proofing. Nothing was published or emailed to subscribers.</p> : null}
         {params.proofing === "takenback" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Taken back from proofing.</p> : null}
         {params.proofing === "error" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">That could not be changed. Only drafts can be sent for proofing.</p> : null}
-        {params.ready === "notproofed" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">A Content Manager has to submit it back as OK to publish before it can be marked ready.</p> : null}
+        {params.proofing === "nocm" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">There are no active Content Managers to send it to. Add one under Content Managers first.</p> : null}
         {params.ready === "marked" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Marked as ready to publish. Nothing was published or emailed.</p> : null}
         {params.ready === "cleared" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Ready to publish mark removed.</p> : null}
         {params.ready === "error" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">The ready mark could not be changed. Only drafts can be marked.</p> : null}
@@ -135,11 +147,13 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   replacesTitle: currentOfLanguage && currentOfLanguage.id !== update.id ? currentOfLanguage.title : null,
                   language: updateLanguage,
                 });
+                const proofs = proofsByUpdate.get(update.id) ?? [];
+                const proofsOutstanding = proofs.some((proof) => !proof.submitted_at);
                 return (
                 <article key={update.id} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{update.is_current ? "Current" : update.status} · {update.language === "es" ? "Español" : "English"}{update.status === "draft" && update.ready_to_publish_at ? <span className="ml-2 rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black tracking-wider text-[#1a4fb4]">Ready to publish</span> : update.status === "draft" && update.proofed_ok_at ? <span className="ml-2 rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black tracking-wider text-[#326048]">OK to publish</span> : update.status === "draft" && update.sent_to_proofing_at ? <span className="ml-2 rounded-full bg-[#fbf1e1] px-3 py-1 text-[10px] font-black tracking-wider text-[#7a4a1d]">With Content Managers</span> : null}</p>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{update.is_current ? "Current" : update.status} · {update.language === "es" ? "Español" : "English"}{update.status === "draft" && update.ready_to_publish_at ? <span className="ml-2 rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black tracking-wider text-[#1a4fb4]">Ready to publish</span> : null}{update.status === "draft" && update.sent_to_proofing_at ? <span className="ml-2 rounded-full bg-[#fbf1e1] px-3 py-1 text-[10px] font-black tracking-wider text-[#7a4a1d]">Proofs {proofs.filter((proof) => proof.submitted_at).length} of {proofs.length} in</span> : null}</p>
                       <h3 className="mt-2 text-2xl font-extrabold text-[#243d31]">{update.title}</h3>
                       <p className="mt-2 text-sm text-[#607066]">Published: {formatDate(update.published_at)}{update.archived_at ? ` · Archived: ${formatDate(update.archived_at)}` : ""}</p>
                       <p className="mt-1 text-sm text-[#607066]">Source document: <span className="font-bold text-[#385245]">{update.source_document_file_name ?? "Not retained"}</span></p>
@@ -147,7 +161,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <p className="mt-1 text-sm text-[#607066]">Footer: <span className="font-bold text-[#385245]">{footerLabels.get(footerIdByUpdate.get(update.id) ?? "") ?? "None selected"}</span></p>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      {update.status !== "archived" ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate} weeklyUpdateId={update.id} intent="publish" label="Publish current" confirmMessage={update.status === "draft" && !update.ready_to_publish_at ? `${update.proofed_ok_at ? "This draft has not been marked ready to publish." : "No Content Manager has marked this draft OK to publish."}\n\n${publishNotice.confirm}` : publishNotice.confirm} /> : null}
+                      {update.status !== "archived" ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate} weeklyUpdateId={update.id} intent="publish" label="Publish current" confirmMessage={update.status === "draft" && (!update.ready_to_publish_at || proofsOutstanding) ? `${[!update.ready_to_publish_at ? "This draft has not been marked ready to publish." : "", proofsOutstanding ? `${proofs.filter((proof) => !proof.submitted_at).length} of ${proofs.length} Content Managers have not submitted their proof yet. Publishing ends their review.` : ""].filter(Boolean).join("\n")}\n\n${publishNotice.confirm}` : publishNotice.confirm} /> : null}
                       {update.status !== "archived" ? <WeeklyUpdateStatusButton action={archiveWeeklyUpdate} weeklyUpdateId={update.id} intent="archive" label="Archive" variant="danger" /> : null}
                       {!update.is_current ? <WeeklyUpdateDeleteButton action={deleteWeeklyUpdate} weeklyUpdateId={update.id} title={update.title} /> : null}
                     </div>
@@ -180,35 +194,49 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   ) : null}
                   {update.status === "draft" ? (
                     <div className="mt-4 rounded-xl border border-[#284a3b]/15 bg-[#f4f6f1] p-4">
-                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Proofing and publishing</p>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Proofing</p>
                       {!update.sent_to_proofing_at ? (
                         <>
-                          <p className="mt-2 text-sm leading-6 text-[#385245]">Step 1: when you have reviewed this draft, send it to the Content Managers to proof. They get one pass, and when they submit it back to you, that is their OK to publish. Nothing is emailed to subscribers.</p>
+                          <p className="mt-2 text-sm leading-6 text-[#385245]">When you have reviewed this draft, send it to the Content Managers to proofread. Every registered Content Manager gets their own copy and one pass at it, and submitting it back is their OK to publish. Nothing is emailed to subscribers.</p>
                           <form action={sendWeeklyUpdateToProofing.bind(null, update.id)} className="mt-3">
                             <button type="submit" className="admin-secondary-button">Send to Content Managers for proofing</button>
                           </form>
                         </>
-                      ) : !update.proofed_ok_at ? (
-                        <>
-                          <p className="mt-2 text-sm font-bold leading-6 text-[#7a4a1d]">With the Content Managers for proofing since {formatDate(update.sent_to_proofing_at)}. Waiting for a Content Manager to submit it back, which is their OK to publish.</p>
-                          <form action={takeWeeklyUpdateBackFromProofing.bind(null, update.id)} className="mt-3">
-                            <button type="submit" className="admin-secondary-button">Take back from proofing</button>
-                          </form>
-                        </>
                       ) : (
                         <>
-                          <p className="mt-2 text-sm font-bold leading-6 text-[#326048]">Submitted back as OK to publish by {update.proofed_ok_by_name ?? "a Content Manager"}, {formatDate(update.proofed_ok_at)}. Accept or reject any changes they proposed, make your own edits, then mark it ready. Publishing is the step that emails subscribers.</p>
+                          <p className="mt-2 text-sm leading-6 text-[#385245]">Sent to the Content Managers on {formatDate(update.sent_to_proofing_at)}. Each one has one pass. Review every proof, accept or reject their changes, make your own edits, and publish when you are satisfied. You do not need to wait for anyone: publishing ends their review.</p>
+                          <ul className="mt-3 divide-y divide-[#284a3b]/10 rounded-lg bg-white/70 text-sm">
+                            {proofs.map((proof) => {
+                              const revision = proofRevisionByKey.get(`${update.id}:${proof.user_id}`);
+                              return (
+                                <li key={proof.user_id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
+                                  <span className="min-w-0 flex-1 font-extrabold text-[#243d31]">{proof.user_name ?? "Content Manager"}</span>
+                                  <span className={proof.submitted_at ? "font-bold text-[#326048]" : "font-bold text-[#7a4a1d]"}>{proof.submitted_at ? `Submitted ${formatDate(proof.submitted_at)}: OK to publish` : "Waiting"}</span>
+                                  {revision ? (
+                                    <Link href={`/admin/teaching-revisions/${revision.id}`} className="font-extrabold text-[#1a4fb4] underline underline-offset-2">Review {revision.total_changes} proposed {revision.total_changes === 1 ? "change" : "changes"}</Link>
+                                  ) : proof.submitted_at ? (
+                                    <span className="text-[#607066]">No changes proposed</span>
+                                  ) : null}
+                                </li>
+                              );
+                            })}
+                          </ul>
                           <div className="mt-3 flex flex-wrap gap-3">
-                            <form action={setWeeklyUpdateReady.bind(null, update.id, !update.ready_to_publish_at)}>
-                              <button type="submit" className="admin-secondary-button">{update.ready_to_publish_at ? "Remove ready mark" : "Mark as ready to publish"}</button>
-                            </form>
                             <form action={sendWeeklyUpdateToProofing.bind(null, update.id)}>
-                              <button type="submit" className="admin-secondary-button">Send for proofing again</button>
+                              <button type="submit" className="admin-secondary-button">Send to any Content Managers added since</button>
+                            </form>
+                            <form action={takeWeeklyUpdateBackFromProofing.bind(null, update.id)}>
+                              <button type="submit" className="admin-secondary-button">Take back from proofing</button>
                             </form>
                           </div>
                         </>
                       )}
                     </div>
+                  ) : null}
+                  {update.status === "draft" ? (
+                    <form action={setWeeklyUpdateReady.bind(null, update.id, !update.ready_to_publish_at)} className="mt-4">
+                      <button type="submit" className="admin-secondary-button">{update.ready_to_publish_at ? "Remove ready mark" : "Mark as ready to publish"}</button>
+                    </form>
                   ) : null}
                   {update.status !== "archived" ? (
                     <details className="mt-5">

@@ -42,7 +42,10 @@ export default async function WeeklyUpdateReviewEditPage({
   if (!UUID_PATTERN.test(id)) notFound();
 
   const { supabase, user } = await requireContentManager();
-  const { data: update } = await supabase.from("weekly_updates").select("id, title, status, proofed_ok_at, proofed_ok_by_name").eq("id", id).eq("status", "draft").not("sent_to_proofing_at", "is", null).maybeSingle();
+  // Only a Content Manager who was sent this draft can open it.
+  const { data: proofing } = await supabase.from("weekly_update_proofings").select("submitted_at, user_name").eq("weekly_update_id", id).eq("user_id", user.id).maybeSingle();
+  if (!proofing) notFound();
+  const { data: update } = await supabase.from("weekly_updates").select("id, title, status").eq("id", id).eq("status", "draft").maybeSingle();
   if (!update) notFound();
 
   const [{ data: fieldRows }, { data: revisions }] = await Promise.all([
@@ -75,7 +78,7 @@ export default async function WeeklyUpdateReviewEditPage({
   // One pass only: once the Content Manager has submitted (which is also their OK to publish) nothing
   // is editable. The Administrator then accepts or rejects what was proposed. If the Administrator sends the
   // draft for proofing again, the OK is cleared and this becomes editable for a new pass.
-  const finished_pass = Boolean(update.proofed_ok_at);
+  const finished_pass = Boolean(proofing.submitted_at);
   const showWaiting = finished_pass;
 
   const formFields: ReviewFormField[] = fields.map((field) => {
@@ -120,7 +123,7 @@ export default async function WeeklyUpdateReviewEditPage({
             <div className="rounded-2xl border border-[#326048]/25 bg-[#e7efe9] p-5">
               <p className="font-extrabold text-[#326048]">Submitted: OK to publish</p>
               <p className="mt-1 text-sm leading-6 text-[#385245]">
-                {update.proofed_ok_by_name ? `${update.proofed_ok_by_name} submitted this` : "This was submitted"} on {formatDateTime(update.proofed_ok_at)} and said it is OK to publish.
+                You submitted this on {formatDateTime(proofing.submitted_at)} and said it is OK to publish.
                 {submitted
                   ? ` ${submitted.total_changes} proposed ${submitted.total_changes === 1 ? "change is" : "changes are"} with the Administrator, who will accept or reject ${submitted.total_changes === 1 ? "it" : "each one"}.`
                   : " No changes were proposed."}

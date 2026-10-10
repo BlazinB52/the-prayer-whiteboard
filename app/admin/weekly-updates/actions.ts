@@ -270,12 +270,8 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
     update.body_markdown = docx.value.converted.plainText;
     update.converted_content = docx.value.converted.blocks;
     update.conversion_report = docx.value.converted.report;
-    // New content has not been checked yet, so any earlier "Ready to publish" mark and any Content Manager OK no longer apply.
-    // It stays sent for proofing, so the Content Managers can read the new version and OK it again.
+    // New content has not been checked yet, so any earlier "Ready to publish" mark no longer applies.
     update.ready_to_publish_at = null;
-    update.proofed_ok_at = null;
-    update.proofed_ok_by = null;
-    update.proofed_ok_by_name = null;
     update.source_document_storage_path = stored.path;
     update.source_document_file_name = docx.value.fileName;
   }
@@ -291,6 +287,9 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
     if (storedPath) await supabase.storage.from(SOURCE_BUCKET).remove([storedPath]);
     return { error: "The weekly update could not be saved." };
   }
+  // A new document means what the Content Managers already proofed is out of date: everyone who was sent
+  // the draft gets a fresh pass. This does nothing if the draft was never sent for proofing.
+  if (docx.value) await supabase.rpc("restart_weekly_update_proofing", { p_weekly_update_id: id.value });
   const chalkboardResult = await replaceWeeklyUpdateChalkboards(supabase, id.value, chalkboard.value ?? []);
   if (chalkboardResult.error) return { error: chalkboardResult.error };
   const footerResult = await replaceWeeklyUpdateFooter(supabase, id.value, footer.value ?? null);
@@ -308,47 +307,28 @@ export async function setWeeklyUpdateReady(id: string, ready: boolean) {
   const { supabase } = await requireAdmin();
   if (!UUID_PATTERN.test(id)) redirect("/admin/weekly-updates");
 
-  // A draft is only ready once a Content Manager has marked it OK to publish. Removing the mark is always allowed.
-  let query = supabase
+  const { data, error } = await supabase
     .from("weekly_updates")
     .update({ ready_to_publish_at: ready ? new Date().toISOString() : null })
     .eq("id", id)
-    .eq("status", "draft");
-  if (ready) query = query.not("proofed_ok_at", "is", null);
-  const { data, error } = await query.select("id").maybeSingle();
-  if (error || !data) redirect(ready ? "/admin/weekly-updates?ready=notproofed" : "/admin/weekly-updates?ready=error");
+    .eq("status", "draft")
+    .select("id")
+    .maybeSingle();
+  if (error || !data) redirect("/admin/weekly-updates?ready=error");
 
   revalidatePath("/admin/weekly-updates");
   redirect(`/admin/weekly-updates?ready=${ready ? "marked" : "cleared"}`);
 }
 
-async function adminName(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], user: { id: string; email?: string | null }) {
-  const { data } = await supabase.from("admin_authorizations").select("display_name").eq("user_id", user.id).maybeSingle();
-  return (data?.display_name as string | null)?.trim() || user.email || "Administrator";
-}
-
-// Step 1 of the workflow: the Administrator has reviewed the draft and sends it to the Content Managers
-// to proofread. Sending again after an OK starts the proofing over, so the OK and ready mark are cleared.
-// Nothing is published or emailed.
+// Step 1 of the workflow: the Administrator has reviewed the draft and sends it to every registered Content
+// Manager to proofread. Each one gets their own pass. Running it again only reaches Content Managers who were
+// added since, and never gives anyone a second pass. Nothing is published or emailed.
 export async function sendWeeklyUpdateToProofing(id: string) {
-  const { supabase, user } = await requireAdmin();
+  const { supabase } = await requireAdmin();
   if (!UUID_PATTERN.test(id)) redirect("/admin/weekly-updates");
 
-  const { data, error } = await supabase
-    .from("weekly_updates")
-    .update({
-      sent_to_proofing_at: new Date().toISOString(),
-      sent_to_proofing_by_name: await adminName(supabase, user),
-      proofed_ok_at: null,
-      proofed_ok_by: null,
-      proofed_ok_by_name: null,
-      ready_to_publish_at: null,
-    })
-    .eq("id", id)
-    .eq("status", "draft")
-    .select("id")
-    .maybeSingle();
-  if (error || !data) redirect("/admin/weekly-updates?proofing=error");
+  const { error } = await supabase.rpc("send_weekly_update_for_proofing", { p_weekly_update_id: id, p_restart: false });
+  if (error) redirect(`/admin/weekly-updates?proofing=${/no Content Managers/i.test(error.message) ? "nocm" : "error"}`);
 
   revalidatePath("/admin/weekly-updates");
   revalidatePath("/admin/cm/weekly-update-review");
@@ -360,14 +340,8 @@ export async function takeWeeklyUpdateBackFromProofing(id: string) {
   const { supabase } = await requireAdmin();
   if (!UUID_PATTERN.test(id)) redirect("/admin/weekly-updates");
 
-  const { data, error } = await supabase
-    .from("weekly_updates")
-    .update({ sent_to_proofing_at: null, sent_to_proofing_by_name: null, proofed_ok_at: null, proofed_ok_by: null, proofed_ok_by_name: null, ready_to_publish_at: null })
-    .eq("id", id)
-    .eq("status", "draft")
-    .select("id")
-    .maybeSingle();
-  if (error || !data) redirect("/admin/weekly-updates?proofing=error");
+  const { error } = await supabase.rpc("take_back_weekly_update_from_proofing", { p_weekly_update_id: id });
+  if (error) redirect("/admin/weekly-updates?proofing=error");
 
   revalidatePath("/admin/weekly-updates");
   revalidatePath("/admin/cm/weekly-update-review");

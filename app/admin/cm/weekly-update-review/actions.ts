@@ -55,7 +55,7 @@ export async function saveWeeklyUpdateReview(weeklyUpdateId: string, _previous: 
       const { error: submitError } = await supabase.rpc("submit_weekly_update_revision", { p_revision_id: revisionId });
       if (submitError) return { error: friendlyRevisionError(submitError.message) };
     }
-    const { error: okError } = await supabase.rpc("set_weekly_update_proofed_ok", { p_weekly_update_id: weeklyUpdateId, p_ok: true });
+    const { error: okError } = await supabase.rpc("submit_weekly_update_proof", { p_weekly_update_id: weeklyUpdateId });
     if (okError) return { error: "Your changes were sent, but the OK to publish could not be recorded. Please tell the Administrator." };
     revalidatePath("/admin/cm/weekly-update-review");
     revalidatePath(`/admin/cm/weekly-update-review/${weeklyUpdateId}`);

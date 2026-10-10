@@ -24,7 +24,7 @@ test("co-editor weekly update actions only call the review functions and never t
   assert.doesNotMatch(source, /requireAdmin|service-role|createServiceRoleClient/);
   assert.doesNotMatch(source, /\.from\(/);
   const calls = [...source.matchAll(/\.rpc\("([a-z_]+)"/g)].map((match) => match[1]);
-  assert.deepEqual([...new Set(calls)].sort(), ["create_weekly_update_revision", "discard_teaching_revision", "save_weekly_update_revision_draft", "set_weekly_update_proofed_ok", "submit_weekly_update_revision"]);
+  assert.deepEqual([...new Set(calls)].sort(), ["create_weekly_update_revision", "discard_teaching_revision", "save_weekly_update_revision_draft", "submit_weekly_update_proof", "submit_weekly_update_revision"]);
   for (const forbidden of ["review_weekly_update_revision_change", "review_all_weekly_update_revision_changes", "cancel_teaching_revision", "purge_revision_history"]) {
     assert.equal(source.includes(forbidden), false, `${forbidden} is Administrator-only`);
   }

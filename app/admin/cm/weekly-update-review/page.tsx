@@ -33,8 +33,11 @@ function formatDate(value: string | null) {
 
 export default async function WeeklyUpdateReviewListPage() {
   const { supabase } = await requireContentManager();
+  // Only drafts the Administrator sent to this Content Manager, each with whether they have submitted yet.
+  const { data: myProofings } = await supabase.from("weekly_update_proofings").select("weekly_update_id, submitted_at");
+  const submittedAt = new Map((myProofings ?? []).map((row) => [row.weekly_update_id as string, row.submitted_at as string | null]));
   const [{ data: updates, error }, { data: revisions }] = await Promise.all([
-    supabase.from("weekly_updates").select("id, title, updated_at, proofed_ok_at").eq("status", "draft").not("sent_to_proofing_at", "is", null).order("updated_at", { ascending: false }),
+    supabase.from("weekly_updates").select("id, title, updated_at").eq("status", "draft").in("id", [...submittedAt.keys()]).order("updated_at", { ascending: false }),
     supabase
       .from("content_revisions")
       .select("id, weekly_update_id, subject_title, status, submitted_at, completed_at, total_changes, accepted_count, rejected_count")
@@ -74,7 +77,7 @@ export default async function WeeklyUpdateReviewListPage() {
                   <li key={update.id}>
                     <Link href={`/admin/cm/weekly-update-review/${update.id}`} className="flex min-h-12 items-center gap-3 px-2 py-3 transition hover:bg-[#e7efe9]/60">
                       <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{update.title.trim() || "Untitled weekly update"}</span>
-                      {update.proofed_ok_at ? <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">Submitted: OK to publish</span> : <span className="rounded-full bg-[#fbf1e1] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#7a4a1d]">Needs your proofing</span>}
+                      {submittedAt.get(update.id) ? <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">Submitted: OK to publish</span> : <span className="rounded-full bg-[#fbf1e1] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#7a4a1d]">Needs your proofing</span>}
                       {open ? <span className="rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a4fb4]">{STATUS_LABELS[open.status]}</span> : null}
                     </Link>
                   </li>

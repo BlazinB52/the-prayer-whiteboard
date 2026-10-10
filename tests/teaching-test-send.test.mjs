@@ -87,6 +87,10 @@ test("the admin teaching edit page exposes the teaching test send form", async (
   assert.match(page, /import \{ TeachingTestSendForm \} from "\.\.\/\.\.\/test-send-form";/);
   assert.match(page, /<TeachingTestSendForm teachingId=\{id\} \/>/);
 
+  // Always visible as its own card (like the devotional page), not tucked into a collapsed dropdown.
+  assert.match(page, /<section id="test-email"[^>]*>\s*<h2[^>]*>Send a test email<\/h2>\s*<div className="mt-4"><TeachingTestSendForm teachingId=\{id\} \/><\/div>/);
+  assert.doesNotMatch(page, /<summary[^>]*>Send a test email<\/summary>/);
+
   assert.match(form, /^"use client";/);
   assert.match(form, /"\/api\/admin\/teaching\/test-send"/);
   assert.match(form, /method: "POST"/);

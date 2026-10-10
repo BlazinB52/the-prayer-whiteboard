@@ -179,10 +179,10 @@ export default async function EditTeachingPage({ params, searchParams }: { param
             <div><dt>Last updated</dt><dd className="font-bold text-[#385245]">{new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(teaching.updated_at))}</dd></div>
           </dl>
           {teaching.status === "published" ? <Link href={`/teachings/${teaching.slug}`} className="mt-4 inline-flex font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">View public teaching</Link> : null}
-          <details className="mt-4">
-            <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Send a test email</summary>
-            <div className="mt-4"><TeachingTestSendForm teachingId={id} /></div>
-          </details>
+        </section>
+        <section id="test-email" className="mt-6 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
+          <h2 className="text-2xl font-extrabold text-[#243d31]">Send a test email</h2>
+          <div className="mt-4"><TeachingTestSendForm teachingId={id} /></div>
         </section>
         <TeachingForm
           action={updateTeaching.bind(null, id)}

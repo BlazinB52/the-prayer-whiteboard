@@ -240,6 +240,14 @@ function getSectionContentParts(value: Content, alignment: HighlightHorizontalAl
     };
   }
 
+  if (value.format === "quote") {
+    const quoteParagraphs = getParagraphs(value.text);
+    return {
+      first: quoteParagraphs.length > 0 ? <div className="ml-4 border-l-4 border-[#c99a52] pl-4"><Paragraphs paragraphs={quoteParagraphs.slice(0, 1)} /></div> : null,
+      rest: quoteParagraphs.length > 1 ? <div className="ml-4 border-l-4 border-[#c99a52] pl-4"><Paragraphs paragraphs={quoteParagraphs.slice(1)} /></div> : null,
+    };
+  }
+
   const paragraphs = getParagraphs(value.text);
   const className = value.format === "takeaway" ? "font-bold text-[#385245]" : undefined;
 

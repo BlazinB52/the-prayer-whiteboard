@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
+import { QuoteBlock } from "@/app/quote-block";
 import { ScriptureBlock } from "@/app/scripture-block";
 import { stripWrappingQuotes } from "@/lib/anchor-scripture-format";
 
@@ -16,7 +17,7 @@ export type SectionCallout = {
 };
 
 export type SectionContentValue = {
-  format: "paragraph" | "bullets" | "scripture" | "takeaway";
+  format: "paragraph" | "bullets" | "scripture" | "takeaway" | "quote";
   text?: string;
   introduction?: string;
   conclusion?: string;
@@ -115,7 +116,7 @@ function renderSectionBody({ value, title }: { value: SectionContentValue; title
     );
   }
 
-  const textContent = value.format === "takeaway" ? <TextParagraphs text={value.text} className="space-y-3 font-bold text-[#385245]" /> : <TextParagraphs text={value.text} className="space-y-3 text-[#52645a]" />;
+  const textContent = value.format === "quote" ? <QuoteBlock><TextParagraphs text={value.text} className="space-y-3" /></QuoteBlock> : value.format === "takeaway" ? <TextParagraphs text={value.text} className="space-y-3 font-bold text-[#385245]" /> : <TextParagraphs text={value.text} className="space-y-3 text-[#52645a]" />;
 
   return (
     <>
@@ -156,7 +157,7 @@ export function CalloutSection({ title, value, callout, alignment = "left", clas
               {value.quotation || value.reference ? <ScriptureBlock className="text-[#243126]" reference={<>{String(value.reference ?? "")} {value.translation ? <>(<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</>}><TextParagraphs text={stripWrappingQuotes(String(value.quotation ?? ""))} className="space-y-3" /></ScriptureBlock> : null}
             </>
           ) : (
-            <TextParagraphs text={value.text} className={value.format === "takeaway" ? "space-y-3 font-bold text-[#385245]" : "space-y-3"} />
+            value.format === "quote" ? <QuoteBlock><TextParagraphs text={value.text} className="space-y-3" /></QuoteBlock> : <TextParagraphs text={value.text} className={value.format === "takeaway" ? "space-y-3 font-bold text-[#385245]" : "space-y-3"} />
           )}
         </div>
       </div>

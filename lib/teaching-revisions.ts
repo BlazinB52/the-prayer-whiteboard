@@ -64,7 +64,7 @@ function text(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
-const FORMAT_LABELS: Record<string, string> = { paragraph: "Paragraph", takeaway: "Takeaway", bullets: "Bullets", scripture: "Scripture" };
+const FORMAT_LABELS: Record<string, string> = { paragraph: "Paragraph", takeaway: "Takeaway", quote: "Quote", bullets: "Bullets", scripture: "Scripture" };
 
 /**
  * Every field a co-editor may propose changes to, in reading order, with the approved wording.
@@ -99,8 +99,8 @@ export function buildEditableFields(teaching: TeachingRow, categories: CategoryR
         fields.push({ id: fieldId("section", section.id, fieldKey), targetKind: "section", targetId: section.id, fieldKey, label, context, current, maxLength, multiline, rows, formatted });
       };
       add("title", "Section title", section.title, 160, false, 1, false);
-      if (format === "paragraph" || format === "takeaway") {
-        add("text", format === "takeaway" ? "Takeaway text" : "Text", text(data.text), 12000, true, 8, true);
+      if (format === "paragraph" || format === "takeaway" || format === "quote") {
+        add("text", format === "takeaway" ? "Takeaway text" : format === "quote" ? "Quote text" : "Text", text(data.text), 12000, true, 8, true);
       } else if (format === "bullets") {
         const bullets = Array.isArray(data.bullets) ? data.bullets.filter((item): item is string => typeof item === "string") : [];
         add("introduction", "Introductory note", text(data.introduction), 12000, true, 3, true);

@@ -20,12 +20,12 @@ export const TEACHING_IMPORT_LIMITS = {
 } as const;
 
 export type ImportedSection =
-  | { format: "paragraph" | "takeaway"; title: string; showTitle: boolean; text: string }
+  | { format: "paragraph" | "takeaway" | "quote"; title: string; showTitle: boolean; text: string }
   | { format: "bullets"; title: string; showTitle: boolean; bullets: string[] }
   | { format: "scripture"; title: string; showTitle: boolean; reference: string; translation: string; quotation: string };
 
 type SectionDraft =
-  | { format: "paragraph" | "takeaway"; text: string }
+  | { format: "paragraph" | "takeaway" | "quote"; text: string }
   | { format: "bullets"; bullets: string[] }
   | { format: "scripture"; reference: string; translation: string; quotation: string };
 
@@ -53,7 +53,7 @@ export type TeachingDocxParts = {
   hasComments?: boolean;
 };
 
-type Kind = "title" | "subtitle" | "h1" | "h2" | "h3plus" | "normal" | "scripture" | "bullet" | "takeaway" | "callout" | "other";
+type Kind = "title" | "subtitle" | "h1" | "h2" | "h3plus" | "normal" | "scripture" | "bullet" | "takeaway" | "quote" | "callout" | "other";
 
 export type Inline = { text: string; bold: boolean; italic: boolean; href: string | null; linkLabelIssue?: string };
 
@@ -75,12 +75,14 @@ const CATEGORY_KIND_BY_NAME: Record<string, Kind> = {
   scripturequote: "scripture",
   listbullet: "bullet",
   takeaway: "takeaway",
+  quote: "quote",
+  intensequote: "quote",
   callout: "callout",
 };
 
 const METADATA_LABELS = ["Central Theme", "Introduction", "Short Summary"] as const;
 const RESERVED_LABELS = new Set(METADATA_LABELS.map((label) => label.toLowerCase()));
-const SECTION_TYPE_LABEL = { paragraph: "Paragraph", takeaway: "Takeaway", bullets: "Bullets", scripture: "Scripture" } as const;
+const SECTION_TYPE_LABEL = { paragraph: "Paragraph", takeaway: "Takeaway", quote: "Quote", bullets: "Bullets", scripture: "Scripture" } as const;
 const TRACKED_CHANGE_ELEMENTS = ["w:ins", "w:del", "w:moveFrom", "w:moveTo", "w:rPrChange", "w:pPrChange"];
 
 function normalizeStyleKey(value: string) {
@@ -565,6 +567,11 @@ export function parseTeachingDocxParts(parts: TeachingDocxParts): TeachingImport
       const text = formatted(block);
       if (text.length > TEACHING_IMPORT_LIMITS.sectionText) errors.push(`A takeaway in “${category.title}” is longer than ${TEACHING_IMPORT_LIMITS.sectionText.toLocaleString()} characters.`);
       addSection({ format: "takeaway", text });
+    } else if (block.kind === "quote") {
+      flushRun();
+      const text = formatted(block);
+      if (text.length > TEACHING_IMPORT_LIMITS.sectionText) errors.push(`A quote in “${category.title}” is longer than ${TEACHING_IMPORT_LIMITS.sectionText.toLocaleString()} characters.`);
+      addSection({ format: "quote", text });
     }
   }
 

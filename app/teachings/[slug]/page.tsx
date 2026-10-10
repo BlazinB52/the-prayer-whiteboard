@@ -11,6 +11,7 @@ import { ContentFooter } from "@/app/content-footer";
 import { EmailUpdatesCta } from "@/app/email-updates-cta";
 import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
 import { ScriptureCopyrightNotice } from "@/app/scripture-copyright-notice";
+import { QuoteBlock } from "@/app/quote-block";
 import { ScriptureBlock } from "@/app/scripture-block";
 import { stripWrappingQuotes } from "@/lib/anchor-scripture-format";
 import { FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER } from "@/lib/copyright-disclaimer-format";
@@ -154,6 +155,7 @@ function SectionContent({ value, isCallout = false, alignment = "left" }: { valu
     const hasIntroduction = getParagraphs(value.introduction).length > 0;
     return <div>{hasIntroduction ? <TextParagraphs text={value.introduction} /> : null}<ScriptureBlock className={`${hasIntroduction ? "mt-4 " : ""}text-[#243126]`} reference={<>{String(value.reference ?? "")}{value.translation ? <> (<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</>}><TextParagraphs text={stripWrappingQuotes(String(value.quotation ?? ""))} /></ScriptureBlock></div>;
   }
+  if (value.format === "quote") return <QuoteBlock><TextParagraphs text={value.text} /></QuoteBlock>;
   return <TextParagraphs text={value.text} className={value.format === "takeaway" ? "font-bold text-[#385245]" : undefined} />;
 }
 

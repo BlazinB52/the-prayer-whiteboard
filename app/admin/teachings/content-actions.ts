@@ -13,7 +13,7 @@ const EDITABLE_TEACHING_STATUSES = ["draft", "published"];
 type HighlightHorizontalAlignment = "left" | "center";
 
 export type ContentActionState = { error?: string; saved?: boolean };
-export type SectionFormat = "paragraph" | "bullets" | "scripture" | "takeaway";
+export type SectionFormat = "paragraph" | "bullets" | "scripture" | "takeaway" | "quote";
 type SectionCalloutType = "our-prayer" | "application-for-believers" | "custom";
 type SectionCalloutStyle = "filled" | "outline" | "soft";
 type SectionCallout = {
@@ -26,7 +26,7 @@ type SectionCallout = {
 
 /** Version 1 is importer-friendly: one typed block with plain text fields only. */
 type SectionContent =
-  | { version: 1; format: "paragraph" | "takeaway"; text: string; showTitle?: boolean; homepageHighlight?: boolean; callout?: SectionCallout }
+  | { version: 1; format: "paragraph" | "takeaway" | "quote"; text: string; showTitle?: boolean; homepageHighlight?: boolean; callout?: SectionCallout }
   | {
       version: 1;
       format: "bullets";
@@ -62,7 +62,7 @@ function readText(formData: FormData, name: string, label: string, maxLength: nu
 
 function readFormat(formData: FormData) {
   const value = String(formData.get("format") ?? "");
-  if (!["paragraph", "bullets", "scripture", "takeaway"].includes(value)) {
+  if (!["paragraph", "bullets", "scripture", "takeaway", "quote"].includes(value)) {
     return { error: "Choose a valid section format." };
   }
   return { value: value as SectionFormat };

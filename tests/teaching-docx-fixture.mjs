@@ -13,6 +13,7 @@ const STYLES = [
   ["Takeaway", "Takeaway"],
   ["Callout", "Callout"],
   ["Quote", "Quote"],
+  ["BlockText", "Block Text"],
 ];
 
 const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"';

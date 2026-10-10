@@ -273,12 +273,12 @@ test("exactly one Title is required", () => {
 
 test("comments, tables, text boxes, images, and unsupported styles warn without blocking", () => {
   const paragraphs = validTeaching();
-  paragraphs.splice(9, 0, ["Quote", "An unsupported style paragraph."]);
+  paragraphs.splice(9, 0, ["BlockText", "An unsupported style paragraph."]);
   paragraphs.push("<w:p><w:r><w:drawing/></w:r></w:p>");
   paragraphs.push("<w:p><w:r><mc:AlternateContent><w:drawing><w:txbxContent><w:p><w:r><w:t>boxed text</w:t></w:r></w:p></w:txbxContent></w:drawing></mc:AlternateContent></w:r></w:p>");
   const result = parse(paragraphs, { hasComments: true, rawBody: "<w:tbl><w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>" });
   assert.equal(result.ok, true, result.errors.join("\n"));
-  for (const pattern of [/comments/, /table/, /text box/i, /image/i, /“Quote” style will not be imported/]) {
+  for (const pattern of [/comments/, /table/, /text box/i, /image/i, /“Block Text” style will not be imported/]) {
     assert.ok(result.warnings.some((message) => pattern.test(message)), `missing warning ${pattern}`);
   }
   const text = JSON.stringify(result.teaching);
@@ -288,7 +288,7 @@ test("comments, tables, text boxes, images, and unsupported styles warn without 
 
 test("bullet points must use the List Bullet style", () => {
   const paragraphs = validTeaching();
-  paragraphs.push('<w:p><w:pPr><w:pStyle w:val="Quote"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="3"/></w:numPr></w:pPr><w:r><w:t>Bulleted by hand</w:t></w:r></w:p>');
+  paragraphs.push('<w:p><w:pPr><w:pStyle w:val="BlockText"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="3"/></w:numPr></w:pPr><w:r><w:t>Bulleted by hand</w:t></w:r></w:p>');
   assertError(parse(paragraphs), /Use the List Bullet style/);
 });
 

@@ -27,6 +27,7 @@ export function stylesXml() {
     style({ id: "Heading2", name: "heading 2", ppr: '<w:keepNext/><w:spacing w:before="240" w:after="100"/><w:outlineLvl w:val="1"/>', rpr: '<w:b/><w:color w:val="946332"/><w:sz w:val="28"/><w:szCs w:val="28"/>', priority: 9 }),
     style({ id: "ScriptureQuote", name: "Scripture Quote", custom: true, ppr: '<w:spacing w:before="120" w:after="160"/><w:ind w:left="360" w:right="360"/>', rpr: '<w:color w:val="385245"/>', priority: 20 }),
     style({ id: "ListBullet", name: "List Bullet", ppr: '<w:numPr><w:numId w:val="1"/></w:numPr><w:spacing w:after="80"/><w:ind w:left="720" w:hanging="360"/><w:contextualSpacing/>', priority: 36 }),
+    style({ id: "Quote", name: "Quote", custom: true, ppr: '<w:pBdr><w:left w:val="single" w:sz="24" w:space="8" w:color="C99A52"/></w:pBdr><w:spacing w:before="120" w:after="160"/><w:ind w:left="480"/>', priority: 20 }),
     style({ id: "Takeaway", name: "Takeaway", custom: true, ppr: '<w:pBdr><w:left w:val="single" w:sz="24" w:space="8" w:color="D9B24D"/></w:pBdr><w:spacing w:before="120" w:after="160"/><w:ind w:left="240"/>', rpr: "<w:b/>", priority: 20 }),
   ].join("");
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${W}><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="${FONT}" w:hAnsi="${FONT}" w:eastAsia="${FONT}" w:cs="${FONT}"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="en-US"/></w:rPr></w:rPrDefault></w:docDefaults>${styles}</w:styles>`;
@@ -60,6 +61,7 @@ export function sampleBody() {
     para("ListBullet", text("Use real Word bullets in the List Bullet style.")),
     para("ListBullet", text("Consecutive bullets become one bullets section.")),
     para("Takeaway", text("A Takeaway paragraph becomes its own takeaway section.")),
+    para("Quote", text("A Quote paragraph becomes its own quote section, shown with a gold line down its left side. It has no Bible reference or translation.")),
   ].join("");
 }
 

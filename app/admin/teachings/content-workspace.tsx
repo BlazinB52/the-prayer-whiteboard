@@ -3,6 +3,7 @@
 import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
+import { QuoteBlock } from "@/app/quote-block";
 import { ScriptureBlock } from "@/app/scripture-block";
 import { stripWrappingQuotes } from "@/lib/anchor-scripture-format";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
@@ -284,7 +285,7 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
           <p className="mt-1 text-xs text-[#607066]">Uncheck when the category heading already introduces this section.</p>
         </div>
       </div>
-      <label className="block text-sm font-bold text-[#385245]">Format<select value={selectedFormat} onChange={(event) => setSelectedFormat(event.target.value as SectionFormat)} className="admin-input"><option value="paragraph">Paragraph</option><option value="bullets">Bullet list</option><option value="scripture">Scripture</option><option value="takeaway">Takeaway or confession</option></select></label>
+      <label className="block text-sm font-bold text-[#385245]">Format<select value={selectedFormat} onChange={(event) => setSelectedFormat(event.target.value as SectionFormat)} className="admin-input"><option value="paragraph">Paragraph</option><option value="bullets">Bullet list</option><option value="scripture">Scripture</option><option value="takeaway">Takeaway or confession</option><option value="quote">Quote (gold line)</option></select></label>
       {selectedFormat === "scripture" ? (
         <>
           <FormattedTextarea label="Introductory note" help="A brief statement that appears before the Scripture." name="introduction" value={introduction} onValueChange={setIntroduction} rows={3} maxLength={12000} />
@@ -311,7 +312,7 @@ function SectionForm({ action, values, categories, currentCategoryId, submitLabe
 function sectionValues(section: Section): SectionValues {
   const { content, title } = section;
   const value = content && typeof content === "object" ? (content as Record<string, unknown>) : {};
-  const format = ["paragraph", "bullets", "scripture", "takeaway"].includes(String(value.format)) ? (String(value.format) as SectionFormat) : "paragraph";
+  const format = ["paragraph", "bullets", "scripture", "takeaway", "quote"].includes(String(value.format)) ? (String(value.format) as SectionFormat) : "paragraph";
 
   return {
     title,
@@ -392,7 +393,7 @@ function SectionPreview({ content, title, highlightHorizontalAlignment }: { cont
       {value.quotation || value.reference ? <ScriptureBlock className="text-[#243126]" reference={<>{String(value.reference ?? "")}{value.translation ? <> (<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</>}><TextParagraphs text={stripWrappingQuotes(String(value.quotation ?? ""))} /></ScriptureBlock> : null}
     </>
   ) : (
-    <div className={value.format === "takeaway" ? "space-y-3 font-bold text-[#385245]" : "space-y-3"}><TextParagraphs text={value.text} /></div>
+    value.format === "quote" ? <QuoteBlock><TextParagraphs text={value.text} /></QuoteBlock> : <div className={value.format === "takeaway" ? "space-y-3 font-bold text-[#385245]" : "space-y-3"}><TextParagraphs text={value.text} /></div>
   );
 
   if (!callout || !callout.enabled) {

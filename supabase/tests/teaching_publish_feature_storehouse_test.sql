@@ -169,15 +169,19 @@ update public.teachings
 set teaser_1_text = 'First teaser text.'
 where id = (select id from teaching_publish_test_ids where key = 'first_teaching');
 
-select throws_ok(
+-- A draft may hold a half-filled teaser 2 (20261007010000), so co-editor changes can be accepted one at a
+-- time; the pair is enforced once a teaching leaves draft and by the publish function.
+select lives_ok(
   $$ update public.teachings
      set teaser_2_heading = 'Incomplete second teaser',
          teaser_2_text = null
      where id = (select id from teaching_publish_test_ids where key = 'second_teaching') $$,
-  '23514',
-  null,
-  'database rejects incomplete teaser 2 values'
+  'a draft can hold an incomplete teaser 2 while it is being edited'
 );
+
+update public.teachings
+set teaser_2_heading = null
+where id = (select id from teaching_publish_test_ids where key = 'second_teaching');
 
 select throws_ok(
   $$ update public.teachings

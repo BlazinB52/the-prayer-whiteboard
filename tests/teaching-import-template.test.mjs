@@ -16,12 +16,12 @@ test("the companion Word template is well-formed and passes the teaching importe
   assert.deepEqual(result.warnings, []);
   assert.equal(result.teaching.categories.length, 2);
   const formats = result.teaching.categories.flatMap((category) => category.sections.map((section) => section.format));
-  assert.deepEqual([...new Set(formats)].sort(), ["bullets", "paragraph", "scripture", "takeaway"]);
+  assert.deepEqual([...new Set(formats)].sort(), ["bullets", "paragraph", "quote", "scripture", "takeaway"]);
 });
 
 test("the template installs the exact style names and IDs the import rules list", () => {
   const styles = openDocxPackage(buildTeachingTemplate()).readPart("word/styles.xml");
-  for (const [id, name] of [["Title", "Title"], ["Heading1", "heading 1"], ["Heading2", "heading 2"], ["Normal", "Normal"], ["ScriptureQuote", "Scripture Quote"], ["ListBullet", "List Bullet"], ["Takeaway", "Takeaway"]]) {
+  for (const [id, name] of [["Title", "Title"], ["Heading1", "heading 1"], ["Heading2", "heading 2"], ["Normal", "Normal"], ["ScriptureQuote", "Scripture Quote"], ["ListBullet", "List Bullet"], ["Takeaway", "Takeaway"], ["Quote", "Quote"]]) {
     assert.ok(styles.includes(`w:styleId="${id}"><w:name w:val="${name}"/>`), `missing style ${name} [${id}]`);
   }
   assert.equal(styles.includes("Subtitle"), false, "the template must not offer the Subtitle style");

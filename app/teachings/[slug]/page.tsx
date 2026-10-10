@@ -11,6 +11,8 @@ import { ContentFooter } from "@/app/content-footer";
 import { EmailUpdatesCta } from "@/app/email-updates-cta";
 import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
 import { ScriptureCopyrightNotice } from "@/app/scripture-copyright-notice";
+import { ScriptureBlock } from "@/app/scripture-block";
+import { stripWrappingQuotes } from "@/lib/anchor-scripture-format";
 import { FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER } from "@/lib/copyright-disclaimer-format";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { ESPANOL_COPYRIGHT_SHORT_FOOTER_ID } from "@/lib/espanol-constants";
@@ -150,7 +152,7 @@ function SectionContent({ value, isCallout = false, alignment = "left" }: { valu
   if (value.format === "bullets" && Array.isArray(value.bullets)) return <><TextParagraphs text={value.introduction} /><ul className={isCallout ? `${getCalloutBulletListClassName(alignment)} mt-3` : "mt-3 list-disc space-y-2 pl-6"}>{value.bullets.map((bullet) => <li key={String(bullet)}>{formatInlineText(bullet, { links: true })}</li>)}</ul><TextParagraphs text={value.conclusion} className="mt-3" /></>;
   if (value.format === "scripture") {
     const hasIntroduction = getParagraphs(value.introduction).length > 0;
-    return <div>{hasIntroduction ? <TextParagraphs text={value.introduction} /> : null}<p className={`${hasIntroduction ? "mt-3 " : ""}text-lg font-extrabold text-[#243126]`}>{String(value.reference ?? "")}{value.translation ? <> (<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</p><blockquote className="mt-3 border-l-4 border-[#d9d9d9] pl-6 text-lg leading-8 text-[#243126]"><TextParagraphs text={value.quotation} /></blockquote></div>;
+    return <div>{hasIntroduction ? <TextParagraphs text={value.introduction} /> : null}<ScriptureBlock className={`${hasIntroduction ? "mt-4 " : ""}text-[#243126]`} reference={<>{String(value.reference ?? "")}{value.translation ? <> (<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</>}><TextParagraphs text={stripWrappingQuotes(String(value.quotation ?? ""))} /></ScriptureBlock></div>;
   }
   return <TextParagraphs text={value.text} className={value.format === "takeaway" ? "font-bold text-[#385245]" : undefined} />;
 }

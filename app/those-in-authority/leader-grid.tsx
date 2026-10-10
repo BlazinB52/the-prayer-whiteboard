@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { LeaderPhoto } from "./leader-photo";
+import { ScriptureBlock } from "@/app/scripture-block";
+import { stripWrappingQuotes } from "@/lib/anchor-scripture-format";
 
 export type LeaderCard = {
   id: string;
@@ -94,14 +96,11 @@ export function LeaderGrid({ leaders }: { leaders: LeaderCard[] }) {
                 <p className="mt-0.5 text-xs font-black uppercase tracking-[0.1em] text-[#946332]">{selected.title}</p>
               </div>
 
-              <blockquote className="rounded-2xl border-l-4 border-[#c99a52] bg-[#fff6e4] px-3 py-3 text-[#3f4f45] shadow-inner shadow-[#8b6531]/5 sm:px-4">
-                {selected.scriptureText ? (
-                  <p className="whitespace-pre-wrap break-words text-sm italic leading-6">{selected.scriptureText}</p>
-                ) : null}
-                <cite className={`block text-[0.7rem] not-italic font-extrabold uppercase tracking-[0.14em] text-[#946332] ${selected.scriptureText ? "mt-2" : ""}`}>
-                  {selected.scriptureReference}
-                </cite>
-              </blockquote>
+              <div className="rounded-2xl bg-[#fff6e4] py-3 pr-3 text-[#3f4f45] shadow-inner shadow-[#8b6531]/5 sm:pr-4">
+                <ScriptureBlock size="sm" reference={selected.scriptureReference}>
+                  {selected.scriptureText ? stripWrappingQuotes(selected.scriptureText) : null}
+                </ScriptureBlock>
+              </div>
             </div>
 
             <section className="mt-5 rounded-2xl border-l-4 border-[#244a3a] bg-[#eaf2ec] px-4 py-3 shadow-inner shadow-[#244a3a]/5">

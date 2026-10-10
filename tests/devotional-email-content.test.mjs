@@ -40,8 +40,9 @@ test("anchor scriptures render verbatim from the database array", () => {
   const email = buildDevotionalDayEmail(baseInput);
 
   assert.match(email.html, /Anchor Scriptures/);
-  assert.match(email.html, /Jeremiah 31:12 — &quot;They shall come and sing in the height of Zion\.&quot;/);
-  assert.match(email.html, /<p[^>]*>Isaiah 35:10<\/p>/);
+  assert.match(email.html, /font-weight:700[^>]*>Jeremiah 31:12<\/p><p style="margin:0;font-style:italic[^>]*>They shall come and sing in the height of Zion\.<\/p>/);
+  assert.match(email.html, /font-weight:700[^>]*>Isaiah 35:10<\/p>/);
+  assert.match(email.text, /\n  Jeremiah 31:12\n  They shall come and sing in the height of Zion\./);
   assert.match(email.text, /\n  Isaiah 35:10/);
 });
 
@@ -51,10 +52,11 @@ test("the header never shows a '7-Day Devotional:' prefix, only the series title
   assert.doesNotMatch(email.text, /7-Day Devotional:/);
 });
 
-test("anchor scriptures are indented without bullets", () => {
+test("anchor scriptures use the standard verse style without bullets", () => {
   const email = buildDevotionalDayEmail(baseInput);
   assert.doesNotMatch(email.html.slice(email.html.indexOf("Anchor Scriptures"), email.html.indexOf("Devotional Reading")), /<li/);
-  assert.match(email.html, /<p style="margin:0 0 8px;padding-left:20px/);
+  assert.match(email.html, /border-left:4px solid #c99a52/, "a gold line down the left edge");
+  assert.match(email.html, /font-style:italic/, "the verse is italic");
 });
 
 test("bold, italic, links and bullets in the devotional carry into the email", () => {
@@ -64,7 +66,7 @@ test("bold, italic, links and bullets in the devotional carry into the email", (
     devotionalReading: "Read [this passage](https://example.com/a?x=1&y=2) **today**.\n\n- first point\n- second *point*",
     confession: "[bad](javascript:void0) stays as words.",
   });
-  assert.match(email.html, /<strong>John 3:16<\/strong> \(KJV\)/);
+  assert.match(email.html, /font-weight:700[^>]*>John 3:16 \(KJV\)<\/p>/);
   assert.match(email.html, /<em>God<\/em>/);
   assert.match(email.html, /<a href="https:\/\/example\.com\/a\?x=1&amp;y=2"[^>]*>this passage<\/a>/);
   assert.match(email.html, /<strong>today<\/strong>/);

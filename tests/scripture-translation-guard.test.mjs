@@ -104,6 +104,6 @@ test("devotional anchor-scripture lines render through the link-aware formatter,
   for (const site of sites) {
     const source = await readFile(site, "utf8");
     assert.doesNotMatch(source, /<li key=\{scripture\}>\{scripture\}<\/li>/, `${site} still renders anchor scriptures as raw unlinked strings`);
-    assert.match(source, /formatInlineText\(scripture, \{ links: true \}\)/, `${site} should route anchor scriptures through formatInlineText`);
+    assert.match(source, /<ScriptureList entries=/, `${site} should show anchor scriptures through the standard verse component`);
   }
 });

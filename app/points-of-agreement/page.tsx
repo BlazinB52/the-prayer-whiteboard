@@ -1,3 +1,5 @@
+import { ScriptureBlock, ScriptureList } from "@/app/scripture-block";
+import { groupScriptureEntries, stripWrappingQuotes } from "@/lib/anchor-scripture-format";
 import type { Metadata } from "next";
 import { buildPageMetadata } from "@/lib/alternates";
 import { ArrowRight, HeartHandshake } from "lucide-react";
@@ -48,12 +50,9 @@ export default async function PointsOfAgreementPage() {
           </p>
           <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{guideSettings.title}</h1>
           <p className="mt-4 max-w-3xl text-lg font-bold leading-8 text-[#52645a]">{formatInlineText(guideSettings.subtitle, { links: true })}</p>
-          <blockquote className="mt-8 border-l-4 border-[#d2a34f] pl-5 text-lg italic leading-8 text-[#4d5f52]">
-            <p>{formatInlineText(guideSettings.opening_scripture, { links: true })}</p>
-            <cite className="mt-3 block text-xs not-italic font-extrabold uppercase tracking-[0.18em] text-[#946332]">
-              {guideSettings.opening_scripture_reference}
-            </cite>
-          </blockquote>
+          <ScriptureBlock className="mt-8 text-[#4d5f52]" reference={guideSettings.opening_scripture_reference}>
+            {formatInlineText(stripWrappingQuotes(guideSettings.opening_scripture), { links: true })}
+          </ScriptureBlock>
         </header>
 
         {pointsError ? (
@@ -81,12 +80,9 @@ export default async function PointsOfAgreementPage() {
         )}
 
         <footer className="mt-10 border-t border-[#284a3b]/15 pt-8">
-          <blockquote className="text-lg italic leading-8 text-[#4d5f52]">
-            <p>{formatInlineText(guideSettings.footer_quotation, { links: true })}</p>
-            <cite className="mt-3 block text-xs not-italic font-extrabold uppercase tracking-[0.18em] text-[#946332]">
-              {guideSettings.footer_scripture_reference}
-            </cite>
-          </blockquote>
+          <ScriptureBlock className="text-[#4d5f52]" reference={guideSettings.footer_scripture_reference}>
+            {formatInlineText(stripWrappingQuotes(guideSettings.footer_quotation), { links: true })}
+          </ScriptureBlock>
           <ScriptureCopyrightNotice content={emailDisclaimer?.content?.trim() || FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER} baseUrl={siteUrl()} />
           <a href="#top" className="mt-8 inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">
             Return to top <ArrowRight aria-hidden="true" size={18} className="-rotate-90" />
@@ -100,8 +96,22 @@ export default async function PointsOfAgreementPage() {
 }
 
 function GuideField({ label, value, variant }: { label: string; value: string; variant: "scripture" | "target" | "decree" | "direction" }) {
+  if (variant === "scripture") {
+    // Verses use the site-wide style. Text that does not read as "reference + verse" is still shown as one verse block.
+    const lines = value.split(/\r?\n/);
+    const referenced = groupScriptureEntries(lines).some((entry) => entry.reference);
+    return (
+      <div className="mt-5 sm:mt-6">
+        <h2 className="text-xs font-black uppercase tracking-[0.18em] text-[#243d31]">{label}:</h2>
+        <div className="mt-2 rounded-2xl bg-[#fff6e4] py-4 pr-4 text-[#3f4f45] shadow-inner shadow-[#8b6531]/5 sm:pr-5">
+          {referenced ? <ScriptureList entries={lines} /> : <ScriptureBlock>{formatInlineText(value, { links: true })}</ScriptureBlock>}
+        </div>
+      </div>
+    );
+  }
+
   const bodyClassName = {
-    scripture: "mt-2 rounded-2xl border-l-4 border-[#c99a52] bg-[#fff6e4] px-4 py-3 text-[#3f4f45] shadow-inner shadow-[#8b6531]/5 sm:px-5 sm:py-4 italic",
+    scripture: "",
     target: "mt-2 px-1 text-[#52645a]",
     decree: "mt-2 rounded-2xl border-l-4 border-[#244a3a] bg-[#eaf2ec] px-4 py-3 text-[#31483b] shadow-inner shadow-[#244a3a]/5 sm:px-5 sm:py-4",
     direction: "mt-2 rounded-2xl border border-[#d2a34f]/25 bg-[#fffaf0] px-4 py-3 text-[#5b6a61] sm:px-5",

@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
+import { ScriptureBlock } from "@/app/scripture-block";
+import { stripWrappingQuotes } from "@/lib/anchor-scripture-format";
 
 export type SectionCalloutType = "our-prayer" | "application-for-believers" | "custom";
 export type SectionCalloutStyle = "filled" | "outline" | "soft";
@@ -108,8 +110,7 @@ function renderSectionBody({ value, title }: { value: SectionContentValue; title
       <>
         {shouldShowTitle && title ? <h3 className="text-base font-extrabold text-[#385245]">{title}</h3> : null}
         {value.introduction ? <TextParagraphs text={value.introduction} className="space-y-3 text-[#52645a]" /> : null}
-        <p className="mt-3 text-lg font-extrabold text-[#243126]">{String(value.reference ?? "")} {value.translation ? <>(<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</p>
-        {value.quotation ? <blockquote className="mt-3 border-l-4 border-[#d9d9d9] pl-6 text-lg leading-8 text-[#243126]"><TextParagraphs text={value.quotation} className="space-y-3" /></blockquote> : null}
+        {value.quotation || value.reference ? <ScriptureBlock className="mt-4 text-[#243126]" reference={<>{String(value.reference ?? "")} {value.translation ? <>(<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</>}><TextParagraphs text={stripWrappingQuotes(String(value.quotation ?? ""))} className="space-y-3" /></ScriptureBlock> : null}
       </>
     );
   }
@@ -152,8 +153,7 @@ export function CalloutSection({ title, value, callout, alignment = "left", clas
           ) : value.format === "scripture" ? (
             <>
               {value.introduction ? <TextParagraphs text={value.introduction} className="space-y-3" /> : null}
-              <p className="text-lg font-extrabold text-[#243126]">{String(value.reference ?? "")} {value.translation ? <>(<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</p>
-              {value.quotation ? <blockquote className="mt-3 border-l-4 border-[#d9d9d9] pl-6 text-lg leading-8 text-[#243126]"><TextParagraphs text={value.quotation} className="space-y-3" /></blockquote> : null}
+              {value.quotation || value.reference ? <ScriptureBlock className="text-[#243126]" reference={<>{String(value.reference ?? "")} {value.translation ? <>(<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</>}><TextParagraphs text={stripWrappingQuotes(String(value.quotation ?? ""))} className="space-y-3" /></ScriptureBlock> : null}
             </>
           ) : (
             <TextParagraphs text={value.text} className={value.format === "takeaway" ? "space-y-3 font-bold text-[#385245]" : "space-y-3"} />

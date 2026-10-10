@@ -4,9 +4,9 @@ import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
 import { DevotionalTextBlock } from "@/app/devotional-text-block";
-import { formatInlineText } from "@/app/formatted-text";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicFooterEs } from "@/app/public-footer-es";
+import { ScriptureList } from "@/app/scripture-block";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import type { DevotionalDay } from "@/lib/devotionals";
@@ -87,7 +87,7 @@ export default async function PublicDevotionalDayPage({ params }: { params: Prom
         </header>
         <div className="mt-8 space-y-8">
           <DevotionalField title={t.anchorScriptures}>
-            <ul className="list-none space-y-2 pl-6">{(day as DevotionalDay).anchor_scriptures.map((scripture) => <li key={scripture}>{formatInlineText(scripture, { links: true })}</li>)}</ul>
+            <ScriptureList entries={(day as DevotionalDay).anchor_scriptures} />
           </DevotionalField>
           <DevotionalField title={t.devotionalReading}><DevotionalTextBlock text={day.devotional_reading} /></DevotionalField>
           <DevotionalField title={t.confession}><DevotionalTextBlock text={day.confession} /></DevotionalField>

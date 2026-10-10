@@ -148,10 +148,10 @@ test("co-editor actions only call the proposal functions, never the teaching tab
 
 test("Administrator actions require an Administrator and call the decision functions", async () => {
   const source = await readFile("app/admin/teaching-revisions/actions.ts", "utf8");
-  assert.equal((source.match(/await requireAdmin\(\)/g) ?? []).length, 4);
+  assert.equal((source.match(/await requireAdmin\(\)/g) ?? []).length, 5);
   assert.doesNotMatch(source, /service-role|createServiceRoleClient/);
   assert.deepEqual([...source.matchAll(/\.from\("([a-z_]+)"\)/g)].map((match) => match[1]), ["content_revisions"], "the only table access reads which kind of revision this is");
-  for (const name of ["review_teaching_revision_change", "review_all_teaching_revision_changes", "cancel_teaching_revision", "purge_revision_history", "review_devotional_revision_change", "review_all_devotional_revision_changes"]) {
+  for (const name of ["review_teaching_revision_change", "review_all_teaching_revision_changes", "cancel_teaching_revision", "purge_revision_history", "review_devotional_revision_change", "review_all_devotional_revision_changes", "mark_revision_opened"]) {
     assert.match(source, new RegExp(name));
   }
 });

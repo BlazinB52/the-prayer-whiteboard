@@ -3,6 +3,8 @@
 import { useActionState, useRef, useState } from "react";
 import Link from "next/link";
 import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
+import { ScriptureBlock } from "@/app/scripture-block";
+import { stripWrappingQuotes } from "@/lib/anchor-scripture-format";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 import type { ContentActionState, SectionFormat } from "./content-actions";
 import { CalloutSection, getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, getPresetDefaults, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment, type SectionCallout, type SectionCalloutStyle, type SectionCalloutType, type SectionContentValue } from "./callout-utils";
@@ -387,8 +389,7 @@ function SectionPreview({ content, title, highlightHorizontalAlignment }: { cont
   ) : value.format === "scripture" ? (
     <>
       {value.introduction ? <div className="space-y-3"><TextParagraphs text={value.introduction} /></div> : null}
-      <p className="text-lg font-extrabold text-[#243126]">{String(value.reference ?? "")}{value.translation ? <> (<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</p>
-      {value.quotation ? <blockquote className="mt-3 border-l-4 border-[#d9d9d9] pl-6 text-lg leading-8 text-[#243126]"><TextParagraphs text={value.quotation} /></blockquote> : null}
+      {value.quotation || value.reference ? <ScriptureBlock className="text-[#243126]" reference={<>{String(value.reference ?? "")}{value.translation ? <> (<ScriptureTranslationLabel translation={String(value.translation)} />)</> : null}</>}><TextParagraphs text={stripWrappingQuotes(String(value.quotation ?? ""))} /></ScriptureBlock> : null}
     </>
   ) : (
     <div className={value.format === "takeaway" ? "space-y-3 font-bold text-[#385245]" : "space-y-3"}><TextParagraphs text={value.text} /></div>

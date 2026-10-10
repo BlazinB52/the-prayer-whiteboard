@@ -220,8 +220,10 @@ function getSectionContentParts(value: Content, alignment: HighlightHorizontalAl
         rest: hasRest ? (
           <div className="print-scripture">
             <Paragraphs paragraphs={remainingIntroduction} />
-            <ScriptureReference value={value} />
-            <div className="mt-2 italic"><Paragraphs paragraphs={quotation} /></div>
+            <div className="mt-3 border-l-4 border-[#c99a52] pl-4">
+              <ScriptureReference value={value} className="font-bold text-[#385245]" />
+              <div className="mt-1 italic"><Paragraphs paragraphs={quotation} /></div>
+            </div>
           </div>
         ) : null,
       };
@@ -229,12 +231,12 @@ function getSectionContentParts(value: Content, alignment: HighlightHorizontalAl
 
     return {
       first: (
-        <div className="print-scripture">
+        <div className="print-scripture border-l-4 border-[#c99a52] pl-4">
           <ScriptureReference value={value} className="font-bold text-[#385245]" />
-          <div className="mt-2 italic"><Paragraphs paragraphs={quotation.slice(0, 1)} /></div>
+          <div className="mt-1 italic"><Paragraphs paragraphs={quotation.slice(0, 1)} /></div>
         </div>
       ),
-      rest: quotation.length > 1 ? <div className="print-scripture italic"><Paragraphs paragraphs={quotation.slice(1)} /></div> : null,
+      rest: quotation.length > 1 ? <div className="print-scripture border-l-4 border-[#c99a52] pl-4 italic"><Paragraphs paragraphs={quotation.slice(1)} /></div> : null,
     };
   }
 

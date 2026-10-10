@@ -1,6 +1,7 @@
 import { button, escapeHtml } from "./subscription-email-content.ts";
 import { formattedBlocksHtml, formattedBlocksText, formattedInlineHtml, formattedInlineText } from "./formatted-email-text.ts";
 import type { EmailCopyrightDisclaimer } from "./copyright-disclaimer-format.ts";
+import { groupScriptureEntries, stripWrappingQuotes, type ScriptureEntry } from "./anchor-scripture-format.ts";
 
 // The day link is resolved from the devotional's own slug rather than from a
 // parent teaching's, so a series that is shared between teachings, or that has
@@ -20,7 +21,8 @@ function field(title: string, bodyHtml: string) {
 
 function scripturesFieldHtml(scriptures: string[]) {
   if (!scriptures.length) return "";
-  return field("Anchor Scriptures", scriptures.map((scripture) => `<p style="margin:0 0 8px;padding-left:20px;line-height:1.7;">${formattedInlineHtml(scripture)}</p>`).join(""));
+  // The standard verse style: bold reference, the verse directly under it in italics, gold line on the left.
+  return field("Anchor Scriptures", groupScriptureEntries(scriptures).map((entry) => `<div style="margin:0 0 18px;padding-left:16px;border-left:4px solid #c99a52;">${entry.reference ? `<p style="margin:0 0 4px;font-weight:700;line-height:1.5;">${formattedInlineHtml(entry.reference)}</p>` : ""}${entry.quote ? `<p style="margin:0;font-style:italic;line-height:1.7;">${formattedInlineHtml(stripWrappingQuotes(entry.quote))}</p>` : ""}</div>`).join(""));
 }
 
 function textFieldHtml(title: string, text: string | null) {
@@ -30,7 +32,12 @@ function textFieldHtml(title: string, text: string | null) {
 
 function scripturesText(scriptures: string[]) {
   if (!scriptures.length) return "";
-  return `\nAnchor Scriptures\n${scriptures.map((scripture) => `  ${formattedInlineText(scripture)}`).join("\n")}`;
+  const verse = (entry: ScriptureEntry) => {
+    if (!entry.reference) return `  ${formattedInlineText(entry.quote)}`;
+    const reference = `  ${formattedInlineText(entry.reference)}`;
+    return entry.quote ? `${reference}\n  ${formattedInlineText(stripWrappingQuotes(entry.quote))}` : reference;
+  };
+  return `\nAnchor Scriptures\n${groupScriptureEntries(scriptures).map(verse).join("\n\n")}`;
 }
 
 function textFieldText(title: string, text: string | null) {

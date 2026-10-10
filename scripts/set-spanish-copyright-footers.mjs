@@ -4,17 +4,16 @@
 // Bible versions the site quotes: Reina-Valera 1960 (RVR1960) and Nueva Versión
 // Internacional (NVI).
 //
-// Wording rules (researched from each publisher's own published terms):
-//  - The site does NOT hold individual written permission from either publisher.
-//    It quotes within their published standing limits (500 verses, under 25% of
-//    the work, never a whole book, acknowledgment given). So the notices say the
-//    quotes are used under each publisher's published usage norms, and do not
-//    say "usado con permiso".
-//  - RVR1960: copyright lines and the trademark line are the American Bible
-//    Society's published wording. NVI: Biblica's current acknowledgment
-//    (1999, 2015, 2022), latest edition only.
-//  - Register: formal, impersonal Salvadoran Spanish (no "vosotros"; no voseo in
-//    legal text).
+// Wording rules (from each publisher's own published terms):
+//  - Both publishers PRESCRIBE an acknowledgment that ends "Utilizado con permiso" /
+//    "Usado con permiso de Biblica, Inc." and both policies say quotation within their
+//    published limits needs no written permission. So the prescribed wording is kept
+//    verbatim: it refers to the permission each policy grants, and it is not a claim
+//    of individual written permission. A sentence says the quotes follow each
+//    publisher's published usage norms.
+//  - RVR1960: copyright and trademark lines are the American Bible Society's published
+//    wording. NVI: Biblica's current acknowledgment (1999, 2015, 2022), latest edition only.
+//  - Register: formal, impersonal Salvadoran Spanish (no "vosotros"; no voseo in legal text).
 //
 // The long footer renders on /espanol/derechos-de-autor; the short footer prints
 // on Español teachings and goes in Spanish emails ("aquí" becomes the page URL).
@@ -30,19 +29,19 @@ const SHORT_ID = "08692da6-d826-47cb-a497-34ad90e11a71";
 
 const LONG = `Las citas bíblicas de este sitio se usan conforme a las normas de uso que publica cada editor. Las versiones citadas son la Reina-Valera 1960 (RVR1960) y la Nueva Versión Internacional (NVI).
 
-Las citas bíblicas marcadas (RVR1960) fueron tomadas de la versión Reina-Valera © 1960 Sociedades Bíblicas en América Latina; © renovado 1988 Sociedades Bíblicas Unidas. Se citan conforme a las [normas de uso publicadas por la Sociedad Bíblica Americana](https://www.americanbible.org/rights-and-permissions/).
+Las citas bíblicas marcadas (RVR1960) son tomadas de la Reina-Valera 1960. El texto bíblico ha sido tomado de la versión Reina-Valera © 1960 Sociedades Bíblicas en América Latina; © renovado 1988 Sociedades Bíblicas Unidas. Utilizado con permiso. Se citan conforme a las [normas de uso publicadas por la Sociedad Bíblica Americana](https://www.americanbible.org/rights-and-permissions/).
 
 Reina-Valera 1960® es una marca registrada de Sociedades Bíblicas Unidas, y se puede usar solamente bajo licencia.
 
-Las citas bíblicas marcadas (NVI) fueron tomadas de la Santa Biblia, Nueva Versión Internacional® NVI® © 1999, 2015, 2022 por [Biblica, Inc.](https://www.biblica.com)® Se citan conforme a las [normas de uso publicadas por Biblica](https://www.biblica.com/permissions/). Reservados todos los derechos en todo el mundo.
+Las citas bíblicas marcadas (NVI) fueron tomadas de la Santa Biblia, Nueva Versión Internacional® NVI® © 1999, 2015, 2022 por [Biblica, Inc.](https://www.biblica.com)® Usado con permiso de Biblica, Inc.® Reservados todos los derechos en todo el mundo. Se citan conforme a las [normas de uso publicadas por Biblica](https://www.biblica.com/permissions/).
 
 El comentario original, la organización, el contenido editorial y la presentación © 2026 The Prayer Whiteboard. Todos los derechos reservados. Las citas bíblicas y cualquier material de enseñanza de terceros siguen siendo propiedad de sus respectivos titulares de derechos de autor.`;
 
 const SHORT = `Las citas bíblicas son de la Reina-Valera 1960 (RVR1960) y de la Nueva Versión Internacional (NVI). Los reconocimientos de derechos de autor completos se pueden ver aquí.
 
-RVR1960: Reina-Valera © 1960 Sociedades Bíblicas en América Latina; © renovado 1988 Sociedades Bíblicas Unidas. Reina-Valera 1960® es una marca registrada de Sociedades Bíblicas Unidas, y se puede usar solamente bajo licencia.
+RVR1960: Reina-Valera © 1960 Sociedades Bíblicas en América Latina; © renovado 1988 Sociedades Bíblicas Unidas. Utilizado con permiso. Reina-Valera 1960® es una marca registrada de Sociedades Bíblicas Unidas, y se puede usar solamente bajo licencia.
 
-NVI: Santa Biblia, Nueva Versión Internacional® NVI® © 1999, 2015, 2022 por Biblica, Inc.® Reservados todos los derechos en todo el mundo.
+NVI: Santa Biblia, Nueva Versión Internacional® NVI® © 1999, 2015, 2022 por Biblica, Inc.® Usado con permiso de Biblica, Inc.® Reservados todos los derechos en todo el mundo.
 
 Contenido original © 2026 The Prayer Whiteboard. Todos los derechos reservados.`;
 

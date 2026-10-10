@@ -100,7 +100,6 @@ test("weekly update emails include the short copyright disclaimer without changi
     title: "This Week at the Whiteboard",
     bodyMarkdown: "First paragraph.\n\nSecond paragraph.",
     convertedContent: [],
-    weeklyUpdateUrl: "https://theprayerwhiteboard.com/weekly-update",
     preferencesUrl: "https://theprayerwhiteboard.com/email-preferences",
     copyrightDisclaimer,
   });
@@ -117,7 +116,6 @@ test("weekly update HTML links only the word here, not the surrounding sentence"
     title: "This Week at the Whiteboard",
     bodyMarkdown: "First paragraph.",
     convertedContent: [],
-    weeklyUpdateUrl: "https://theprayerwhiteboard.com/weekly-update",
     preferencesUrl: "https://theprayerwhiteboard.com/email-preferences",
     copyrightDisclaimer,
   });

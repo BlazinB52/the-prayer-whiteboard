@@ -12,28 +12,26 @@ function build(language) {
     title: "Actualización",
     bodyMarkdown: "Gracias por orar con nosotros.",
     convertedContent: blocks,
-    weeklyUpdateUrl: language === "es" ? `${BASE}/espanol/actualizacion-semanal` : `${BASE}/weekly-update`,
     preferencesUrl: language === "es" ? `${BASE}/espanol/preferencias` : `${BASE}/email-preferences`,
     language,
   });
 }
 
-test("the Español weekly update email is fully Spanish, has no greeting, and links only to Español pages", () => {
+test("the Español weekly update email is fully Spanish, has no greeting, no read-online button, and links only to Español pages", () => {
   const email = build("es");
   for (const part of [email.html, email.text]) {
-    assert.match(part, /espanol\/actualizacion-semanal/);
     assert.match(part, /espanol\/preferencias/);
     assert.doesNotMatch(part, /Read It Online|Read it online|You are receiving|Manage your email/);
     assert.doesNotMatch(part, /Hola|Hello|Hi /);
   }
-  assert.match(email.html, /Leer en línea/);
+  assert.doesNotMatch(email.html + email.text, /Leer en línea|Leé en línea/);
   assert.match(email.html, /Recibís este mensaje/);
   assert.doesNotMatch(email.html, /\/weekly-update"|\/email-preferences"/);
 });
 
 test("the English weekly update email is unchanged and never contains Spanish wording", () => {
   const email = build("en");
-  assert.match(email.html, /Read It Online/);
+  assert.doesNotMatch(email.html + email.text, /Read It Online|Read it online/);
   assert.match(email.html, /You are receiving this because you subscribed to Prayer Whiteboard Weekly Updates\./);
   assert.doesNotMatch(email.html + email.text, /Leer en línea|Recibís|espanol/);
   assert.equal(build("en").subject, email.subject);
@@ -46,7 +44,6 @@ test("the Español email footer carries the RVR1960 and NVI notice", () => {
     title: "t",
     bodyMarkdown: "x",
     convertedContent: blocks,
-    weeklyUpdateUrl: `${BASE}/espanol/actualizacion-semanal`,
     preferencesUrl: `${BASE}/espanol/preferencias`,
     copyrightDisclaimer: buildEmailCopyrightDisclaimer(FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER_ES, BASE, "es"),
     language: "es",
@@ -70,7 +67,6 @@ test("the recipient guard refuses to send when anyone did not choose the languag
 test("a weekly update's language decides recipients, wording, links, and footer", async () => {
   const code = await readFile("lib/weekly-update-broadcast.ts", "utf8");
   assert.match(code, /const language = update\.language;/);
-  assert.match(code, /espanol\/actualizacion-semanal/);
   assert.match(code, /espanol\/preferencias/);
   assert.match(code, /getEmailCopyrightDisclaimer\(base, language\)/);
   assert.match(code, /language,\r?\n/);

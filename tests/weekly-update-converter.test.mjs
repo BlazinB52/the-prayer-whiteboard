@@ -128,7 +128,6 @@ test("a full weekly update email carries the link in the HTML and the address in
     title: "Weekly Update",
     bodyMarkdown: converted.plainText,
     convertedContent: converted.blocks,
-    weeklyUpdateUrl: "https://theprayerwhiteboard.com/weekly-update",
     preferencesUrl: "https://theprayerwhiteboard.com/email-preferences",
   });
   assert.match(email.html, /<a href="https:\/\/example\.com\/register"[^>]*>here<\/a>/);

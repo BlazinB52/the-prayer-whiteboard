@@ -22,12 +22,12 @@ export type BroadcastOutcome =
 
 type WeeklyUpdateRow = { id: string; title: string; body_markdown: string; converted_content: unknown; language: "en" | "es" };
 
-// Everything language-specific about one send, taken from the update's own language: the page the
-// email links to and the preferences page. (The recipients, the wording and the footer follow the same language.)
+// Everything language-specific about one send, taken from the update's own language: the preferences
+// page the email links to. (The recipients, the wording and the footer follow the same language.)
 function linksFor(base: string, language: "en" | "es") {
   return language === "es"
-    ? { weeklyUpdateUrl: `${base}/espanol/actualizacion-semanal`, preferencesUrl: `${base}/espanol/preferencias` }
-    : { weeklyUpdateUrl: `${base}/weekly-update`, preferencesUrl: `${base}/email-preferences` };
+    ? { preferencesUrl: `${base}/espanol/preferencias` }
+    : { preferencesUrl: `${base}/email-preferences` };
 }
 
 function getClient() {
@@ -138,7 +138,7 @@ async function deliver(update: WeeklyUpdateRow, broadcastId: string): Promise<Br
   assertRecipientsChoseLanguage(recipients, language);
 
   const base = siteUrl();
-  const { weeklyUpdateUrl, preferencesUrl } = linksFor(base, language);
+  const { preferencesUrl } = linksFor(base, language);
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base, language);
 
   const run = await deliverToRecipients({
@@ -149,7 +149,6 @@ async function deliver(update: WeeklyUpdateRow, broadcastId: string): Promise<Br
       title: update.title,
       bodyMarkdown: update.body_markdown,
       convertedContent: update.converted_content as never,
-      weeklyUpdateUrl,
       preferencesUrl,
       copyrightDisclaimer,
       language,
@@ -241,7 +240,6 @@ export async function sendWeeklyUpdateToSubscriber(weeklyUpdateId: string, rawEm
     title: update.title,
     bodyMarkdown: update.body_markdown,
     convertedContent: update.converted_content as never,
-    weeklyUpdateUrl: links.weeklyUpdateUrl,
     preferencesUrl: links.preferencesUrl,
     copyrightDisclaimer: await getEmailCopyrightDisclaimer(base, language),
     language,

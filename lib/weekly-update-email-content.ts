@@ -1,4 +1,4 @@
-import { button, escapeHtml, shell } from "./subscription-email-content.ts";
+import { escapeHtml, shell } from "./subscription-email-content.ts";
 import type { EmailCopyrightDisclaimer } from "./copyright-disclaimer-format.ts";
 import type { WeeklyUpdateBlock, WeeklyUpdateInline } from "./weekly-update-docx.ts";
 
@@ -93,14 +93,10 @@ function paragraphsFromMarkdown(body: string) {
 // Wording for each language. Español uses the Salvadoran voseo, like the other Español emails.
 const COPY = {
   en: {
-    button: "Read It Online",
-    textLink: "Read it online:",
     reason: "You are receiving this because you subscribed to Prayer Whiteboard Weekly Updates.",
     manage: "Manage your email preferences or unsubscribe",
   },
   es: {
-    button: "Leer en línea",
-    textLink: "Leé en línea:",
     reason: "Recibís este mensaje porque te suscribiste a las Actualizaciones semanales de Prayer Whiteboard.",
     manage: "Administrá tus preferencias de correo o cancelá tu suscripción",
   },
@@ -110,7 +106,6 @@ export function buildWeeklyUpdateEmail(input: {
   title: string;
   bodyMarkdown: string;
   convertedContent: unknown;
-  weeklyUpdateUrl: string;
   preferencesUrl: string;
   copyrightDisclaimer?: EmailCopyrightDisclaimer;
   language?: "en" | "es";
@@ -127,16 +122,12 @@ export function buildWeeklyUpdateEmail(input: {
   const subject = input.title;
   const html = shell(input.title, `
     ${bodyHtml}
-    <p style="margin:28px 0 0;">${button(copy.button, input.weeklyUpdateUrl)}</p>
     <hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:28px 0 16px;" />
     <p style="margin:0;line-height:1.65;color:#607066;font-size:13px;">${copy.reason} <a href="${escapeHtml(input.preferencesUrl)}" style="color:#244a3a;">${copy.manage}</a>.</p>
     ${input.copyrightDisclaimer?.html ?? ""}
   `);
   const text = [
     `${bodyText}
-
-${copy.textLink}
-${input.weeklyUpdateUrl}
 
 ---
 ${copy.reason}

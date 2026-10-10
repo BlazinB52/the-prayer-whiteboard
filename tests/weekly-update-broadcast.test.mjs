@@ -7,7 +7,6 @@ const baseInput = {
   title: "This Week at the Whiteboard",
   bodyMarkdown: "Dear Prayer Family,\n\nSecond paragraph.",
   convertedContent: [],
-  weeklyUpdateUrl: "https://theprayerwhiteboard.com/weekly-update",
   preferencesUrl: "https://theprayerwhiteboard.com/email-preferences",
 };
 
@@ -111,6 +110,14 @@ test("only confirmed weekly update subscribers receive a broadcast", async () =>
   assert.match(recipients, /\.eq\("category", category\)/);
   assert.match(recipients, /\.eq\("status", "active"\)/);
   assert.match(recipients, /\.eq\("email_subscribers\.status", "confirmed"\)/);
+});
+
+test("the weekly update email has no Read It Online button or link", () => {
+  const email = buildWeeklyUpdateEmail({ ...baseInput });
+  assert.doesNotMatch(email.html, /Read It Online|weekly-update"/);
+  assert.doesNotMatch(email.text, /Read it online|\/weekly-update/);
+  // The unsubscribe and preferences link stays.
+  assert.match(email.html, /email-preferences/);
 });
 
 test("subscriber broadcasts use the greeting-free weekly update builder", async () => {

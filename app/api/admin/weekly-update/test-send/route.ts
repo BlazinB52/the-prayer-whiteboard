@@ -64,7 +64,6 @@ export async function POST(request: Request) {
     title: update.title,
     bodyMarkdown: update.body_markdown,
     convertedContent: update.converted_content,
-    weeklyUpdateUrl: language === "es" ? `${base}/espanol/actualizacion-semanal` : `${base}/weekly-update`,
     preferencesUrl: language === "es" ? `${base}/espanol/preferencias` : `${base}/email-preferences`,
     copyrightDisclaimer,
     language,

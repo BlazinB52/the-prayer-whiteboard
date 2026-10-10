@@ -50,28 +50,35 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: teaching, error } = await supabase
     .from("teachings")
-    .select("id, slug, title, summary")
+    .select("id, slug, title, summary, language")
     .eq("id", teachingId)
     .maybeSingle();
   if (error) return NextResponse.json({ error: "Teaching could not be read." }, { status: 500 });
   if (!teaching) return NextResponse.json({ error: "Teaching not found." }, { status: 404 });
 
+  // An Español teaching previews as an Español email (Salvadoran Spanish, RVR1960/NVI footer,
+  // Español preferences page), so the test shows what a Spanish subscriber would see.
+  // Real sending to Spanish subscribers is still off; see loadPublishableTeaching in lib/teaching-broadcast.ts.
+  const language = teaching.language === "es" ? "es" : "en";
   const base = siteUrl();
-  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
+  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base, language);
+  // The English default name is "Friend"; a Spanish email with no name just says "Hola,".
+  const greetingName = language === "es" && !(typeof body.first_name === "string" && body.first_name.trim()) ? "" : firstName;
   const email = buildTeachingEmail({
-    firstName,
+    firstName: greetingName,
     title: teaching.title,
     summary: teaching.summary,
     teachingUrl: `${base}/teachings/${teaching.slug}`,
     logoUrl: `${base}/images/whiteboard-sword-logo-with-tagline.png`,
-    preferencesUrl: `${base}/email-preferences`,
+    preferencesUrl: language === "es" ? `${base}/espanol/preferencias` : `${base}/email-preferences`,
     copyrightDisclaimer,
+    language,
   });
 
   const result = await sendSenderTransactionalEmail({
     toEmail: testEmail,
     toName: firstName,
-    subject: `[TEST] ${email.subject}`,
+    subject: `${language === "es" ? "[PRUEBA]" : "[TEST]"} ${email.subject}`,
     html: email.html,
     text: email.text,
   });

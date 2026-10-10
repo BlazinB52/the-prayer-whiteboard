@@ -73,9 +73,18 @@ test("the teaching preview is built by the production email builder, includes th
   const { code } = await readRoute();
 
   assert.match(code, /buildTeachingEmail\(\{/);
-  assert.match(code, /subject: `\[TEST\] \$\{email\.subject\}`/);
-  assert.match(code, /getEmailCopyrightDisclaimer\(base\)/);
+  assert.match(code, /subject: `\$\{language === "es" \? "\[PRUEBA\]" : "\[TEST\]"\} \$\{email\.subject\}`/);
+  assert.match(code, /getEmailCopyrightDisclaimer\(base, language\)/);
   assert.match(code, /copyrightDisclaimer,/);
+});
+
+test("an Español teaching previews as a Spanish email with the Español preferences page", async () => {
+  const { code } = await readRoute();
+
+  assert.match(code, /\.select\("id, slug, title, summary, language"\)/);
+  assert.match(code, /const language = teaching\.language === "es" \? "es" : "en"/);
+  assert.match(code, /language === "es" \? `\$\{base\}\/espanol\/preferencias` : `\$\{base\}\/email-preferences`/);
+  assert.match(code, /\r?\n\s+language,\r?\n\s+\}\);/);
 });
 
 test("the admin teaching edit page exposes the teaching test send form", async () => {

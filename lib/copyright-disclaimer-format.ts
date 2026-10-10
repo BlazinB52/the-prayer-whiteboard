@@ -20,8 +20,24 @@ export const FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER = `Scripture quotations are fro
 
 Original Content © 2026 The Prayer Whiteboard. All rights reserved.`;
 
+export const SPANISH_COPYRIGHT_DISCLAIMER_PATH = "/espanol/derechos-de-autor";
+
+// Used only if the managed Español short footer cannot be read. Mirrors that footer: the only two
+// Spanish versions the site quotes (RVR1960 and NVI), with each publisher's prescribed acknowledgment.
+export const FALLBACK_EMAIL_COPYRIGHT_DISCLAIMER_ES = `Las citas bíblicas son de la Reina-Valera 1960 (RVR1960) y de la Nueva Versión Internacional (NVI). Los reconocimientos de derechos de autor completos se pueden ver aquí.
+
+RVR1960: Reina-Valera © 1960 Sociedades Bíblicas en América Latina; © renovado 1988 Sociedades Bíblicas Unidas. Utilizado con permiso. Reina-Valera 1960® es una marca registrada de Sociedades Bíblicas Unidas, y se puede usar solamente bajo licencia.
+
+NVI: Santa Biblia, Nueva Versión Internacional® NVI® © 1999, 2015, 2022 por Biblica, Inc.® Usado con permiso de Biblica, Inc.® Reservados todos los derechos en todo el mundo.
+
+Contenido original © 2026 The Prayer Whiteboard. Todos los derechos reservados.`;
+
+export type DisclaimerLanguage = "en" | "es";
+
 const LOCKMAN_FOUNDATION_URL = "https://www.lockman.org";
 const HERE_OR_AMPLIFIED_TAG_PATTERN = /\bhere\b|\bAMPC?\b/g;
+// \b does not treat the accented "í" as a word character, so "aquí" needs its own boundary test.
+const SPANISH_HERE_PATTERN = /(?<![\p{L}])aquí(?![\p{L}])/gu;
 
 export type CopyrightDisclaimerKey = "full_page" | "email_short";
 
@@ -32,8 +48,8 @@ export type EmailCopyrightDisclaimer = {
   text: string;
 };
 
-export function canonicalCopyrightDisclaimerUrl(baseUrl: string) {
-  return `${baseUrl.replace(/\/+$/, "")}${COPYRIGHT_DISCLAIMER_PATH}`;
+export function canonicalCopyrightDisclaimerUrl(baseUrl: string, language: DisclaimerLanguage = "en") {
+  return `${baseUrl.replace(/\/+$/, "")}${language === "es" ? SPANISH_COPYRIGHT_DISCLAIMER_PATH : COPYRIGHT_DISCLAIMER_PATH}`;
 }
 
 export function safeCopyrightReturnToPath(value: unknown) {
@@ -42,42 +58,45 @@ export function safeCopyrightReturnToPath(value: unknown) {
   return path;
 }
 
-export function buildEmailCopyrightDisclaimer(content: string, pageUrl: string): EmailCopyrightDisclaimer {
+export function buildEmailCopyrightDisclaimer(content: string, pageUrl: string, language: DisclaimerLanguage = "en"): EmailCopyrightDisclaimer {
   return {
     content,
     pageUrl,
-    html: renderCopyrightDisclaimerEmailHtml(content, pageUrl),
-    text: renderCopyrightDisclaimerEmailText(content, pageUrl),
+    html: renderCopyrightDisclaimerEmailHtml(content, pageUrl, language),
+    text: renderCopyrightDisclaimerEmailText(content, pageUrl, language),
   };
 }
 
-export function renderCopyrightDisclaimerEmailHtml(content: string, pageUrl: string) {
+export function renderCopyrightDisclaimerEmailHtml(content: string, pageUrl: string, language: DisclaimerLanguage = "en") {
   const paragraphs = disclaimerParagraphs(content);
   if (!paragraphs.length) return "";
 
   return `<div style="margin:18px 0 0;padding-top:14px;border-top:1px solid rgba(40,74,59,0.12);color:#7a8a80;font-size:11px;line-height:1.55;">${paragraphs
-    .map((paragraph) => `<p style="margin:0 0 8px;">${renderCopyrightDisclaimerInlineHtml(paragraph, pageUrl)}</p>`)
+    .map((paragraph) => `<p style="margin:0 0 8px;">${renderCopyrightDisclaimerInlineHtml(paragraph, pageUrl, language)}</p>`)
     .join("")}</div>`;
 }
 
-export function renderCopyrightDisclaimerEmailText(content: string, pageUrl: string) {
-  return disclaimerParagraphs(content).map((paragraph) => injectCopyrightDisclaimerLinkText(paragraph, pageUrl)).join("\n\n");
+export function renderCopyrightDisclaimerEmailText(content: string, pageUrl: string, language: DisclaimerLanguage = "en") {
+  return disclaimerParagraphs(content).map((paragraph) => injectCopyrightDisclaimerLinkText(paragraph, pageUrl, language)).join("\n\n");
 }
 
 function disclaimerParagraphs(content: string) {
   return content.replace(/\r\n?/g, "\n").split(/\n{2,}/).map((paragraph) => paragraph.trim()).filter(Boolean);
 }
 
-function renderCopyrightDisclaimerInlineHtml(paragraph: string, pageUrl: string) {
+function renderCopyrightDisclaimerInlineHtml(paragraph: string, pageUrl: string, language: DisclaimerLanguage) {
+  const pattern = language === "es" ? SPANISH_HERE_PATTERN : HERE_OR_AMPLIFIED_TAG_PATTERN;
   let result = "";
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  HERE_OR_AMPLIFIED_TAG_PATTERN.lastIndex = 0;
-  while ((match = HERE_OR_AMPLIFIED_TAG_PATTERN.exec(paragraph)) !== null) {
+  pattern.lastIndex = 0;
+  while ((match = pattern.exec(paragraph)) !== null) {
     result += escapeHtml(paragraph.slice(lastIndex, match.index));
-    result += match[0] === "here"
-      ? `<a href="${escapeHtml(pageUrl)}">here</a>`
+    // Spanish: the only link is "aquí" to the Español copyright page. English also links AMP/AMPC to Lockman.
+    const linksToPage = language === "es" || match[0] === "here";
+    result += linksToPage
+      ? `<a href="${escapeHtml(pageUrl)}">${escapeHtml(match[0])}</a>`
       : `<a href="${escapeHtml(LOCKMAN_FOUNDATION_URL)}">${escapeHtml(match[0])}</a>`;
     lastIndex = match.index + match[0].length;
   }
@@ -85,7 +104,10 @@ function renderCopyrightDisclaimerInlineHtml(paragraph: string, pageUrl: string)
   return result + escapeHtml(paragraph.slice(lastIndex));
 }
 
-function injectCopyrightDisclaimerLinkText(paragraph: string, pageUrl: string) {
+function injectCopyrightDisclaimerLinkText(paragraph: string, pageUrl: string, language: DisclaimerLanguage) {
+  // A plain-text email cannot carry a link, so write the address out after the link word.
+  if (language === "es") return paragraph.replace(SPANISH_HERE_PATTERN, (word) => `${word}:\n${pageUrl}`);
+
   let result = paragraph;
   if (/\bhere\b/.test(result)) result = result.replace(/\bhere\b/, `here:\n${pageUrl}`);
   result = result.replace(/\bAMPC?\b/g, (tag) => `${tag} (see ${LOCKMAN_FOUNDATION_URL})`);

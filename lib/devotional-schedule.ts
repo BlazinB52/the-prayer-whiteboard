@@ -42,7 +42,7 @@ export const DEFAULT_DEVOTIONAL_QUEUE_START_DATE = "2026-10-10";
 
 export function devotionalQueueStartDate() {
   const configured = (process.env.DEVOTIONAL_QUEUE_START_DATE ?? "").trim();
-  return /^d{4}-d{2}-d{2}$/.test(configured) ? configured : DEFAULT_DEVOTIONAL_QUEUE_START_DATE;
+  return /^\d{4}-\d{2}-\d{2}$/.test(configured) ? configured : DEFAULT_DEVOTIONAL_QUEUE_START_DATE;
 }
 
 // Today's calendar date (YYYY-MM-DD) in the configured zone.

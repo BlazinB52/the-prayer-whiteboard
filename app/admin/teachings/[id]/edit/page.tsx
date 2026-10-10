@@ -158,7 +158,10 @@ export default async function EditTeachingPage({ params, searchParams }: { param
       <div className="mx-auto max-w-3xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/admin/teachings" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Teachings</Link>
-          <a href="#delete-teaching" className="text-sm font-extrabold text-[#a2472c] hover:underline">Delete this teaching</a>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <a href="#print-preview" className="text-sm font-extrabold text-[#9d5a2f] hover:underline">Print preview</a>
+            <a href="#delete-teaching" className="text-sm font-extrabold text-[#a2472c] hover:underline">Delete this teaching</a>
+          </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Edit Teaching</h1>

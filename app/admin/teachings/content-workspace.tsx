@@ -93,7 +93,7 @@ export function ContentWorkspace({
           />
         ))}
         {!categories.length ? <p className="rounded-2xl border border-dashed border-[#284a3b]/20 bg-[#fffdf8] px-5 py-6 text-sm text-[#607066]">No categories yet. Add the first category below.</p> : null}
-        <div className="border-t border-[#284a3b]/10 pt-6">
+        <div id="print-preview" className="scroll-mt-6 border-t border-[#284a3b]/10 pt-6">
           <Link href={`/admin/teachings/${teachingId}/print`} target="_blank" rel="noreferrer" className="admin-primary-button inline-flex items-center justify-center">
             <span>Preview Printable Teaching</span>
           </Link>

@@ -25,7 +25,12 @@ test("a Spanish teaching email is entirely in Salvadoran Spanish with the Españ
   const email = buildTeachingEmail({ ...input, language: "es", copyrightDisclaimer: spanishDisclaimer });
 
   assert.equal(email.subject, "Nueva enseñanza: Caminar en la Luz y Recordar el Pacto");
-  assert.match(email.html, /Hola Brent,/);
+  // Español emails open with just "Hola," and never use the subscriber's name, even when one is known.
+  assert.match(email.html, />Hola,<\/p>/);
+  assert.equal(email.html.includes("Brent"), false);
+  assert.match(email.text, /^Hola,\n/);
+  assert.equal(email.text.includes("Brent"), false);
+  assert.equal(email.html.includes("Friend"), false);
   assert.match(email.html, /Se publicó una nueva enseñanza en The Prayer Whiteboard: <strong><em>Caminar en la Luz y Recordar el Pacto<\/em><\/strong>\./);
   assert.match(email.html, />Leer la enseñanza completa<\/a>/);
   assert.match(email.html, /Recibís este mensaje porque te suscribiste a Nuevas enseñanzas de Prayer Whiteboard\./);
@@ -66,9 +71,23 @@ test("the English teaching email is unchanged by the Spanish support", () => {
   assert.equal(email.html.includes("Nueva enseñanza"), false);
 });
 
-test("real sending to Spanish subscribers stays off; only the preview is Spanish", async () => {
-  const broadcast = await readFile("lib/teaching-broadcast.ts", "utf8");
-  assert.match(broadcast, /if \(teaching\.language !== "en"\) return \{ status: "skipped_language" as const \};/);
+test("an Español teaching is really sent in Spanish, in its own language only", async () => {
+  const [broadcast, state] = await Promise.all([
+    readFile("lib/teaching-broadcast.ts", "utf8"),
+    readFile("lib/teaching-email-state.ts", "utf8"),
+  ]);
+
+  // Only a language with no email (neither English nor Español) is skipped.
+  assert.match(broadcast, /if \(teaching\.language !== "en" && teaching\.language !== "es"\) return \{ status: "skipped_language" as const \};/);
+  // Everything about the send comes from the teaching's own language.
+  assert.match(broadcast, /const language = teaching\.language;/);
+  assert.match(broadcast, /loadConfirmedRecipients\("teachings", language\)/);
+  assert.match(broadcast, /getEmailCopyrightDisclaimer\(base, language\)/);
+  assert.match(broadcast, /language === "es" \? `\$\{base\}\/espanol\/preferencias` : `\$\{base\}\/email-preferences`/);
+  assert.match(broadcast, /\n\s+copyrightDisclaimer,\r?\n\s+language,\r?\n\s+\}\),/);
+  // The count shown in the admin box is the list that send reads.
+  assert.match(state, /loadConfirmedRecipients\("teachings", language\)/);
+  assert.equal(state.includes('language === "es"'), false, "the admin count must not skip Español");
 });
 
 test("the Español footer for emails is read from the managed Español short footer", async () => {

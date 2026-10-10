@@ -18,11 +18,13 @@ test("a published English teaching that was never emailed offers a send with the
   assert.equal(teachingEmailSendNotice({ ...base, recipientCount: null }).buttonLabel, "Send email to subscribers");
 });
 
-test("nothing can be sent for a draft, an Español teaching, an empty list, or a finished send", () => {
+test("nothing can be sent for a draft, an empty list, or a finished send, in either language", () => {
   assert.equal(teachingEmailSendNotice({ ...base, status: "draft" }).canSend, false);
   assert.match(teachingEmailSendNotice({ ...base, status: "draft" }).text, /Publish this teaching first/);
-  assert.equal(teachingEmailSendNotice({ ...base, language: "es" }).canSend, false);
+  assert.equal(teachingEmailSendNotice({ ...base, status: "draft", language: "es" }).canSend, false);
   assert.equal(teachingEmailSendNotice({ ...base, recipientCount: 0 }).canSend, false);
+  assert.equal(teachingEmailSendNotice({ ...base, language: "es", recipientCount: 0 }).canSend, false);
+  assert.equal(teachingEmailSendNotice({ ...base, language: "es", ledgerStatus: "sent", deliveredCount: 5 }).canSend, false);
   const sent = teachingEmailSendNotice({ ...base, ledgerStatus: "sent", deliveredCount: 40 });
   assert.equal(sent.kind, "sent");
   assert.equal(sent.canSend, false);
@@ -61,10 +63,25 @@ test("publishing no longer starts a send: the webhook does nothing and the datab
   assert.doesNotMatch(body, /broadcast|send-email|teaching-broadcast/i);
 });
 
-test("the edit page shows an Email subscribers box beside Publish, never for an Español teaching", async () => {
+test("an Español teaching can be emailed, and the box says it reaches only subscribers who chose Español", () => {
+  const es = teachingEmailSendNotice({ ...base, language: "es", recipientCount: 3 });
+  assert.equal(es.kind, "ready");
+  assert.equal(es.canSend, true);
+  assert.match(es.text, /3 subscribers who chose New Teachings in Español/);
+  assert.match(es.confirm, /3 subscribers who chose New Teachings in Español/);
+  assert.match(teachingEmailSendNotice({ ...base, language: "es", recipientCount: 0 }).text, /No subscribers are signed up for New Teachings in Español/);
+
+  // English wording is unchanged
+  const en = teachingEmailSendNotice({ ...base, language: "en", recipientCount: 3 });
+  assert.match(en.text, /3 subscribers who chose New Teachings,/);
+  assert.equal(en.text.includes("Español"), false);
+});
+
+test("the edit page shows the Email subscribers box beside Publish for English and Español teachings", async () => {
   const page = await readFile("app/admin/teachings/[id]/edit/page.tsx", "utf8");
   assert.match(page, /id="email-subscribers"/);
-  assert.match(page, /teaching\.language !== "es" \? \(\s*<section id="email-subscribers"/);
+  assert.doesNotMatch(page, /teaching\.language !== "es" \? \(\s*<section id="email-subscribers"/, "the box must not be hidden for Español");
+  assert.match(page, /goes only to subscribers who chose Español/);
   assert.match(page, /Publishing and featuring this teaching never sends any email\./);
   assert.match(page, /SendTeachingEmailButton teachingId=\{id\}/);
   const box = await readFile("app/admin/teachings/send-email-box.tsx", "utf8");

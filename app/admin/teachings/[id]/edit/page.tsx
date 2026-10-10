@@ -245,23 +245,24 @@ export default async function EditTeachingPage({ params, searchParams }: { param
         <section className="mt-8 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-5">
           <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Publish</p>
           <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">{teaching.language === "es" ? "Publish to the Español homepage" : teaching.teaching_type === "deep_dive" ? "Publish this Deep Dive" : "Feature this teaching on the homepage"}</h2>
-          <p className="mt-3 text-sm leading-6 text-[#607066]">{teaching.language === "es" ? "Publishing makes this teaching public on the Español homepage (/espanol) and features it there. The English homepage is not changed, and no email is sent to subscribers." : teaching.teaching_type === "deep_dive" ? "Publishing makes this Deep Dive public in the Deep Dives collection without replacing the featured homepage teaching." : "Publishing makes this teaching public, replaces the current homepage feature without unpublishing it, and keeps the stored gathering date unchanged."}</p>
+          <p className="mt-3 text-sm leading-6 text-[#607066]">{teaching.language === "es" ? "Publishing makes this teaching public on the Español homepage (/espanol) and features it there. The English homepage is not changed. Publishing does not email anyone; send the Spanish email yourself from the Email subscribers box below." : teaching.teaching_type === "deep_dive" ? "Publishing makes this Deep Dive public in the Deep Dives collection without replacing the featured homepage teaching." : "Publishing makes this teaching public, replaces the current homepage feature without unpublishing it, and keeps the stored gathering date unchanged."}</p>
           <p className="mt-4 rounded-xl border border-[#284a3b]/10 bg-white/70 px-4 py-3 text-sm font-bold leading-6 text-[#385245]">
             {publishNotice.text}
           </p>
           <PublishFeatureButton action={publishAndFeatureTeaching.bind(null, id)} teachingType={teaching.teaching_type === "deep_dive" ? "deep_dive" : "standard"} language={teaching.language === "es" ? "es" : "en"} emailNotice={publishNotice.text} />
         </section>
-        {teaching.language !== "es" ? (
-          <section id="email-subscribers" className="mt-8 rounded-2xl border border-[#946332]/25 bg-[#fffaf0] p-5">
-            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Email subscribers</p>
-            <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Send this teaching by email</h2>
-            <p className="mt-3 text-sm leading-6 text-[#607066]">Publishing and featuring this teaching never sends any email. The email goes out only when you press the button below, once the teaching is published and its link works.</p>
-            <p className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold leading-6 ${emailSend.kind === "ready" || emailSend.kind === "resume" ? "border-[#a2472c]/30 bg-[#fbeeea] text-[#7d2f1a]" : "border-[#284a3b]/10 bg-white/70 text-[#385245]"}`}>
-              {emailSend.text}
-            </p>
-            {emailSend.canSend ? <SendTeachingEmailButton teachingId={id} label={emailSend.buttonLabel} confirmMessage={emailSend.confirm} /> : null}
-          </section>
-        ) : null}
+        <section id="email-subscribers" className="mt-8 rounded-2xl border border-[#946332]/25 bg-[#fffaf0] p-5">
+          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Email subscribers</p>
+          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">Send this teaching by email</h2>
+          <p className="mt-3 text-sm leading-6 text-[#607066]">Publishing and featuring this teaching never sends any email. The email goes out only when you press the button below, once the teaching is published and its link works.</p>
+          {teaching.language === "es" ? (
+            <p className="mt-3 text-sm leading-6 text-[#607066]">This is an Español teaching. The email is written in Spanish, carries the Español copyright footer, and goes only to subscribers who chose Español. Subscribers who chose English only are never emailed it.</p>
+          ) : null}
+          <p className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold leading-6 ${emailSend.kind === "ready" || emailSend.kind === "resume" ? "border-[#a2472c]/30 bg-[#fbeeea] text-[#7d2f1a]" : "border-[#284a3b]/10 bg-white/70 text-[#385245]"}`}>
+            {emailSend.text}
+          </p>
+          {emailSend.canSend ? <SendTeachingEmailButton teachingId={id} label={emailSend.buttonLabel} confirmMessage={emailSend.confirm} /> : null}
+        </section>
         {teaching.status === "published" ? (
           <section className="mt-8 rounded-2xl border border-[#a2472c]/20 bg-[#fff8f1] p-5">
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Unpublish</p>

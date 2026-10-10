@@ -19,7 +19,7 @@ export type TeachingEmailSendInput = {
 };
 
 export type TeachingEmailSendNotice = {
-  kind: "spanish" | "unpublished" | "none" | "ready" | "resume" | "sent";
+  kind: "unpublished" | "none" | "ready" | "resume" | "sent";
   text: string;
   canSend: boolean;
   buttonLabel: string;
@@ -30,10 +30,9 @@ const plural = (count: number, one: string, many: string) => `${count} ${count =
 
 export function teachingEmailSendNotice(input: TeachingEmailSendInput): TeachingEmailSendNotice {
   const quiet = { canSend: false, buttonLabel: "", confirm: "" };
+  // An Español teaching is emailed in Spanish, and only to subscribers who chose Español.
+  const audience = input.language === "es" ? "New Teachings in Español" : "New Teachings";
 
-  if (input.language === "es") {
-    return { kind: "spanish", text: "No email is sent for an Español teaching.", ...quiet };
-  }
   if (input.status !== "published") {
     return {
       kind: "unpublished",
@@ -56,11 +55,11 @@ export function teachingEmailSendNotice(input: TeachingEmailSendInput): Teaching
     };
   }
   if (input.recipientCount === 0) {
-    return { kind: "none", text: "No subscribers are signed up for New Teachings, so there is nobody to email.", ...quiet };
+    return { kind: "none", text: `No subscribers are signed up for ${audience}, so there is nobody to email.`, ...quiet };
   }
   const who = input.recipientCount === null
-    ? "every subscriber who chose New Teachings"
-    : `${plural(input.recipientCount, "subscriber", "subscribers")} who chose New Teachings`;
+    ? `every subscriber who chose ${audience}`
+    : `${plural(input.recipientCount, "subscriber", "subscribers")} who chose ${audience}`;
   return {
     kind: "ready",
     text: `Not sent yet. Sending emails ${who}, within moments. It goes out once, an email cannot be unsent, and editing the teaching later does not send it again.`,

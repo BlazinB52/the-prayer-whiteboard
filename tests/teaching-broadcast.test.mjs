@@ -84,7 +84,7 @@ test("a teaching broadcast is claimed before sending so repeat webhooks cannot d
 test("broadcasts target the teachings preference category, not a Sender group", async () => {
   const source = await readFile("lib/teaching-broadcast.ts", "utf8");
 
-  assert.match(source, /loadConfirmedRecipients\("teachings"\)/);
+  assert.match(source, /loadConfirmedRecipients\("teachings", language\)/);
   assert.equal(source.includes("new_teachings"), false);
   assert.equal(source.includes("elVkLl"), false);
 });
@@ -99,7 +99,7 @@ test("both broadcasts share one confirmed-recipient query", async () => {
   assert.match(recipients, /\.eq\("status", "active"\)/);
   assert.match(recipients, /\.eq\("email_subscribers\.status", "confirmed"\)/);
   assert.match(weekly, /loadConfirmedRecipients\("weekly_updates"\)/);
-  assert.match(teaching, /loadConfirmedRecipients\("teachings"\)/);
+  assert.match(teaching, /loadConfirmedRecipients\("teachings", language\)/);
   // The duplicated query was removed rather than left behind.
   assert.equal(weekly.includes("email_subscribers!inner"), false);
 });

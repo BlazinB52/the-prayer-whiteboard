@@ -8,7 +8,10 @@ test("publishing says it does not email anyone, and points to the separate send"
   assert.equal(en.kind, "none");
   assert.match(en.text, /Publishing does not email subscribers/);
   assert.match(en.text, /Email subscribers box/);
-  assert.match(publishEmailNotice({ language: "es" }).text, /No email is sent/);
+  const es = publishEmailNotice({ language: "es" });
+  assert.equal(es.kind, "none");
+  assert.match(es.text, /Publishing does not email subscribers/);
+  assert.match(es.text, /only to subscribers who chose Español/);
 });
 
 test("the Publish section and its confirmation make no promise to email anyone", async () => {

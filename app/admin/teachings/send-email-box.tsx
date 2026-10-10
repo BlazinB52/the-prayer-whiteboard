@@ -19,7 +19,7 @@ function describe(outcome: Outcome) {
     case "not_publishable":
       return "This teaching is not published, so nothing was sent.";
     case "skipped_language":
-      return "Español teachings are not emailed.";
+      return "This teaching's language is not emailed, so nothing was sent.";
     default:
       return "Done.";
   }

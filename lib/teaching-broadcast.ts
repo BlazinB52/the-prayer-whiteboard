@@ -17,7 +17,7 @@ export type TeachingBroadcastOutcome =
   | { status: "already_complete" }
   | { status: "sent" | "failed" | "incomplete"; recipientCount: number; sentCount: number; failedCount: number; remainingCount: number };
 
-type TeachingRow = { id: string; slug: string; title: string; summary: string | null };
+type TeachingRow = { id: string; slug: string; title: string; summary: string | null; language: "en" | "es" };
 
 function getClient() {
   const supabase = createServiceRoleClient();
@@ -52,8 +52,9 @@ async function loadPublishableTeaching(teachingId: string) {
     .maybeSingle();
   if (error) throw new Error(`Teaching lookup failed: ${error.message}`);
   if (!teaching || teaching.status !== "published") return { status: "not_publishable" as const };
-  // The subscriber list is English; Español teachings are published without an email.
-  if (teaching.language !== "en") return { status: "skipped_language" as const };
+  // English and Español teachings are both emailed, each only to the subscribers who chose that language
+  // (see loadConfirmedRecipients). Any other language has no email.
+  if (teaching.language !== "en" && teaching.language !== "es") return { status: "skipped_language" as const };
   return { status: "ok" as const, teaching: teaching as TeachingRow };
 }
 
@@ -61,12 +62,15 @@ async function loadPublishableTeaching(teachingId: string) {
 // spent. Safe to call repeatedly: finished recipients are skipped, so a resume never double-sends.
 async function deliver(teaching: TeachingRow, broadcastId: string): Promise<TeachingBroadcastOutcome> {
   const supabase = getClient();
-  const recipients = await loadConfirmedRecipients("teachings");
+  // The teaching's own language picks everything: who is mailed (only subscribers who chose that language),
+  // the wording of the email, the copyright footer, and the preferences page the email links to.
+  const language = teaching.language;
+  const recipients = await loadConfirmedRecipients("teachings", language);
 
   const base = siteUrl();
   const teachingUrl = `${base}/teachings/${teaching.slug}`;
-  const preferencesUrl = `${base}/email-preferences`;
-  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
+  const preferencesUrl = language === "es" ? `${base}/espanol/preferencias` : `${base}/email-preferences`;
+  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base, language);
 
   const run = await deliverToRecipients({
     store: sendDeliveriesStore("teaching", broadcastId),
@@ -80,6 +84,7 @@ async function deliver(teaching: TeachingRow, broadcastId: string): Promise<Teac
       logoUrl: `${base}/images/whiteboard-sword-logo-with-tagline.png`,
       preferencesUrl,
       copyrightDisclaimer,
+      language,
     }),
   });
 

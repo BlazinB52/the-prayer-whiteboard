@@ -20,7 +20,7 @@ type AdminSupabase = {
 /** Reads what the Email subscribers box needs: whether a send was started, how far it got, and who a new send would reach. */
 export async function getTeachingEmailState(supabase: unknown, teachingId: string, status: string, language: "en" | "es"): Promise<TeachingEmailSendInput> {
   const base: TeachingEmailSendInput = { status, language, ledgerStatus: null, deliveredCount: 0, ledgerRecipientCount: null, recipientCount: null };
-  if (language === "es" || status !== "published") return base;
+  if (status !== "published") return base;
 
   const db = supabase as AdminSupabase;
   const { data: ledger } = await db.from("email_teaching_broadcast_events").select("id, status, recipient_count").eq("teaching_id", teachingId).maybeSingle();
@@ -39,7 +39,7 @@ export async function getTeachingEmailState(supabase: unknown, teachingId: strin
 
   // The same list the broadcast itself reads, so the number shown is the number emailed.
   try {
-    return { ...base, recipientCount: (await loadConfirmedRecipients("teachings", "en")).length };
+    return { ...base, recipientCount: (await loadConfirmedRecipients("teachings", language)).length };
   } catch {
     return base;
   }

@@ -11,12 +11,35 @@ test("every send reads only subscribers who chose that language, English by defa
   const source = await readFile("lib/broadcast-recipients.ts", "utf8");
   assert.match(source, /language: "en" \| "es" = "en"/);
   assert.match(source, /normalizeLanguages\(subscriber\.languages\)\.includes\(language\)/);
-  // Existing broadcasts ask for a category only, so they mail English subscribers only.
-  for (const file of ["lib/teaching-broadcast.ts", "lib/weekly-update-broadcast.ts", "lib/devotional-send.ts"]) {
+  // Weekly updates and devotionals ask for a category only, so they still mail English subscribers only.
+  for (const file of ["lib/weekly-update-broadcast.ts", "lib/devotional-send.ts"]) {
     const code = await readFile(file, "utf8");
     assert.match(code, /loadConfirmedRecipients\("[a-z_]+"\)/, `${file} must keep mailing English subscribers only`);
     assert.doesNotMatch(code, /loadConfirmedRecipients\([^)]*"es"/, `${file} must not mail Español subscribers yet`);
   }
+  // A teaching is mailed in its own language, to the subscribers who chose that language and nobody else.
+  const teaching = await readFile("lib/teaching-broadcast.ts", "utf8");
+  assert.match(teaching, /const language = teaching\.language;/);
+  assert.match(teaching, /loadConfirmedRecipients\("teachings", language\)/);
+  assert.doesNotMatch(teaching, /loadConfirmedRecipients\([^)]*"(?:en|es)"/, "the language must come from the teaching, never be hard-coded");
+});
+
+test("English and Español subscriber lists never mix: each send reaches only people who chose that language", () => {
+  const reaches = (languages, sendLanguage) => normalizeLanguages(languages).includes(sendLanguage);
+
+  // Chose English only
+  assert.equal(reaches(["en"], "en"), true);
+  assert.equal(reaches(["en"], "es"), false);
+  // Chose Español only
+  assert.equal(reaches(["es"], "es"), true);
+  assert.equal(reaches(["es"], "en"), false);
+  // Chose both: gets each language's emails
+  assert.equal(reaches(["en", "es"], "en"), true);
+  assert.equal(reaches(["en", "es"], "es"), true);
+  // No recorded choice (older subscribers) counts as English only, so Spanish never reaches them
+  assert.equal(reaches(null, "en"), true);
+  assert.equal(reaches(null, "es"), false);
+  assert.equal(reaches([], "es"), false);
 });
 
 test("both cards offer the same three choices", () => {

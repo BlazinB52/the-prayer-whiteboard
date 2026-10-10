@@ -181,7 +181,7 @@ test("email broadcasts retrieve the short disclaimer through the shared helper",
 
   assert.match(helper, /getEmailCopyrightDisclaimer/);
   assert.match(helper, /\.eq\("disclaimer_key", disclaimerKey\)/);
-  assert.match(teachingBroadcast, /getEmailCopyrightDisclaimer\(base\)/);
+  assert.match(teachingBroadcast, /getEmailCopyrightDisclaimer\(base, language\)/);
   assert.match(devotionalSend, /getEmailCopyrightDisclaimer\(base\)/);
   assert.match(teachingTemplate, /copyrightDisclaimer\?\.html/);
   assert.match(devotionalTemplate, /copyrightDisclaimer\?\.html/);

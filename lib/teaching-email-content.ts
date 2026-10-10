@@ -60,8 +60,10 @@ export function buildTeachingEmail(input: {
     : undefined;
 
   const subject = copy.subject(input.title);
+  // Español emails open with just "Hola," and never use a name; English emails greet by first name.
+  const greetingName = language === "es" ? "" : input.firstName;
   const html = shell("", `
-    <p style="margin:0 0 16px;line-height:1.65;">${greeting(input.firstName, language)}</p>
+    <p style="margin:0 0 16px;line-height:1.65;">${greeting(greetingName, language)}</p>
     <p style="margin:0 0 20px;line-height:1.65;">${copy.announce(`<strong><em>${escapeHtml(input.title)}</em></strong>`)}</p>
     ${summaryHtml}
     <p style="margin:28px 0 0;">${button(copy.button, input.teachingUrl)}</p>
@@ -71,7 +73,7 @@ export function buildTeachingEmail(input: {
   `, letterhead);
 
   const text = [
-    textGreeting(input.firstName, language),
+    textGreeting(greetingName, language),
     "",
     copy.announce(input.title),
     summaryText ? `\n${summaryText}` : "",

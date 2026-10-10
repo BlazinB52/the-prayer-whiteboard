@@ -62,10 +62,8 @@ export async function POST(request: Request) {
   const language = teaching.language === "es" ? "es" : "en";
   const base = siteUrl();
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base, language);
-  // The English default name is "Friend"; a Spanish email with no name just says "Hola,".
-  const greetingName = language === "es" && !(typeof body.first_name === "string" && body.first_name.trim()) ? "" : firstName;
   const email = buildTeachingEmail({
-    firstName: greetingName,
+    firstName,
     title: teaching.title,
     summary: teaching.summary,
     teachingUrl: `${base}/teachings/${teaching.slug}`,

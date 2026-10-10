@@ -11,7 +11,10 @@ export type PublishEmailNotice = {
 
 export function publishEmailNotice(info: { language: "en" | "es" }): PublishEmailNotice {
   if (info.language === "es") {
-    return { kind: "none", text: "No email is sent when an Español teaching is published." };
+    return {
+      kind: "none",
+      text: "Publishing does not email subscribers. When you are ready, send the Spanish email yourself from the Email subscribers box on this page. It goes only to subscribers who chose Español.",
+    };
   }
   return {
     kind: "none",

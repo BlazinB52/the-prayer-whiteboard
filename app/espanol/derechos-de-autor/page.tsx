@@ -10,7 +10,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 // Displays the long Español (El Salvador) copyright footer; edit that footer in /admin/footers to change it.
 // Public access to footers is limited to ones assigned to published content, so this reads that one
 // footer id on the server instead.
-export const metadata: Metadata = buildPageMetadata({ title: "Derechos de autor", description: "Reconocimientos de derechos de autor y permisos de The Prayer Whiteboard.", path: "/espanol/derechos-de-autor", language: "es", pair: STATIC_TRANSLATIONS.copyright });
+export const metadata: Metadata = buildPageMetadata({ title: "Derechos de autor", description: "Reconocimientos de derechos de autor de The Prayer Whiteboard.", path: "/espanol/derechos-de-autor", language: "es", pair: STATIC_TRANSLATIONS.copyright });
 
 export default async function EspanolCopyrightPage() {
   const supabase = createServiceRoleClient();

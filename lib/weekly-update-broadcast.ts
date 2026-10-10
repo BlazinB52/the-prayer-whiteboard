@@ -1,6 +1,6 @@
 import "server-only";
 
-import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
+import { assertRecipientsChoseLanguage, loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { deliverToRecipients, type DeliveryStore } from "@/lib/send-deliveries";
@@ -20,15 +20,21 @@ export type BroadcastOutcome =
   | { status: "already_complete" }
   | { status: "sent" | "partial" | "failed" | "incomplete"; recipientCount: number; sentCount: number; failedCount: number; remainingCount: number };
 
-type WeeklyUpdateRow = { id: string; title: string; body_markdown: string; converted_content: unknown };
+type WeeklyUpdateRow = { id: string; title: string; body_markdown: string; converted_content: unknown; language: "en" | "es" };
+
+// Everything language-specific about one send, taken from the update's own language: the page the
+// email links to and the preferences page. (The recipients, the wording and the footer follow the same language.)
+function linksFor(base: string, language: "en" | "es") {
+  return language === "es"
+    ? { weeklyUpdateUrl: `${base}/espanol/actualizacion-semanal`, preferencesUrl: `${base}/espanol/preferencias` }
+    : { weeklyUpdateUrl: `${base}/weekly-update`, preferencesUrl: `${base}/email-preferences` };
+}
 
 function getClient() {
   const supabase = createServiceRoleClient();
   if (!supabase) throw new Error("Broadcast storage is not configured.");
   return supabase;
 }
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Inserting the ledger row first is what makes the broadcast idempotent: the
 // unique index on weekly_update_id rejects a second webhook for the same update.
@@ -52,11 +58,13 @@ async function loadPublishableUpdate(weeklyUpdateId: string) {
   const supabase = getClient();
   const { data: update, error } = await supabase
     .from("weekly_updates")
-    .select("id, title, body_markdown, converted_content, status, is_current")
+    .select("id, title, body_markdown, converted_content, status, is_current, language")
     .eq("id", weeklyUpdateId)
     .maybeSingle();
   if (error) throw new Error(`Weekly update lookup failed: ${error.message}`);
   if (!update || update.status !== "published" || update.is_current !== true) return null;
+  // English and Español updates are both emailed, each only to subscribers who chose that language.
+  if (update.language !== "en" && update.language !== "es") return null;
   return update as WeeklyUpdateRow;
 }
 
@@ -123,12 +131,15 @@ function weeklyDeliveryStore(weeklyUpdateId: string): DeliveryStore {
 async function deliver(update: WeeklyUpdateRow, broadcastId: string): Promise<BroadcastOutcome> {
   const supabase = getClient();
 
-  const recipients = await loadConfirmedRecipients("weekly_updates");
+  // The update's own language picks everything: who is mailed (only subscribers who chose that language),
+  // the wording, the copyright footer, and the pages the email links to.
+  const language = update.language;
+  const recipients = await loadConfirmedRecipients("weekly_updates", language);
+  assertRecipientsChoseLanguage(recipients, language);
 
   const base = siteUrl();
-  const weeklyUpdateUrl = `${base}/weekly-update`;
-  const preferencesUrl = `${base}/email-preferences`;
-  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
+  const { weeklyUpdateUrl, preferencesUrl } = linksFor(base, language);
+  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base, language);
 
   const run = await deliverToRecipients({
     store: weeklyDeliveryStore(update.id),
@@ -141,6 +152,7 @@ async function deliver(update: WeeklyUpdateRow, broadcastId: string): Promise<Br
       weeklyUpdateUrl,
       preferencesUrl,
       copyrightDisclaimer,
+      language,
     }),
   });
 
@@ -213,20 +225,26 @@ export async function sendWeeklyUpdateToSubscriber(weeklyUpdateId: string, rawEm
   if (!update) return { status: "not_publishable" };
 
   const email = rawEmail.trim().toLowerCase();
-  const recipients = await loadConfirmedRecipients("weekly_updates");
+  // Only subscribers who chose this update's language count, so a Spanish update can never be sent to
+  // someone who chose English only, and an English update never to someone who chose Español only.
+  const language = update.language;
+  const recipients = await loadConfirmedRecipients("weekly_updates", language);
   const recipient = recipients.find((candidate) => candidate.email.trim().toLowerCase() === email);
   if (!recipient) return { status: "not_subscribed" };
+  assertRecipientsChoseLanguage([recipient], language);
 
   if (!(await claimDelivery(update.id, recipient.id))) return { status: "already_sent" };
 
   const base = siteUrl();
+  const links = linksFor(base, language);
   const content = buildWeeklyUpdateEmail({
     title: update.title,
     bodyMarkdown: update.body_markdown,
     convertedContent: update.converted_content as never,
-    weeklyUpdateUrl: `${base}/weekly-update`,
-    preferencesUrl: `${base}/email-preferences`,
-    copyrightDisclaimer: await getEmailCopyrightDisclaimer(base),
+    weeklyUpdateUrl: links.weeklyUpdateUrl,
+    preferencesUrl: links.preferencesUrl,
+    copyrightDisclaimer: await getEmailCopyrightDisclaimer(base, language),
+    language,
   });
 
   let result;

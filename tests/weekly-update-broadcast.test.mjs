@@ -107,7 +107,7 @@ test("only confirmed weekly update subscribers receive a broadcast", async () =>
     readFile("lib/broadcast-recipients.ts", "utf8"),
   ]);
 
-  assert.match(broadcast, /loadConfirmedRecipients\("weekly_updates"\)/);
+  assert.match(broadcast, /loadConfirmedRecipients\("weekly_updates", language\)/);
   assert.match(recipients, /\.eq\("category", category\)/);
   assert.match(recipients, /\.eq\("status", "active"\)/);
   assert.match(recipients, /\.eq\("email_subscribers\.status", "confirmed"\)/);

@@ -134,10 +134,10 @@ test("weekly update broadcast and its test-send preview both source the disclaim
     readFile("app/api/admin/weekly-update/test-send/route.ts", "utf8"),
   ]);
 
-  assert.match(broadcast, /getEmailCopyrightDisclaimer\(base\)/);
+  assert.match(broadcast, /getEmailCopyrightDisclaimer\(base, language\)/);
   assert.match(template, /copyrightDisclaimer\?\.html/);
   assert.equal(template.includes("Scripture quotations are from the NIV"), false);
-  assert.match(testSendRoute, /getEmailCopyrightDisclaimer\(base\)/);
+  assert.match(testSendRoute, /getEmailCopyrightDisclaimer\(base, language\)/);
   assert.match(testSendRoute, /copyrightDisclaimer,/);
 });
 

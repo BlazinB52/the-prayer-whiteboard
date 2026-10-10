@@ -50,27 +50,30 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: update, error } = await supabase
     .from("weekly_updates")
-    .select("id, title, body_markdown, converted_content")
+    .select("id, title, body_markdown, converted_content, language")
     .eq("id", weeklyUpdateId)
     .maybeSingle();
   if (error) return NextResponse.json({ error: "Weekly update could not be read." }, { status: 500 });
   if (!update) return NextResponse.json({ error: "Weekly update not found." }, { status: 404 });
 
+  // An Español update previews as an Español email (Salvadoran Spanish, RVR1960/NVI footer, Español pages).
+  const language = update.language === "es" ? "es" : "en";
   const base = siteUrl();
-  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
+  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base, language);
   const email = buildWeeklyUpdateEmail({
     title: update.title,
     bodyMarkdown: update.body_markdown,
     convertedContent: update.converted_content,
-    weeklyUpdateUrl: `${base}/weekly-update`,
-    preferencesUrl: `${base}/email-preferences`,
+    weeklyUpdateUrl: language === "es" ? `${base}/espanol/actualizacion-semanal` : `${base}/weekly-update`,
+    preferencesUrl: language === "es" ? `${base}/espanol/preferencias` : `${base}/email-preferences`,
     copyrightDisclaimer,
+    language,
   });
 
   const result = await sendSenderTransactionalEmail({
     toEmail: testEmail,
     toName: firstName,
-    subject: `[TEST] ${email.subject}`,
+    subject: `${language === "es" ? "[PRUEBA]" : "[TEST]"} ${email.subject}`,
     html: email.html,
     text: email.text,
   });

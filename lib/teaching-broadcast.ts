@@ -1,6 +1,6 @@
 import "server-only";
 
-import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
+import { assertRecipientsChoseLanguage, loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { deliverToRecipients, sendDeliveriesStore } from "@/lib/send-deliveries";
@@ -66,6 +66,7 @@ async function deliver(teaching: TeachingRow, broadcastId: string): Promise<Teac
   // the wording of the email, the copyright footer, and the preferences page the email links to.
   const language = teaching.language;
   const recipients = await loadConfirmedRecipients("teachings", language);
+  assertRecipientsChoseLanguage(recipients, language);
 
   const base = siteUrl();
   const teachingUrl = `${base}/teachings/${teaching.slug}`;

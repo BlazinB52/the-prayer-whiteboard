@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
-import { loadConfirmedRecipients } from "@/lib/broadcast-recipients";
+import { assertRecipientsChoseLanguage, loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
 import { devotionalDayForWeekday, devotionalTimeZone, isBeforeDevotionalQueueStart, pickNextQueuedSeries } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
@@ -204,6 +204,8 @@ async function deliverDay(input: {
   const { ledgerId, devotional, day, dayNumber, totalDays, teaching } = input;
 
   const recipients = await loadConfirmedRecipients("devotionals");
+  // Devotional emails are English only; refuse to send if anyone on the list did not choose English.
+  assertRecipientsChoseLanguage(recipients, "en");
 
   const base = siteUrl();
   // The email reads through to the assigned teaching when there is one, since

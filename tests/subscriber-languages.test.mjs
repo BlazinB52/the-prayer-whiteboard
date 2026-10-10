@@ -10,13 +10,18 @@ import { reconcileSenderSubscriberGroups } from "../lib/sender-subscriber-groups
 test("every send reads only subscribers who chose that language, English by default", async () => {
   const source = await readFile("lib/broadcast-recipients.ts", "utf8");
   assert.match(source, /language: "en" \| "es" = "en"/);
-  assert.match(source, /normalizeLanguages\(subscriber\.languages\)\.includes\(language\)/);
-  // Weekly updates and devotionals ask for a category only, so they still mail English subscribers only.
-  for (const file of ["lib/weekly-update-broadcast.ts", "lib/devotional-send.ts"]) {
-    const code = await readFile(file, "utf8");
-    assert.match(code, /loadConfirmedRecipients\("[a-z_]+"\)/, `${file} must keep mailing English subscribers only`);
-    assert.doesNotMatch(code, /loadConfirmedRecipients\([^)]*"es"/, `${file} must not mail Español subscribers yet`);
-  }
+  assert.match(source, /normalizeLanguages\(subscriber\?\.languages\)/);
+  assert.match(source, /chosen\.includes\(language\)/);
+  assert.match(source, /export function assertRecipientsChoseLanguage/);
+  // Devotionals are English-only for now: they ask for a category only and must never mail Español subscribers.
+  const devotional = await readFile("lib/devotional-send.ts", "utf8");
+  assert.match(devotional, /loadConfirmedRecipients\("devotionals"\)/, "devotionals must keep mailing English subscribers only");
+  assert.doesNotMatch(devotional, /loadConfirmedRecipients\([^)]*"es"/, "devotionals must not mail Español subscribers yet");
+  // A weekly update is mailed in its own language, taken from the update row and never hard-coded.
+  const weekly = await readFile("lib/weekly-update-broadcast.ts", "utf8");
+  assert.match(weekly, /const language = update\.language;/);
+  assert.match(weekly, /loadConfirmedRecipients\("weekly_updates", language\)/);
+  assert.doesNotMatch(weekly, /loadConfirmedRecipients\([^)]*"(?:en|es)"/, "the language must come from the update, never be hard-coded");
   // A teaching is mailed in its own language, to the subscribers who chose that language and nobody else.
   const teaching = await readFile("lib/teaching-broadcast.ts", "utf8");
   assert.match(teaching, /const language = teaching\.language;/);

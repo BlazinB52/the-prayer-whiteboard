@@ -81,9 +81,16 @@ function readWeeklyUpdateId(formData: FormData) {
   return { value };
 }
 
+type WeeklyUpdateLanguage = "en" | "es";
+
+function readLanguage(formData: FormData): WeeklyUpdateLanguage {
+  return formData.get("language") === "es" ? "es" : "en";
+}
+
 async function readChalkboardAssetIds(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
   formData: FormData,
+  language: WeeklyUpdateLanguage,
 ) {
   const values = Array.from(new Set(formData.getAll("chalkboardAssetIds").map((value) => String(value).trim()).filter(Boolean)));
   if (!values.length) return { value: [] as string[] };
@@ -91,13 +98,16 @@ async function readChalkboardAssetIds(
 
   const { data, error } = await supabase
     .from("chalkboard_assets")
-    .select("id, website_storage_path, storage_path")
+    .select("id, website_storage_path, storage_path, language")
     .in("id", values)
     .eq("status", "active")
     .eq("is_current_version", true);
 
   if (error) return { error: `Weekly Update chalkboard could not be verified: ${error.message}` };
   if ((data ?? []).length !== values.length) return { error: "Choose active current chalkboards from the library." };
+  if ((data ?? []).some((asset) => asset.language !== language)) {
+    return { error: language === "es" ? "Choose only Español (El Salvador) chalkboards for an Español weekly update." : "Choose only English chalkboards for an English weekly update." };
+  }
   if ((data ?? []).some((asset) => !asset.website_storage_path && !asset.storage_path)) return { error: "Choose chalkboards with usable image files." };
   return { value: values };
 }
@@ -122,15 +132,19 @@ async function replaceWeeklyUpdateChalkboards(
 async function readFooterAssignment(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
   formData: FormData,
+  language: WeeklyUpdateLanguage,
 ) {
   const includeFooter = formData.get("includeFooter") === "on" || formData.get("includeFooter") === "true";
   const footerId = String(formData.get("footerId") ?? "").trim();
   if (!includeFooter) return { value: null };
   if (!footerId) return { error: "Choose a footer or uncheck Include footer." };
   if (!UUID_PATTERN.test(footerId)) return { error: "Choose a valid footer." };
-  const { data, error } = await supabase.from("content_footers").select("id").eq("id", footerId).eq("status", "active").maybeSingle();
+  const { data, error } = await supabase.from("content_footers").select("id, language").eq("id", footerId).eq("status", "active").maybeSingle();
   if (error) return { error: "The selected footer could not be verified." };
   if (!data) return { error: "Choose an active footer from the library." };
+  if (data.language !== language) {
+    return { error: language === "es" ? "Choose an Español (El Salvador) footer for an Español weekly update." : "Choose an English footer for an English weekly update." };
+  }
   return { value: footerId };
 }
 
@@ -183,9 +197,11 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
   const title = cleanTitle(formData);
   if (title.error) return { error: title.error };
   if (!title.value) return { error: "Please check the weekly update details and try again." };
-  const chalkboard = await readChalkboardAssetIds(supabase, formData);
+  // The language is chosen once, here, and never changes: it decides who the email goes to.
+  const language = readLanguage(formData);
+  const chalkboard = await readChalkboardAssetIds(supabase, formData, language);
   if (chalkboard.error) return { error: chalkboard.error };
-  const footer = await readFooterAssignment(supabase, formData);
+  const footer = await readFooterAssignment(supabase, formData, language);
   if (footer.error) return { error: footer.error };
 
   const docx = await readDocx(formData, true);
@@ -207,6 +223,7 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
       source_document_storage_path: stored.path,
       source_document_file_name: docx.value.fileName,
       chalkboard_asset_id: chalkboard.value?.[0] ?? null,
+      language,
       status: "draft",
       is_current: false,
     })
@@ -232,9 +249,13 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
   const title = cleanTitle(formData);
   if (title.error) return { error: title.error };
   if (!title.value) return { error: "Please check the weekly update details and try again." };
-  const chalkboard = await readChalkboardAssetIds(supabase, formData);
+  // An existing update keeps the language it was created with; the form cannot change it.
+  const { data: existing } = await supabase.from("weekly_updates").select("language").eq("id", id.value).maybeSingle();
+  if (!existing) return { error: "The weekly update could not be found." };
+  const language: WeeklyUpdateLanguage = existing.language === "es" ? "es" : "en";
+  const chalkboard = await readChalkboardAssetIds(supabase, formData, language);
   if (chalkboard.error) return { error: chalkboard.error };
-  const footer = await readFooterAssignment(supabase, formData);
+  const footer = await readFooterAssignment(supabase, formData, language);
   if (footer.error) return { error: footer.error };
 
   const docx = await readDocx(formData, false);

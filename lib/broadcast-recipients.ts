@@ -6,7 +6,18 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const PAGE_SIZE = 100;
 
-export type BroadcastRecipient = { id: string; firstName: string; email: string };
+export type BroadcastRecipient = { id: string; firstName: string; email: string; languages: ("en" | "es")[] };
+
+// A second, independent check that a send never reaches someone who did not choose its language. The
+// recipient query already filters by language; this refuses to send AT ALL if any recipient on the list
+// does not include it, so a future mistake in the query cannot mail an English subscriber a Spanish
+// email or the other way round.
+export function assertRecipientsChoseLanguage(recipients: BroadcastRecipient[], language: "en" | "es") {
+  const wrong = recipients.filter((recipient) => !recipient.languages.includes(language));
+  if (wrong.length) {
+    throw new Error(`Language guard: ${wrong.length} recipient(s) did not choose "${language}". Nothing was sent.`);
+  }
+}
 
 // Recipients come from Supabase rather than a Sender group, so the double
 // opt-in state in our own database decides who is mailed.
@@ -33,8 +44,9 @@ export async function loadConfirmedRecipients(category: EmailCategory, language:
       const subscriber = row.email_subscribers;
       // Only subscribers who chose this language are mailed. An English send never reaches someone who
       // chose Español only, and the other way round; someone who chose both gets both.
-      if (subscriber?.email && normalizeLanguages(subscriber.languages).includes(language)) {
-        recipients.push({ id: subscriber.id, firstName: subscriber.first_name, email: subscriber.email });
+      const chosen = normalizeLanguages(subscriber?.languages);
+      if (subscriber?.email && chosen.includes(language)) {
+        recipients.push({ id: subscriber.id, firstName: subscriber.first_name, email: subscriber.email, languages: chosen });
       }
     }
 

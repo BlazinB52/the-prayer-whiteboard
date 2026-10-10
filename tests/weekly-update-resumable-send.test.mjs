@@ -53,7 +53,7 @@ test("sending to one subscriber is admin-only, real (no [TEST]) and limited to c
   assert.ok(route.indexOf("status: 401") < route.indexOf("request.json()"));
   const fn = broadcast.slice(broadcast.indexOf("export async function sendWeeklyUpdateToSubscriber"));
   assert.doesNotMatch(fn, /\[TEST\]/);
-  assert.match(fn, /loadConfirmedRecipients\("weekly_updates"\)/);
+  assert.match(fn, /loadConfirmedRecipients\("weekly_updates", language\)/);
   assert.ok(fn.indexOf("claimDelivery(") < fn.indexOf("sendSenderTransactionalEmail("));
 });
 

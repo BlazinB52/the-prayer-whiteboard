@@ -98,7 +98,7 @@ test("both broadcasts share one confirmed-recipient query", async () => {
 
   assert.match(recipients, /\.eq\("status", "active"\)/);
   assert.match(recipients, /\.eq\("email_subscribers\.status", "confirmed"\)/);
-  assert.match(weekly, /loadConfirmedRecipients\("weekly_updates"\)/);
+  assert.match(weekly, /loadConfirmedRecipients\("weekly_updates", language\)/);
   assert.match(teaching, /loadConfirmedRecipients\("teachings", language\)/);
   // The duplicated query was removed rather than left behind.
   assert.equal(weekly.includes("email_subscribers!inner"), false);

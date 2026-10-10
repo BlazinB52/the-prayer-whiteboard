@@ -78,7 +78,9 @@ test("the preview is built by the production email builder and marked as a test"
   const { code } = await readRoute();
 
   assert.match(code, /buildWeeklyUpdateEmail\(\{/);
-  assert.match(code, /subject: `\[TEST\] \$\{email\.subject\}`/);
+  assert.match(code, /\[PRUEBA\]/);
+  assert.match(code, /\[TEST\]/);
+  assert.match(code, /\$\{email\.subject\}/);
   assert.match(code, /convertedContent: update\.converted_content/);
   assert.match(code, /bodyMarkdown: update\.body_markdown/);
 });
@@ -95,9 +97,9 @@ test("the test email uses the greeting-free weekly update builder", async () => 
 test("the test-send preview includes the shared copyright disclaimer like the real broadcast", async () => {
   const { code } = await readRoute();
 
-  assert.match(code, /getEmailCopyrightDisclaimer\(base\)/);
+  assert.match(code, /getEmailCopyrightDisclaimer\(base, language\)/);
   assert.match(code, /copyrightDisclaimer,/);
-  assert.ok(code.indexOf("getEmailCopyrightDisclaimer(base)") < code.indexOf("buildWeeklyUpdateEmail({"));
+  assert.ok(code.indexOf("getEmailCopyrightDisclaimer(base, language)") < code.indexOf("buildWeeklyUpdateEmail({"));
 });
 
 test("the comment-stripping helper does not hide real code", () => {

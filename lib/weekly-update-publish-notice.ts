@@ -11,6 +11,8 @@ export type WeeklyUpdatePublishInfo = {
   recipientCount: number | null;
   /** Title of the update that is showing now and would be archived, if it is a different update. */
   replacesTitle: string | null;
+  /** The update's language. An Español update is emailed only to subscribers who chose Español. Defaults to English. */
+  language?: "en" | "es";
 };
 
 export type WeeklyUpdatePublishNotice = {
@@ -21,18 +23,19 @@ export type WeeklyUpdatePublishNotice = {
 };
 
 export function weeklyUpdatePublishNotice(info: WeeklyUpdatePublishInfo): WeeklyUpdatePublishNotice {
+  const audience = info.language === "es" ? "Weekly Updates in Español" : "Weekly Updates";
   const replaces = info.replacesTitle ? ` It replaces "${info.replacesTitle}" on the website, which moves to the archive.` : "";
   if (info.alreadySent) {
     const text = `An email for this update was already sent, so publishing it again will not email anyone.${replaces}`;
     return { kind: "none", text, confirm: `Publish this weekly update?${replaces}` };
   }
   if (info.recipientCount === 0) {
-    const text = `No subscribers are signed up for Weekly Updates, so no email will be sent.${replaces}`;
+    const text = `No subscribers are signed up for ${audience}, so no email will be sent.${replaces}`;
     return { kind: "none", text, confirm: `Publish this weekly update? No email will be sent.${replaces}` };
   }
   const who = info.recipientCount === null
-    ? "every subscriber who chose Weekly Updates"
-    : `${info.recipientCount} ${info.recipientCount === 1 ? "subscriber" : "subscribers"} who chose Weekly Updates`;
+    ? `every subscriber who chose ${audience}`
+    : `${info.recipientCount} ${info.recipientCount === 1 ? "subscriber" : "subscribers"} who chose ${audience}`;
   const text = `Publishing emails ${who}, within moments. An email cannot be unsent, and editing the update later does not send it again.${replaces} If you are not ready for the email to go out, leave it as a draft.`;
   return { kind: "email", text, confirm: `Publish this weekly update and email ${who} now? An email cannot be unsent.${replaces}` };
 }

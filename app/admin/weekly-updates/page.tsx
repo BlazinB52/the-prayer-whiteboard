@@ -29,26 +29,27 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
   const [{ data: updates, error }, { data: chalkboards }, { data: chalkboardAssignments }, { data: footers }, { data: footerAssignments }] = await Promise.all([
     supabase
       .from("weekly_updates")
-      .select("id, title, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, conversion_report, ready_to_publish_at")
+      .select("id, title, language, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, conversion_report, ready_to_publish_at")
       .order("is_current", { ascending: false })
       .order("updated_at", { ascending: false }),
     supabase
       .from("chalkboard_assets")
-      .select("id, canonical_name, title, chalkboard_date")
+      .select("id, canonical_name, title, chalkboard_date, language")
       .eq("status", "active")
       .eq("is_current_version", true)
       .or("website_storage_path.not.is.null,storage_path.not.is.null")
       .order("chalkboard_date", { ascending: false })
       .order("canonical_name", { ascending: true }),
     supabase.from("weekly_update_chalkboard_assignments").select("weekly_update_id, chalkboard_asset_id, display_order").order("display_order", { ascending: true }),
-    supabase.from("content_footers").select("id, internal_title, content").eq("status", "active").order("internal_title", { ascending: true }),
+    supabase.from("content_footers").select("id, internal_title, content, language").eq("status", "active").order("internal_title", { ascending: true }),
     supabase.from("weekly_update_footer_assignments").select("weekly_update_id, footer_id"),
   ]);
   const chalkboardOptions: WeeklyUpdateChalkboardOption[] = (chalkboards ?? []).map((chalkboard) => ({
     id: chalkboard.id,
     label: `${formatDate(chalkboard.chalkboard_date)} - ${chalkboard.canonical_name ?? chalkboard.title}`,
+    language: chalkboard.language === "es" ? "es" : "en",
   }));
-  const footerOptions: WeeklyUpdateFooterOption[] = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title }));
+  const footerOptions: WeeklyUpdateFooterOption[] = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title, language: footer.language === "es" ? "es" as const : "en" as const }));
   const chalkboardLabels = new Map(chalkboardOptions.map((chalkboard) => [chalkboard.id, chalkboard.label]));
   const footerLabels = new Map(footerOptions.map((footer) => [footer.id, footer.label]));
   const footerContent = new Map((footers ?? []).map((footer) => [footer.id, footer.content]));
@@ -59,7 +60,8 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
     chalkboardIdsByUpdate.set(assignment.weekly_update_id, current);
   }
   const emailLookup = await getWeeklyUpdateEmailLookup(supabase);
-  const currentUpdate = (updates ?? []).find((item) => item.is_current);
+  // There is one current update PER LANGUAGE; publishing replaces only the current update of the same language.
+  const currentByLanguage = { en: (updates ?? []).find((item) => item.is_current && item.language !== "es"), es: (updates ?? []).find((item) => item.is_current && item.language === "es") };
   // Co-editor proposals still waiting on a decision, per weekly update. Publishing closes them (and deletes
   // their text), so each draft says so instead of letting it come as a surprise.
   const { data: waitingRevisions } = await supabase.from("content_revisions").select("weekly_update_id").eq("subject_type", "weekly_update").eq("status", "submitted");
@@ -116,16 +118,19 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
             <div className="mt-5 grid gap-5">
               {updates.map((update) => {
                 const notes = ((update.conversion_report as { notes?: ConversionNote[] } | null)?.notes ?? []);
+                const updateLanguage = update.language === "es" ? "es" : "en";
+                const currentOfLanguage = currentByLanguage[updateLanguage];
                 const publishNotice = weeklyUpdatePublishNotice({
                   alreadySent: emailLookup.sentIds.has(update.id),
-                  recipientCount: emailLookup.recipientCount,
-                  replacesTitle: currentUpdate && currentUpdate.id !== update.id ? currentUpdate.title : null,
+                  recipientCount: updateLanguage === "es" ? emailLookup.recipientCountEs : emailLookup.recipientCount,
+                  replacesTitle: currentOfLanguage && currentOfLanguage.id !== update.id ? currentOfLanguage.title : null,
+                  language: updateLanguage,
                 });
                 return (
                 <article key={update.id} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{update.is_current ? "Current" : update.status}{update.status === "draft" && update.ready_to_publish_at ? <span className="ml-2 rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black tracking-wider text-[#1a4fb4]">Ready to publish</span> : null}</p>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{update.is_current ? "Current" : update.status} · {update.language === "es" ? "Español" : "English"}{update.status === "draft" && update.ready_to_publish_at ? <span className="ml-2 rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black tracking-wider text-[#1a4fb4]">Ready to publish</span> : null}</p>
                       <h3 className="mt-2 text-2xl font-extrabold text-[#243d31]">{update.title}</h3>
                       <p className="mt-2 text-sm text-[#607066]">Published: {formatDate(update.published_at)}{update.archived_at ? ` · Archived: ${formatDate(update.archived_at)}` : ""}</p>
                       <p className="mt-1 text-sm text-[#607066]">Source document: <span className="font-bold text-[#385245]">{update.source_document_file_name ?? "Not retained"}</span></p>
@@ -172,7 +177,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   {update.status !== "archived" ? (
                     <details className="mt-5">
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit title or replace document</summary>
-                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialTitle={update.title} initialChalkboardAssetIds={chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} chalkboards={chalkboardOptions} footers={footerOptions} /></div>
+                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialLanguage={update.language === "es" ? "es" : "en"} languageLocked initialTitle={update.title} initialChalkboardAssetIds={chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} chalkboards={chalkboardOptions} footers={footerOptions} /></div>
                     </details>
                   ) : null}
                   {update.is_current && update.status === "published" ? (

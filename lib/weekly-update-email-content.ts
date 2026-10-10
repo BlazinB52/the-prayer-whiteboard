@@ -90,6 +90,22 @@ function paragraphsFromMarkdown(body: string) {
   return body.replace(/\r\n?/g, "\n").split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
 }
 
+// Wording for each language. Español uses the Salvadoran voseo, like the other Español emails.
+const COPY = {
+  en: {
+    button: "Read It Online",
+    textLink: "Read it online:",
+    reason: "You are receiving this because you subscribed to Prayer Whiteboard Weekly Updates.",
+    manage: "Manage your email preferences or unsubscribe",
+  },
+  es: {
+    button: "Leer en línea",
+    textLink: "Leé en línea:",
+    reason: "Recibís este mensaje porque te suscribiste a las Actualizaciones semanales de Prayer Whiteboard.",
+    manage: "Administrá tus preferencias de correo o cancelá tu suscripción",
+  },
+} as const;
+
 export function buildWeeklyUpdateEmail(input: {
   title: string;
   bodyMarkdown: string;
@@ -97,7 +113,9 @@ export function buildWeeklyUpdateEmail(input: {
   weeklyUpdateUrl: string;
   preferencesUrl: string;
   copyrightDisclaimer?: EmailCopyrightDisclaimer;
+  language?: "en" | "es";
 }) {
+  const copy = COPY[input.language ?? "en"];
   const blocks = readBlocks(input.convertedContent);
   const bodyHtml = blocks.length
     ? blocks.map(blockHtml).join("")
@@ -109,20 +127,20 @@ export function buildWeeklyUpdateEmail(input: {
   const subject = input.title;
   const html = shell(input.title, `
     ${bodyHtml}
-    <p style="margin:28px 0 0;">${button("Read It Online", input.weeklyUpdateUrl)}</p>
+    <p style="margin:28px 0 0;">${button(copy.button, input.weeklyUpdateUrl)}</p>
     <hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:28px 0 16px;" />
-    <p style="margin:0;line-height:1.65;color:#607066;font-size:13px;">You are receiving this because you subscribed to Prayer Whiteboard Weekly Updates. <a href="${escapeHtml(input.preferencesUrl)}" style="color:#244a3a;">Manage your email preferences or unsubscribe</a>.</p>
+    <p style="margin:0;line-height:1.65;color:#607066;font-size:13px;">${copy.reason} <a href="${escapeHtml(input.preferencesUrl)}" style="color:#244a3a;">${copy.manage}</a>.</p>
     ${input.copyrightDisclaimer?.html ?? ""}
   `);
   const text = [
     `${bodyText}
 
-Read it online:
+${copy.textLink}
 ${input.weeklyUpdateUrl}
 
 ---
-You are receiving this because you subscribed to Prayer Whiteboard Weekly Updates.
-Manage your email preferences or unsubscribe: ${input.preferencesUrl}`,
+${copy.reason}
+${copy.manage}: ${input.preferencesUrl}`,
     input.copyrightDisclaimer?.text ? `\n${input.copyrightDisclaimer.text}` : "",
   ].filter((line) => line !== "").join("\n");
 

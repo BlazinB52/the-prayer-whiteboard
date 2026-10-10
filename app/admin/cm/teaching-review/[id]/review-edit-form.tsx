@@ -69,7 +69,9 @@ function useProofed(storageKey: string) {
 
 type Action = (state: TeachingReviewState, formData: FormData) => Promise<TeachingReviewState>;
 
-export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }: { action: Action; fields: ReviewFormField[]; canEdit: boolean; subject?: "teaching" | "devotional" | "weekly update" }) {
+// submitsAsOk: submitting is the editor's one and only pass and also tells the Administrator the item is OK to
+// publish, so it is allowed with no changes and the wording says so plainly.
+export function ReviewEditForm({ action, fields, canEdit, subject = "teaching", submitsAsOk = false }: { action: Action; fields: ReviewFormField[]; canEdit: boolean; subject?: "teaching" | "devotional" | "weekly update"; submitsAsOk?: boolean }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((field) => [field.id, field.value])));
   const setValue = (id: string, value: string) => setValues((current) => ({ ...current, [id]: value }));
@@ -200,6 +202,11 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }
           <span className="font-normal text-[#607066]">(a private reminder, saved in this browser only)</span>
         </p>
         <p className="text-sm leading-6 text-[#607066]">Changes made here are proposals only. The approved {subject} will not change until an Administrator accepts them.</p>
+        {submitsAsOk ? (
+          <p role="note" className="mt-3 rounded-xl border-2 border-[#a2472c]/40 bg-[#fff3ed] px-4 py-3 text-sm font-extrabold leading-6 text-[#7a2a12]">
+            Submitting to the Administrator means you are saying this {subject} is OK to publish. You get one pass: after you submit you cannot make any more changes. If you found nothing to change, you can still submit it as is.
+          </p>
+        ) : null}
         {state.error ? <p role="alert" className="mt-3 text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
         {state.saved ? <p role="status" className="mt-3 text-sm font-bold text-[#326048]">Draft saved ({state.savedCount ?? 0} {state.savedCount === 1 ? "change" : "changes"}).</p> : null}
         {canEdit ? (
@@ -209,13 +216,16 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching" }
               type="submit"
               name="intent"
               value="submit"
-              disabled={pending || changedCount === 0}
+              disabled={pending || (!submitsAsOk && changedCount === 0)}
               onClick={(event) => {
-                if (!window.confirm("Submit these changes for Administrator review? You will not be able to edit them after submitting.")) event.preventDefault();
+                const message = submitsAsOk
+                  ? `Submit to the Administrator as OK to publish${changedCount ? ` with ${changedCount} proposed ${changedCount === 1 ? "change" : "changes"}` : " with no changes"}? This says the ${subject} is OK to publish, and you will not be able to make any more changes.`
+                  : "Submit these changes for Administrator review? You will not be able to edit them after submitting.";
+                if (!window.confirm(message)) event.preventDefault();
               }}
               className="admin-primary-button"
             >
-              <span>Submit for Admin Review</span>
+              <span>{submitsAsOk ? "Submit to Administrator: OK to publish" : "Submit for Admin Review"}</span>
             </button>
             <button
               type="submit"

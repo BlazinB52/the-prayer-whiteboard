@@ -108,7 +108,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         {params.proofing === "sent" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Sent to the Content Managers for proofing. Nothing was published or emailed to subscribers.</p> : null}
         {params.proofing === "takenback" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Taken back from proofing.</p> : null}
         {params.proofing === "error" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">That could not be changed. Only drafts can be sent for proofing.</p> : null}
-        {params.ready === "notproofed" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">A Content Manager has to mark it OK to publish before it can be marked ready.</p> : null}
+        {params.ready === "notproofed" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">A Content Manager has to submit it back as OK to publish before it can be marked ready.</p> : null}
         {params.ready === "marked" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Marked as ready to publish. Nothing was published or emailed.</p> : null}
         {params.ready === "cleared" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Ready to publish mark removed.</p> : null}
         {params.ready === "error" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">The ready mark could not be changed. Only drafts can be marked.</p> : null}
@@ -183,21 +183,21 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Proofing and publishing</p>
                       {!update.sent_to_proofing_at ? (
                         <>
-                          <p className="mt-2 text-sm leading-6 text-[#385245]">Step 1: when you have reviewed this draft, send it to the Content Managers to proof. They will mark it OK to publish. Nothing is emailed to subscribers.</p>
+                          <p className="mt-2 text-sm leading-6 text-[#385245]">Step 1: when you have reviewed this draft, send it to the Content Managers to proof. They get one pass, and when they submit it back to you, that is their OK to publish. Nothing is emailed to subscribers.</p>
                           <form action={sendWeeklyUpdateToProofing.bind(null, update.id)} className="mt-3">
                             <button type="submit" className="admin-secondary-button">Send to Content Managers for proofing</button>
                           </form>
                         </>
                       ) : !update.proofed_ok_at ? (
                         <>
-                          <p className="mt-2 text-sm font-bold leading-6 text-[#7a4a1d]">With the Content Managers for proofing since {formatDate(update.sent_to_proofing_at)}. Waiting for a Content Manager to mark it OK to publish.</p>
+                          <p className="mt-2 text-sm font-bold leading-6 text-[#7a4a1d]">With the Content Managers for proofing since {formatDate(update.sent_to_proofing_at)}. Waiting for a Content Manager to submit it back, which is their OK to publish.</p>
                           <form action={takeWeeklyUpdateBackFromProofing.bind(null, update.id)} className="mt-3">
                             <button type="submit" className="admin-secondary-button">Take back from proofing</button>
                           </form>
                         </>
                       ) : (
                         <>
-                          <p className="mt-2 text-sm font-bold leading-6 text-[#326048]">OK to publish: {update.proofed_ok_by_name ?? "a Content Manager"}, {formatDate(update.proofed_ok_at)}. Review any changes they proposed and make your own edits, then mark it ready. Publishing is the step that emails subscribers.</p>
+                          <p className="mt-2 text-sm font-bold leading-6 text-[#326048]">Submitted back as OK to publish by {update.proofed_ok_by_name ?? "a Content Manager"}, {formatDate(update.proofed_ok_at)}. Accept or reject any changes they proposed, make your own edits, then mark it ready. Publishing is the step that emails subscribers.</p>
                           <div className="mt-3 flex flex-wrap gap-3">
                             <form action={setWeeklyUpdateReady.bind(null, update.id, !update.ready_to_publish_at)}>
                               <button type="submit" className="admin-secondary-button">{update.ready_to_publish_at ? "Remove ready mark" : "Mark as ready to publish"}</button>

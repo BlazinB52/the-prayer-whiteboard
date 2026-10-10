@@ -57,7 +57,7 @@ export default async function WeeklyUpdateReviewListPage() {
         <Link href="/admin/cm" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Content Management</Link>
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31] sm:text-5xl">Weekly Update - Review</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
-          These weekly updates were sent to you for proofing. Read each one, propose any corrections, and mark it OK to publish when it is ready. Your edits are proposals only: the weekly update does not change until an Administrator accepts them.
+          These weekly updates were sent to you for proofing. Read each one and propose any corrections. You have one pass: submitting to the Administrator is your OK to publish. Your edits are proposals only: the weekly update does not change until an Administrator accepts them.
         </p>
 
         {error ? <p className="mt-6 text-sm font-bold text-[#a2472c]">Draft weekly updates could not be loaded.</p> : null}
@@ -74,7 +74,7 @@ export default async function WeeklyUpdateReviewListPage() {
                   <li key={update.id}>
                     <Link href={`/admin/cm/weekly-update-review/${update.id}`} className="flex min-h-12 items-center gap-3 px-2 py-3 transition hover:bg-[#e7efe9]/60">
                       <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{update.title.trim() || "Untitled weekly update"}</span>
-                      {update.proofed_ok_at ? <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">OK to publish</span> : <span className="rounded-full bg-[#fbf1e1] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#7a4a1d]">Needs your OK</span>}
+                      {update.proofed_ok_at ? <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">Submitted: OK to publish</span> : <span className="rounded-full bg-[#fbf1e1] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#7a4a1d]">Needs your proofing</span>}
                       {open ? <span className="rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a4fb4]">{STATUS_LABELS[open.status]}</span> : null}
                     </Link>
                   </li>

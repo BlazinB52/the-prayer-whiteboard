@@ -19,11 +19,29 @@ test("only a Content Manager or Administrator can OK a draft, and only one sent 
   assert.match(migration, /check \(proofed_ok_at is null or sent_to_proofing_at is not null\)/);
 });
 
-test("an unsubmitted set of proposed changes has to be dealt with before the OK", () => {
-  assert.match(migration, /r\.status = 'draft'/);
-  assert.match(migration, /Submit or discard your proposed changes first\./);
-  assert.match(cmActions, /open_changes/);
-  assert.match(cmDetail, /proofed === "open_changes"/);
+test("submitting is the one pass and is also the OK to publish", () => {
+  const submit = cmActions.slice(cmActions.indexOf('if (intent === "submit")'));
+  // The proposed changes are submitted first, and only then is the OK recorded.
+  assert.ok(submit.indexOf("submit_weekly_update_revision") < submit.indexOf("set_weekly_update_proofed_ok"));
+  // With nothing to propose, the empty draft is removed and the submit is the OK on its own.
+  assert.ok(submit.indexOf("discard_teaching_revision") < submit.indexOf("set_weekly_update_proofed_ok"));
+  assert.match(submit, /proposed === 0/);
+  // The database still refuses an OK while unsubmitted changes are open.
+  assert.match(migration, /Submit or discard your proposed changes first./);
+});
+
+test("the Content Manager page has one submit at the bottom, a strong note, and no further edits afterwards", async () => {
+  const form = await readFile("app/admin/cm/teaching-review/[id]/review-edit-form.tsx", "utf8");
+  assert.match(cmDetail, /submitsAsOk/);
+  assert.match(form, /Submitting to the Administrator means you are saying this {subject} is OK to publish/);
+  assert.match(form, /disabled={pending || (!submitsAsOk && changedCount === 0)}/);
+  assert.match(form, /Submit to Administrator: OK to publish/);
+  // The separate OK, withdraw, take-back and new-revision controls are gone.
+  assert.equal(cmDetail.includes("setWeeklyUpdateProofedOk"), false);
+  assert.equal(cmDetail.includes("RecallRevisionButton"), false);
+  assert.equal(cmDetail.includes("?new=1"), false);
+  assert.equal(cmActions.includes("export async function setWeeklyUpdateProofedOk"), false);
+  assert.match(cmDetail, /There are no further edits at this time./);
 });
 
 test("withdrawing an OK also removes the ready mark, which was based on it", () => {
@@ -61,7 +79,6 @@ test("replacing the document clears the OK and ready mark but keeps it with the 
 test("Content Managers only see drafts that were sent to them", () => {
   assert.match(cmList, /\.not\("sent_to_proofing_at", "is", null\)/);
   assert.match(cmDetail, /\.not\("sent_to_proofing_at", "is", null\)/);
-  assert.match(cmDetail, /setWeeklyUpdateProofedOk\.bind\(null, id, true\)/);
 });
 
 test("publishing warns when the draft has not been through the workflow", () => {

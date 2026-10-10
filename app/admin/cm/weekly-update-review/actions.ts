@@ -44,33 +44,27 @@ export async function saveWeeklyUpdateReview(weeklyUpdateId: string, _previous: 
   if (saveError) return { error: friendlyRevisionError(saveError.message) };
 
   if (intent === "submit") {
-    const { error: submitError } = await supabase.rpc("submit_weekly_update_revision", { p_revision_id: revisionId });
-    if (submitError) return { error: friendlyRevisionError(submitError.message) };
+    // Submitting is the Content Manager's one pass and also their OK to publish. With nothing to propose
+    // the empty draft is cleaned up and the submit is the OK on its own; otherwise the changes go to the
+    // Administrator and the OK is recorded with them. Only after the changes are submitted can the OK be given.
+    const proposed = typeof savedCount === "number" ? savedCount : changes.length;
+    if (proposed === 0) {
+      const { error: discardError } = await supabase.rpc("discard_teaching_revision", { p_revision_id: revisionId });
+      if (discardError) return { error: friendlyRevisionError(discardError.message) };
+    } else {
+      const { error: submitError } = await supabase.rpc("submit_weekly_update_revision", { p_revision_id: revisionId });
+      if (submitError) return { error: friendlyRevisionError(submitError.message) };
+    }
+    const { error: okError } = await supabase.rpc("set_weekly_update_proofed_ok", { p_weekly_update_id: weeklyUpdateId, p_ok: true });
+    if (okError) return { error: "Your changes were sent, but the OK to publish could not be recorded. Please tell the Administrator." };
     revalidatePath("/admin/cm/weekly-update-review");
     revalidatePath(`/admin/cm/weekly-update-review/${weeklyUpdateId}`);
     revalidatePath("/admin/teaching-revisions");
+    revalidatePath("/admin/weekly-updates");
     revalidatePath("/admin");
     redirect(`/admin/cm/weekly-update-review/${weeklyUpdateId}?submitted=1`);
   }
 
   revalidatePath(`/admin/cm/weekly-update-review/${weeklyUpdateId}`);
   return { saved: true, savedCount: typeof savedCount === "number" ? savedCount : changes.length };
-}
-
-// A Content Manager says the draft is OK to publish (or withdraws that). The database function checks
-// who is calling and that the draft was sent for proofing; this is only the doorway to it.
-export async function setWeeklyUpdateProofedOk(weeklyUpdateId: string, ok: boolean) {
-  if (!UUID_PATTERN.test(weeklyUpdateId)) redirect("/admin/cm/weekly-update-review");
-  const { supabase } = await requireContentManager();
-
-  const { error } = await supabase.rpc("set_weekly_update_proofed_ok", { p_weekly_update_id: weeklyUpdateId, p_ok: ok });
-  if (error) {
-    const reason = /Submit or discard/i.test(error.message) ? "open_changes" : "error";
-    redirect(`/admin/cm/weekly-update-review/${weeklyUpdateId}?proofed=${reason}`);
-  }
-
-  revalidatePath("/admin/cm/weekly-update-review");
-  revalidatePath(`/admin/cm/weekly-update-review/${weeklyUpdateId}`);
-  revalidatePath("/admin/weekly-updates");
-  redirect(`/admin/cm/weekly-update-review/${weeklyUpdateId}?proofed=${ok ? "ok" : "withdrawn"}`);
 }

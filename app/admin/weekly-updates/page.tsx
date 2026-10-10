@@ -60,6 +60,11 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
     chalkboardIdsByUpdate.set(assignment.weekly_update_id, current);
   }
   const emailLookup = await getWeeklyUpdateEmailLookup(supabase);
+  // Work that still needs attention comes first: drafts, then the current published updates, then the
+  // archive. Within each group the most recently edited is first.
+  const listRank = (item: { status: string; is_current: boolean }) => (item.status === "draft" ? 0 : item.is_current ? 1 : 2);
+  const sortedUpdates = [...(updates ?? [])].sort((a, b) => listRank(a) - listRank(b) || String(b.updated_at).localeCompare(String(a.updated_at)));
+
   // There is one current update PER LANGUAGE; publishing replaces only the current update of the same language.
   const currentByLanguage = { en: (updates ?? []).find((item) => item.is_current && item.language !== "es"), es: (updates ?? []).find((item) => item.is_current && item.language === "es") };
   // Co-editor proposals still waiting on a decision, per weekly update. Publishing closes them (and deletes
@@ -114,9 +119,9 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         <section className="border-t border-[#284a3b]/10 py-8">
           <h2 className="text-2xl font-extrabold text-[#243d31]">Update archive</h2>
           {error ? <p className="mt-4 text-sm font-bold text-[#a2472c]">Weekly updates could not be loaded.</p> : null}
-          {updates?.length ? (
+          {sortedUpdates.length ? (
             <div className="mt-5 grid gap-5">
-              {updates.map((update) => {
+              {sortedUpdates.map((update) => {
                 const notes = ((update.conversion_report as { notes?: ConversionNote[] } | null)?.notes ?? []);
                 const updateLanguage = update.language === "es" ? "es" : "en";
                 const currentOfLanguage = currentByLanguage[updateLanguage];

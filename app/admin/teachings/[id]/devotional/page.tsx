@@ -61,7 +61,7 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-4xl">
-        <Link href={`/admin/teachings/${teaching.id}/edit`} className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to teaching editor</Link>
+        <Link href="/admin" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to dashboard</Link>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>

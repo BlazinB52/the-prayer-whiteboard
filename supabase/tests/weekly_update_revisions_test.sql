@@ -133,7 +133,7 @@ select is(
   'the list now holds three items with their formatting'
 );
 reset role;
-select is((select count(*)::int from public.content_revision_changes where revision_id = (select id from rev_ids where key = 'a')), 0, 'the proposed wording is deleted when the review finishes');
+select is((select count(*)::int from public.content_revision_changes where revision_id = (select id from rev_ids where key = 'a')), 3, 'the proposed wording is kept when the review finishes');
 select is((select accepted_count || '/' || rejected_count || '/' || overridden_count from public.content_revisions where id = (select id from rev_ids where key = 'a')), '3/0/1', 'the audit row keeps the counts');
 
 -- ===========================================================================
@@ -152,7 +152,7 @@ reset role;
 update public.weekly_updates set status = 'published', published_at = now() where id = '00000000-0000-4000-9500-0000000000a3';
 
 select is((select status from public.content_revisions where id = (select id from rev_ids where key = 'c')), 'cancelled', 'publishing closes the open revision');
-select is((select count(*)::int from public.content_revision_changes where revision_id = (select id from rev_ids where key = 'c')), 0, 'publishing deletes the proposed wording');
+select is((select count(*)::int from public.content_revision_changes where revision_id = (select id from rev_ids where key = 'c')), 1, 'publishing keeps the wording of a submitted revision');
 select is((select title from public.weekly_updates where id = '00000000-0000-4000-9500-0000000000a3'), 'Third Draft', 'the unaccepted proposal never reached the weekly update');
 
 select * from finish();

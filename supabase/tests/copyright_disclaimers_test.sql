@@ -85,10 +85,11 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', (select id::text from copyright_disclaimer_test_ids where key = 'regular_user'), true);
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
-select throws_ok(
-  $$ update public.copyright_disclaimers set content = 'regular user edit' where disclaimer_key = 'full_page' $$,
-  '42501',
-  null,
+-- The row-level policy filters the row out, so the update changes nothing (it does not raise an error).
+update public.copyright_disclaimers set content = 'regular user edit' where disclaimer_key = 'full_page';
+select isnt(
+  (select content from public.copyright_disclaimers where disclaimer_key = 'full_page'),
+  'regular user edit',
   'public cannot edit copyright disclaimers'
 );
 

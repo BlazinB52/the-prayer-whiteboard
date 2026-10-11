@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const migration = await readFile("supabase/migrations/20261011000000_keep_revision_wording_until_cleared.sql", "utf8");
+const migration = await readFile("supabase/migrations/20261011000100_keep_revision_wording_until_cleared.sql", "utf8");
 const listPage = await readFile("app/admin/teaching-revisions/page.tsx", "utf8");
 const detailPage = await readFile("app/admin/teaching-revisions/[revisionId]/page.tsx", "utf8");
 

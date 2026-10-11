@@ -1,6 +1,6 @@
 // Side-effect-free helpers for the devotional review workflow, used by the co-editor page, the
 // Administrator review page and the tests. The limits below mirror the database function
-// revision_devotional_field_info (last replaced in 20261011010000_devotional_series_closing_prayer.sql; Day 7's
+// revision_devotional_field_info (last replaced in 20261011010100_devotional_series_closing_prayer.sql; Day 7's
 // bread, cup and self-examination fields came in 20261011000000_devotional_communion_day.sql); keep the two in step.
 
 import { fieldId, type EditableField } from "./teaching-revisions.ts";

@@ -345,11 +345,11 @@ select is(
 select is((select jsonb_array_length(content -> 'bullets') from public.teaching_sections where id = '00000000-0000-4000-9200-0000000000b2'), 1, 'the accepted bullet deletion was applied');
 select is((select status from public.content_revisions where submitted_by = '00000000-0000-4000-9200-000000000002'), 'completed', 'the finished revision is marked completed');
 select is(
-  (select (accepted_count = 2 and rejected_count = 1 and total_changes = 3 and completed_by = '00000000-0000-4000-9200-000000000001' and completed_by_name = 'Local Admin' and purged_at is not null)
+  (select (accepted_count = 2 and rejected_count = 1 and total_changes = 3 and completed_by = '00000000-0000-4000-9200-000000000001' and completed_by_name = 'Local Admin' and purged_at is null)
    from public.content_revisions where submitted_by = '00000000-0000-4000-9200-000000000002'),
   true, 'the audit row keeps who decided, when, and the counts'
 );
-select is((select count(*)::int from public.content_revision_changes c join public.content_revisions r on r.id = c.revision_id where r.submitted_by = '00000000-0000-4000-9200-000000000002'), 0, 'the proposed and original wording is deleted once the revision is finished');
+select is((select count(*)::int from public.content_revision_changes c join public.content_revisions r on r.id = c.revision_id where r.submitted_by = '00000000-0000-4000-9200-000000000002'), 3, 'the proposed and original wording is kept for the record once the revision is finished');
 
 -- Reject All
 select lives_ok($$ select public.review_all_teaching_revision_changes((select id from public.content_revisions where submitted_by = '00000000-0000-4000-9200-000000000003'), 'reject') $$, 'an Administrator can reject all remaining changes');
@@ -412,9 +412,9 @@ select is((select count(*)::int from public.content_revision_changes c join publ
 
 update public.teachings set status = 'published', published_at = now() where id = '00000000-0000-4000-9200-0000000000a3';
 
-select is((select count(*)::int from public.content_revision_changes c join public.content_revisions r on r.id = c.revision_id where r.teaching_id = '00000000-0000-4000-9200-0000000000a3'), 0, 'publishing the teaching deletes the temporary wording');
+select is((select count(*)::int from public.content_revision_changes c join public.content_revisions r on r.id = c.revision_id where r.teaching_id = '00000000-0000-4000-9200-0000000000a3'), 1, 'publishing the teaching keeps the wording of a submitted revision');
 select is((select status from public.content_revisions where teaching_id = '00000000-0000-4000-9200-0000000000a3'), 'cancelled', 'an unreviewed revision is closed when its teaching is published');
-select is((select (total_changes = 1 and purged_at is not null and subject_title = 'Third Draft') from public.content_revisions where teaching_id = '00000000-0000-4000-9200-0000000000a3'), true, 'only a small audit row remains');
+select is((select (total_changes = 1 and purged_at is null and subject_title = 'Third Draft') from public.content_revisions where teaching_id = '00000000-0000-4000-9200-0000000000a3'), true, 'the record keeps its counts and wording');
 select is((select title from public.teaching_categories where id = '00000000-0000-4000-9200-0000000000c3'), 'Category Three', 'the unreviewed proposal was never applied');
 
 -- Cleanup of old audit rows
@@ -454,7 +454,7 @@ reset role;
 do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9200-000000000001', true); end $$;
 set local role authenticated;
 select lives_ok($$ select public.cancel_teaching_revision((select id from public.content_revisions where submitted_by = '00000000-0000-4000-9200-000000000002' and status = 'submitted'), 'Not needed') $$, 'an Administrator can close an abandoned revision');
-select is((select (status = 'cancelled' and review_note = 'Not needed' and purged_at is not null) from public.content_revisions where submitted_by = '00000000-0000-4000-9200-000000000002'), true, 'it is closed, with the note, and its wording is gone');
+select is((select (status = 'cancelled' and review_note = 'Not needed' and purged_at is null) from public.content_revisions where submitted_by = '00000000-0000-4000-9200-000000000002'), true, 'it is closed, with the note, and its wording is kept');
 select is((select central_theme from public.teachings where id = '00000000-0000-4000-9200-0000000000a1'), 'Original theme', 'a cancelled revision never changes the teaching');
 
 reset role;

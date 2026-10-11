@@ -142,11 +142,11 @@ select lives_ok(
 reset role;
 select is((select summary from public.teachings where id = '00000000-0000-4000-9300-0000000000a1'), 'Editor summary.', 'the summary now holds the proposal');
 select is(
-  (select (status = 'completed' and total_changes = 4 and accepted_count = 3 and rejected_count = 1 and overridden_count = 2 and purged_at is not null)
+  (select (status = 'completed' and total_changes = 4 and accepted_count = 3 and rejected_count = 1 and overridden_count = 2 and purged_at is null)
    from public.content_revisions where submitted_by = '00000000-0000-4000-9300-000000000002'),
   true, 'the audit row keeps the accepted, rejected and accepted-anyway counts'
 );
-select is((select count(*)::int from public.content_revision_changes), 0, 'the wording is deleted once the revision is finished');
+select is((select count(*)::int from public.content_revision_changes), 4, 'the wording is kept for the record once the revision is finished');
 
 -- A non-stale change accepted with the flag set is a normal acceptance (not marked as an override)
 do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9300-000000000002', true); perform set_config('request.jwt.claim.role', 'authenticated', true); end $$;
@@ -161,7 +161,7 @@ select is((select public.submit_teaching_revision((select id from public.content
 
 do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9300-000000000001', true); end $$;
 select is(
-  (select (public.review_teaching_revision_change((select id from public.content_revision_changes), 'accept', null, true) ->> 'accepted_anyway')::boolean),
+  (select (public.review_teaching_revision_change((select c.id from public.content_revision_changes c join public.content_revisions r on r.id = c.revision_id where r.teaching_id = '00000000-0000-4000-9300-0000000000a2'), 'accept', null, true) ->> 'accepted_anyway')::boolean),
   false, 'a change that is not stale is just accepted, and is not recorded as an override'
 );
 reset role;
@@ -184,8 +184,8 @@ do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9300
 set local role authenticated;
 reset role;
 update public.teachings set status = 'published', published_at = now() where id = '00000000-0000-4000-9300-0000000000a2';
-select is((select count(*)::int from public.content_revisions where teaching_id = '00000000-0000-4000-9300-0000000000a2' and status = 'cancelled' and purged_at is not null), 1, 'publishing closed the waiting revision and deleted its wording, so it can no longer be accepted, even anyway');
-select is((select count(*)::int from public.content_revision_changes c join public.content_revisions r on r.id = c.revision_id where r.teaching_id = '00000000-0000-4000-9300-0000000000a2'), 0, 'no proposed wording is left for a published teaching');
+select is((select count(*)::int from public.content_revisions where teaching_id = '00000000-0000-4000-9300-0000000000a2' and status = 'cancelled' and purged_at is null), 1, 'publishing closed the waiting revision, so it can no longer be accepted, even anyway');
+select is((select count(*)::int from public.content_revision_changes c join public.content_revisions r on r.id = c.revision_id where r.teaching_id = '00000000-0000-4000-9300-0000000000a2'), 2, 'the wording of the submitted revisions is kept for the record');
 
 -- The override column can only ever be set on an accepted change
 insert into public.content_revisions (id, subject_type, teaching_id, subject_title, status, submitted_by, submitted_at)

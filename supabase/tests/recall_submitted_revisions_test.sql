@@ -30,10 +30,13 @@ select lives_ok($$
     (select id from public.content_revisions where submitted_by = '00000000-0000-4000-9400-000000000002'),
     jsonb_build_array(jsonb_build_object('target_kind','teaching','target_id',null,'field_key','summary','base_value','Summary.','proposed_value','New summary.'))) $$, 'with one change');
 select is(public.submit_teaching_revision((select id from public.content_revisions where submitted_by = '00000000-0000-4000-9400-000000000002')), 1, 'and submits it');
+create temp table recall_ids (id uuid);
+grant all on recall_ids to authenticated;
+insert into recall_ids select id from public.content_revisions where submitted_by = '00000000-0000-4000-9400-000000000002';
 
 -- Another editor cannot take it back.
 do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9400-000000000003', true); end $$;
-select throws_ok($$ select public.recall_revision((select id from public.content_revisions where submitted_by = '00000000-0000-4000-9400-000000000002')) $$, '42501', null, 'someone else cannot recall it');
+select throws_ok($$ select public.recall_revision((select id from recall_ids)) $$, '42501', null, 'someone else cannot recall it');
 select throws_ok($$ select public.mark_revision_opened((select id from public.content_revisions where submitted_by = '00000000-0000-4000-9400-000000000002')) $$, '42501', null, 'an editor cannot mark it opened');
 
 -- The owner can, while nobody has opened it, and the change is kept.

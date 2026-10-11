@@ -150,7 +150,7 @@ select is(
 select is((select anchor_scriptures from public.teaching_devotional_days where id = '00000000-0000-4000-9300-0000000000e1'), array['Eph 5:11 — "darkness"', 'John 3:16', 'Ps 91:2'], 'anchor scriptures are stored one per line');
 
 reset role;
-select is((select count(*)::int from public.content_revision_changes where revision_id = (select id from rev_ids where key = 'a')), 0, 'the proposed wording is deleted when the review finishes');
+select is((select count(*)::int from public.content_revision_changes where revision_id = (select id from rev_ids where key = 'a')), 3, 'the proposed wording is kept when the review finishes');
 select is((select status from public.content_revisions where id = (select id from rev_ids where key = 'a')), 'completed', 'the audit row is kept and completed');
 select is((select accepted_count || '/' || rejected_count || '/' || overridden_count from public.content_revisions where id = (select id from rev_ids where key = 'a')), '3/0/1', 'counts: 3 accepted, 0 rejected, 1 accepted anyway');
 
@@ -170,7 +170,7 @@ reset role;
 update public.teaching_devotionals set status = 'published', published_at = now() where id = '00000000-0000-4000-9300-0000000000d3';
 
 select is((select status from public.content_revisions where id = (select id from rev_ids where key = 'c')), 'cancelled', 'publishing closes the open revision');
-select is((select count(*)::int from public.content_revision_changes where revision_id = (select id from rev_ids where key = 'c')), 0, 'publishing deletes the proposed wording');
+select is((select count(*)::int from public.content_revision_changes where revision_id = (select id from rev_ids where key = 'c')), 1, 'publishing keeps the wording of a submitted revision');
 select is((select title from public.teaching_devotional_days where id = '00000000-0000-4000-9300-0000000000e3'), 'Third day', 'the unaccepted proposal never reached the devotional');
 
 select * from finish();

@@ -104,7 +104,7 @@ test("the review list gives Day 7 the Communion fields and keeps an old Day 7's 
 
 test("the review database functions accept every Communion field", async () => {
   const first = await readFile("supabase/migrations/20261011000000_devotional_communion_day.sql", "utf8");
-  const second = await readFile("supabase/migrations/20261011010000_devotional_series_closing_prayer.sql", "utf8");
+  const second = await readFile("supabase/migrations/20261011010100_devotional_series_closing_prayer.sql", "utf8");
   for (const field of ["bread_reflection", "cup_reflection", "self_examination"]) {
     assert.match(first, new RegExp(`p_field = '${field}' then\\s+valid := true; current_value := v_day\\.${field}; max_length := 6000`));
     assert.match(first, new RegExp(`p_field = '${field}' then\\s+update public\\.teaching_devotional_days dd set ${field} = nullif\\(v_value, ''\\)`));

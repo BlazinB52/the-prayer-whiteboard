@@ -42,6 +42,7 @@ type RevisionRow = {
   accepted_count: number;
   rejected_count: number;
   overridden_count: number;
+  purged_at: string | null;
 };
 
 function formatDateTime(value: string | null) {
@@ -53,7 +54,7 @@ const MESSAGES: Record<string, string> = {
   accepted: "Change accepted and applied.",
   accepted_anyway: "Change accepted anyway. The current wording was replaced with the proposal.",
   rejected: "Change rejected. Nothing was changed.",
-  finished: "That was the last change. The review is finished and its wording has been deleted.",
+  finished: "That was the last change. The review is finished. You can open it again from Review history until you clear the history.",
   accept: "All remaining changes were accepted and applied.",
   reject: "All remaining changes were rejected.",
 };
@@ -71,13 +72,15 @@ export default async function TeachingRevisionReviewPage({
   const { supabase } = await requireAdmin();
   const { data: revisionData } = await supabase
     .from("content_revisions")
-    .select("id, teaching_id, devotional_id, weekly_update_id, subject_type, subject_title, status, submitted_by_name, submitted_at, completed_at, completed_by_name, review_note, total_changes, accepted_count, rejected_count, overridden_count")
+    .select("id, teaching_id, devotional_id, weekly_update_id, subject_type, subject_title, status, submitted_by_name, submitted_at, completed_at, completed_by_name, review_note, total_changes, accepted_count, rejected_count, overridden_count, purged_at")
     .eq("id", revisionId)
     .maybeSingle();
   if (!revisionData) notFound();
   const revision = revisionData as RevisionRow;
 
   const open = revision.status === "submitted" || revision.status === "draft";
+  // A finished review keeps its wording until the history is cleared; older ones kept only the counts.
+  const showChanges = open || !revision.purged_at;
   const teachingId = revision.teaching_id;
   const devotionalId = revision.devotional_id;
   const isDevotional = revision.subject_type === "devotional";
@@ -86,32 +89,32 @@ export default async function TeachingRevisionReviewPage({
   const subject = isDevotional ? "devotional" : isWeeklyUpdate ? "weekly update" : "teaching";
 
   const [weeklyUpdateResult, weeklyFieldsResult] = await Promise.all([
-    open && weeklyUpdateId
+    showChanges && weeklyUpdateId
       ? supabase.from("weekly_updates").select("id, status").eq("id", weeklyUpdateId).maybeSingle()
       : Promise.resolve({ data: null }),
-    open && weeklyUpdateId
+    showChanges && weeklyUpdateId
       ? supabase.rpc("weekly_update_review_fields", { p_weekly_update_id: weeklyUpdateId })
       : Promise.resolve({ data: [] }),
   ]);
   const [devotionalResult, devotionalDaysResult] = await Promise.all([
-    open && devotionalId
+    showChanges && devotionalId
       ? supabase.from("teaching_devotionals").select("id, title, introduction, status").eq("id", devotionalId).maybeSingle()
       : Promise.resolve({ data: null }),
-    open && devotionalId
+    showChanges && devotionalId
       ? supabase.from("teaching_devotional_days").select("id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination, series_closing_prayer").eq("devotional_id", devotionalId).order("day_number", { ascending: true })
       : Promise.resolve({ data: [] }),
   ]);
   const [teachingResult, categoriesResult, sectionsResult, changesResult] = await Promise.all([
-    open && teachingId
+    showChanges && teachingId
       ? supabase.from("teachings").select("id, title, status, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text").eq("id", teachingId).maybeSingle()
       : Promise.resolve({ data: null }),
-    open && teachingId
+    showChanges && teachingId
       ? supabase.from("teaching_categories").select("id, title, sort_order").eq("teaching_id", teachingId).eq("status", "draft").order("sort_order", { ascending: true })
       : Promise.resolve({ data: [] }),
-    open && teachingId
+    showChanges && teachingId
       ? supabase.from("teaching_sections").select("id, category_id, title, content, sort_order").eq("teaching_id", teachingId).eq("status", "draft").order("sort_order", { ascending: true })
       : Promise.resolve({ data: [] }),
-    open
+    showChanges
       ? supabase
           .from("content_revision_changes")
           .select("id, target_kind, target_id, field_key, original_value, proposed_value, change_status, display_order")
@@ -165,9 +168,36 @@ export default async function TeachingRevisionReviewPage({
                 ? `${revision.accepted_count} accepted${revision.overridden_count ? ` (${revision.overridden_count} accepted anyway)` : ""} and ${revision.rejected_count} rejected out of ${revision.total_changes}.`
                 : `${revision.total_changes} proposed ${revision.total_changes === 1 ? "change was" : "changes were"} not decided. ${revision.review_note ?? ""}`}
             </p>
-            <p className="mt-2 text-sm text-[#607066]">The proposed wording has been deleted. Only this summary is kept.</p>
+            <p className="mt-2 text-sm text-[#607066]">{revision.purged_at ? "This review finished before its wording was kept, so only this summary is available." : "The wording below is kept until you clear the history on the Revisions page."}</p>
           </section>
-        ) : (
+        ) : null}
+
+        {!open && showChanges && changes.length ? (
+          <div className="mt-6 space-y-5">
+            <p className="flex flex-wrap items-center gap-3 text-xs font-bold text-[#607066]">
+              <span className="rounded bg-[#fdecea] px-2 py-1 text-[#b3261e] line-through">deleted wording</span>
+              <span className="rounded bg-[#e8f0fe] px-2 py-1 text-[#1a4fb4] underline">inserted wording</span>
+              <span>This is a record. Nothing here can be changed.</span>
+            </p>
+            {changes.map((change) => {
+              const info = describeChange(change, fields);
+              return (
+                <article key={change.id} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#946332]">{info.found ? info.context : "Where this was is no longer available"}</p>
+                      <h2 className="mt-1 text-lg font-extrabold text-[#243d31]">{info.label}</h2>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${change.change_status === "accepted" ? "bg-[#e7efe9] text-[#326048]" : change.change_status === "rejected" ? "bg-[#fbeeea] text-[#a2472c]" : "bg-[#eee7da] text-[#6b5a3a]"}`}>{change.change_status === "pending" ? "not decided" : change.change_status}</span>
+                  </div>
+                  <div className="mt-3"><TrackedText original={change.original_value} proposed={change.proposed_value} /></div>
+                </article>
+              );
+            })}
+          </div>
+        ) : null}
+
+        {open ? (
           <>
             {revision.status === "draft" ? (
               <p className="mt-6 rounded-xl border border-[#284a3b]/10 bg-[#fffdf8] px-4 py-3 text-sm leading-6 text-[#607066]">
@@ -278,7 +308,7 @@ export default async function TeachingRevisionReviewPage({
               </form>
             </section>
           </>
-        )}
+        ) : null}
       </div>
     </main>
   );

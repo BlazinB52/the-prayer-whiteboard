@@ -24,6 +24,7 @@ type RevisionRow = {
   accepted_count: number;
   rejected_count: number;
   overridden_count: number;
+  purged_at: string | null;
   updated_at: string;
 };
 
@@ -37,7 +38,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
   const { supabase } = await requireAdmin();
   const { data, error } = await supabase
     .from("content_revisions")
-    .select("id, teaching_id, subject_type, subject_title, status, submitted_by_name, submitted_at, completed_at, completed_by_name, review_note, total_changes, accepted_count, rejected_count, overridden_count, updated_at")
+    .select("id, teaching_id, subject_type, subject_title, status, submitted_by_name, submitted_at, completed_at, completed_by_name, review_note, total_changes, accepted_count, rejected_count, overridden_count, updated_at, purged_at")
     .in("subject_type", ["teaching", "devotional", "weekly_update"])
     .order("updated_at", { ascending: false });
 
@@ -53,7 +54,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
         <header className="mt-4 border-b border-[#284a3b]/10 pb-8">
           <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Revisions</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
-            Co-editors propose changes to draft teachings, devotionals and weekly updates here. Nothing changes until you accept it. When one is published, its review text is deleted.
+            Co-editors propose changes to draft teachings, devotionals and weekly updates here. Nothing changes until you accept it. Finished reviews stay in Review history, with what was accepted and rejected, until you clear them.
           </p>
         </header>
 
@@ -108,12 +109,13 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
             Review history <span className="text-sm font-bold text-[#607066]">({finished.length})</span>
           </h2>
           <p className="mt-3 text-sm leading-6 text-[#607066]">
-            A finished review keeps only who proposed it, who decided, when, and how many changes were accepted or rejected. The wording itself is deleted.
+            Open a finished review to see exactly what was accepted and rejected. The wording is kept until you clear the history below. Reviews finished before this was turned on keep only the counts.
           </p>
           {finished.length ? (
-            <ul className="divide-y divide-[#284a3b]/10">
+            <ul className="mt-3 max-h-[26rem] divide-y divide-[#284a3b]/10 overflow-y-auto rounded-xl border border-[#284a3b]/10 bg-[#fffdf8]">
               {finished.map((revision) => (
-                <li key={revision.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-2 py-3 text-sm">
+                <li key={revision.id} className="text-sm">
+                  <Link href={`/admin/teaching-revisions/${revision.id}`} className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-3 ${revision.purged_at ? "pointer-events-none" : "transition hover:bg-[#e7efe9]/60"}`} aria-disabled={revision.purged_at ? true : undefined} tabIndex={revision.purged_at ? -1 : undefined}>
                   <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}{revision.subject_type === "devotional" || revision.subject_type === "weekly_update" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">{revision.subject_type === "weekly_update" ? "Weekly update" : "Devotional"}</span> : null}</span>
                   <span className="text-[#607066]">by {revision.submitted_by_name ?? "unknown"}</span>
                   <span className="text-[#607066]">
@@ -122,6 +124,8 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
                       : `closed (${revision.review_note ?? "no decision"})`}
                   </span>
                   <span className="text-[#607066]">{formatDateTime(revision.completed_at)}</span>
+                  {revision.purged_at ? <span className="rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Counts only</span> : <span className="rounded-full bg-[#e8f0fe] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#1a4fb4]">Open</span>}
+                  </Link>
                 </li>
               ))}
             </ul>
@@ -134,7 +138,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
               Clear history older than (days)
               <input name="days" type="number" min={0} max={3650} defaultValue={30} className="admin-input w-40" />
             </label>
-            <ConfirmButton message="Permanently delete finished review records older than this? Reviews still waiting for a decision are never deleted." className="admin-secondary-button">
+            <ConfirmButton message="Permanently delete finished review records older than this, including the wording that was kept? Reviews still waiting for a decision are never deleted." className="admin-secondary-button">
               Clear old history
             </ConfirmButton>
           </form>

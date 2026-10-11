@@ -1,7 +1,7 @@
 // Side-effect-free helpers for the devotional review workflow, used by the co-editor page, the
 // Administrator review page and the tests. The limits below mirror the database function
-// revision_devotional_field_info (last replaced in 20261011000000_devotional_communion_day.sql, which added
-// Day 7's bread, cup and self-examination fields); keep the two in step.
+// revision_devotional_field_info (last replaced in 20261011010000_devotional_series_closing_prayer.sql; Day 7's
+// bread, cup and self-examination fields came in 20261011000000_devotional_communion_day.sql); keep the two in step.
 
 import { fieldId, type EditableField } from "./teaching-revisions.ts";
 
@@ -20,6 +20,7 @@ export type DevotionalDayRow = {
   bread_reflection?: string | null;
   cup_reflection?: string | null;
   self_examination?: string | null;
+  series_closing_prayer?: string | null;
 };
 
 /**
@@ -50,9 +51,10 @@ export function buildDevotionalEditableFields(devotional: DevotionalRow, days: D
       // prayer activation visible until they are removed, so nothing can be lost in a review.
       add("devotional_reading", "The Rest Reflection", day.devotional_reading ?? "", 12000, true, 9, true);
       add("confession", "Today's Confession of Rest", day.confession ?? "", 3000, true, 4, true);
+      add("self_examination", "Reverent Self-Examination & Blessing", day.self_examination ?? "", 6000, true, 7, true);
       add("bread_reflection", "The Bread Reflection", day.bread_reflection ?? "", 6000, true, 7, true);
       add("cup_reflection", "The Cup Reflection", day.cup_reflection ?? "", 6000, true, 7, true);
-      add("self_examination", "Reverent Self-Examination & Blessing", day.self_examination ?? "", 6000, true, 7, true);
+      add("series_closing_prayer", "Series Closing Prayer", day.series_closing_prayer ?? "", 3000, true, 5, true);
       if (day.journal_prompt?.trim()) add("journal_prompt", "5-Minute Journal Prompt (previous Day 7)", day.journal_prompt, 3000, true, 4, true);
       if (day.prayer_activation?.trim()) add("prayer_activation", "Prayer Activation Exercise (previous Day 7)", day.prayer_activation, 3000, true, 4, true);
       continue;

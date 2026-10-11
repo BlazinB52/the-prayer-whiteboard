@@ -13,6 +13,7 @@ export type ImportedDevotionalDay = {
   bread_reflection: string;
   cup_reflection: string;
   self_examination: string;
+  series_closing_prayer: string;
 };
 
 export type ImportedDevotional = {
@@ -30,6 +31,7 @@ const DAY_HEADING_PATTERN = /^(?:Day|D[ií]a)\s+([1-7])(?::\s+|\s+-\s+)\S.*/i;
 const SPANISH_DAY_HEADING_PATTERN = /^D[ií]a\s+[1-7](?:\s*:|\s+-)/i;
 const MAX_ANCHOR_SCRIPTURE_LENGTH = 1000;
 const MAX_COMMUNION_TEXT_LENGTH = 6000;
+const MAX_CLOSING_PRAYER_LENGTH = 3000;
 const COMMUNION_DAY_NUMBER = 7;
 // The one-line description at the end of a file. The site has no field for it, so it is read past and dropped.
 const WEBSITE_DESCRIPTION_PATTERN = /^(?:Website Description|Descripci[oó]n para el sitio web)\s*:/i;
@@ -46,6 +48,7 @@ const LABEL_ALIASES = {
   breadReflection: ["The Bread Reflection:", "La reflexión del pan:"],
   cupReflection: ["The Cup Reflection:", "La reflexión de la copa:"],
   selfExamination: ["Reverent Self-Examination & Blessing:", "Autoexamen reverente y bendición:"],
+  seriesClosingPrayer: ["Series Closing Prayer:", "Oración de cierre de la serie:"],
 } as const;
 type LabelKey = keyof typeof LABEL_ALIASES;
 const LABELS: readonly string[] = Object.values(LABEL_ALIASES).flat();
@@ -103,6 +106,7 @@ const LABEL_VARIANTS: Record<string, string> = {
   "the cup reflection": "The Cup Reflection:",
   "reverent self-examination & blessing": "Reverent Self-Examination & Blessing:",
   "reverent self-examination and blessing": "Reverent Self-Examination & Blessing:",
+  "series closing prayer": "Series Closing Prayer:",
 };
 
 function canonicalLabel(line: string) {
@@ -188,7 +192,7 @@ function parseDay(section: string[]): ImportedDevotionalDay {
     // activation) is refused with a plain explanation rather than a missing-label error.
     const aliases = LABEL_ALIASES.breadReflection as readonly string[];
     if (!section.some((line) => aliases.includes(line))) {
-      throw new Error(`${section[0]} must use the Communion and rest format: The Rest Reflection, Today's Confession of Rest, The Table of Remembrance, The Bread Reflection, The Cup Reflection, and Reverent Self-Examination & Blessing. Day 7 has no journal prompt or prayer activation.`);
+      throw new Error(`${section[0]} must use the Communion and rest format: The Rest Reflection, Today's Confession of Rest, The Table of Remembrance, Reverent Self-Examination & Blessing, The Bread Reflection, The Cup Reflection, and Series Closing Prayer. Day 7 has no journal prompt or prayer activation.`);
     }
     // Present in every Day 7 so the file matches the standard, but its wording is fixed by the site.
     readBlock(section, "tableOfRemembrance");
@@ -205,6 +209,7 @@ function parseDay(section: string[]): ImportedDevotionalDay {
       bread_reflection: readBlock(section, "breadReflection").join("\n"),
       cup_reflection: readBlock(section, "cupReflection").join("\n"),
       self_examination: readBlock(section, "selfExamination").join("\n"),
+      series_closing_prayer: readBlock(section, "seriesClosingPrayer").join("\n"),
     };
   }
 
@@ -224,6 +229,7 @@ function parseDay(section: string[]): ImportedDevotionalDay {
     bread_reflection: "",
     cup_reflection: "",
     self_examination: "",
+    series_closing_prayer: "",
   };
 }
 
@@ -252,13 +258,14 @@ function validateImportedDevotional(devotional: Omit<ImportedDevotional, "langua
     if (day.confession.length > 3000) throw new Error(`Day ${day.day_number} confession must be 3,000 characters or fewer.`);
     if (day.day_number === COMMUNION_DAY_NUMBER) {
       const communion = [
-        ["the Bread Reflection", day.bread_reflection],
-        ["the Cup Reflection", day.cup_reflection],
-        ["the Reverent Self-Examination & Blessing", day.self_examination],
+        ["the Reverent Self-Examination & Blessing", day.self_examination, MAX_COMMUNION_TEXT_LENGTH],
+        ["the Bread Reflection", day.bread_reflection, MAX_COMMUNION_TEXT_LENGTH],
+        ["the Cup Reflection", day.cup_reflection, MAX_COMMUNION_TEXT_LENGTH],
+        ["the Series Closing Prayer", day.series_closing_prayer, MAX_CLOSING_PRAYER_LENGTH],
       ] as const;
-      for (const [name, value] of communion) {
+      for (const [name, value, limit] of communion) {
         if (!value.trim()) throw new Error(`Day ${day.day_number} needs ${name}.`);
-        if (value.length > MAX_COMMUNION_TEXT_LENGTH) throw new Error(`Day ${day.day_number} ${name} must be ${MAX_COMMUNION_TEXT_LENGTH.toLocaleString("en-US")} characters or fewer.`);
+        if (value.length > limit) throw new Error(`Day ${day.day_number} ${name} must be ${limit.toLocaleString("en-US")} characters or fewer.`);
       }
       continue;
     }

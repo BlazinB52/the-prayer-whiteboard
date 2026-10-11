@@ -20,7 +20,7 @@ function day(dayNumber, overrides = {}) {
   };
 }
 
-const communion = { bread_reflection: "Bread.", cup_reflection: "Cup.", self_examination: "Self-examination." };
+const communion = { bread_reflection: "Bread.", cup_reflection: "Cup.", self_examination: "Self-examination.", series_closing_prayer: "Closing prayer." };
 const oldDay7 = { journal_prompt: "Old prompt.", prayer_activation: "Old activation." };
 const sectionLabels = (sections) => sections.map((section) => section.label);
 
@@ -30,9 +30,10 @@ test("Day 7 uses the Communion layout and Days 1-6 keep the usual one", () => {
     "The Rest Reflection",
     "Today's Confession of Rest",
     "The Table of Remembrance",
+    "Reverent Self-Examination & Blessing",
     "The Bread Reflection",
     "The Cup Reflection",
-    "Reverent Self-Examination & Blessing",
+    "Series Closing Prayer",
   ]);
   assert.deepEqual(sectionLabels(devotionalDaySections(day(3, { journal_prompt: "J", prayer_activation: "P" }), labels)), [
     "Anchor Scriptures",
@@ -68,11 +69,13 @@ test("a Day 7 saved before this format keeps its old layout until it is converte
   assert.equal(usesLegacyDayLayout(day(7)), false);
 });
 
-test("publishing needs Bread, Cup and Self-Examination on Day 7, and no journal or prayer", () => {
+test("publishing needs the Communion text and Series Closing Prayer on Day 7, and no journal or prayer", () => {
   const days = [1, 2, 3, 4, 5, 6].map((n) => day(n, { journal_prompt: "J", prayer_activation: "P" }));
   const devotional = { title: "Series" };
 
-  assert.match(findDevotionalPublishBlocker(devotional, [...days, day(7, oldDay7)]), /Day 7 needs the Bread Reflection/);
+  assert.match(findDevotionalPublishBlocker(devotional, [...days, day(7, oldDay7)]), /Day 7 needs the Reverent Self-Examination/);
+  assert.match(findDevotionalPublishBlocker(devotional, [...days, day(7, { ...communion, bread_reflection: null })]), /Day 7 needs the Bread Reflection/);
+  assert.match(findDevotionalPublishBlocker(devotional, [...days, day(7, { ...communion, series_closing_prayer: "" })]), /Day 7 needs the Series Closing Prayer/);
   assert.match(findDevotionalPublishBlocker(devotional, [...days, day(7, { ...communion, cup_reflection: null })]), /Day 7 needs the Cup Reflection/);
   assert.match(findDevotionalPublishBlocker(devotional, [...days, day(7, { ...communion, self_examination: " " })]), /Day 7 needs the Reverent Self-Examination/);
   assert.equal(findDevotionalPublishBlocker(devotional, [...days, day(7, communion)]), null);
@@ -90,8 +93,8 @@ test("the review list gives Day 7 the Communion fields and keeps an old Day 7's 
   const row = (dayNumber, extra = {}) => ({ id: `day-${dayNumber}`, day_number: dayNumber, title: `Day ${dayNumber}`, anchor_scriptures: [], devotional_reading: "R", confession: "C", journal_prompt: null, prayer_activation: null, ...extra });
 
   assert.deepEqual(keysFor(row(2)), ["title", "anchor_scriptures", "devotional_reading", "confession", "journal_prompt", "prayer_activation"]);
-  assert.deepEqual(keysFor(row(7, communion)), ["title", "anchor_scriptures", "devotional_reading", "confession", "bread_reflection", "cup_reflection", "self_examination"]);
-  assert.deepEqual(keysFor(row(7, oldDay7)), ["title", "anchor_scriptures", "devotional_reading", "confession", "bread_reflection", "cup_reflection", "self_examination", "journal_prompt", "prayer_activation"]);
+  assert.deepEqual(keysFor(row(7, communion)), ["title", "anchor_scriptures", "devotional_reading", "confession", "self_examination", "bread_reflection", "cup_reflection", "series_closing_prayer"]);
+  assert.deepEqual(keysFor(row(7, oldDay7)), ["title", "anchor_scriptures", "devotional_reading", "confession", "self_examination", "bread_reflection", "cup_reflection", "series_closing_prayer", "journal_prompt", "prayer_activation"]);
 
   const day7 = buildDevotionalEditableFields(devotional, [row(7, communion)]).filter((field) => field.targetKind === "day");
   assert.equal(day7.find((field) => field.fieldKey === "devotional_reading").label, "The Rest Reflection");
@@ -99,15 +102,25 @@ test("the review list gives Day 7 the Communion fields and keeps an old Day 7's 
   assert.equal(day7.find((field) => field.fieldKey === "bread_reflection").maxLength, 6000);
 });
 
-test("the review database functions accept the three Communion fields", async () => {
-  const sql = await readFile("supabase/migrations/20261011000000_devotional_communion_day.sql", "utf8");
+test("the review database functions accept every Communion field", async () => {
+  const first = await readFile("supabase/migrations/20261011000000_devotional_communion_day.sql", "utf8");
+  const second = await readFile("supabase/migrations/20261011010000_devotional_series_closing_prayer.sql", "utf8");
   for (const field of ["bread_reflection", "cup_reflection", "self_examination"]) {
-    assert.match(sql, new RegExp(`p_field = '${field}' then\\s+valid := true; current_value := v_day\\.${field}; max_length := 6000`));
-    assert.match(sql, new RegExp(`p_field = '${field}' then\\s+update public\\.teaching_devotional_days dd set ${field} = nullif\\(v_value, ''\\)`));
+    assert.match(first, new RegExp(`p_field = '${field}' then\\s+valid := true; current_value := v_day\\.${field}; max_length := 6000`));
+    assert.match(first, new RegExp(`p_field = '${field}' then\\s+update public\\.teaching_devotional_days dd set ${field} = nullif\\(v_value, ''\\)`));
   }
-  assert.match(sql, /add column if not exists bread_reflection text/);
-  // The existing Day 7 text is never rewritten by the migration.
-  assert.doesNotMatch(sql, /update public\.teaching_devotional_days set/i);
+  assert.match(first, /add column if not exists bread_reflection text/);
+
+  // The later migration replaces both functions again, so it must still know every earlier field.
+  for (const field of ["bread_reflection", "cup_reflection", "self_examination", "journal_prompt", "prayer_activation", "devotional_reading", "confession"]) {
+    assert.match(second, new RegExp(`p_field = '${field}' then`), `${field} is still handled`);
+  }
+  assert.match(second, /p_field = 'series_closing_prayer' then\s+valid := true; current_value := v_day\.series_closing_prayer; max_length := 3000/);
+  assert.match(second, /p_field = 'series_closing_prayer' then\s+update public\.teaching_devotional_days dd set series_closing_prayer = nullif\(v_value, ''\)/);
+  assert.match(second, /add column if not exists series_closing_prayer text/);
+
+  // Neither migration rewrites text that is already saved.
+  assert.doesNotMatch(first + second, /update public\.teaching_devotional_days set/i);
 });
 
 const emailInput = {
@@ -125,8 +138,8 @@ const emailInput = {
 };
 
 test("the Day 7 email shows the Communion sections in order and no journal or prayer", () => {
-  const email = buildDevotionalDayEmail({ ...emailInput, breadReflection: "Bread text.", cupReflection: "Cup text.", selfExamination: "Self-examination text." });
-  const order = ["Anchor Scriptures", "The Rest Reflection", "Today&#39;s Confession of Rest", "The Table of Remembrance", "The Bread Reflection", "The Cup Reflection", "Reverent Self-Examination &amp; Blessing"]
+  const email = buildDevotionalDayEmail({ ...emailInput, breadReflection: "Bread text.", cupReflection: "Cup text.", selfExamination: "Self-examination text.", seriesClosingPrayer: "Closing prayer text." });
+  const order = ["Anchor Scriptures", "The Rest Reflection", "Today&#39;s Confession of Rest", "The Table of Remembrance", "Reverent Self-Examination &amp; Blessing", "The Bread Reflection", "The Cup Reflection", "Series Closing Prayer"]
     .map((heading) => email.html.indexOf(heading));
   assert.ok(order.every((index) => index > -1), `a heading is missing: ${order.join(",")}`);
   assert.deepEqual([...order].sort((a, b) => a - b), order, "the sections are in reading order");
@@ -135,6 +148,8 @@ test("the Day 7 email shows the Communion sections in order and no journal or pr
   assert.doesNotMatch(email.html, /5-Minute Journal Prompt|Prayer Activation Exercise|Devotional Reading/);
   assert.match(email.text, /The Table of Remembrance\nPrepare a small piece of bread/);
   assert.match(email.text, /Reverent Self-Examination & Blessing\nSelf-examination text\./);
+  assert.match(email.text, /Series Closing Prayer\nClosing prayer text\./);
+  assert.ok(email.html.lastIndexOf("Closing prayer text.") > email.html.lastIndexOf("Cup text."), "the closing prayer is last");
   assert.doesNotMatch(email.text, /5-Minute Journal Prompt|Prayer Activation Exercise/);
 });
 
@@ -205,19 +220,66 @@ Today’s Confession of Rest
 Rest confession.
 The Table of Remembrance
 Prepare a small piece of bread and a small cup of juice. Quiet your heart, move from striving to receiving, and partake deliberately.
+Reverent Self-Examination & Blessing
+Examine yourself.
+
+May the Lord bless you.
 The Bread Reflection
 Bread.
 The Cup Reflection
 Cup.
-Reverent Self-Examination & Blessing
-Examine yourself.
+Series Closing Prayer
+Father, thank You for this week.
 
-May the Lord bless you. In Jesus’ name, amen.
+In Jesus’ name, amen.
 
 Website Description: A seven-day journey.`;
   const parsed = parseDevotionalText(["From Glory to Glory: Carrying the Presence of God", "", "Introduction one.", "", ...[1, 2, 3, 4, 5, 6].map(six), seven].join("\n"));
   assert.equal(parsed.days[6].title, "DAY 7 — COMMUNION AND REST: Rest");
   assert.equal(parsed.days[6].confession, "Rest confession.");
-  assert.equal(parsed.days[6].self_examination, "Examine yourself.\nMay the Lord bless you. In Jesus' name, amen.");
+  assert.equal(parsed.days[6].self_examination, "Examine yourself.\nMay the Lord bless you.");
+  assert.equal(parsed.days[6].series_closing_prayer, "Father, thank You for this week.\nIn Jesus' name, amen.");
   assert.doesNotMatch(JSON.stringify(parsed), /Website Description|seven-day journey/);
+});
+
+test("a Day 7 with no Series Closing Prayer is refused and the missing label is named", () => {
+  const six = (n) => `Day ${n}: Title ${n}
+Anchor Scriptures
+John 3:16 (KJV) — "For God so loved the world."
+Devotional Reading
+Reading ${n}.
+Today's Confession
+Confession ${n}.
+5-Minute Journal Prompt
+Prompt ${n}.
+Prayer Activation Exercise
+Activation ${n}.`;
+  const sevenWithoutClosing = `DAY 7 — COMMUNION AND REST: Rest
+Anchor Scriptures
+Hebrews 4:9 (KJV) — "There remaineth therefore a rest."
+The Rest Reflection
+Rest.
+Today's Confession of Rest
+Rest confession.
+The Table of Remembrance
+Prepare a small piece of bread and a small cup of juice.
+Reverent Self-Examination & Blessing
+Examine yourself.
+The Bread Reflection
+Bread.
+The Cup Reflection
+Cup.`;
+  assert.throws(
+    () => parseDevotionalText(["Title", "Intro.", ...[1, 2, 3, 4, 5, 6].map(six), sevenWithoutClosing].join("\n")),
+    /Missing "Series Closing Prayer:" in DAY 7/,
+  );
+});
+
+test("the Series Closing Prayer label is the same in Español and the section order matches the form", async () => {
+  assert.equal(ui("es").seriesClosingPrayer, "Oración de cierre de la serie");
+  const form = await readFile("app/admin/teachings/[id]/devotional/devotional-editor.tsx", "utf8");
+  const order = ["labels.restReflection", "labels.confessionOfRest", "labels.tableOfRemembrance", "labels.selfExamination", "labels.breadReflection", "labels.cupReflection", "labels.seriesClosingPrayer"]
+    .map((label) => form.indexOf(label));
+  assert.ok(order.every((index) => index > -1));
+  assert.deepEqual([...order].sort((a, b) => a - b), order, "the Day 7 form lists the sections in reading order");
 });

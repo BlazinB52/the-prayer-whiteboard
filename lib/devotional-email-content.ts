@@ -61,6 +61,7 @@ export function buildDevotionalDayEmail(input: {
   breadReflection?: string | null;
   cupReflection?: string | null;
   selfExamination?: string | null;
+  seriesClosingPrayer?: string | null;
   readUrl: string;
   preferencesUrl: string;
   copyrightDisclaimer?: EmailCopyrightDisclaimer;
@@ -83,6 +84,7 @@ export function buildDevotionalDayEmail(input: {
     bread_reflection: input.breadReflection ?? null,
     cup_reflection: input.cupReflection ?? null,
     self_examination: input.selfExamination ?? null,
+    series_closing_prayer: input.seriesClosingPrayer ?? null,
   } satisfies DevotionalDay, ui("en")).filter((section) => !section.isScriptures);
 
   const html = `<!doctype html>

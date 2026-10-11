@@ -22,6 +22,7 @@ type DayValues = {
   breadReflection: string;
   cupReflection: string;
   selfExamination: string;
+  seriesClosingPrayer: string;
 };
 
 function dayToValues(day: DevotionalDay | undefined): DayValues {
@@ -35,6 +36,7 @@ function dayToValues(day: DevotionalDay | undefined): DayValues {
     breadReflection: day?.bread_reflection ?? "",
     cupReflection: day?.cup_reflection ?? "",
     selfExamination: day?.self_examination ?? "",
+    seriesClosingPrayer: day?.series_closing_prayer ?? "",
   };
 }
 
@@ -122,13 +124,14 @@ export function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: numbe
               <p className="mt-1 text-sm leading-6 text-[#52645a]">{labels.tableOfRemembranceIntro}</p>
               <p className="mt-1 text-xs leading-5 text-[#607066]">This sentence is added automatically on every Day 7. You do not type it.</p>
             </div>
+            <FormattedTextarea label={labels.selfExamination} help="Before partaking: a paragraph on 1 Corinthians 11:27–29, framed as a response to grace rather than earning worthiness, and a short blessing." name="selfExamination" value={values.selfExamination} onValueChange={(value) => updateValue("selfExamination", value)} maxLength={6000} rows={7} />
             <FormattedTextarea label={labels.breadReflection} help="Link the week's theme to the broken body of Christ. End with the bread's partaking declaration." name="breadReflection" value={values.breadReflection} onValueChange={(value) => updateValue("breadReflection", value)} maxLength={6000} rows={7} />
             <FormattedTextarea label={labels.cupReflection} help="Link the week's theme to the shed blood of the New Covenant. End with the cup's partaking declaration." name="cupReflection" value={values.cupReflection} onValueChange={(value) => updateValue("cupReflection", value)} maxLength={6000} rows={7} />
-            <FormattedTextarea label={labels.selfExamination} help="A closing paragraph on 1 Corinthians 11:27–29, then a final blessing over the reader's walk of faith." name="selfExamination" value={values.selfExamination} onValueChange={(value) => updateValue("selfExamination", value)} maxLength={6000} rows={7} />
+            <FormattedTextarea label={labels.seriesClosingPrayer} help="The prayer that closes the whole 7-day series. It is shown last on Day 7." name="seriesClosingPrayer" value={values.seriesClosingPrayer} onValueChange={(value) => updateValue("seriesClosingPrayer", value)} maxLength={3000} rows={5} />
             {hasLegacyText ? (
               <div className="rounded-xl border border-[#a2472c]/25 bg-[#fff3ed] px-4 py-3 text-sm leading-6 text-[#7a3a24]">
                 <p className="font-bold">This Day 7 is still in the old format, so it keeps showing and mailing that way until you save the Communion text above.</p>
-                <p className="mt-1">Saving Bread, Cup or Self-Examination text removes the old journal prompt and prayer activation shown below. Copy anything you want to keep first.</p>
+                <p className="mt-1">Saving any of the Communion text above removes the old journal prompt and prayer activation shown below. Copy anything you want to keep first.</p>
                 {day?.journal_prompt?.trim() ? <p className="mt-3"><span className="font-bold">5-Minute Journal Prompt:</span> {day.journal_prompt}</p> : null}
                 {day?.prayer_activation?.trim() ? <p className="mt-2"><span className="font-bold">Prayer Activation Exercise:</span> {day.prayer_activation}</p> : null}
               </div>
@@ -181,7 +184,7 @@ export function DevotionalImportForm({ action, hasPublishedDevotional }: { actio
     >
       <label className="block text-sm font-bold text-[#385245]">
         Devotional text file
-        <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">Use a plain .txt file with a title, an introduction, and Day 1 through Day 7. Days 1–6 have Anchor Scriptures, Devotional Reading, Today&apos;s Confession, 5-Minute Journal Prompt, and Prayer Activation Exercise. Day 7 (headed DAY 7 — COMMUNION AND REST) has Anchor Scriptures, The Rest Reflection, Today&apos;s Confession of Rest, The Table of Remembrance, The Bread Reflection, The Cup Reflection, and Reverent Self-Examination &amp; Blessing.</span>
+        <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">Use a plain .txt file with a title, an introduction, and Day 1 through Day 7. Days 1–6 have Anchor Scriptures, Devotional Reading, Today&apos;s Confession, 5-Minute Journal Prompt, and Prayer Activation Exercise. Day 7 (headed DAY 7 — COMMUNION AND REST) has Anchor Scriptures, The Rest Reflection, Today&apos;s Confession of Rest, The Table of Remembrance, Reverent Self-Examination &amp; Blessing, The Bread Reflection, The Cup Reflection, and Series Closing Prayer.</span>
         <input name="devotionalFile" type="file" accept=".txt,text/plain" required disabled={hasPublishedDevotional || isPending} className="admin-input py-2" />
       </label>
       {hasPublishedDevotional ? <p role="alert" className="text-sm font-bold text-[#a2472c]">Unpublish this devotional before importing replacement text.</p> : null}

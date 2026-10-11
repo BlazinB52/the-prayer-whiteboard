@@ -37,14 +37,16 @@ export type DevotionalDay = {
   bread_reflection?: string | null;
   cup_reflection?: string | null;
   self_examination?: string | null;
+  // Day 7 only: the prayer that closes the whole series, shown last.
+  series_closing_prayer?: string | null;
 };
 
 // The columns every reader of a devotional day selects.
-export const DEVOTIONAL_DAY_COLUMNS = "id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination";
+export const DEVOTIONAL_DAY_COLUMNS = "id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination, series_closing_prayer";
 
 export const COMMUNION_DAY_NUMBER = 7;
 
-type CommunionFields = Pick<DevotionalDay, "bread_reflection" | "cup_reflection" | "self_examination">;
+type CommunionFields = Pick<DevotionalDay, "bread_reflection" | "cup_reflection" | "self_examination" | "series_closing_prayer">;
 type LegacyFields = Pick<DevotionalDay, "journal_prompt" | "prayer_activation">;
 
 function hasText(value: string | null | undefined) {
@@ -52,7 +54,7 @@ function hasText(value: string | null | undefined) {
 }
 
 function hasCommunionText(day: CommunionFields) {
-  return hasText(day.bread_reflection) || hasText(day.cup_reflection) || hasText(day.self_examination);
+  return hasText(day.bread_reflection) || hasText(day.cup_reflection) || hasText(day.self_examination) || hasText(day.series_closing_prayer);
 }
 
 /**
@@ -89,6 +91,7 @@ export type DevotionalSectionLabels = {
   breadReflection: string;
   cupReflection: string;
   selfExamination: string;
+  seriesClosingPrayer: string;
 };
 
 export type DevotionalSection = { key: string; label: string; text: string | null; isScriptures?: boolean };
@@ -105,9 +108,11 @@ export function devotionalDaySections(day: DevotionalDay, labels: DevotionalSect
       { key: "devotional_reading", label: labels.restReflection, text: day.devotional_reading },
       { key: "confession", label: labels.confessionOfRest, text: day.confession },
       { key: "table_of_remembrance", label: labels.tableOfRemembrance, text: labels.tableOfRemembranceIntro },
+      // The self-examination comes before the bread and cup: it is how the reader prepares to partake.
+      { key: "self_examination", label: labels.selfExamination, text: day.self_examination ?? null },
       { key: "bread_reflection", label: labels.breadReflection, text: day.bread_reflection ?? null },
       { key: "cup_reflection", label: labels.cupReflection, text: day.cup_reflection ?? null },
-      { key: "self_examination", label: labels.selfExamination, text: day.self_examination ?? null },
+      { key: "series_closing_prayer", label: labels.seriesClosingPrayer, text: day.series_closing_prayer ?? null },
     ];
   }
   return [
@@ -168,7 +173,7 @@ export function scripturesToTextareaValue(scriptures: string[] | null | undefine
   return (scriptures ?? []).join("\n");
 }
 
-export function isCompleteDevotionalDay(day: Pick<DevotionalDay, "day_number" | "title" | "anchor_scriptures" | "devotional_reading" | "confession" | "journal_prompt" | "prayer_activation" | "bread_reflection" | "cup_reflection" | "self_examination">) {
+export function isCompleteDevotionalDay(day: Pick<DevotionalDay, "day_number" | "title" | "anchor_scriptures" | "devotional_reading" | "confession" | "journal_prompt" | "prayer_activation" | "bread_reflection" | "cup_reflection" | "self_examination" | "series_closing_prayer">) {
   const common = Boolean(
     day.title.trim()
       && day.anchor_scriptures.some((scripture) => scripture.trim())
@@ -178,7 +183,7 @@ export function isCompleteDevotionalDay(day: Pick<DevotionalDay, "day_number" | 
   if (!common) return false;
   // Day 7 is the Communion and rest day: it has no journal prompt or prayer activation.
   if (day.day_number === COMMUNION_DAY_NUMBER) {
-    return Boolean(day.bread_reflection?.trim() && day.cup_reflection?.trim() && day.self_examination?.trim());
+    return Boolean(day.bread_reflection?.trim() && day.cup_reflection?.trim() && day.self_examination?.trim() && day.series_closing_prayer?.trim());
   }
   return Boolean(day.journal_prompt?.trim() && day.prayer_activation?.trim());
 }
@@ -199,9 +204,10 @@ export function findDevotionalPublishBlocker(devotional: Pick<TeachingDevotional
     if (dayNumber === COMMUNION_DAY_NUMBER) {
       if (!day.devotional_reading?.trim()) return `Day ${dayNumber} needs the Rest Reflection before publishing.`;
       if (!day.confession?.trim()) return `Day ${dayNumber} needs today's confession of rest before publishing.`;
+      if (!day.self_examination?.trim()) return `Day ${dayNumber} needs the Reverent Self-Examination & Blessing before publishing.`;
       if (!day.bread_reflection?.trim()) return `Day ${dayNumber} needs the Bread Reflection before publishing.`;
       if (!day.cup_reflection?.trim()) return `Day ${dayNumber} needs the Cup Reflection before publishing.`;
-      if (!day.self_examination?.trim()) return `Day ${dayNumber} needs the Reverent Self-Examination & Blessing before publishing.`;
+      if (!day.series_closing_prayer?.trim()) return `Day ${dayNumber} needs the Series Closing Prayer before publishing.`;
       continue;
     }
 

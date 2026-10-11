@@ -13,6 +13,7 @@ const MAX_LENGTHS = {
   reading: 12000,
   short: 3000,
   communion: 6000,
+  closingPrayer: 3000,
 };
 const MAX_IMPORT_FILE_SIZE = 250_000;
 
@@ -58,7 +59,8 @@ function readDayFields(formData: FormData, dayNumber: number) {
     const breadReflection = readText(formData, "breadReflection", MAX_LENGTHS.communion);
     const cupReflection = readText(formData, "cupReflection", MAX_LENGTHS.communion);
     const selfExamination = readText(formData, "selfExamination", MAX_LENGTHS.communion);
-    const communionError = [breadReflection, cupReflection, selfExamination].find((field) => field.error)?.error;
+    const seriesClosingPrayer = readText(formData, "seriesClosingPrayer", MAX_LENGTHS.closingPrayer);
+    const communionError = [breadReflection, cupReflection, selfExamination, seriesClosingPrayer].find((field) => field.error)?.error;
     if (communionError) return { error: communionError };
 
     const values = {
@@ -66,11 +68,12 @@ function readDayFields(formData: FormData, dayNumber: number) {
       bread_reflection: breadReflection.value || null,
       cup_reflection: cupReflection.value || null,
       self_examination: selfExamination.value || null,
+      series_closing_prayer: seriesClosingPrayer.value || null,
     };
     // A Day 7 saved before this format still holds its journal prompt and prayer activation. They are
     // cleared only when Communion text is being saved, so editing the title of an unconverted Day 7
     // can never wipe what is already published.
-    const savingCommunionText = Boolean(values.bread_reflection || values.cup_reflection || values.self_examination);
+    const savingCommunionText = Boolean(values.bread_reflection || values.cup_reflection || values.self_examination || values.series_closing_prayer);
     return { values: savingCommunionText ? { ...values, journal_prompt: null, prayer_activation: null } : values };
   }
 
@@ -103,6 +106,7 @@ function importedDayRow(devotionalId: string, day: ReturnType<typeof parseDevoti
     bread_reflection: day.bread_reflection || null,
     cup_reflection: day.cup_reflection || null,
     self_examination: day.self_examination || null,
+    series_closing_prayer: day.series_closing_prayer || null,
   };
 }
 

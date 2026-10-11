@@ -61,7 +61,7 @@ export default async function DevotionalDayPage({ params }: { params: Promise<{ 
   const supabase = await createClient();
   const { data: day, error: dayError } = await supabase
     .from("teaching_devotional_days")
-    .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination")
+    .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination, series_closing_prayer")
     .eq("devotional_id", devotional.id)
     .eq("day_number", dayNumber)
     .maybeSingle();

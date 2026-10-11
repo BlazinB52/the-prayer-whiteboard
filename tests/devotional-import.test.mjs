@@ -29,13 +29,15 @@ Today's Confession of Rest:
 Rest confession.
 The Table of Remembrance:
 Prepare a small piece of bread and a small cup of juice.
+Reverent Self-Examination & Blessing:
+Self-examination text.
 The Bread Reflection:
 Bread text.
 Partaking Declaration: "Lord, as we take this bread."
 The Cup Reflection:
 Cup text.
-Reverent Self-Examination & Blessing:
-Self-examination text.`;
+Series Closing Prayer:
+Closing prayer text.`;
 }
 
 const weekOne = () => [...[1, 2, 3, 4, 5, 6].map(day), communionDay()];
@@ -60,6 +62,7 @@ test("devotional text importer parses seven labeled day sections", () => {
   assert.equal(parsed.days[6].bread_reflection, 'Bread text.\nPartaking Declaration: "Lord, as we take this bread."');
   assert.equal(parsed.days[6].cup_reflection, "Cup text.");
   assert.equal(parsed.days[6].self_examination, "Self-examination text.");
+  assert.equal(parsed.days[6].series_closing_prayer, "Closing prayer text.");
   assert.equal(parsed.days[6].journal_prompt, "");
   assert.equal(parsed.days[6].prayer_activation, "");
 });
@@ -129,12 +132,14 @@ Confesión de descanso de hoy:
 Confesión de descanso.
 La mesa del recuerdo:
 Prepará un pedacito de pan y una copita de jugo.
+Autoexamen reverente y bendición:
+Texto del autoexamen.
 La reflexión del pan:
 Texto del pan.
 La reflexión de la copa:
 Texto de la copa.
-Autoexamen reverente y bendición:
-Texto del autoexamen.`;
+Oración de cierre de la serie:
+Texto de la oración de cierre.`;
 }
 
 test("devotional text importer reads Español day headings and labels", () => {
@@ -159,6 +164,7 @@ test("devotional text importer reads Español day headings and labels", () => {
   assert.equal(parsed.days[6].bread_reflection, "Texto del pan.");
   assert.equal(parsed.days[6].cup_reflection, "Texto de la copa.");
   assert.equal(parsed.days[6].self_examination, "Texto del autoexamen.");
+  assert.equal(parsed.days[6].series_closing_prayer, "Texto de la oración de cierre.");
   assert.deepEqual(parsed.days[0].anchor_scriptures, ['Referencia 1: "Texto bíblico 1."']);
 });
 
@@ -174,15 +180,17 @@ Pasajes biblicos clave: Hebreos 4:9 "Queda un reposo."
 La reflexion del descanso: Lectura 7.
 Confesion de descanso de hoy: Confesión 7.
 La mesa del recuerdo: Prepara pan y jugo.
+Autoexamen reverente y bendicion: Examen 7.
 La reflexion del pan: Pan 7.
 La reflexion de la copa: Copa 7.
-Autoexamen reverente y bendicion: Examen 7.`;
+Oracion de cierre de la serie: Cierre 7.`;
   const parsed = parseDevotionalText(["Título", ...[1, 2, 3, 4, 5, 6].map(section), sevenNoAccents].join("\n"));
   assert.equal(parsed.language, "es");
   assert.equal(parsed.days[0].devotional_reading, "Lectura 1.");
   assert.equal(parsed.days[5].prayer_activation, "Activación 6.");
   assert.equal(parsed.days[6].devotional_reading, "Lectura 7.");
   assert.equal(parsed.days[6].self_examination, "Examen 7.");
+  assert.equal(parsed.days[6].series_closing_prayer, "Cierre 7.");
 });
 
 test("English devotional files are still detected as English", () => {

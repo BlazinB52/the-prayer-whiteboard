@@ -85,16 +85,19 @@ export default async function EditWeeklyUpdateTextPage({ params }: { params: Pro
               Changed since the uploaded Word document <span className="text-sm font-bold text-[#607066]">({comparison.differences.length})</span>
             </h2>
             <p className="mt-1 text-sm leading-6 text-[#607066]">
-              Compared with {update.source_document_file_name ?? "the original upload"}. Red struck-through wording was in the document and is gone, and blue underlined wording is new. Use the editor below to correct any of these.
+              Compared with {update.source_document_file_name ?? "the original upload"}. Red struck-through wording was in the document and is gone, and blue underlined wording is new. This panel is only for looking. To correct one, press its Edit this paragraph link, or scroll down to the editor.
             </p>
             {!comparison.sameLength ? <p className="mt-2 text-sm font-bold text-[#7a4a1d]">The number of paragraphs is different from the upload, so some of these may be paragraphs that were added or removed.</p> : null}
             {comparison.differences.length ? (
-              <details className="mt-3" open>
+              <details className="mt-3">
                 <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Show what changed</summary>
                 <div className="mt-3 max-h-[32rem] space-y-4 overflow-y-auto pr-1">
                   {comparison.differences.map((difference) => (
                     <article key={difference.position} className="rounded-xl border border-[#284a3b]/10 bg-white p-4">
-                      <h3 className="text-sm font-extrabold text-[#243d31]">{labelFor(difference.position)}</h3>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-sm font-extrabold text-[#243d31]">{labelFor(difference.position)}</h3>
+                        <a href={`#field-block_${difference.position}`} className="text-sm font-extrabold text-[#1a4fb4] underline underline-offset-2">Edit this paragraph ↓</a>
+                      </div>
                       <div className="mt-2"><TrackedText original={difference.original} proposed={difference.current} /></div>
                     </article>
                   ))}
@@ -106,7 +109,11 @@ export default async function EditWeeklyUpdateTextPage({ params }: { params: Pro
           </section>
         ) : null}
 
-        <WeeklyUpdateTextEditor action={saveWeeklyUpdateText.bind(null, id)} fields={fields} />
+        {fields.length ? (
+          <WeeklyUpdateTextEditor action={saveWeeklyUpdateText.bind(null, id)} fields={fields} />
+        ) : (
+          <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">The text of this draft could not be loaded for editing. Reload the page, and if it still does not appear, tell the site developer.</p>
+        )}
       </div>
     </main>
   );

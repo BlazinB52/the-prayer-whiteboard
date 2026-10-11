@@ -68,3 +68,12 @@ test("each draft in the admin list links to the editor", () => {
   assert.match(listPage, /href=\{`\/admin\/weekly-updates\/\$\{update\.id\}\/edit-text`\}/);
   assert.match(listPage, /update\.status === "draft" \? \(\s*<div className="mt-4 flex flex-wrap items-center gap-3">\s*<Link href=\{`\/admin\/weekly-updates\/\$\{update\.id\}\/edit-text`\}/);
 });
+
+test("each changed paragraph links to its own editor field, and the editor says when the text did not load", () => {
+  assert.match(page, /href=\{`#field-block_\$\{difference\.position\}`\}/);
+  assert.match(editor, /id=\{`field-\$\{field\.key\}`\}/);
+  assert.match(page, /fields\.length \? \(/);
+  assert.match(page, /could not be loaded for editing/);
+  // The comparison starts collapsed so it never pushes the editor out of sight.
+  assert.doesNotMatch(page, /<details className="mt-3" open>/);
+});

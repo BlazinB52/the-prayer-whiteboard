@@ -30,11 +30,12 @@ export function WeeklyUpdateTextEditor({ action, fields }: { action: Action; fie
   const changedCount = fields.filter((field) => values[field.key] !== bases[field.key]).length;
 
   return (
-    <form action={formAction} className="mt-6 space-y-5">
+    <form action={formAction} id="editor" className="mt-6 scroll-mt-6 space-y-5">
+      <h2 className="text-xl font-extrabold text-[#243d31]">Edit the text</h2>
       {fields.map((field) => {
         const changed = values[field.key] !== bases[field.key];
         return (
-          <div key={field.key} className={`rounded-2xl border bg-[#fffdf8] p-4 ${changed ? "border-[#1a4fb4]/40" : "border-[#284a3b]/10"}`}>
+          <div key={field.key} id={`field-${field.key}`} className={`scroll-mt-6 rounded-2xl border bg-[#fffdf8] p-4 ${changed ? "border-[#1a4fb4]/40" : "border-[#284a3b]/10"}`}>
             <input type="hidden" name={`base:${field.key}`} value={bases[field.key]} />
             {field.formatted ? (
               <FormattedTextarea

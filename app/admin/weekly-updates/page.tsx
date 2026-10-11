@@ -238,6 +238,12 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <button type="submit" className="admin-secondary-button">{update.ready_to_publish_at ? "Remove ready mark" : "Mark as ready to publish"}</button>
                     </form>
                   ) : null}
+                  {update.status === "draft" ? (
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <Link href={`/admin/weekly-updates/${update.id}/edit-text`} className="admin-secondary-button inline-flex items-center justify-center">Edit text</Link>
+                      <span className="text-sm text-[#607066]">Fix or reword paragraphs directly, and see what changed since the upload.</span>
+                    </div>
+                  ) : null}
                   {update.status !== "archived" ? (
                     <details className="mt-5">
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit title or replace document</summary>

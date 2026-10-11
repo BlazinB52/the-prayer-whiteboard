@@ -73,7 +73,7 @@ async function resolveAssignedTeaching(devotionalId: string) {
   return null;
 }
 
-const DAY_COLUMNS = "day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation";
+const DAY_COLUMNS = "day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination";
 
 type DayContent = {
   day_number: number;
@@ -81,8 +81,11 @@ type DayContent = {
   anchor_scriptures: string[] | null;
   devotional_reading: string;
   confession: string;
-  journal_prompt: string;
-  prayer_activation: string;
+  journal_prompt: string | null;
+  prayer_activation: string | null;
+  bread_reflection: string | null;
+  cup_reflection: string | null;
+  self_examination: string | null;
 };
 
 type SeriesRow = { id: string; slug: string; title: string; status: string; published_at: string | null };
@@ -229,6 +232,9 @@ async function deliverDay(input: {
       confession: day.confession,
       journalPrompt: day.journal_prompt,
       prayerActivation: day.prayer_activation,
+      breadReflection: day.bread_reflection,
+      cupReflection: day.cup_reflection,
+      selfExamination: day.self_examination,
       readUrl,
       preferencesUrl,
       copyrightDisclaimer,

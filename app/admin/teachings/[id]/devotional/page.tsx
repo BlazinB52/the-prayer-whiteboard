@@ -49,7 +49,7 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
   const { data: days } = devotional
     ? await supabase
       .from("teaching_devotional_days")
-      .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
+      .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination")
       .eq("devotional_id", devotional.id)
       .order("day_number", { ascending: true })
     : { data: [] };

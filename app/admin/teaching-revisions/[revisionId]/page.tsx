@@ -98,7 +98,7 @@ export default async function TeachingRevisionReviewPage({
       ? supabase.from("teaching_devotionals").select("id, title, introduction, status").eq("id", devotionalId).maybeSingle()
       : Promise.resolve({ data: null }),
     open && devotionalId
-      ? supabase.from("teaching_devotional_days").select("id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation").eq("devotional_id", devotionalId).order("day_number", { ascending: true })
+      ? supabase.from("teaching_devotional_days").select("id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination").eq("devotional_id", devotionalId).order("day_number", { ascending: true })
       : Promise.resolve({ data: [] }),
   ]);
   const [teachingResult, categoriesResult, sectionsResult, changesResult] = await Promise.all([

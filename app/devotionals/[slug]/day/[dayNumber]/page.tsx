@@ -9,7 +9,7 @@ import { PublicFooterEs } from "@/app/public-footer-es";
 import { ScriptureList } from "@/app/scripture-block";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
-import type { DevotionalDay } from "@/lib/devotionals";
+import { devotionalDaySections, type DevotionalDay } from "@/lib/devotionals";
 import { getDevotionalDayDescription, getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { toLanguage, ui } from "@/lib/i18n";
 import { NOINDEX } from "@/lib/seo";
@@ -34,7 +34,7 @@ async function loadDay(slug: string, dayNumber: number) {
   const supabase = await createClient();
   const { data: day, error } = await supabase
     .from("teaching_devotional_days")
-    .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
+    .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination")
     .eq("devotional_id", series.id)
     .eq("day_number", dayNumber)
     .maybeSingle();
@@ -86,13 +86,13 @@ export default async function PublicDevotionalDayPage({ params }: { params: Prom
           <p className="mt-4 text-sm font-bold text-[#607066]">{series.title}</p>
         </header>
         <div className="mt-8 space-y-8">
-          <DevotionalField title={t.anchorScriptures}>
-            <ScriptureList entries={(day as DevotionalDay).anchor_scriptures} />
-          </DevotionalField>
-          <DevotionalField title={t.devotionalReading}><DevotionalTextBlock text={day.devotional_reading} /></DevotionalField>
-          <DevotionalField title={t.confession}><DevotionalTextBlock text={day.confession} /></DevotionalField>
-          <DevotionalField title={t.journalPrompt}><DevotionalTextBlock text={day.journal_prompt} /></DevotionalField>
-          <DevotionalField title={t.prayerActivation}><DevotionalTextBlock text={day.prayer_activation} /></DevotionalField>
+          {devotionalDaySections(day as DevotionalDay, t).map((section) => section.isScriptures ? (
+            <DevotionalField key={section.key} title={section.label}>
+              <ScriptureList entries={(day as DevotionalDay).anchor_scriptures} />
+            </DevotionalField>
+          ) : section.text?.trim() ? (
+            <DevotionalField key={section.key} title={section.label}><DevotionalTextBlock text={section.text} /></DevotionalField>
+          ) : null)}
         </div>
         <nav className="mt-12 flex flex-col gap-3 border-t border-[#284a3b]/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
           {dayNumber > 1 ? <Link href={`/devotionals/${slug}/day/${dayNumber - 1}`} className="inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]"><ArrowLeft aria-hidden="true" size={18} /> {t.previousDay}</Link> : <span />}

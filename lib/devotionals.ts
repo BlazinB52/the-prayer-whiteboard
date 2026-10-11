@@ -32,7 +32,92 @@ export type DevotionalDay = {
   confession: string | null;
   journal_prompt: string | null;
   prayer_activation: string | null;
+  // Day 7 only: the Communion and rest day. Older Day 7s have none of these and keep their
+  // journal prompt and prayer activation until they are converted.
+  bread_reflection?: string | null;
+  cup_reflection?: string | null;
+  self_examination?: string | null;
 };
+
+// The columns every reader of a devotional day selects.
+export const DEVOTIONAL_DAY_COLUMNS = "id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination";
+
+export const COMMUNION_DAY_NUMBER = 7;
+
+type CommunionFields = Pick<DevotionalDay, "bread_reflection" | "cup_reflection" | "self_examination">;
+type LegacyFields = Pick<DevotionalDay, "journal_prompt" | "prayer_activation">;
+
+function hasText(value: string | null | undefined) {
+  return Boolean(value?.trim());
+}
+
+function hasCommunionText(day: CommunionFields) {
+  return hasText(day.bread_reflection) || hasText(day.cup_reflection) || hasText(day.self_examination);
+}
+
+/**
+ * True for a Day 7 saved before the Communion format existed: it has a journal prompt or prayer
+ * activation and none of the Communion text. It keeps showing and mailing in its old layout until it
+ * is converted, so no reader loses wording that was already published.
+ */
+export function usesLegacyDayLayout(day: { day_number: number } & CommunionFields & Partial<LegacyFields>) {
+  return day.day_number === COMMUNION_DAY_NUMBER
+    && !hasCommunionText(day)
+    && (hasText(day.journal_prompt) || hasText(day.prayer_activation));
+}
+
+/** Day 7 is the Communion and rest day unless it is still an unconverted legacy Day 7. */
+export function isCommunionDay(day: { day_number: number } & CommunionFields & Partial<LegacyFields>) {
+  return day.day_number === COMMUNION_DAY_NUMBER && !usesLegacyDayLayout(day);
+}
+
+/** A day with nothing saved yet, so a preview can still show the layout the day will use. */
+export function emptyDevotionalDay(dayNumber: number): DevotionalDay {
+  return { id: "", devotional_id: "", day_number: dayNumber, title: "", anchor_scriptures: [], devotional_reading: null, confession: null, journal_prompt: null, prayer_activation: null };
+}
+
+export type DevotionalSectionLabels = {
+  anchorScriptures: string;
+  devotionalReading: string;
+  confession: string;
+  journalPrompt: string;
+  prayerActivation: string;
+  restReflection: string;
+  confessionOfRest: string;
+  tableOfRemembrance: string;
+  tableOfRemembranceIntro: string;
+  breadReflection: string;
+  cupReflection: string;
+  selfExamination: string;
+};
+
+export type DevotionalSection = { key: string; label: string; text: string | null; isScriptures?: boolean };
+
+/**
+ * The sections of one devotional day in reading order, with their labels. Every page, email and
+ * preview builds a day from this list so Day 7 looks the same everywhere. Sections with no text are
+ * still listed; the caller decides whether to show an empty one.
+ */
+export function devotionalDaySections(day: DevotionalDay, labels: DevotionalSectionLabels): DevotionalSection[] {
+  if (isCommunionDay(day)) {
+    return [
+      { key: "anchor_scriptures", label: labels.anchorScriptures, text: null, isScriptures: true },
+      { key: "devotional_reading", label: labels.restReflection, text: day.devotional_reading },
+      { key: "confession", label: labels.confessionOfRest, text: day.confession },
+      { key: "table_of_remembrance", label: labels.tableOfRemembrance, text: labels.tableOfRemembranceIntro },
+      { key: "bread_reflection", label: labels.breadReflection, text: day.bread_reflection ?? null },
+      { key: "cup_reflection", label: labels.cupReflection, text: day.cup_reflection ?? null },
+      { key: "self_examination", label: labels.selfExamination, text: day.self_examination ?? null },
+    ];
+  }
+  return [
+    { key: "anchor_scriptures", label: labels.anchorScriptures, text: null, isScriptures: true },
+    { key: "devotional_reading", label: labels.devotionalReading, text: day.devotional_reading },
+    { key: "confession", label: labels.confession, text: day.confession },
+    { key: "journal_prompt", label: labels.journalPrompt, text: day.journal_prompt },
+    { key: "prayer_activation", label: labels.prayerActivation, text: day.prayer_activation },
+  ];
+}
 
 export type DevotionalTextBlock =
   | { type: "paragraph"; text: string }
@@ -83,15 +168,19 @@ export function scripturesToTextareaValue(scriptures: string[] | null | undefine
   return (scriptures ?? []).join("\n");
 }
 
-export function isCompleteDevotionalDay(day: Pick<DevotionalDay, "title" | "anchor_scriptures" | "devotional_reading" | "confession" | "journal_prompt" | "prayer_activation">) {
-  return Boolean(
+export function isCompleteDevotionalDay(day: Pick<DevotionalDay, "day_number" | "title" | "anchor_scriptures" | "devotional_reading" | "confession" | "journal_prompt" | "prayer_activation" | "bread_reflection" | "cup_reflection" | "self_examination">) {
+  const common = Boolean(
     day.title.trim()
       && day.anchor_scriptures.some((scripture) => scripture.trim())
       && day.devotional_reading?.trim()
-      && day.confession?.trim()
-      && day.journal_prompt?.trim()
-      && day.prayer_activation?.trim(),
+      && day.confession?.trim(),
   );
+  if (!common) return false;
+  // Day 7 is the Communion and rest day: it has no journal prompt or prayer activation.
+  if (day.day_number === COMMUNION_DAY_NUMBER) {
+    return Boolean(day.bread_reflection?.trim() && day.cup_reflection?.trim() && day.self_examination?.trim());
+  }
+  return Boolean(day.journal_prompt?.trim() && day.prayer_activation?.trim());
 }
 
 export function findDevotionalPublishBlocker(devotional: Pick<TeachingDevotional, "title"> | null, days: DevotionalDay[]) {
@@ -107,6 +196,15 @@ export function findDevotionalPublishBlocker(devotional: Pick<TeachingDevotional
 
     if (!day.title.trim()) return `Day ${dayNumber} needs a title before publishing.`;
     if (!day.anchor_scriptures.some((scripture) => scripture.trim())) return `Day ${dayNumber} needs at least one anchor Scripture before publishing.`;
+    if (dayNumber === COMMUNION_DAY_NUMBER) {
+      if (!day.devotional_reading?.trim()) return `Day ${dayNumber} needs the Rest Reflection before publishing.`;
+      if (!day.confession?.trim()) return `Day ${dayNumber} needs today's confession of rest before publishing.`;
+      if (!day.bread_reflection?.trim()) return `Day ${dayNumber} needs the Bread Reflection before publishing.`;
+      if (!day.cup_reflection?.trim()) return `Day ${dayNumber} needs the Cup Reflection before publishing.`;
+      if (!day.self_examination?.trim()) return `Day ${dayNumber} needs the Reverent Self-Examination & Blessing before publishing.`;
+      continue;
+    }
+
     if (!day.devotional_reading?.trim()) return `Day ${dayNumber} needs a devotional reading before publishing.`;
     if (!day.confession?.trim()) return `Day ${dayNumber} needs today's confession before publishing.`;
     if (!day.journal_prompt?.trim()) return `Day ${dayNumber} needs a 5-minute journal prompt before publishing.`;

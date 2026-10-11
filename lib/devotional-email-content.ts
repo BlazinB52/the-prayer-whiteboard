@@ -2,6 +2,8 @@ import { button, escapeHtml } from "./subscription-email-content.ts";
 import { formattedBlocksHtml, formattedBlocksText, formattedInlineHtml, formattedInlineText } from "./formatted-email-text.ts";
 import type { EmailCopyrightDisclaimer } from "./copyright-disclaimer-format.ts";
 import { groupScriptureEntries, stripWrappingQuotes, type ScriptureEntry } from "./anchor-scripture-format.ts";
+import { devotionalDaySections, type DevotionalDay } from "./devotionals.ts";
+import { ui } from "./i18n.ts";
 
 // The day link is resolved from the devotional's own slug rather than from a
 // parent teaching's, so a series that is shared between teachings, or that has
@@ -55,6 +57,10 @@ export function buildDevotionalDayEmail(input: {
   confession: string | null;
   journalPrompt: string | null;
   prayerActivation: string | null;
+  // Day 7 only (the Communion and rest day). A Day 7 with none of these mails in its old layout.
+  breadReflection?: string | null;
+  cupReflection?: string | null;
+  selfExamination?: string | null;
   readUrl: string;
   preferencesUrl: string;
   copyrightDisclaimer?: EmailCopyrightDisclaimer;
@@ -63,6 +69,21 @@ export function buildDevotionalDayEmail(input: {
   const dayLabel = `Day ${input.dayNumber} of ${totalDays}`;
   const scriptures = input.anchorScriptures.filter((scripture) => scripture.trim());
   const hasMoreDays = input.dayNumber < totalDays;
+  // The same section list the website uses, so the email and the page never disagree about Day 7.
+  const sections = devotionalDaySections({
+    id: "",
+    devotional_id: "",
+    day_number: input.dayNumber,
+    title: input.title,
+    anchor_scriptures: scriptures,
+    devotional_reading: input.devotionalReading,
+    confession: input.confession,
+    journal_prompt: input.journalPrompt,
+    prayer_activation: input.prayerActivation,
+    bread_reflection: input.breadReflection ?? null,
+    cup_reflection: input.cupReflection ?? null,
+    self_examination: input.selfExamination ?? null,
+  } satisfies DevotionalDay, ui("en")).filter((section) => !section.isScriptures);
 
   const html = `<!doctype html>
 <html>
@@ -79,10 +100,7 @@ export function buildDevotionalDayEmail(input: {
                 <h1 style="margin:0 0 6px;color:#243d31;font-size:23px;line-height:1.2;">${escapeHtml(input.title)}</h1>
                 <p style="margin:0 0 22px;color:#52645a;font-size:14px;font-style:italic;"><strong style="font-style:normal;">For</strong> ${escapeHtml(input.seriesTitle)}</p>
                 ${scripturesFieldHtml(scriptures)}
-                ${textFieldHtml("Devotional Reading", input.devotionalReading)}
-                ${textFieldHtml("Today's Confession", input.confession)}
-                ${textFieldHtml("5-Minute Journal Prompt", input.journalPrompt)}
-                ${textFieldHtml("Prayer Activation Exercise", input.prayerActivation)}
+                ${sections.map((section) => textFieldHtml(section.label, section.text)).join("")}
                 <p style="margin:22px 0 20px;text-align:center;">${button("Read the Full Teaching", input.readUrl)}</p>
                 ${hasMoreDays ? `<p style="margin:0 0 20px;text-align:center;color:#8a9a90;font-size:13px;">Tomorrow: Day ${input.dayNumber + 1} of ${escapeHtml(input.seriesTitle)}</p>` : ""}
                 <hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:0 0 16px;" />
@@ -107,10 +125,7 @@ export function buildDevotionalDayEmail(input: {
     input.title,
     `For ${input.seriesTitle}`,
     scripturesText(scriptures),
-    textFieldText("Devotional Reading", input.devotionalReading),
-    textFieldText("Today's Confession", input.confession),
-    textFieldText("5-Minute Journal Prompt", input.journalPrompt),
-    textFieldText("Prayer Activation Exercise", input.prayerActivation),
+    ...sections.map((section) => textFieldText(section.label, section.text)),
     "",
     "Read the Full Teaching:",
     input.readUrl,

@@ -54,7 +54,7 @@ export default async function DevotionalReviewEditPage({
   const [{ data: days }, { data: revisions }] = await Promise.all([
     supabase
       .from("teaching_devotional_days")
-      .select("id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
+      .select("id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination")
       .eq("devotional_id", id)
       .order("day_number", { ascending: true }),
     supabase

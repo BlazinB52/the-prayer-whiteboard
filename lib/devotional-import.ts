@@ -6,8 +6,13 @@ export type ImportedDevotionalDay = {
   anchor_scriptures: string[];
   devotional_reading: string;
   confession: string;
+  // Days 1-6. Day 7 has neither: it is the Communion and rest day.
   journal_prompt: string;
   prayer_activation: string;
+  // Day 7 only; empty on Days 1-6.
+  bread_reflection: string;
+  cup_reflection: string;
+  self_examination: string;
 };
 
 export type ImportedDevotional = {
@@ -20,15 +25,27 @@ export type ImportedDevotional = {
 
 // English files use "Day 1:" headings and the English labels; Español files use "Día 1:" and the
 // Spanish labels below. Each label is the same field either way, so a file may be written in either.
-const DAY_HEADING_PATTERN = /^(?:Day|D[ií]a)\s+([1-7]):\s+.+/i;
-const SPANISH_DAY_HEADING_PATTERN = /^D[ií]a\s+[1-7]:/i;
+// Day 7 may be headed "DAY 7 — COMMUNION AND REST: ..." (the dash is read as "-" once the text is cleaned).
+const DAY_HEADING_PATTERN = /^(?:Day|D[ií]a)\s+([1-7])(?::\s+|\s+-\s+)\S.*/i;
+const SPANISH_DAY_HEADING_PATTERN = /^D[ií]a\s+[1-7](?:\s*:|\s+-)/i;
 const MAX_ANCHOR_SCRIPTURE_LENGTH = 1000;
+const MAX_COMMUNION_TEXT_LENGTH = 6000;
+const COMMUNION_DAY_NUMBER = 7;
+// The one-line description at the end of a file. The site has no field for it, so it is read past and dropped.
+const WEBSITE_DESCRIPTION_PATTERN = /^(?:Website Description|Descripci[oó]n para el sitio web)\s*:/i;
 const LABEL_ALIASES = {
   anchorScriptures: ["Anchor Scriptures:", "Pasajes bíblicos clave:"],
   spiritualMechanic: ["The Spiritual Mechanic:", "La dinámica espiritual:"],
   confession: ["Today's Confession:", "Confesión de hoy:"],
   journalPrompt: ["5-Minute Journal Prompt:", "Pregunta para tu diario de 5 minutos:"],
   prayerActivation: ["Prayer Activation Exercise:", "Ejercicio de activación en oración:"],
+  // Day 7 (Communion and rest) labels.
+  restReflection: ["The Rest Reflection:", "La reflexión del descanso:"],
+  confessionOfRest: ["Today's Confession of Rest:", "Confesión de descanso de hoy:"],
+  tableOfRemembrance: ["The Table of Remembrance:", "La mesa del recuerdo:"],
+  breadReflection: ["The Bread Reflection:", "La reflexión del pan:"],
+  cupReflection: ["The Cup Reflection:", "La reflexión de la copa:"],
+  selfExamination: ["Reverent Self-Examination & Blessing:", "Autoexamen reverente y bendición:"],
 } as const;
 type LabelKey = keyof typeof LABEL_ALIASES;
 const LABELS: readonly string[] = Object.values(LABEL_ALIASES).flat();
@@ -77,6 +94,15 @@ const LABEL_VARIANTS: Record<string, string> = {
   "today's confession": "Today's Confession:",
   "5-minute journal prompt": "5-Minute Journal Prompt:",
   "prayer activation exercise": "Prayer Activation Exercise:",
+  "the rest reflection": "The Rest Reflection:",
+  "rest reflection": "The Rest Reflection:",
+  "today's confession of rest": "Today's Confession of Rest:",
+  "the table of remembrance": "The Table of Remembrance:",
+  "table of remembrance": "The Table of Remembrance:",
+  "the bread reflection": "The Bread Reflection:",
+  "the cup reflection": "The Cup Reflection:",
+  "reverent self-examination & blessing": "Reverent Self-Examination & Blessing:",
+  "reverent self-examination and blessing": "Reverent Self-Examination & Blessing:",
 };
 
 function canonicalLabel(line: string) {
@@ -154,20 +180,50 @@ function parseDay(section: string[]): ImportedDevotionalDay {
   const match = section[0].match(DAY_HEADING_PATTERN);
   if (!match) throw new Error(`Invalid day heading: ${section[0]}`);
 
+  const dayNumber = Number(match[1]);
   const anchorScriptures = readBlock(section, "anchorScriptures").map(quoteBareAnchor);
+
+  if (dayNumber === COMMUNION_DAY_NUMBER) {
+    // The Communion and rest day. A Day 7 written in the old format (journal prompt and prayer
+    // activation) is refused with a plain explanation rather than a missing-label error.
+    const aliases = LABEL_ALIASES.breadReflection as readonly string[];
+    if (!section.some((line) => aliases.includes(line))) {
+      throw new Error(`${section[0]} must use the Communion and rest format: The Rest Reflection, Today's Confession of Rest, The Table of Remembrance, The Bread Reflection, The Cup Reflection, and Reverent Self-Examination & Blessing. Day 7 has no journal prompt or prayer activation.`);
+    }
+    // Present in every Day 7 so the file matches the standard, but its wording is fixed by the site.
+    readBlock(section, "tableOfRemembrance");
+
+    return {
+      day_number: dayNumber,
+      // The em dash is kept in the Day 7 heading (cleaning the text turned it into a hyphen).
+      title: section[0].replace(/^((?:Day|D[ií]a)\s+7)\s+-\s+/i, "$1 — "),
+      anchor_scriptures: formatAnchorScriptures(anchorScriptures),
+      devotional_reading: readBlock(section, "restReflection").join("\n"),
+      confession: readBlock(section, "confessionOfRest").join("\n"),
+      journal_prompt: "",
+      prayer_activation: "",
+      bread_reflection: readBlock(section, "breadReflection").join("\n"),
+      cup_reflection: readBlock(section, "cupReflection").join("\n"),
+      self_examination: readBlock(section, "selfExamination").join("\n"),
+    };
+  }
+
   const devotionalReading = readBlock(section, "spiritualMechanic");
   const confession = readBlock(section, "confession");
   const journalPrompt = readBlock(section, "journalPrompt");
   const prayerActivation = readBlock(section, "prayerActivation");
 
   return {
-    day_number: Number(match[1]),
+    day_number: dayNumber,
     title: section[0],
     anchor_scriptures: formatAnchorScriptures(anchorScriptures),
     devotional_reading: devotionalReading.join("\n"),
     confession: confession.join("\n"),
     journal_prompt: journalPrompt.join("\n"),
     prayer_activation: prayerActivation.join("\n"),
+    bread_reflection: "",
+    cup_reflection: "",
+    self_examination: "",
   };
 }
 
@@ -194,6 +250,18 @@ function validateImportedDevotional(devotional: Omit<ImportedDevotional, "langua
     if (day.devotional_reading.length > 12000) throw new Error(`Day ${day.day_number} devotional reading must be 12,000 characters or fewer.`);
     if (!day.confession.trim()) throw new Error(`Day ${day.day_number} needs today's confession.`);
     if (day.confession.length > 3000) throw new Error(`Day ${day.day_number} confession must be 3,000 characters or fewer.`);
+    if (day.day_number === COMMUNION_DAY_NUMBER) {
+      const communion = [
+        ["the Bread Reflection", day.bread_reflection],
+        ["the Cup Reflection", day.cup_reflection],
+        ["the Reverent Self-Examination & Blessing", day.self_examination],
+      ] as const;
+      for (const [name, value] of communion) {
+        if (!value.trim()) throw new Error(`Day ${day.day_number} needs ${name}.`);
+        if (value.length > MAX_COMMUNION_TEXT_LENGTH) throw new Error(`Day ${day.day_number} ${name} must be ${MAX_COMMUNION_TEXT_LENGTH.toLocaleString("en-US")} characters or fewer.`);
+      }
+      continue;
+    }
     if (!day.journal_prompt.trim()) throw new Error(`Day ${day.day_number} needs a journal prompt.`);
     if (day.journal_prompt.length > 3000) throw new Error(`Day ${day.day_number} journal prompt must be 3,000 characters or fewer.`);
     if (!day.prayer_activation.trim()) throw new Error(`Day ${day.day_number} needs a prayer activation exercise.`);
@@ -202,7 +270,7 @@ function validateImportedDevotional(devotional: Omit<ImportedDevotional, "langua
 }
 
 export function parseDevotionalText(text: string): ImportedDevotional {
-  const lines = normalizeLines(text);
+  const lines = normalizeLines(text).filter((line) => !WEBSITE_DESCRIPTION_PATTERN.test(line));
   const firstDayIndex = lines.findIndex((line) => DAY_HEADING_PATTERN.test(line));
   if (firstDayIndex <= 0) {
     throw new Error("The file must start with a devotional title before Day 1.");

@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DevotionalTextBlock } from "@/app/devotional-text-block";
-import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay } from "@/lib/devotionals";
+import { DEVOTIONAL_DAY_NUMBERS, devotionalDaySections, emptyDevotionalDay, type DevotionalDay } from "@/lib/devotionals";
+import { ui } from "@/lib/i18n";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -28,7 +29,7 @@ export default async function AdminStandaloneDevotionalPreviewPage({ params }: {
 
   const { data: days } = await supabase
     .from("teaching_devotional_days")
-    .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
+    .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination")
     .eq("devotional_id", devotional.id)
     .order("day_number", { ascending: true });
 
@@ -63,11 +64,9 @@ function DevotionalDayPreview({ dayNumber, day }: { dayNumber: number; day?: Dev
     <section className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
       <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Day {dayNumber}</p>
       <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">{day?.title || "Untitled day"}</h2>
-      <Field title="Anchor Scriptures">{day?.anchor_scriptures?.length ? <ScriptureList entries={day.anchor_scriptures} /> : <p>Not saved.</p>}</Field>
-      <Field title="Devotional Reading"><DevotionalTextBlock text={day?.devotional_reading} emptyText="Not saved." /></Field>
-      <Field title="Today's Confession"><DevotionalTextBlock text={day?.confession} emptyText="Not saved." /></Field>
-      <Field title="5-Minute Journal Prompt"><DevotionalTextBlock text={day?.journal_prompt} emptyText="Not saved." /></Field>
-      <Field title="Prayer Activation Exercise"><DevotionalTextBlock text={day?.prayer_activation} emptyText="Not saved." /></Field>
+      {devotionalDaySections(day ?? emptyDevotionalDay(dayNumber), ui("en")).map((section) => section.isScriptures
+        ? <Field key={section.key} title={section.label}>{day?.anchor_scriptures?.length ? <ScriptureList entries={day.anchor_scriptures} /> : <p>Not saved.</p>}</Field>
+        : <Field key={section.key} title={section.label}><DevotionalTextBlock text={section.text} emptyText="Not saved." /></Field>)}
     </section>
   );
 }

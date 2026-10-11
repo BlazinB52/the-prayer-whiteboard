@@ -67,7 +67,7 @@ export async function POST(request: Request) {
 
   const { data: day, error: dayError } = await supabase
     .from("teaching_devotional_days")
-    .select("day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
+    .select("day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination")
     .eq("devotional_id", devotional.id)
     .eq("day_number", dayNumber)
     .maybeSingle();
@@ -86,6 +86,9 @@ export async function POST(request: Request) {
     confession: day.confession,
     journalPrompt: day.journal_prompt,
     prayerActivation: day.prayer_activation,
+    breadReflection: day.bread_reflection,
+    cupReflection: day.cup_reflection,
+    selfExamination: day.self_examination,
     readUrl: devotionalDayUrl(base, devotional.slug, dayNumber),
     preferencesUrl: `${base}/email-preferences`,
     copyrightDisclaimer,

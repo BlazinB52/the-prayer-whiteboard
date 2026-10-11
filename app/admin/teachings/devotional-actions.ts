@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseDevotionalText } from "@/lib/devotional-import";
-import { findDevotionalPublishBlocker, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines } from "@/lib/devotionals";
+import { COMMUNION_DAY_NUMBER, DEVOTIONAL_DAY_COLUMNS, findDevotionalPublishBlocker, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -12,6 +12,7 @@ const MAX_LENGTHS = {
   introduction: 8000,
   reading: 12000,
   short: 3000,
+  communion: 6000,
 };
 const MAX_IMPORT_FILE_SIZE = 250_000;
 
@@ -33,28 +34,75 @@ function readLanguage(formData: FormData) {
   return formData.get("language") === "es" ? "es" : "en";
 }
 
-function readDayFields(formData: FormData) {
+function readDayFields(formData: FormData, dayNumber: number) {
   const title = readText(formData, "title", MAX_LENGTHS.title);
   const devotionalReading = readText(formData, "devotionalReading", MAX_LENGTHS.reading);
   const confession = readText(formData, "confession", MAX_LENGTHS.short);
-  const journalPrompt = readText(formData, "journalPrompt", MAX_LENGTHS.short);
-  const prayerActivation = readText(formData, "prayerActivation", MAX_LENGTHS.short);
-  const textError = [title, devotionalReading, confession, journalPrompt, prayerActivation].find((field) => field.error)?.error;
+  const textError = [title, devotionalReading, confession].find((field) => field.error)?.error;
   if (textError) return { error: textError };
 
   const anchorScriptures = normalizeScriptureLines(formData.get("anchorScriptures"));
   if (anchorScriptures.length > 20) return { error: "Anchor Scriptures must include 20 references or fewer." };
   if (anchorScriptures.some((scripture) => scripture.length > MAX_ANCHOR_SCRIPTURE_LENGTH)) return { error: `Each anchor Scripture must be ${formatAnchorScriptureLengthLimit()} characters or fewer.` };
 
+  const common = {
+    title: title.value || "",
+    anchor_scriptures: anchorScriptures,
+    devotional_reading: devotionalReading.value || null,
+    confession: confession.value || null,
+  };
+
+  // Day 7 is the Communion and rest day: it saves the three Communion texts, not a journal prompt or
+  // prayer activation.
+  if (dayNumber === COMMUNION_DAY_NUMBER) {
+    const breadReflection = readText(formData, "breadReflection", MAX_LENGTHS.communion);
+    const cupReflection = readText(formData, "cupReflection", MAX_LENGTHS.communion);
+    const selfExamination = readText(formData, "selfExamination", MAX_LENGTHS.communion);
+    const communionError = [breadReflection, cupReflection, selfExamination].find((field) => field.error)?.error;
+    if (communionError) return { error: communionError };
+
+    const values = {
+      ...common,
+      bread_reflection: breadReflection.value || null,
+      cup_reflection: cupReflection.value || null,
+      self_examination: selfExamination.value || null,
+    };
+    // A Day 7 saved before this format still holds its journal prompt and prayer activation. They are
+    // cleared only when Communion text is being saved, so editing the title of an unconverted Day 7
+    // can never wipe what is already published.
+    const savingCommunionText = Boolean(values.bread_reflection || values.cup_reflection || values.self_examination);
+    return { values: savingCommunionText ? { ...values, journal_prompt: null, prayer_activation: null } : values };
+  }
+
+  const journalPrompt = readText(formData, "journalPrompt", MAX_LENGTHS.short);
+  const prayerActivation = readText(formData, "prayerActivation", MAX_LENGTHS.short);
+  const shortError = [journalPrompt, prayerActivation].find((field) => field.error)?.error;
+  if (shortError) return { error: shortError };
+
   return {
     values: {
-      title: title.value || "",
-      anchor_scriptures: anchorScriptures,
-      devotional_reading: devotionalReading.value || null,
-      confession: confession.value || null,
+      ...common,
       journal_prompt: journalPrompt.value || null,
       prayer_activation: prayerActivation.value || null,
     },
+  };
+}
+
+// What an import writes for one day. Days 1-6 clear the Communion columns and Day 7 clears the
+// journal and prayer columns, so a replaced draft never keeps text from the other format.
+function importedDayRow(devotionalId: string, day: ReturnType<typeof parseDevotionalText>["days"][number]) {
+  return {
+    devotional_id: devotionalId,
+    day_number: day.day_number,
+    title: day.title,
+    anchor_scriptures: day.anchor_scriptures,
+    devotional_reading: day.devotional_reading,
+    confession: day.confession,
+    journal_prompt: day.journal_prompt || null,
+    prayer_activation: day.prayer_activation || null,
+    bread_reflection: day.bread_reflection || null,
+    cup_reflection: day.cup_reflection || null,
+    self_examination: day.self_examination || null,
   };
 }
 
@@ -252,7 +300,7 @@ export async function updateDevotionalDay(teachingId: string, dayNumber: number,
   if (!teaching) return { error: "This teaching could not be found." };
   if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) return { error: "Day number must be between 1 and 7." };
 
-  const day = readDayFields(formData);
+  const day = readDayFields(formData, dayNumber);
   if (day.error) return { error: day.error };
 
   const { devotional } = await getAssignedDevotional(supabase, teaching.id);
@@ -347,16 +395,7 @@ export async function importDevotionalText(teachingId: string, previousState: De
   const { error: daysError } = await supabase
     .from("teaching_devotional_days")
     .upsert(
-      imported.days.map((day) => ({
-        devotional_id: devotionalId,
-        day_number: day.day_number,
-        title: day.title,
-        anchor_scriptures: day.anchor_scriptures,
-        devotional_reading: day.devotional_reading,
-        confession: day.confession,
-        journal_prompt: day.journal_prompt,
-        prayer_activation: day.prayer_activation,
-      })),
+      imported.days.map((day) => importedDayRow(devotionalId, day)),
       { onConflict: "devotional_id,day_number" },
     );
 
@@ -377,7 +416,7 @@ export async function publishDevotional(teachingId: string, previousState: Devot
 
   const { data: days, error: daysError } = await supabase
     .from("teaching_devotional_days")
-    .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
+    .select(DEVOTIONAL_DAY_COLUMNS)
     .eq("devotional_id", devotional.id)
     .order("day_number", { ascending: true });
 
@@ -525,7 +564,7 @@ export async function updateStandaloneDevotionalDay(devotionalId: string, dayNum
   const { supabase } = await requireAdmin();
   if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) return { error: "Day number must be between 1 and 7." };
 
-  const day = readDayFields(formData);
+  const day = readDayFields(formData, dayNumber);
   if (day.error) return { error: day.error };
 
   const devotional = await getDevotionalById(supabase, devotionalId);
@@ -576,16 +615,7 @@ export async function importStandaloneDevotionalText(devotionalId: string, previ
   const { error: daysError } = await supabase
     .from("teaching_devotional_days")
     .upsert(
-      imported.days.map((day) => ({
-        devotional_id: devotional.id,
-        day_number: day.day_number,
-        title: day.title,
-        anchor_scriptures: day.anchor_scriptures,
-        devotional_reading: day.devotional_reading,
-        confession: day.confession,
-        journal_prompt: day.journal_prompt,
-        prayer_activation: day.prayer_activation,
-      })),
+      imported.days.map((day) => importedDayRow(devotional.id, day)),
       { onConflict: "devotional_id,day_number" },
     );
 
@@ -602,7 +632,7 @@ export async function publishStandaloneDevotional(devotionalId: string, previous
 
   const { data: days, error: daysError } = await supabase
     .from("teaching_devotional_days")
-    .select("id, devotional_id, day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation")
+    .select(DEVOTIONAL_DAY_COLUMNS)
     .eq("devotional_id", devotional.id)
     .order("day_number", { ascending: true });
 

@@ -1,8 +1,11 @@
 // Side-effect-free helpers for the devotional review workflow, used by the co-editor page, the
 // Administrator review page and the tests. The limits below mirror the database function
-// revision_devotional_field_info in 20261007020000_devotional_revisions.sql; keep the two in step.
+// revision_devotional_field_info (last replaced in 20261011000000_devotional_communion_day.sql, which added
+// Day 7's bread, cup and self-examination fields); keep the two in step.
 
 import { fieldId, type EditableField } from "./teaching-revisions.ts";
+
+const COMMUNION_DAY_NUMBER = 7;
 
 export type DevotionalRow = { id: string; title: string; introduction: string | null };
 export type DevotionalDayRow = {
@@ -14,6 +17,9 @@ export type DevotionalDayRow = {
   confession: string | null;
   journal_prompt: string | null;
   prayer_activation: string | null;
+  bread_reflection?: string | null;
+  cup_reflection?: string | null;
+  self_examination?: string | null;
 };
 
 /**
@@ -38,6 +44,19 @@ export function buildDevotionalEditableFields(devotional: DevotionalRow, days: D
     };
     add("title", "Day title", day.title, 180, false, 1, false);
     add("anchor_scriptures", "Anchor Scriptures (one per line)", (day.anchor_scriptures ?? []).join("\n"), 20019, true, 4, true);
+    if (day.day_number === COMMUNION_DAY_NUMBER) {
+      // Day 7 is the Communion and rest day. The Table of Remembrance sentence is fixed by the site, so
+      // it is not editable here. A Day 7 saved before this format keeps its old journal prompt and
+      // prayer activation visible until they are removed, so nothing can be lost in a review.
+      add("devotional_reading", "The Rest Reflection", day.devotional_reading ?? "", 12000, true, 9, true);
+      add("confession", "Today's Confession of Rest", day.confession ?? "", 3000, true, 4, true);
+      add("bread_reflection", "The Bread Reflection", day.bread_reflection ?? "", 6000, true, 7, true);
+      add("cup_reflection", "The Cup Reflection", day.cup_reflection ?? "", 6000, true, 7, true);
+      add("self_examination", "Reverent Self-Examination & Blessing", day.self_examination ?? "", 6000, true, 7, true);
+      if (day.journal_prompt?.trim()) add("journal_prompt", "5-Minute Journal Prompt (previous Day 7)", day.journal_prompt, 3000, true, 4, true);
+      if (day.prayer_activation?.trim()) add("prayer_activation", "Prayer Activation Exercise (previous Day 7)", day.prayer_activation, 3000, true, 4, true);
+      continue;
+    }
     add("devotional_reading", "Devotional Reading", day.devotional_reading ?? "", 12000, true, 9, true);
     add("confession", "Today's Confession", day.confession ?? "", 3000, true, 4, true);
     add("journal_prompt", "5-Minute Journal Prompt", day.journal_prompt ?? "", 3000, true, 4, true);

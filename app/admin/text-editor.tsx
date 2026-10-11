@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useActionState, useState, useTransition } from "react";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 
 export type TextEditorField = {
@@ -20,7 +21,18 @@ type Action = (state: EditTextState, formData: FormData) => Promise<EditTextStat
 
 // The Administrator edits the wording of a draft directly. Shared by every kind of item that supports it, so
 // the screen behaves the same everywhere. unit names what one field is, for the "saved" message.
-export function AdminTextEditor({ action, fields, unit = "paragraph" }: { action: Action; fields: TextEditorField[]; unit?: string }) {
+//
+// structure (optional) adds Delete and "Add below" buttons to the fields it allows. They change the shape of
+// the document, so they act on what is saved and are turned off while there are unsaved edits.
+export type TextEditorStructure = {
+  run: (kind: "insert" | "delete", fieldKey: string) => Promise<{ error?: string }>;
+  allows: (fieldKey: string) => boolean;
+};
+
+export function AdminTextEditor({ action, fields, unit = "paragraph", structure }: { action: Action; fields: TextEditorField[]; unit?: string; structure?: TextEditorStructure }) {
+  const router = useRouter();
+  const [structurePending, startStructure] = useTransition();
+  const [structureError, setStructureError] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState(action, {});
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((field) => [field.key, field.value])));
   // What each field said when it was last loaded or saved, sent back so the database can tell if it has
@@ -32,6 +44,17 @@ export function AdminTextEditor({ action, fields, unit = "paragraph" }: { action
     if (state.savedCount !== undefined) setBases(values);
   }
   const changedCount = fields.filter((field) => values[field.key] !== bases[field.key]).length;
+
+  const changeStructure = (kind: "insert" | "delete", fieldKey: string) => {
+    if (!structure) return;
+    if (kind === "delete" && !window.confirm("Delete this from the outline? This cannot be undone here.")) return;
+    setStructureError(null);
+    startStructure(async () => {
+      const result = await structure.run(kind, fieldKey);
+      if (result.error) setStructureError(result.error);
+      else router.refresh();
+    });
+  };
 
   return (
     <form action={formAction} id="editor" className="mt-6 scroll-mt-6 space-y-5">
@@ -63,12 +86,20 @@ export function AdminTextEditor({ action, fields, unit = "paragraph" }: { action
               </label>
             )}
             {changed ? <p className="mt-2 text-xs font-extrabold uppercase tracking-wider text-[#1a4fb4]">Edited, not saved yet</p> : null}
+            {structure && structure.allows(field.key) ? (
+              <div className="mt-3 flex flex-wrap items-center gap-4 text-sm font-extrabold">
+                <button type="button" disabled={changedCount > 0 || structurePending || pending} onClick={() => changeStructure("insert", field.key)} className="text-[#946332] hover:text-[#a85e32] disabled:cursor-not-allowed disabled:opacity-40">Add below</button>
+                <button type="button" disabled={changedCount > 0 || structurePending || pending} onClick={() => changeStructure("delete", field.key)} className="text-[#a2472c] hover:underline disabled:cursor-not-allowed disabled:opacity-40">Delete</button>
+              </div>
+            ) : null}
           </div>
         );
       })}
 
       <div className="sticky bottom-0 -mx-1 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-4 shadow-xl shadow-[#4d5f52]/10">
         {state.error ? <p role="alert" className="mb-3 text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
+        {structureError ? <p role="alert" className="mb-3 text-sm font-bold text-[#a2472c]">{structureError}</p> : null}
+        {structure && changedCount > 0 ? <p className="mb-3 text-sm text-[#607066]">Save your edits before adding or deleting a paragraph.</p> : null}
         {state.savedCount !== undefined && changedCount === 0 ? <p role="status" className="mb-3 text-sm font-bold text-[#326048]">Saved ({state.savedCount} {state.savedCount === 1 ? unit : `${unit}s`} changed). Nothing was published or emailed.</p> : null}
         <p className="mb-3 text-sm leading-6 text-[#607066]">Changes are saved to the draft only. Nothing is published or emailed until you publish.</p>
         <button type="submit" disabled={pending || changedCount === 0} className="admin-primary-button">

@@ -29,10 +29,32 @@ export async function saveOutlineText(outlineId: string, _previous: EditTextStat
   if (!changes.length) return { error: "You have not changed anything yet." };
 
   const { data, error } = await supabase.rpc("admin_edit_outline_text", { p_outline_id: outlineId, p_changes: changes });
-  if (error) return { error: friendlyRevisionError(error.message) };
+  if (error) {
+    const message = friendlyRevisionError(error.message);
+    // The editor can only change wording; emptying a paragraph is a delete, which has its own button.
+    return { error: /cannot be empty/i.test(message) ? `${message} To remove a paragraph, save your other edits and use its Delete button.` : message };
+  }
 
   revalidatePath("/admin/outlines");
   revalidatePath(`/admin/outlines/${outlineId}`);
   revalidatePath(`/admin/outlines/${outlineId}/edit-text`);
   return { savedCount: typeof data === "number" ? data : changes.length };
+}
+
+// Adds a new paragraph (or list item) after one, or deletes one. The database refuses it unless the caller
+// is an Administrator, the outline is a draft, and no Content Manager proposal is still open, because moving
+// text would make an open proposal land in the wrong place.
+export async function changeOutlineStructure(outlineId: string, kind: "insert" | "delete", fieldKey: string): Promise<{ error?: string }> {
+  if (!UUID_PATTERN.test(outlineId)) return { error: "This outline could not be found." };
+  if (kind !== "insert" && kind !== "delete") return { error: "That could not be done." };
+  if (!/^block_[0-9]+(_item_[0-9]+)?$/.test(fieldKey)) return { error: "That part of the outline cannot be added to or removed." };
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase.rpc("admin_outline_structure", { p_outline_id: outlineId, p_action: kind, p_field: fieldKey });
+  if (error) return { error: friendlyRevisionError(error.message) };
+
+  revalidatePath("/admin/outlines");
+  revalidatePath(`/admin/outlines/${outlineId}`);
+  revalidatePath(`/admin/outlines/${outlineId}/edit-text`);
+  return {};
 }

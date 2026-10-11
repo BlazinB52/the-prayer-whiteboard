@@ -227,3 +227,28 @@ test("the migration only writes known places and only http(s) links", async () =
   assert.match(sql, /regexp_match\(p_field, '\^block_\(\[0-9\]\+\)/, "field names are parsed, never used as SQL");
   assert.match(sql, /public\.revision_outline_markup_to_inlines\(v_markup\) is distinct from/, "text is offered only if it reads back exactly");
 });
+
+// ---------------------------------------------------------------------------
+// Adding and removing paragraphs (outlines only; weekly updates stay wording-only)
+// ---------------------------------------------------------------------------
+
+test("only the outline editor offers Add below and Delete, and only to the Administrator", async () => {
+  const editor = await read("app/admin/text-editor.tsx");
+  assert.match(editor, /structure \? /.test(editor) ? /Add below/ : /Add below/);
+  assert.match(editor, /disabled=\{changedCount > 0 \|\| structurePending \|\| pending\}/, "turned off while there are unsaved edits");
+  const outlinePage = await read("app/admin/outlines/[id]/edit-text/page.tsx");
+  assert.match(outlinePage, /structure=\{\{ run: changeOutlineStructure\.bind\(null, id\)/);
+  assert.doesNotMatch(await read("app/admin/weekly-updates/[id]/edit-text/page.tsx"), /structure=/);
+  const actions = await read("app/admin/outlines/[id]/edit-text/actions.ts");
+  assert.match(actions, /export async function changeOutlineStructure[\s\S]*?await requireAdmin\(\)[\s\S]*?rpc\("admin_outline_structure"/);
+  assert.match(actions, /To remove a paragraph, save your other edits and use its Delete button/);
+});
+
+test("the structure migration is Administrator-only, draft-only, and refuses while a proposal is open", async () => {
+  const sql = await read("supabase/migrations/20261011040000_outline_add_remove_paragraphs.sql");
+  assert.match(sql, /is_authenticated_admin\(\)/);
+  assert.match(sql, /status = 'draft' for update/);
+  assert.match(sql, /status in \('draft', 'submitted'\)/);
+  assert.match(sql, /revoke all on function public\.admin_outline_structure\(uuid, text, text\) from public, anon/);
+  assert.match(sql, /grant execute on function public\.admin_outline_structure\(uuid, text, text\) to authenticated/);
+});

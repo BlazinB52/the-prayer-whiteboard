@@ -8,7 +8,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { TrackedText } from "@/lib/tracked-text";
 import { MAX_TEACHING_DOCX_BYTES } from "@/lib/teaching-docx-package";
 import { OUTLINE_BUCKET, parseOutlineDocx } from "@/lib/teaching-outlines";
-import { saveOutlineText } from "./actions";
+import { changeOutlineStructure, saveOutlineText } from "./actions";
 
 export const metadata: Metadata = {
   title: "Edit Outline Text",
@@ -74,7 +74,7 @@ export default async function EditOutlineTextPage({ params }: { params: Promise<
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Edit text</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31] sm:text-4xl">{outline.title}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
-            Edit the wording of this draft directly, for example to put right something that came in with an accepted change. Use **bold**, *italic* and [link text](https://address) the same way as in the review editors. Nothing is published from here.
+            Edit the wording of this draft directly, for example to put right something that came in with an accepted change. Use **bold**, *italic* and [link text](https://address) the same way as in the review editors. Use Add below to insert a new paragraph (or list item) after one, and Delete to remove one; both work on what is saved. They are not available while a Content Manager proposal on this outline is still open. Nothing is published from here.
           </p>
         </header>
 
@@ -109,7 +109,14 @@ export default async function EditOutlineTextPage({ params }: { params: Promise<
         ) : null}
 
         {fields.length ? (
-          <AdminTextEditor action={saveOutlineText.bind(null, id)} fields={fields} unit="place" />
+          <AdminTextEditor
+            // A new key remounts the editor after a paragraph is added or removed, so it starts from the new text.
+            key={fields.length + ":" + fields.reduce((hash, field) => (hash * 31 + field.key.length + field.value.length) % 1000003, 7)}
+            action={saveOutlineText.bind(null, id)}
+            fields={fields}
+            unit="place"
+            structure={{ run: changeOutlineStructure.bind(null, id), allows: (key) => /^block_[0-9]+(_item_[0-9]+)?$/.test(key) }}
+          />
         ) : (
           <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">The text of this draft could not be loaded for editing. Reload the page, and if it still does not appear, tell the site developer.</p>
         )}

@@ -234,11 +234,12 @@ test("the migration only writes known places and only http(s) links", async () =
 
 test("only the outline editor offers Add below and Delete, and only to the Administrator", async () => {
   const editor = await read("app/admin/text-editor.tsx");
-  assert.match(editor, /structure \? /.test(editor) ? /Add below/ : /Add below/);
+  assert.match(editor, /Add below/);
   assert.match(editor, /disabled=\{changedCount > 0 \|\| structurePending \|\| pending\}/, "turned off while there are unsaved edits");
   const outlinePage = await read("app/admin/outlines/[id]/edit-text/page.tsx");
-  assert.match(outlinePage, /structure=\{\{ run: changeOutlineStructure\.bind\(null, id\)/);
-  assert.doesNotMatch(await read("app/admin/weekly-updates/[id]/edit-text/page.tsx"), /structure=/);
+  assert.match(outlinePage, /structureAction=\{changeOutlineStructure\.bind\(null, id\)\}/);
+  assert.doesNotMatch(outlinePage, /allows:|run:/, "no inline function is passed from the page to the client editor");
+  assert.doesNotMatch(await read("app/admin/weekly-updates/[id]/edit-text/page.tsx"), /structureAction=/);
   const actions = await read("app/admin/outlines/[id]/edit-text/actions.ts");
   assert.match(actions, /export async function changeOutlineStructure[\s\S]*?await requireAdmin\(\)[\s\S]*?rpc\("admin_outline_structure"/);
   assert.match(actions, /To remove a paragraph, save your other edits and use its Delete button/);

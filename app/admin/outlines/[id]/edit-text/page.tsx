@@ -115,7 +115,7 @@ export default async function EditOutlineTextPage({ params }: { params: Promise<
             action={saveOutlineText.bind(null, id)}
             fields={fields}
             unit="place"
-            structure={{ run: changeOutlineStructure.bind(null, id), allows: (key) => /^block_[0-9]+(_item_[0-9]+)?$/.test(key) }}
+            structureAction={changeOutlineStructure.bind(null, id)}
           />
         ) : (
           <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">The text of this draft could not be loaded for editing. Reload the page, and if it still does not appear, tell the site developer.</p>

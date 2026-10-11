@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
+import { COMMUNION_DAY_NUMBER, COMMUNION_HEADS_UP_DAY_NUMBER, hasCommunionDay } from "@/lib/devotionals";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { getAuthorizedUser } from "@/lib/supabase/admin";
@@ -74,6 +75,16 @@ export async function POST(request: Request) {
   if (dayError) return NextResponse.json({ error: "Devotional day could not be read." }, { status: 500 });
   if (!day) return NextResponse.json({ error: "That devotional day has no content yet." }, { status: 404 });
 
+  // The same reminder the real Day 6 email carries when Day 7 is a Communion day.
+  const { data: day7 } = dayNumber === COMMUNION_HEADS_UP_DAY_NUMBER
+    ? await supabase
+      .from("teaching_devotional_days")
+      .select("day_number, bread_reflection, cup_reflection, self_examination, series_closing_prayer")
+      .eq("devotional_id", devotional.id)
+      .eq("day_number", COMMUNION_DAY_NUMBER)
+      .maybeSingle()
+    : { data: null };
+
   const base = siteUrl();
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
   const email = buildDevotionalDayEmail({
@@ -90,6 +101,7 @@ export async function POST(request: Request) {
     cupReflection: day.cup_reflection,
     selfExamination: day.self_examination,
     seriesClosingPrayer: day.series_closing_prayer,
+    communionTomorrow: hasCommunionDay(day7),
     readUrl: devotionalDayUrl(base, devotional.slug, dayNumber),
     preferencesUrl: `${base}/email-preferences`,
     copyrightDisclaimer,

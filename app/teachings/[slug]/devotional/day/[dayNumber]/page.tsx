@@ -9,7 +9,8 @@ import { PublicFooterEs } from "@/app/public-footer-es";
 import { ScriptureList } from "@/app/scripture-block";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
-import { devotionalDaySections, type DevotionalDay } from "@/lib/devotionals";
+import { COMMUNION_DAY_NUMBER, COMMUNION_HEADS_UP_DAY_NUMBER, devotionalDaySections, hasCommunionDay, type DevotionalDay } from "@/lib/devotionals";
+import { CommunionHeadsUp } from "@/app/communion-heads-up";
 import { getDevotionalDayDescription, getPublishedDevotionalSeriesByTeachingSlug } from "@/lib/public-devotionals";
 import { toLanguage, ui } from "@/lib/i18n";
 import { NOINDEX } from "@/lib/seo";
@@ -70,6 +71,16 @@ export default async function DevotionalDayPage({ params }: { params: Promise<{ 
   const language = toLanguage(devotional.language);
   const t = ui(language);
   const twinHref = otherLanguagePath(await getDevotionalPair(devotional.slug, language, `/day/${dayNumber}`), language);
+  // Day 6 reminds the reader to have bread and juice ready, once Day 7 has been written for Communion.
+  const { data: day7 } = dayNumber === COMMUNION_HEADS_UP_DAY_NUMBER
+    ? await supabase
+      .from("teaching_devotional_days")
+      .select("day_number, bread_reflection, cup_reflection, self_examination, series_closing_prayer")
+      .eq("devotional_id", devotional.id)
+      .eq("day_number", COMMUNION_DAY_NUMBER)
+      .maybeSingle()
+    : { data: null };
+  const showCommunionHeadsUp = hasCommunionDay(day7);
 
   return (
     <main lang={language} className="min-h-screen bg-[#f7f2e8] text-[#243126]">
@@ -90,6 +101,7 @@ export default async function DevotionalDayPage({ params }: { params: Promise<{ 
             <DevotionalField key={section.key} title={section.label}><DevotionalTextBlock text={section.text} /></DevotionalField>
           ) : null)}
         </div>
+        {showCommunionHeadsUp ? <CommunionHeadsUp title={t.communionNextTitle} text={t.communionNext} /> : null}
         <nav className="mt-12 flex flex-col gap-3 border-t border-[#284a3b]/15 pt-6 sm:flex-row sm:items-center sm:justify-between">
           {dayNumber > 1 ? <Link href={`/teachings/${slug}/devotional/day/${dayNumber - 1}`} className="inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]"><ArrowLeft aria-hidden="true" size={18} /> {t.previousDay}</Link> : <span />}
           {dayNumber < 7 ? <Link href={`/teachings/${slug}/devotional/day/${dayNumber + 1}`} className="inline-flex items-center gap-2 font-extrabold text-[#9d5a2f]">{t.nextDay} <ArrowRight aria-hidden="true" size={18} /></Link> : null}

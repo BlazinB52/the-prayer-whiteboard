@@ -3,6 +3,7 @@ import "server-only";
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { assertRecipientsChoseLanguage, loadConfirmedRecipients } from "@/lib/broadcast-recipients";
 import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
+import { COMMUNION_DAY_NUMBER, COMMUNION_HEADS_UP_DAY_NUMBER, hasCommunionDay } from "@/lib/devotionals";
 import { devotionalDayForWeekday, devotionalTimeZone, isBeforeDevotionalQueueStart, pickNextQueuedSeries } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { deliverToRecipients, sendDeliveriesStore } from "@/lib/send-deliveries";
@@ -88,6 +89,19 @@ type DayContent = {
   self_examination: string | null;
   series_closing_prayer: string | null;
 };
+
+// On Day 6, whether Day 7 has been written in the Communion format, so the email can remind the reader
+// to have bread and juice ready. A lookup problem means no reminder, never a failed send.
+async function communionIsTomorrow(devotionalId: string, dayNumber: number) {
+  if (dayNumber !== COMMUNION_HEADS_UP_DAY_NUMBER) return false;
+  const { data } = await getClient()
+    .from("teaching_devotional_days")
+    .select("day_number, bread_reflection, cup_reflection, self_examination, series_closing_prayer")
+    .eq("devotional_id", devotionalId)
+    .eq("day_number", COMMUNION_DAY_NUMBER)
+    .maybeSingle();
+  return hasCommunionDay(data);
+}
 
 type SeriesRow = { id: string; slug: string; title: string; status: string; published_at: string | null };
 
@@ -218,6 +232,7 @@ async function deliverDay(input: {
   const readUrl = teaching ? `${base}/teachings/${teaching.slug}` : devotionalDayUrl(base, devotional.slug, dayNumber);
   const preferencesUrl = `${base}/email-preferences`;
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
+  const communionTomorrow = await communionIsTomorrow(devotional.id, dayNumber);
 
   const run = await deliverToRecipients({
     store: sendDeliveriesStore("devotional", ledgerId),
@@ -237,6 +252,7 @@ async function deliverDay(input: {
       cupReflection: day.cup_reflection,
       selfExamination: day.self_examination,
       seriesClosingPrayer: day.series_closing_prayer,
+      communionTomorrow,
       readUrl,
       preferencesUrl,
       copyrightDisclaimer,

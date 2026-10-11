@@ -68,6 +68,17 @@ export function usesLegacyDayLayout(day: { day_number: number } & CommunionField
     && (hasText(day.journal_prompt) || hasText(day.prayer_activation));
 }
 
+/**
+ * True when Day 7 has actually been written in the Communion format (not an empty or unconverted one).
+ * Day 6 uses this to decide whether to remind the reader to have bread and juice ready.
+ */
+export function hasCommunionDay(day7: ({ day_number: number } & CommunionFields) | null | undefined) {
+  return Boolean(day7 && day7.day_number === COMMUNION_DAY_NUMBER && hasCommunionText(day7));
+}
+
+/** The day before Communion: the one that carries the "have bread and juice ready" heads-up. */
+export const COMMUNION_HEADS_UP_DAY_NUMBER = COMMUNION_DAY_NUMBER - 1;
+
 /** Day 7 is the Communion and rest day unless it is still an unconverted legacy Day 7. */
 export function isCommunionDay(day: { day_number: number } & CommunionFields & Partial<LegacyFields>) {
   return day.day_number === COMMUNION_DAY_NUMBER && !usesLegacyDayLayout(day);

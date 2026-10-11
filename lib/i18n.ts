@@ -36,6 +36,12 @@ const text = {
     confessionOfRest: "Today's Confession of Rest",
     tableOfRemembrance: "The Table of Remembrance",
     tableOfRemembranceIntro: "Prepare a small piece of bread and a small cup of juice. Quiet your heart, move from striving to receiving, and partake deliberately.",
+    // The heads-up on Day 6 when Day 7 is a Communion day. The email goes out the day before, so it says
+    // "tomorrow"; the website page can be read on any day, so it names Day 7 instead.
+    communionTomorrowTitle: "Tomorrow is Communion Friday.",
+    communionTomorrow: "Tonight, have a small piece of bread and a small cup of juice ready for when you open Day 7.",
+    communionNextTitle: "Day 7 is Communion Friday.",
+    communionNext: "When you open it, have a small piece of bread and a small cup of juice ready.",
     breadReflection: "The Bread Reflection",
     cupReflection: "The Cup Reflection",
     selfExamination: "Reverent Self-Examination & Blessing",
@@ -76,6 +82,10 @@ const text = {
     confessionOfRest: "Confesión de descanso de hoy",
     tableOfRemembrance: "La mesa del recuerdo",
     tableOfRemembranceIntro: "Prepará un pedacito de pan y una copita de jugo. Aquietá tu corazón, pasá de esforzarte a recibir y participá con intención.",
+    communionTomorrowTitle: "Mañana es el viernes de Comunión.",
+    communionTomorrow: "Esta noche, tené listo un pedacito de pan y una copita de jugo para cuando abras el Día 7.",
+    communionNextTitle: "El Día 7 es el viernes de Comunión.",
+    communionNext: "Cuando lo abras, tené listo un pedacito de pan y una copita de jugo.",
     breadReflection: "La reflexión del pan",
     cupReflection: "La reflexión de la copa",
     selfExamination: "Autoexamen reverente y bendición",

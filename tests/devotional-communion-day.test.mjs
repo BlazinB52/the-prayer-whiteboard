@@ -4,7 +4,7 @@ import test from "node:test";
 import { buildDevotionalDayEmail } from "../lib/devotional-email-content.ts";
 import { parseDevotionalText } from "../lib/devotional-import.ts";
 import { buildDevotionalEditableFields } from "../lib/devotional-revisions.ts";
-import { devotionalDaySections, emptyDevotionalDay, findDevotionalPublishBlocker, isCompleteDevotionalDay, usesLegacyDayLayout } from "../lib/devotionals.ts";
+import { devotionalDaySections, emptyDevotionalDay, findDevotionalPublishBlocker, hasCommunionDay, isCompleteDevotionalDay, usesLegacyDayLayout } from "../lib/devotionals.ts";
 import { ui } from "../lib/i18n.ts";
 
 const labels = ui("en");
@@ -282,4 +282,64 @@ test("the Series Closing Prayer label is the same in Español and the section or
     .map((label) => form.indexOf(label));
   assert.ok(order.every((index) => index > -1));
   assert.deepEqual([...order].sort((a, b) => a - b), order, "the Day 7 form lists the sections in reading order");
+});
+
+// ---------------------------------------------------------------------------
+// The Day 6 heads-up: tomorrow is Communion, have bread and juice ready
+// ---------------------------------------------------------------------------
+
+const headsUpEmail = (overrides) => buildDevotionalDayEmail({ ...emailInput, dayNumber: 6, title: "Day 6: Title", journalPrompt: "Prompt.", prayerActivation: "Activation.", ...overrides });
+
+test("the Day 6 email reminds the reader to have bread and juice ready when Day 7 is Communion", () => {
+  const email = headsUpEmail({ communionTomorrow: true });
+  assert.match(email.html, /Tomorrow is Communion Friday\./);
+  assert.match(email.html, /Tonight, have a small piece of bread and a small cup of juice ready for when you open Day 7\./);
+  assert.match(email.text, /Tomorrow is Communion Friday\. Tonight, have a small piece of bread and a small cup of juice ready for when you open Day 7\./);
+  // It sits after the day's content and before the Read button.
+  assert.ok(email.html.indexOf("Prayer Activation Exercise") < email.html.indexOf("Tomorrow is Communion Friday."));
+  assert.ok(email.html.indexOf("Tomorrow is Communion Friday.") < email.html.indexOf("Read the Full Teaching"));
+});
+
+test("the reminder is left out when Day 7 is not a Communion day, and on every other day", () => {
+  assert.doesNotMatch(headsUpEmail({ communionTomorrow: false }).html, /Communion Friday/);
+  assert.doesNotMatch(headsUpEmail({}).html, /Communion Friday/);
+  // Even if a caller passes true, only Day 6 carries it.
+  for (const dayNumber of [1, 2, 3, 4, 5, 7]) {
+    const email = headsUpEmail({ dayNumber, communionTomorrow: true });
+    assert.doesNotMatch(email.html, /Communion Friday/, `day ${dayNumber}`);
+    assert.doesNotMatch(email.text, /Communion Friday/, `day ${dayNumber}`);
+  }
+});
+
+test("only a Day 7 written in the Communion format triggers the reminder", () => {
+  assert.equal(hasCommunionDay({ day_number: 7, ...communion }), true);
+  assert.equal(hasCommunionDay({ day_number: 7, bread_reflection: "Bread." }), true);
+  assert.equal(hasCommunionDay({ day_number: 7, bread_reflection: " ", cup_reflection: null, self_examination: null, series_closing_prayer: null }), false, "an empty Day 7 does not");
+  assert.equal(hasCommunionDay(null), false, "no Day 7 saved");
+  assert.equal(hasCommunionDay({ day_number: 6, ...communion }), false, "only Day 7 counts");
+});
+
+test("the daily send, the test send and both website day pages all apply the same rule", async () => {
+  const send = await readFile("lib/devotional-send.ts", "utf8");
+  assert.match(send, /communionTomorrow,\r?\n/, "the real send passes it to the email");
+  assert.match(send, /hasCommunionDay\(data\)/);
+  const testSend = await readFile("app/api/admin/devotional/test-send/route.ts", "utf8");
+  assert.match(testSend, /communionTomorrow: hasCommunionDay\(day7\)/, "a Day 6 test email shows what will really be sent");
+  for (const page of ["app/devotionals/[slug]/day/[dayNumber]/page.tsx", "app/teachings/[slug]/devotional/day/[dayNumber]/page.tsx"]) {
+    const source = await readFile(page, "utf8");
+    assert.match(source, /hasCommunionDay\(day7\)/, page);
+    assert.match(source, /<CommunionHeadsUp title=\{t\.communionNextTitle\} text=\{t\.communionNext\} \/>/, page);
+  }
+});
+
+test("the website wording does not say 'tomorrow', and Español is translated in voseo", () => {
+  // The website page can be read on any day, so it names Day 7 rather than saying "tomorrow".
+  assert.doesNotMatch(ui("en").communionNext + ui("en").communionNextTitle, /tomorrow|tonight/i);
+  assert.equal(ui("en").communionTomorrowTitle, "Tomorrow is Communion Friday.");
+  assert.equal(ui("es").communionTomorrowTitle, "Mañana es el viernes de Comunión.");
+  assert.match(ui("es").communionTomorrow, /tené listo un pedacito de pan y una copita de jugo/);
+  assert.match(ui("es").communionNext, /tené listo/);
+  for (const key of ["communionTomorrowTitle", "communionTomorrow", "communionNextTitle", "communionNext"]) {
+    assert.notEqual(ui("es")[key], ui("en")[key], `${key} is translated`);
+  }
 });

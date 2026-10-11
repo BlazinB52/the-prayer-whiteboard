@@ -2,7 +2,7 @@ import { button, escapeHtml } from "./subscription-email-content.ts";
 import { formattedBlocksHtml, formattedBlocksText, formattedInlineHtml, formattedInlineText } from "./formatted-email-text.ts";
 import type { EmailCopyrightDisclaimer } from "./copyright-disclaimer-format.ts";
 import { groupScriptureEntries, stripWrappingQuotes, type ScriptureEntry } from "./anchor-scripture-format.ts";
-import { devotionalDaySections, type DevotionalDay } from "./devotionals.ts";
+import { COMMUNION_HEADS_UP_DAY_NUMBER, devotionalDaySections, type DevotionalDay } from "./devotionals.ts";
 import { ui } from "./i18n.ts";
 
 // The day link is resolved from the devotional's own slug rather than from a
@@ -62,6 +62,8 @@ export function buildDevotionalDayEmail(input: {
   cupReflection?: string | null;
   selfExamination?: string | null;
   seriesClosingPrayer?: string | null;
+  // True on Day 6 when Day 7 is a Communion day, so the email reminds the reader to have bread and juice ready.
+  communionTomorrow?: boolean;
   readUrl: string;
   preferencesUrl: string;
   copyrightDisclaimer?: EmailCopyrightDisclaimer;
@@ -86,6 +88,15 @@ export function buildDevotionalDayEmail(input: {
     self_examination: input.selfExamination ?? null,
     series_closing_prayer: input.seriesClosingPrayer ?? null,
   } satisfies DevotionalDay, ui("en")).filter((section) => !section.isScriptures);
+  // Only the day before Communion carries the reminder, whatever the caller passes.
+  const copy = ui("en");
+  const showCommunionHeadsUp = Boolean(input.communionTomorrow) && input.dayNumber === COMMUNION_HEADS_UP_DAY_NUMBER;
+  const communionHeadsUpHtml = showCommunionHeadsUp
+    ? `<div style="margin:0 0 16px;padding:16px 20px;border-left:4px solid #c99a52;background:#fbf4e4;border-radius:10px;">
+    <p style="margin:0 0 4px;color:#243d31;font-size:16px;font-weight:800;line-height:1.4;">${escapeHtml(copy.communionTomorrowTitle)}</p>
+    <p style="margin:0;color:#52645a;line-height:1.65;">${escapeHtml(copy.communionTomorrow)}</p>
+  </div>`
+    : "";
 
   const html = `<!doctype html>
 <html>
@@ -103,6 +114,7 @@ export function buildDevotionalDayEmail(input: {
                 <p style="margin:0 0 22px;color:#52645a;font-size:14px;font-style:italic;"><strong style="font-style:normal;">For</strong> ${escapeHtml(input.seriesTitle)}</p>
                 ${scripturesFieldHtml(scriptures)}
                 ${sections.map((section) => textFieldHtml(section.label, section.text)).join("")}
+                ${communionHeadsUpHtml}
                 <p style="margin:22px 0 20px;text-align:center;">${button("Read the Full Teaching", input.readUrl)}</p>
                 ${hasMoreDays ? `<p style="margin:0 0 20px;text-align:center;color:#8a9a90;font-size:13px;">Tomorrow: Day ${input.dayNumber + 1} of ${escapeHtml(input.seriesTitle)}</p>` : ""}
                 <hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:0 0 16px;" />
@@ -128,6 +140,7 @@ export function buildDevotionalDayEmail(input: {
     `For ${input.seriesTitle}`,
     scripturesText(scriptures),
     ...sections.map((section) => textFieldText(section.label, section.text)),
+    showCommunionHeadsUp ? `\n${copy.communionTomorrowTitle} ${copy.communionTomorrow}` : "",
     "",
     "Read the Full Teaching:",
     input.readUrl,

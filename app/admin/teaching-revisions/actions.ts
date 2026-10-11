@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { REVIEW_SUBJECTS, reviewSubjectKind } from "@/lib/review-subjects";
 import { friendlyRevisionError } from "@/lib/teaching-revisions";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -19,18 +20,17 @@ function refresh(revisionId?: string) {
   revalidatePath("/admin/teachings");
   revalidatePath("/admin/devotionals");
   revalidatePath("/admin/weekly-updates");
+  revalidatePath("/admin/outlines");
 }
 
 type AdminSupabase = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
 
-// A revision belongs to a teaching or a devotional; each has its own review functions in the database.
+// A revision belongs to a teaching, devotional, weekly update or outline; each has its own review functions
+// in the database, named in lib/review-subjects.ts.
 async function revisionSubject(supabase: AdminSupabase, revisionId: string) {
   const { data } = await supabase.from("content_revisions").select("subject_type").eq("id", revisionId).maybeSingle();
-  return data?.subject_type === "devotional" ? "devotional" : data?.subject_type === "weekly_update" ? "weekly_update" : "teaching";
+  return reviewSubjectKind(data?.subject_type);
 }
-
-const REVIEW_ONE = { teaching: "review_teaching_revision_change", devotional: "review_devotional_revision_change", weekly_update: "review_weekly_update_revision_change" } as const;
-const REVIEW_ALL = { teaching: "review_all_teaching_revision_changes", devotional: "review_all_devotional_revision_changes", weekly_update: "review_all_weekly_update_revision_changes" } as const;
 
 // Every action below is Administrator-only twice over: requireAdmin() turns away anyone else here,
 // and the database functions refuse a non-Administrator on their own.
@@ -45,7 +45,7 @@ export async function reviewChange(formData: FormData) {
   // "accept_anyway" is the Administrator choosing to replace newer wording with a stale proposal. It is a
   // separate, explicit button on one change at a time; Accept All never does it.
   const subject = await revisionSubject(supabase, revisionId);
-  const { data, error } = await supabase.rpc(REVIEW_ONE[subject], {
+  const { data, error } = await supabase.rpc(REVIEW_SUBJECTS[subject].reviewOneRpc, {
     p_change_id: changeId,
     p_decision: decision === "reject" ? "reject" : "accept",
     p_note: String(formData.get("note") ?? "").trim() || null,
@@ -65,7 +65,7 @@ export async function reviewAllChanges(formData: FormData) {
   const { supabase } = await requireAdmin();
 
   const subject = await revisionSubject(supabase, revisionId);
-  const { data, error } = await supabase.rpc(REVIEW_ALL[subject], { p_revision_id: revisionId, p_decision: decision });
+  const { data, error } = await supabase.rpc(REVIEW_SUBJECTS[subject].reviewAllRpc, { p_revision_id: revisionId, p_decision: decision });
   if (error) redirect(back(revisionId, { error: friendlyRevisionError(error.message) }));
   refresh(revisionId);
   const result = (data ?? {}) as { finished?: boolean; skipped_stale?: number };

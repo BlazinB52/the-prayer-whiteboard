@@ -6,7 +6,7 @@ import { blockPlainText, compareBlocks } from "../lib/weekly-update-compare.ts";
 const migration = await readFile("supabase/migrations/20261011010000_admin_edit_weekly_update_text.sql", "utf8");
 const actions = await readFile("app/admin/weekly-updates/[id]/edit-text/actions.ts", "utf8");
 const page = await readFile("app/admin/weekly-updates/[id]/edit-text/page.tsx", "utf8");
-const editor = await readFile("app/admin/weekly-updates/[id]/edit-text/text-editor.tsx", "utf8");
+const editor = await readFile("app/admin/text-editor.tsx", "utf8");
 const listPage = await readFile("app/admin/weekly-updates/page.tsx", "utf8");
 
 const paragraph = (text, bold) => ({ type: "paragraph", children: [{ text, ...(bold ? { bold: true } : {}) }] });

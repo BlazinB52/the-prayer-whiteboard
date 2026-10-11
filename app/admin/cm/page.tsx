@@ -40,10 +40,10 @@ const tools = [
     href: "/admin/cm/weekly-update-review",
   },
   {
-    title: "Teaching Outlines",
-    description: "Upload teacher's outlines from Word and file them by category.",
+    title: "Teaching Outline - Review",
+    description: "Propose changes to draft teaching outlines. Changes are proposals only until an Administrator accepts them.",
     status: "Available",
-    href: "/admin/outlines",
+    href: "/admin/cm/outline-review",
   },
 ];
 

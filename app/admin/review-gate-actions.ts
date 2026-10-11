@@ -3,21 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { notifyContentManagers } from "@/lib/review-ready-send";
+import { REVIEW_SUBJECTS, gateTableFor, type GatedKind } from "@/lib/review-subjects";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-type GateKind = "teaching" | "devotional";
-
-const TABLE: Record<GateKind, "teachings" | "teaching_devotionals"> = { teaching: "teachings", devotional: "teaching_devotionals" };
+// Every kind with a gate (teachings, devotionals, teaching outlines) is listed in lib/review-subjects.ts.
+type GateKind = GatedKind;
 
 function pagePath(kind: GateKind, id: string) {
-  return kind === "teaching" ? `/admin/teachings/${id}/edit` : `/admin/devotionals/${id}`;
+  return REVIEW_SUBJECTS[kind].adminPath(id);
 }
 
 function refresh(kind: GateKind, id: string) {
   revalidatePath(pagePath(kind, id));
-  revalidatePath(kind === "teaching" ? "/admin/cm/teaching-review" : "/admin/cm/devotional-review");
+  revalidatePath(`/admin/cm/${REVIEW_SUBJECTS[kind].reviewFolder}`);
   revalidatePath("/admin/cm");
 }
 
@@ -26,7 +26,7 @@ function refresh(kind: GateKind, id: string) {
 export async function sendForReview(kind: GateKind, id: string) {
   if (!UUID_PATTERN.test(id)) redirect("/admin");
   const { supabase, user } = await requireAdmin();
-  const table = TABLE[kind];
+  const table = gateTableFor(kind);
 
   const { data, error } = await supabase
     .from(table)
@@ -54,7 +54,7 @@ export async function takeBackFromReview(kind: GateKind, id: string) {
   const { supabase } = await requireAdmin();
 
   const { data, error } = await supabase
-    .from(TABLE[kind])
+    .from(gateTableFor(kind))
     .update({ sent_for_review_at: null })
     .eq("id", id)
     .eq("status", "draft")

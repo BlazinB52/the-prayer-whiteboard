@@ -4,28 +4,27 @@ import test from "node:test";
 
 test("adding, renaming and deleting a category require an Administrator, not just a content manager", async () => {
   const source = await readFile("app/admin/outlines/actions.ts", "utf8");
-  assert.match(source, /async function requireCategoryAdmin\(\)/);
-  assert.match(source, /role === "admin"/);
   for (const name of ["createOutlineCategory", "renameOutlineCategory", "deleteOutlineCategory"]) {
     const body = source.match(new RegExp(`export async function ${name}[\\s\\S]*?\\n\\}\\n`))?.[0] ?? "";
     assert.notEqual(body, "", `${name} must exist`);
-    assert.match(body, /requireCategoryAdmin\(\)/, `${name} checks for an Administrator`);
+    assert.match(body, /await requireAdmin\(\)/, `${name} checks for an Administrator`);
     assert.doesNotMatch(body, /requireContentManager\(\)/, `${name} does not accept a content manager`);
   }
 });
 
-test("a content manager can still file and move outlines, so those actions stay open to them", async () => {
+test("filing and moving outlines is the Administrator's too", async () => {
   const source = await readFile("app/admin/outlines/actions.ts", "utf8");
   const move = source.match(/export async function moveOutlineToCategory[\s\S]*?\n\}\n/)?.[0] ?? "";
-  assert.match(move, /requireContentManager\(\)/);
+  assert.match(move, /await requireAdmin\(\)/);
+  assert.doesNotMatch(move, /requireContentManager/);
 });
 
-test("the page shows category management only to an Administrator", async () => {
+test("the page is Administrator-only, so category management needs no per-role switch", async () => {
   const page = await readFile("app/admin/outlines/page.tsx", "utf8");
-  assert.match(page, /isAdmin=\{role === "admin"\}/);
+  assert.match(page, /await requireAdmin\(\)/);
   const manager = await readFile("app/admin/outlines/outline-manager.tsx", "utf8");
-  assert.match(manager, /\{isAdmin \? <CategoriesSection/);
-  assert.match(manager, /isAdmin = false/, "the safe default hides it");
+  assert.match(manager, /<CategoriesSection/);
+  assert.doesNotMatch(manager, /isAdmin/);
 });
 
 test("the migration makes category writes Administrator-only and leaves reading open", async () => {

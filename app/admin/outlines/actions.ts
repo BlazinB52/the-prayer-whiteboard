@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireContentManager } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/supabase/admin";
 import { MAX_TEACHING_DOCX_BYTES } from "@/lib/teaching-docx-package";
 import {
   OUTLINE_BUCKET,
@@ -37,6 +37,7 @@ function revalidateOutlinePaths() {
   revalidatePath("/admin/outlines");
   revalidatePath("/teacher-resources", "layout");
   revalidatePath("/espanol/recursos-para-maestros", "layout");
+  revalidatePath("/admin/cm/outline-review");
 }
 
 /** Reads the uploaded file and converts it. The file is only held in memory for the request. */
@@ -51,16 +52,13 @@ async function readOutlineFile(formData: FormData) {
   return { file, buffer, result: parseOutlineDocx(buffer, file.name) };
 }
 
-// Publishing, unpublishing, deleting and managing categories are Administrator-only. A content manager
-// can upload (as a draft) and edit a draft for review. The database enforces the same limits.
-async function requireOutlineAdmin(message: string) {
-  const { supabase, role } = await requireContentManager();
-  return role === "admin" ? { supabase } : { supabase: null, error: message };
-}
+// Everything on the outlines screen is the Administrator's, as it is for teachings: uploading, filing,
+// publishing and deleting. Content Managers only proof an outline after the Administrator sends it to them
+// (app/admin/cm/outline-review). The database enforces the same limits.
 
 /** Step 1: convert the document and return a preview. Nothing is saved. */
 export async function previewOutline(formData: FormData): Promise<OutlinePreviewState> {
-  await requireContentManager();
+  await requireAdmin();
   const read = await readOutlineFile(formData);
   if ("error" in read) return { error: read.error };
 
@@ -79,10 +77,11 @@ export async function previewOutline(formData: FormData): Promise<OutlinePreview
 /**
  * Step 2: save after the admin approves the preview. The document is converted
  * again here rather than trusting anything the browser sends back. The original
- * .docx is stored first and removed again if the row cannot be saved.
+ * .docx is stored first and removed again if the row cannot be saved. An upload is
+ * always a draft that Content Managers cannot see until the Administrator sends it.
  */
 export async function saveOutline(formData: FormData): Promise<OutlineActionState> {
-  const { supabase, role } = await requireContentManager();
+  const { supabase } = await requireAdmin();
   const read = await readOutlineFile(formData);
   if ("error" in read) return { error: read.error };
   if (!read.result.ok || !read.result.outline) return { error: "This document still has problems. Fix them in Word and preview it again." };
@@ -95,8 +94,6 @@ export async function saveOutline(formData: FormData): Promise<OutlineActionStat
   if (categoryId.error || !categoryId.value) return { error: "Choose a category." };
   const teachingId = validateOptionalOutlineId(formData.get("teachingId"));
   if (teachingId.error) return { error: teachingId.error };
-  // Only an Administrator can publish. A content manager's upload is always saved as a draft for review.
-  const publish = role === "admin" && formData.get("publish") === "on";
 
   const { data: category } = await supabase.from("outline_categories").select("id").eq("id", categoryId.value).maybeSingle();
   if (!category) return { error: "That category no longer exists. Choose another." };
@@ -119,8 +116,8 @@ export async function saveOutline(formData: FormData): Promise<OutlineActionStat
       teaching_id: teachingId.value,
       language: validateOutlineLanguage(formData.get("language")),
       gathering_date: date.value,
-      status: publish ? "published" : "draft",
-      published_at: publish ? new Date().toISOString() : null,
+      status: "draft",
+      published_at: null,
       content: read.result.outline.blocks,
       source_path: storagePath,
       source_file_name: read.file.name,
@@ -139,9 +136,7 @@ export async function saveOutline(formData: FormData): Promise<OutlineActionStat
 }
 
 export async function setOutlineStatus(id: string, status: "draft" | "published"): Promise<OutlineActionState> {
-  const admin = await requireOutlineAdmin("Only an Administrator can publish or unpublish an outline.");
-  if (!admin.supabase) return { error: admin.error };
-  const { supabase } = admin;
+  const { supabase } = await requireAdmin();
   const idResult = validateOutlineId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
 
@@ -156,21 +151,21 @@ export async function setOutlineStatus(id: string, status: "draft" | "published"
 }
 
 export async function moveOutlineToCategory(id: string, categoryId: string): Promise<OutlineActionState> {
-  const { supabase, role } = await requireContentManager();
+  const { supabase } = await requireAdmin();
   const idResult = validateOutlineId(id);
   const categoryResult = validateOutlineId(categoryId);
   if (idResult.error || !idResult.value || categoryResult.error || !categoryResult.value) return { error: "That record could not be found." };
 
   const { data, error } = await supabase.from("teaching_outlines").update({ category_id: categoryResult.value }).eq("id", idResult.value).select("id");
   if (error) return { error: "The category could not be changed." };
-  if (!data?.length) return { error: role === "admin" ? "That outline could not be found." : "Only a draft outline can be changed. An Administrator edits published outlines." };
+  if (!data?.length) return { error: "That outline could not be found." };
 
   revalidateOutlinePaths();
   return { ok: true };
 }
 
 export async function setOutlineTeaching(id: string, teachingId: string): Promise<OutlineActionState> {
-  const { supabase, role } = await requireContentManager();
+  const { supabase } = await requireAdmin();
   const idResult = validateOutlineId(id);
   const teachingResult = validateOptionalOutlineId(teachingId);
   if (idResult.error || !idResult.value) return { error: idResult.error };
@@ -178,16 +173,14 @@ export async function setOutlineTeaching(id: string, teachingId: string): Promis
 
   const { data, error } = await supabase.from("teaching_outlines").update({ teaching_id: teachingResult.value }).eq("id", idResult.value).select("id");
   if (error) return { error: "The related teaching could not be changed." };
-  if (!data?.length) return { error: role === "admin" ? "That outline could not be found." : "Only a draft outline can be changed. An Administrator edits published outlines." };
+  if (!data?.length) return { error: "That outline could not be found." };
 
   revalidateOutlinePaths();
   return { ok: true };
 }
 
 export async function deleteOutline(id: string): Promise<OutlineActionState> {
-  const admin = await requireOutlineAdmin("Only an Administrator can delete an outline.");
-  if (!admin.supabase) return { error: admin.error };
-  const { supabase } = admin;
+  const { supabase } = await requireAdmin();
   const idResult = validateOutlineId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
 
@@ -200,16 +193,9 @@ export async function deleteOutline(id: string): Promise<OutlineActionState> {
   return { ok: true };
 }
 
-// Categories are an Administrator-only function. Content managers can file outlines under the existing
-// categories but cannot add, rename or delete them (the database enforces this too).
-async function requireCategoryAdmin() {
-  return requireOutlineAdmin("Only an Administrator can add, rename or delete categories.");
-}
-
+// Categories are an Administrator-only function too (the database enforces this as well).
 export async function createOutlineCategory(name: string, nameEs: string): Promise<OutlineActionState> {
-  const admin = await requireCategoryAdmin();
-  if (!admin.supabase) return { error: admin.error };
-  const { supabase } = admin;
+  const { supabase } = await requireAdmin();
   const nameResult = validateOutlineCategoryName(name);
   if (nameResult.error || !nameResult.value) return { error: nameResult.error };
   const spanish = validateOptionalSpanishName(nameEs);
@@ -238,9 +224,7 @@ export async function createOutlineCategory(name: string, nameEs: string): Promi
 }
 
 export async function renameOutlineCategory(id: string, name: string, nameEs: string): Promise<OutlineActionState> {
-  const admin = await requireCategoryAdmin();
-  if (!admin.supabase) return { error: admin.error };
-  const { supabase } = admin;
+  const { supabase } = await requireAdmin();
   const idResult = validateOutlineId(id);
   const nameResult = validateOutlineCategoryName(name);
   if (idResult.error || !idResult.value) return { error: idResult.error };
@@ -256,9 +240,7 @@ export async function renameOutlineCategory(id: string, name: string, nameEs: st
 }
 
 export async function deleteOutlineCategory(id: string): Promise<OutlineActionState> {
-  const admin = await requireCategoryAdmin();
-  if (!admin.supabase) return { error: admin.error };
-  const { supabase } = admin;
+  const { supabase } = await requireAdmin();
   const idResult = validateOutlineId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
 

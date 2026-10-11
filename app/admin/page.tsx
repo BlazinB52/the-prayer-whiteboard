@@ -29,7 +29,7 @@ const tools = [
   },
   {
     title: "Revisions",
-    description: "Review changes that co-editors propose to draft teachings, devotionals and weekly updates, and accept or reject each one.",
+    description: "Review changes that co-editors propose to draft teachings, devotionals, weekly updates and teaching outlines, and accept or reject each one.",
     status: "Available",
     href: "/admin/teaching-revisions",
   },

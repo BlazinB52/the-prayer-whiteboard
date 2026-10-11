@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireContentManager } from "@/lib/supabase/admin";
-import { staffHomePath } from "@/lib/staff-roles";
+import { requireAdmin } from "@/lib/supabase/admin";
 import { OUTLINE_BUCKET } from "@/lib/teaching-outlines";
 import { OutlineManager, type ManagerCategory, type ManagerOutline, type ManagerTeaching } from "./outline-manager";
 
@@ -19,19 +18,20 @@ type OutlineRow = {
   language: "en" | "es";
   gathering_date: string | null;
   status: "draft" | "published";
+  sent_for_review_at: string | null;
   source_path: string;
   source_file_name: string | null;
   created_at: string;
 };
 
 export default async function AdminOutlinesPage() {
-  const { supabase, role } = await requireContentManager();
+  const { supabase } = await requireAdmin();
 
   const [categoriesResult, outlinesResult, teachingsResult] = await Promise.all([
     supabase.from("outline_categories").select("id, name, name_es").order("sort_order", { ascending: true }).order("name", { ascending: true }),
     supabase
       .from("teaching_outlines")
-      .select("id, title, subtitle, category_id, teaching_id, language, gathering_date, status, source_path, source_file_name, created_at")
+      .select("id, title, subtitle, category_id, teaching_id, language, gathering_date, status, sent_for_review_at, source_path, source_file_name, created_at")
       .order("created_at", { ascending: false }),
     supabase.from("teachings").select("id, title, language").order("gathering_date", { ascending: false, nullsFirst: false }).order("title", { ascending: true }),
   ]);
@@ -47,6 +47,7 @@ export default async function AdminOutlinesPage() {
     language: row.language,
     gatheringDate: row.gathering_date,
     status: row.status,
+    sentForReviewAt: row.sent_for_review_at,
     createdAt: row.created_at,
     downloadHref: supabase.storage
       .from(OUTLINE_BUCKET)
@@ -57,10 +58,10 @@ export default async function AdminOutlinesPage() {
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-6xl">
-        <Link href={staffHomePath(role)} className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to dashboard</Link>
+        <Link href="/admin" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to dashboard</Link>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-6">
           <h1 className="text-3xl font-extrabold tracking-tight text-[#243d31]">Teaching Outlines</h1>
-          <p className="mt-2 text-sm text-[#607066]">Upload a teacher&apos;s outline as a Word file. It is converted automatically, filed under a category, and shown on the public Teacher Resources page when published.</p>
+          <p className="mt-2 text-sm text-[#607066]">Upload a teacher&apos;s outline as a Word file. It is converted automatically, filed under a category, and shown on the public Teacher Resources page when published. Send a draft to the Content Managers for proofing from its page.</p>
         </header>
 
         {loadFailed ? (
@@ -68,7 +69,7 @@ export default async function AdminOutlinesPage() {
             Teaching outlines could not be loaded. If this is the first time using this tool, the database update for outlines may not be applied yet.
           </p>
         ) : (
-          <OutlineManager categories={categories} outlines={outlines} teachings={teachings} isAdmin={role === "admin"} />
+          <OutlineManager categories={categories} outlines={outlines} teachings={teachings} />
         )}
       </div>
     </main>

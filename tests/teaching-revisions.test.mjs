@@ -151,8 +151,15 @@ test("Administrator actions require an Administrator and call the decision funct
   assert.equal((source.match(/await requireAdmin\(\)/g) ?? []).length, 5);
   assert.doesNotMatch(source, /service-role|createServiceRoleClient/);
   assert.deepEqual([...source.matchAll(/\.from\("([a-z_]+)"\)/g)].map((match) => match[1]), ["content_revisions"], "the only table access reads which kind of revision this is");
-  for (const name of ["review_teaching_revision_change", "review_all_teaching_revision_changes", "cancel_teaching_revision", "purge_revision_history", "review_devotional_revision_change", "review_all_devotional_revision_changes", "mark_revision_opened"]) {
+  for (const name of ["cancel_teaching_revision", "purge_revision_history", "mark_revision_opened"]) {
     assert.match(source, new RegExp(name));
+  }
+  // The per-kind decision functions are named once, in lib/review-subjects.ts, and looked up from there.
+  assert.match(source, /REVIEW_SUBJECTS\[subject\]\.reviewOneRpc/);
+  assert.match(source, /REVIEW_SUBJECTS\[subject\]\.reviewAllRpc/);
+  const registry = await readFile("lib/review-subjects.ts", "utf8");
+  for (const name of ["review_teaching_revision_change", "review_all_teaching_revision_changes", "review_devotional_revision_change", "review_all_devotional_revision_changes"]) {
+    assert.match(registry, new RegExp(name));
   }
 });
 

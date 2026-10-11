@@ -2,7 +2,6 @@
 
 import { useActionState, useState } from "react";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
-import type { EditTextState } from "./actions";
 
 export type TextEditorField = {
   key: string;
@@ -14,9 +13,14 @@ export type TextEditorField = {
   multiline: boolean;
 };
 
+// What the Administrator's direct-edit actions answer with (weekly updates and teaching outlines).
+export type EditTextState = { error?: string; savedCount?: number };
+
 type Action = (state: EditTextState, formData: FormData) => Promise<EditTextState>;
 
-export function WeeklyUpdateTextEditor({ action, fields }: { action: Action; fields: TextEditorField[] }) {
+// The Administrator edits the wording of a draft directly. Shared by every kind of item that supports it, so
+// the screen behaves the same everywhere. unit names what one field is, for the "saved" message.
+export function AdminTextEditor({ action, fields, unit = "paragraph" }: { action: Action; fields: TextEditorField[]; unit?: string }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((field) => [field.key, field.value])));
   // What each field said when it was last loaded or saved, sent back so the database can tell if it has
@@ -65,7 +69,7 @@ export function WeeklyUpdateTextEditor({ action, fields }: { action: Action; fie
 
       <div className="sticky bottom-0 -mx-1 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-4 shadow-xl shadow-[#4d5f52]/10">
         {state.error ? <p role="alert" className="mb-3 text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
-        {state.savedCount !== undefined && changedCount === 0 ? <p role="status" className="mb-3 text-sm font-bold text-[#326048]">Saved ({state.savedCount} {state.savedCount === 1 ? "paragraph" : "paragraphs"} changed). Nothing was published or emailed.</p> : null}
+        {state.savedCount !== undefined && changedCount === 0 ? <p role="status" className="mb-3 text-sm font-bold text-[#326048]">Saved ({state.savedCount} {state.savedCount === 1 ? unit : `${unit}s`} changed). Nothing was published or emailed.</p> : null}
         <p className="mb-3 text-sm leading-6 text-[#607066]">Changes are saved to the draft only. Nothing is published or emailed until you publish.</p>
         <button type="submit" disabled={pending || changedCount === 0} className="admin-primary-button">
           <span>{pending ? "Saving..." : `Save ${changedCount} ${changedCount === 1 ? "change" : "changes"}`}</span>

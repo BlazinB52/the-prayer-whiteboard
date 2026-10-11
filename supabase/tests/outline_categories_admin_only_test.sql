@@ -35,10 +35,10 @@ select is((select name from public.outline_categories where id = '00000000-0000-
 delete from public.outline_categories where id = '00000000-0000-4000-9400-0000000000c1';
 select is((select count(*)::int from public.outline_categories where id = '00000000-0000-4000-9400-0000000000c1'), 1, 'a content manager cannot delete a category');
 
--- They can still file an outline under an existing category.
-select lives_ok(
+-- Filing outlines is the Administrator's too (outlines_publish_delete_admin_only_test.sql).
+select throws_ok(
   $$ insert into public.teaching_outlines (slug, title, category_id, content, source_path, status) values ('cm-outline-outcat', 'CM Outline', '00000000-0000-4000-9400-0000000000c1', '[]'::jsonb, '00000000-0000-4000-9400-0000000000f1.docx', 'draft') $$,
-  'a content manager can still file an outline under an existing category'
+  '42501', null, 'a content manager cannot file an outline under a category'
 );
 reset role;
 

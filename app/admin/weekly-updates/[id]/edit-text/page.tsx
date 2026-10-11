@@ -8,7 +8,7 @@ import { compareBlocks, type BlockDifference } from "@/lib/weekly-update-compare
 import { convertDocxToWeeklyUpdate } from "@/lib/weekly-update-docx";
 import type { WeeklyUpdateReviewFieldRow } from "@/lib/weekly-update-revisions";
 import { saveWeeklyUpdateText } from "./actions";
-import { WeeklyUpdateTextEditor, type TextEditorField } from "./text-editor";
+import { AdminTextEditor, type TextEditorField } from "@/app/admin/text-editor";
 
 export const metadata: Metadata = {
   title: "Edit Weekly Update Text",
@@ -110,7 +110,7 @@ export default async function EditWeeklyUpdateTextPage({ params }: { params: Pro
         ) : null}
 
         {fields.length ? (
-          <WeeklyUpdateTextEditor action={saveWeeklyUpdateText.bind(null, id)} fields={fields} />
+          <AdminTextEditor action={saveWeeklyUpdateText.bind(null, id)} fields={fields} />
         ) : (
           <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">The text of this draft could not be loaded for editing. Reload the page, and if it still does not appear, tell the site developer.</p>
         )}

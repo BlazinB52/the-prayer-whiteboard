@@ -2,8 +2,9 @@
 // Administrator review page and the tests. The limits below mirror the database functions in
 // 20261006030000_content_revisions.sql (revision_field_info); keep the two in step.
 
-// "devotional" and "day" are the devotional review (lib/devotional-revisions.ts); the rest are the teaching review.
-export type RevisionTargetKind = "teaching" | "category" | "section" | "devotional" | "day" | "weekly_update";
+// "devotional" and "day" are the devotional review (lib/devotional-revisions.ts), "weekly_update" and "outline" take their
+// fields from the database (lib/review-fields.ts); the rest are the teaching review.
+export type RevisionTargetKind = "teaching" | "category" | "section" | "devotional" | "day" | "weekly_update" | "outline";
 
 export type TeachingRow = {
   id: string;
@@ -44,10 +45,16 @@ export function fieldId(kind: RevisionTargetKind, targetId: string | null, field
   return `${kind}:${targetId ?? NO_TARGET}:${fieldKey}`;
 }
 
+const TARGET_KINDS: readonly string[] = ["teaching", "category", "section", "devotional", "day", "weekly_update", "outline"];
+
+function isRevisionTargetKind(value: string | undefined): value is RevisionTargetKind {
+  return value !== undefined && TARGET_KINDS.includes(value);
+}
+
 export function parseFieldId(id: string): { targetKind: RevisionTargetKind; targetId: string | null; fieldKey: string } | null {
   const [kind, target, ...rest] = id.split(":");
   const fieldKey = rest.join(":");
-  if ((kind !== "teaching" && kind !== "category" && kind !== "section" && kind !== "devotional" && kind !== "day" && kind !== "weekly_update") || !target || !fieldKey) return null;
+  if (!isRevisionTargetKind(kind) || !target || !fieldKey) return null;
   return { targetKind: kind, targetId: target === NO_TARGET ? null : target, fieldKey };
 }
 

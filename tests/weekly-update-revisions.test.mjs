@@ -58,8 +58,10 @@ test("the migration keeps decisions Administrator-only, limits editing to drafts
 
 test("the Administrator pages send each weekly update decision to the matching functions", async () => {
   const actions = await readFile("app/admin/teaching-revisions/actions.ts", "utf8");
-  assert.match(actions, /review_weekly_update_revision_change/);
-  assert.match(actions, /review_all_weekly_update_revision_changes/);
+  const registry = await readFile("lib/review-subjects.ts", "utf8");
+  assert.match(actions, /REVIEW_SUBJECTS\[subject\]\.reviewOneRpc/);
+  assert.match(registry, /review_weekly_update_revision_change/);
+  assert.match(registry, /review_all_weekly_update_revision_changes/);
   const detail = await readFile("app/admin/teaching-revisions/[revisionId]/page.tsx", "utf8");
   assert.match(detail, /weekly_update_review_fields/);
   const weekly = await readFile("app/admin/weekly-updates/page.tsx", "utf8");

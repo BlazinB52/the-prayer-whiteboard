@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { REVIEW_SUBJECTS, REVIEW_SUBJECT_KINDS, reviewSubjectKind } from "@/lib/review-subjects";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { clearRevisionHistory } from "./actions";
 import { ConfirmButton } from "./confirm-button";
@@ -28,6 +29,12 @@ type RevisionRow = {
   updated_at: string;
 };
 
+// The small tag after a title that says what kind of item the revision is about (none for a teaching).
+function SubjectBadge({ type }: { type: string }) {
+  const badge = REVIEW_SUBJECTS[reviewSubjectKind(type)].badge;
+  return badge ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">{badge}</span> : null;
+}
+
 function formatDateTime(value: string | null) {
   if (!value) return "";
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Chicago" }).format(new Date(value));
@@ -39,7 +46,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
   const { data, error } = await supabase
     .from("content_revisions")
     .select("id, teaching_id, subject_type, subject_title, status, submitted_by_name, submitted_at, completed_at, completed_by_name, review_note, total_changes, accepted_count, rejected_count, overridden_count, updated_at, purged_at")
-    .in("subject_type", ["teaching", "devotional", "weekly_update"])
+    .in("subject_type", [...REVIEW_SUBJECT_KINDS])
     .order("updated_at", { ascending: false });
 
   const revisions = (data ?? []) as RevisionRow[];
@@ -54,7 +61,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
         <header className="mt-4 border-b border-[#284a3b]/10 pb-8">
           <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Revisions</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
-            Co-editors propose changes to draft teachings, devotionals and weekly updates here. Nothing changes until you accept it. Finished reviews stay in Review history, with what was accepted and rejected, until you clear them.
+            Co-editors propose changes to draft teachings, devotionals, weekly updates and teaching outlines here. Nothing changes until you accept it. Finished reviews stay in Review history, with what was accepted and rejected, until you clear them.
           </p>
         </header>
 
@@ -72,7 +79,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
               {awaiting.map((revision) => (
                 <li key={revision.id}>
                   <Link href={`/admin/teaching-revisions/${revision.id}`} className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-3 transition hover:bg-[#e7efe9]/60">
-                    <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}{revision.subject_type === "devotional" || revision.subject_type === "weekly_update" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">{revision.subject_type === "weekly_update" ? "Weekly update" : "Devotional"}</span> : null}</span>
+                    <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}<SubjectBadge type={revision.subject_type} /></span>
                     <span className="text-sm text-[#607066]">{revision.submitted_by_name ?? "Unknown"}</span>
                     <span className="rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a4fb4]">{revision.total_changes} {revision.total_changes === 1 ? "change" : "changes"}</span>
                     <span className="hidden w-40 shrink-0 text-right text-sm text-[#607066] sm:inline">{formatDateTime(revision.submitted_at)}</span>
@@ -94,7 +101,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
               {drafts.map((revision) => (
                 <li key={revision.id}>
                   <Link href={`/admin/teaching-revisions/${revision.id}`} className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 px-2 py-3 transition hover:bg-[#e7efe9]/60">
-                    <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}{revision.subject_type === "devotional" || revision.subject_type === "weekly_update" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">{revision.subject_type === "weekly_update" ? "Weekly update" : "Devotional"}</span> : null}</span>
+                    <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}<SubjectBadge type={revision.subject_type} /></span>
                     <span className="text-sm text-[#607066]">{revision.submitted_by_name ?? "Unknown"}</span>
                     <span className="rounded-full bg-[#eee7da] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Not submitted</span>
                   </Link>
@@ -116,7 +123,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
               {finished.map((revision) => (
                 <li key={revision.id} className="text-sm">
                   <Link href={`/admin/teaching-revisions/${revision.id}`} className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-3 ${revision.purged_at ? "pointer-events-none" : "transition hover:bg-[#e7efe9]/60"}`} aria-disabled={revision.purged_at ? true : undefined} tabIndex={revision.purged_at ? -1 : undefined}>
-                  <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}{revision.subject_type === "devotional" || revision.subject_type === "weekly_update" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">{revision.subject_type === "weekly_update" ? "Weekly update" : "Devotional"}</span> : null}</span>
+                  <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}<SubjectBadge type={revision.subject_type} /></span>
                   <span className="text-[#607066]">by {revision.submitted_by_name ?? "unknown"}</span>
                   <span className="text-[#607066]">
                     {revision.status === "completed"

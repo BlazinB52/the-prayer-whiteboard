@@ -21,44 +21,46 @@ values
   ('00000000-0000-4000-9600-0000000000a2', 'outpub-live', 'Live Outline', '00000000-0000-4000-9600-0000000000c1', '[]'::jsonb, '00000000-0000-4000-9600-0000000000f2.docx', 'published', now());
 
 -- ===========================================================================
--- A content manager: reads everything, adds and edits drafts, cannot publish or delete
+-- A content manager: reads published outlines and drafts the Administrator sent, and changes nothing
+-- (see outline_review_test.sql for the proposal cycle)
 -- ===========================================================================
 
 do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9600-000000000002', true); perform set_config('request.jwt.claim.role', 'authenticated', true); end $$;
 set local role authenticated;
 
-select is((select count(*)::int from public.teaching_outlines where id in ('00000000-0000-4000-9600-0000000000a1', '00000000-0000-4000-9600-0000000000a2')), 2, 'a content manager can read draft and published outlines');
+select is((select count(*)::int from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a1'), 0, 'a content manager cannot see a draft that was not sent to them');
+select is((select count(*)::int from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a2'), 1, 'a content manager can read a published outline');
 
-select lives_ok(
+select throws_ok(
   $$ insert into public.teaching_outlines (slug, title, category_id, content, source_path, status) values ('outpub-new-draft', 'New Draft', '00000000-0000-4000-9600-0000000000c1', '[]'::jsonb, '00000000-0000-4000-9600-0000000000f4.docx', 'draft') $$,
-  'a content manager can add a draft outline'
+  '42501', null, 'a content manager cannot add an outline, not even a draft'
 );
 select throws_ok(
   $$ insert into public.teaching_outlines (slug, title, category_id, content, source_path, status, published_at) values ('outpub-new-live', 'New Live', '00000000-0000-4000-9600-0000000000c1', '[]'::jsonb, '00000000-0000-4000-9600-0000000000f5.docx', 'published', now()) $$,
-  '42501', null, 'a content manager cannot add an outline that is already published'
+  '42501', null, 'a content manager cannot add a published outline'
 );
 
 update public.teaching_outlines set title = 'Edited By CM' where id = '00000000-0000-4000-9600-0000000000a1';
-select is((select title from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a1'), 'Edited By CM', 'a content manager can edit a draft');
+reset role;
+select is((select title from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a1'), 'Draft Outline', 'a content manager cannot edit a draft');
 
-select throws_ok(
-  $$ update public.teaching_outlines set status = 'published', published_at = now() where id = '00000000-0000-4000-9600-0000000000a1' $$,
-  '42501', null, 'a content manager cannot publish a draft'
-);
+do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9600-000000000002', true); perform set_config('request.jwt.claim.role', 'authenticated', true); end $$;
+set local role authenticated;
+update public.teaching_outlines set status = 'published', published_at = now() where id = '00000000-0000-4000-9600-0000000000a1';
+reset role;
+select is((select status from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a1'), 'draft', 'a content manager cannot publish a draft');
 
+do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9600-000000000002', true); perform set_config('request.jwt.claim.role', 'authenticated', true); end $$;
+set local role authenticated;
 update public.teaching_outlines set title = 'Hacked Live' where id = '00000000-0000-4000-9600-0000000000a2';
-select is((select title from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a2'), 'Live Outline', 'a content manager cannot edit a published outline');
-
 update public.teaching_outlines set status = 'draft', published_at = null where id = '00000000-0000-4000-9600-0000000000a2';
-select is((select status from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a2'), 'published', 'a content manager cannot unpublish an outline');
-
-delete from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a1';
-select is((select count(*)::int from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a1'), 1, 'a content manager cannot delete a draft outline');
-delete from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a2';
-select is((select count(*)::int from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a2'), 1, 'a content manager cannot delete a published outline');
+delete from public.teaching_outlines where id in ('00000000-0000-4000-9600-0000000000a1', '00000000-0000-4000-9600-0000000000a2');
+reset role;
+select is((select title from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a2'), 'Live Outline', 'a content manager cannot edit a published outline');
+select is((select status from public.teaching_outlines where id = '00000000-0000-4000-9600-0000000000a2'), 'published', 'or unpublish it');
+select is((select count(*)::int from public.teaching_outlines where id in ('00000000-0000-4000-9600-0000000000a1', '00000000-0000-4000-9600-0000000000a2')), 2, 'or delete a draft or a published outline');
 
 -- (Stored Word files cannot be deleted by SQL in this database; that policy is covered by a source test.)
-reset role;
 
 -- ===========================================================================
 -- An Administrator can do all of it

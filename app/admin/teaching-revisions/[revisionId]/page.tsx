@@ -13,6 +13,8 @@ import {
   type TeachingRow,
 } from "@/lib/teaching-revisions";
 import { buildDevotionalEditableFields, type DevotionalDayRow, type DevotionalRow } from "@/lib/devotional-revisions";
+import { outlineEditableFields, type OutlineReviewFieldRow } from "@/lib/outline-revisions";
+import { REVIEW_SUBJECTS, reviewSubjectKind } from "@/lib/review-subjects";
 import { weeklyUpdateEditableFields, type WeeklyUpdateReviewFieldRow } from "@/lib/weekly-update-revisions";
 import { cancelRevision, reviewAllChanges, reviewChange } from "../actions";
 import { ConfirmButton } from "../confirm-button";
@@ -30,7 +32,8 @@ type RevisionRow = {
   teaching_id: string | null;
   devotional_id: string | null;
   weekly_update_id: string | null;
-  subject_type: "teaching" | "devotional" | "weekly_update";
+  outline_id: string | null;
+  subject_type: "teaching" | "devotional" | "weekly_update" | "outline";
   subject_title: string;
   status: "draft" | "submitted" | "completed" | "cancelled";
   submitted_by_name: string | null;
@@ -72,7 +75,7 @@ export default async function TeachingRevisionReviewPage({
   const { supabase } = await requireAdmin();
   const { data: revisionData } = await supabase
     .from("content_revisions")
-    .select("id, teaching_id, devotional_id, weekly_update_id, subject_type, subject_title, status, submitted_by_name, submitted_at, completed_at, completed_by_name, review_note, total_changes, accepted_count, rejected_count, overridden_count, purged_at")
+    .select("id, teaching_id, devotional_id, weekly_update_id, outline_id, subject_type, subject_title, status, submitted_by_name, submitted_at, completed_at, completed_by_name, review_note, total_changes, accepted_count, rejected_count, overridden_count, purged_at")
     .eq("id", revisionId)
     .maybeSingle();
   if (!revisionData) notFound();
@@ -86,7 +89,17 @@ export default async function TeachingRevisionReviewPage({
   const isDevotional = revision.subject_type === "devotional";
   const weeklyUpdateId = revision.weekly_update_id;
   const isWeeklyUpdate = revision.subject_type === "weekly_update";
-  const subject = isDevotional ? "devotional" : isWeeklyUpdate ? "weekly update" : "teaching";
+  const outlineId = revision.outline_id;
+  const subject = REVIEW_SUBJECTS[reviewSubjectKind(revision.subject_type)].noun;
+
+  const [outlineResult, outlineFieldsResult] = await Promise.all([
+    showChanges && outlineId
+      ? supabase.from("teaching_outlines").select("id, status").eq("id", outlineId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    showChanges && outlineId
+      ? supabase.rpc("outline_review_fields", { p_outline_id: outlineId })
+      : Promise.resolve({ data: [] }),
+  ]);
 
   const [weeklyUpdateResult, weeklyFieldsResult] = await Promise.all([
     showChanges && weeklyUpdateId
@@ -126,7 +139,10 @@ export default async function TeachingRevisionReviewPage({
   const teaching = teachingResult.data as (TeachingRow & { status: string }) | null;
   const devotional = devotionalResult.data as (DevotionalRow & { status: string }) | null;
   const weeklyUpdate = weeklyUpdateResult.data as { id: string; status: string } | null;
-  const fields = weeklyUpdate
+  const outline = outlineResult.data as { id: string; status: string } | null;
+  const fields = outline
+    ? outlineEditableFields(outlineFieldsResult.data as OutlineReviewFieldRow[] | null)
+    : weeklyUpdate
     ? weeklyUpdateEditableFields(weeklyFieldsResult.data as WeeklyUpdateReviewFieldRow[] | null)
     : devotional
     ? buildDevotionalEditableFields(devotional, (devotionalDaysResult.data ?? []) as DevotionalDayRow[])
@@ -135,7 +151,7 @@ export default async function TeachingRevisionReviewPage({
       : [];
   const changes = ((changesResult.data ?? []) as RevisionChangeRow[]);
   const pending = changes.filter((change) => change.change_status === "pending");
-  const teachingIsDraft = (weeklyUpdate ?? devotional ?? teaching)?.status === "draft";
+  const teachingIsDraft = (outline ?? weeklyUpdate ?? devotional ?? teaching)?.status === "draft";
 
   return (
     <main className="admin-shell">
@@ -151,6 +167,7 @@ export default async function TeachingRevisionReviewPage({
             {revision.submitted_at ? <div><dt className="inline font-bold text-[#385245]">Submitted </dt><dd className="inline">{formatDateTime(revision.submitted_at)}</dd></div> : null}
             {revision.completed_at ? <div><dt className="inline font-bold text-[#385245]">Finished </dt><dd className="inline">{formatDateTime(revision.completed_at)}{revision.completed_by_name ? ` by ${revision.completed_by_name}` : ""}</dd></div> : null}
           </dl>
+          {outlineId ? <Link href={REVIEW_SUBJECTS.outline.adminPath(outlineId)} className="mt-4 inline-flex text-sm font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Open the outline</Link> : null}
           {isWeeklyUpdate ? <Link href="/admin/weekly-updates" className="mt-4 inline-flex text-sm font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Open Weekly Updates</Link> : null}
           {isDevotional && devotionalId ? <Link href={`/admin/devotionals/${devotionalId}`} className="mt-4 inline-flex text-sm font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Open the devotional editor</Link> : null}
           {teachingId ? <Link href={`/admin/teachings/${teachingId}/edit`} className="mt-4 inline-flex text-sm font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Open the teaching editor</Link> : null}
@@ -204,7 +221,7 @@ export default async function TeachingRevisionReviewPage({
                 This is a draft. The editor has not submitted it, so there is nothing to decide yet. You can close it if it was abandoned.
               </p>
             ) : null}
-            {!teachingIsDraft && (teaching || devotional || weeklyUpdate) ? (
+            {!teachingIsDraft && (teaching || devotional || weeklyUpdate || outline) ? (
               <p role="alert" className="mt-6 rounded-xl border border-[#c49a3a]/40 bg-[#fbf4e1] px-4 py-3 text-sm font-bold text-[#6b5013]">
                 This {subject} is no longer a draft, so changes can no longer be applied. Close this revision.
               </p>

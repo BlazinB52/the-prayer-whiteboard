@@ -71,10 +71,12 @@ test("the devotional review migration keeps decisions Administrator-only and the
 
 test("the Administrator pages show devotional revisions and send each decision to the matching functions", async () => {
   const actions = await readFile("app/admin/teaching-revisions/actions.ts", "utf8");
-  assert.match(actions, /review_devotional_revision_change/);
-  assert.match(actions, /review_all_devotional_revision_changes/);
+  const registry = await readFile("lib/review-subjects.ts", "utf8");
+  assert.match(actions, /REVIEW_SUBJECTS\[subject\]\.reviewOneRpc/);
+  assert.match(registry, /review_devotional_revision_change/);
+  assert.match(registry, /review_all_devotional_revision_changes/);
   const list = await readFile("app/admin/teaching-revisions/page.tsx", "utf8");
-  assert.match(list, /\.in\("subject_type", \["teaching", "devotional", "weekly_update"\]\)/);
+  assert.match(list, /\.in\("subject_type", \[\.\.\.REVIEW_SUBJECT_KINDS\]\)/);
   const detail = await readFile("app/admin/teaching-revisions/[revisionId]/page.tsx", "utf8");
   assert.match(detail, /buildDevotionalEditableFields/);
   const editPage = await readFile("app/admin/devotionals/[id]/page.tsx", "utf8");

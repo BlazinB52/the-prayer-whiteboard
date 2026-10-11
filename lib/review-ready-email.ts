@@ -1,24 +1,18 @@
+import { REVIEW_SUBJECTS, type ReviewSubjectKind } from "./review-subjects.ts";
 import { button, escapeHtml } from "./subscription-email-content.ts";
 
 // The email a Content Manager gets when the Administrator sends them something to review. It names the item
 // and links to it; it never contains the content itself, which stays behind the Content Manager sign-in.
 
-export type ReviewKind = "teaching" | "devotional" | "weekly_update";
-
-export const REVIEW_KIND_LABEL: Record<ReviewKind, string> = {
-  teaching: "teaching",
-  devotional: "7-day devotional",
-  weekly_update: "weekly update",
-};
+export type ReviewKind = ReviewSubjectKind;
 
 /** The page a Content Manager opens to review this item. */
 export function reviewPath(kind: ReviewKind, id: string) {
-  const folder = kind === "teaching" ? "teaching-review" : kind === "devotional" ? "devotional-review" : "weekly-update-review";
-  return `/admin/cm/${folder}/${encodeURIComponent(id)}`;
+  return `/admin/cm/${REVIEW_SUBJECTS[kind].reviewFolder}/${encodeURIComponent(id)}`;
 }
 
 export function buildReviewReadyEmail(input: { kind: ReviewKind; title: string; reviewUrl: string; recipientName?: string | null; senderName?: string | null }) {
-  const label = REVIEW_KIND_LABEL[input.kind];
+  const label = REVIEW_SUBJECTS[input.kind].emailNoun;
   const title = input.title.trim() || `Untitled ${label}`;
   const greeting = input.recipientName?.trim() ? `Hello ${input.recipientName.trim()},` : "Hello,";
   const who = input.senderName?.trim() ? `${input.senderName.trim()} has` : "The Administrator has";

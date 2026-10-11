@@ -57,14 +57,14 @@ export default async function DevotionalReviewListPage() {
         <Link href="/admin/cm" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Content Management</Link>
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31] sm:text-5xl">Devotional - Review</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
-          Choose a draft devotional to review. Your edits are proposals only: the devotional does not change until an Administrator accepts them.
+          Choose a devotional to review. Your edits are proposals only: the devotional does not change until an Administrator accepts them.
         </p>
 
         {error ? <p className="mt-6 text-sm font-bold text-[#a2472c]">Draft devotionals could not be loaded.</p> : null}
 
         <section className="mt-8">
           <h2 className="border-b border-[#284a3b]/10 pb-3 text-2xl font-extrabold text-[#243d31]">
-            Draft devotionals <span className="text-sm font-bold text-[#607066]">({devotionals?.length ?? 0})</span>
+            Sent to you for review <span className="text-sm font-bold text-[#607066]">({devotionals?.length ?? 0})</span>
           </h2>
           {devotionals?.length ? (
             <ul className="divide-y divide-[#284a3b]/10">
@@ -82,7 +82,7 @@ export default async function DevotionalReviewListPage() {
               })}
             </ul>
           ) : (
-            <p className="py-4 text-sm text-[#607066]">There are no draft devotionals to review right now.</p>
+            <p className="py-4 text-sm text-[#607066]">Nothing has been sent to you for review right now. The Administrator sends a devotional when it is ready, and you will get an email.</p>
           )}
         </section>
 

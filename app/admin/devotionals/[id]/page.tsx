@@ -1,3 +1,5 @@
+import { sendForReview, takeBackFromReview } from "@/app/admin/review-gate-actions";
+import { ReviewGateMessage, ReviewGateSection } from "@/app/admin/review-gate-section";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -17,14 +19,14 @@ export const metadata: Metadata = {
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export default async function AdminStandaloneDevotionalPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string; imported?: string; published?: string; unpublished?: string }> }) {
+export default async function AdminStandaloneDevotionalPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string; imported?: string; published?: string; unpublished?: string; review?: string; mailed?: string; of?: string }> }) {
   const [{ id }, messages] = await Promise.all([params, searchParams]);
   if (!UUID_PATTERN.test(id)) notFound();
 
   const { supabase } = await requireAdmin();
   const { data: devotional, error: devotionalError } = await supabase
     .from("teaching_devotionals")
-    .select("id, teaching_id, slug, title, introduction, status, published_at, language")
+    .select("id, teaching_id, slug, title, introduction, status, published_at, language, sent_for_review_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -80,6 +82,9 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
             <Link href="/admin/teaching-revisions" className="underline underline-offset-2">Review {pendingRevisionCount === 1 ? "it" : "them"} first</Link>.
           </p>
         ) : null}
+
+        <ReviewGateMessage review={messages.review} mailed={messages.mailed} of={messages.of} />
+        {devotional.status === "draft" ? <ReviewGateSection noun="devotional" sentAt={devotional.sent_for_review_at ?? null} sendAction={sendForReview.bind(null, "devotional", devotional.id)} takeBackAction={takeBackFromReview.bind(null, "devotional", devotional.id)} /> : null}
 
         {messages.created === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional created as a draft. Write the seven days below, or import them from a text file.</p> : null}
         {messages.imported === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional text imported as a draft.</p> : null}

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { convertDocxToWeeklyUpdate } from "@/lib/weekly-update-docx";
+import { notifyContentManagers } from "@/lib/review-ready-send";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -324,14 +325,23 @@ export async function setWeeklyUpdateReady(id: string, ready: boolean) {
 // Manager to proofread. Each one gets their own pass. Running it again only reaches Content Managers who were
 // added since, and never gives anyone a second pass. Nothing is published or emailed.
 export async function sendWeeklyUpdateToProofing(id: string) {
-  const { supabase } = await requireAdmin();
+  const { supabase, user } = await requireAdmin();
   if (!UUID_PATTERN.test(id)) redirect("/admin/weekly-updates");
+
+  // Content Managers are emailed the first time it is sent. Running it again only reaches people added since,
+  // and does not email everyone a second time.
+  const { data: before } = await supabase.from("weekly_updates").select("title, sent_to_proofing_at").eq("id", id).maybeSingle();
 
   const { error } = await supabase.rpc("send_weekly_update_for_proofing", { p_weekly_update_id: id, p_restart: false });
   if (error) redirect(`/admin/weekly-updates?proofing=${/no Content Managers/i.test(error.message) ? "nocm" : "error"}`);
 
   revalidatePath("/admin/weekly-updates");
   revalidatePath("/admin/cm/weekly-update-review");
+  if (before && !before.sent_to_proofing_at) {
+    const { data: me } = await supabase.from("admin_authorizations").select("display_name").eq("user_id", user.id).maybeSingle();
+    const notified = await notifyContentManagers({ kind: "weekly_update", id, title: String(before.title ?? ""), senderName: me?.display_name ?? null });
+    redirect(`/admin/weekly-updates?proofing=sent&mailed=${notified.sent}&of=${notified.recipients}`);
+  }
   redirect("/admin/weekly-updates?proofing=sent");
 }
 

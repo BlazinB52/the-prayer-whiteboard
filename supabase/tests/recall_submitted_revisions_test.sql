@@ -19,6 +19,9 @@ insert into public.teachings (id, slug, title, central_theme, introduction, summ
 values ('00000000-0000-4000-9400-0000000000a1', 'recall-t1', 'Recall Title', 'Theme', 'Intro.', 'Summary.', 'draft');
 
 -- The editor proposes and submits.
+-- The review gate (20261011020000): Content Managers only see drafts the Administrator has sent.
+update public.teachings set sent_for_review_at = now() where status = 'draft';
+
 do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9400-000000000002', true); perform set_config('request.jwt.claim.role', 'authenticated', true); end $$;
 set local role authenticated;
 select lives_ok($$ select public.create_teaching_revision('00000000-0000-4000-9400-0000000000a1') $$, 'the editor starts a revision');

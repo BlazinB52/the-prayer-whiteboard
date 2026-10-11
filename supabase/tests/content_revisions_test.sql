@@ -52,6 +52,9 @@ values
 -- The tables are read-only to the app roles, and nobody outside the staff list gets in
 -- ===========================================================================
 
+-- The review gate (20261011020000): Content Managers only see drafts the Administrator has sent.
+update public.teachings set sent_for_review_at = now() where status = 'draft';
+
 do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9200-000000000004', true); perform set_config('request.jwt.claim.role', 'authenticated', true); end $$;
 set local role authenticated;
 

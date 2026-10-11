@@ -34,6 +34,13 @@ values
 -- Which fields exist
 -- ===========================================================================
 
+-- The review gate: a draft is visible to a Content Manager only once it has been sent to them.
+insert into public.weekly_update_proofings (weekly_update_id, user_id, user_name)
+select w.id, aa.user_id, 'Editor'
+from public.weekly_updates w cross join public.admin_authorizations aa
+where w.status = 'draft' and aa.role = 'content_manager'
+on conflict do nothing;
+
 do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9500-000000000002', true); perform set_config('request.jwt.claim.role', 'authenticated', true); end $$;
 set local role authenticated;
 
@@ -44,7 +51,7 @@ select is(
 );
 select is((select current_value from public.weekly_update_review_fields('00000000-0000-4000-9500-0000000000a1') where field_key = 'block_2'), 'Please pray for **the harvest** and read [this](https://example.com/a).', 'bold and links are written as editable text');
 select is((select current_value from public.weekly_update_review_fields('00000000-0000-4000-9500-0000000000a1') where field_key = 'block_4'), E'First item\nSecond *item*', 'a list is one item per line');
-select is((select count(*)::int from public.weekly_update_review_fields('00000000-0000-4000-9500-0000000000a2')), 0, 'a published weekly update has nothing to review');
+select throws_ok($$ select * from public.weekly_update_review_fields('00000000-0000-4000-9500-0000000000a2') $$, '42501', null, 'a published weekly update is not open for review');
 select throws_ok($$ select public.create_weekly_update_revision('00000000-0000-4000-9500-0000000000a2') $$, 'P0001', null, 'a published weekly update cannot be revised');
 
 create temp table rev_ids (key text primary key, id uuid);

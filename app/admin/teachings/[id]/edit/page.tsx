@@ -25,6 +25,8 @@ import { publishEmailNotice } from "@/lib/publish-email-notice";
 import { teachingEmailSendNotice } from "@/lib/teaching-email-send-notice";
 import { getTeachingEmailState } from "@/lib/teaching-email-state";
 import { SendTeachingEmailButton } from "../../send-email-box";
+import { sendForReview, takeBackFromReview } from "@/app/admin/review-gate-actions";
+import { ReviewGateMessage, ReviewGateSection } from "@/app/admin/review-gate-section";
 
 export const metadata: Metadata = {
   title: "Edit Teaching Draft",
@@ -36,7 +38,7 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-export default async function EditTeachingPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ready?: string }> }) {
+export default async function EditTeachingPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ready?: string; review?: string; mailed?: string; of?: string }> }) {
   const [{ id }, flags] = await Promise.all([params, searchParams]);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
     notFound();
@@ -45,7 +47,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
   const { supabase } = await requireAdmin();
   const { data: teaching, error } = await supabase
     .from("teachings")
-    .select("id, slug, title, is_featured, ready_to_publish_at, updated_at, teaching_type, language, gathering_date, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, status, chalkboard_asset_id")
+    .select("id, slug, title, is_featured, ready_to_publish_at, sent_for_review_at, updated_at, teaching_type, language, gathering_date, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, status, chalkboard_asset_id")
     .eq("id", id)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -226,6 +228,8 @@ export default async function EditTeachingPage({ params, searchParams }: { param
             <Link href="/admin/teaching-revisions" className="underline underline-offset-2">Review {pendingRevisionCount === 1 ? "it" : "them"} first</Link>.
           </p>
         ) : null}
+        <ReviewGateMessage review={flags.review} mailed={flags.mailed} of={flags.of} />
+        {teaching.status === "draft" ? <ReviewGateSection noun="teaching" sentAt={teaching.sent_for_review_at ?? null} sendAction={sendForReview.bind(null, "teaching", id)} takeBackAction={takeBackFromReview.bind(null, "teaching", id)} /> : null}
         {teaching.status === "draft" ? (
           <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Ready to publish</p>

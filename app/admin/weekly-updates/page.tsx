@@ -23,7 +23,7 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(value));
 }
 
-export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchParams: Promise<{ created?: string; published?: string; archived?: string; deleted?: string; ready?: string; proofing?: string }> }) {
+export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchParams: Promise<{ created?: string; published?: string; archived?: string; deleted?: string; ready?: string; proofing?: string; mailed?: string; of?: string }> }) {
   const params = await searchParams;
   const { supabase } = await requireAdmin();
   const [{ data: updates, error }, { data: chalkboards }, { data: chalkboardAssignments }, { data: footers }, { data: footerAssignments }] = await Promise.all([
@@ -117,7 +117,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         {params.archived === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Weekly update archived.</p> : null}
         {params.deleted === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Weekly update deleted.</p> : null}
 
-        {params.proofing === "sent" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Sent to the Content Managers for proofing. Nothing was published or emailed to subscribers.</p> : null}
+        {params.proofing === "sent" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Sent to the Content Managers for proofing.{params.mailed !== undefined ? ` ${params.mailed} of ${params.of} Content Manager ${params.of === "1" ? "was" : "were"} emailed${params.mailed !== params.of ? "; please tell the others directly" : ""}.` : ""} Nothing was published or emailed to subscribers.</p> : null}
         {params.proofing === "takenback" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Taken back from proofing.</p> : null}
         {params.proofing === "error" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">That could not be changed. Only drafts can be sent for proofing.</p> : null}
         {params.proofing === "nocm" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">There are no active Content Managers to send it to. Add one under Content Managers first.</p> : null}

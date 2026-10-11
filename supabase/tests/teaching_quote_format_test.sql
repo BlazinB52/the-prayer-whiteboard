@@ -53,7 +53,7 @@ reset role;
 -- Review: a co-editor can propose wording changes to a Quote's text
 -- ===========================================================================
 
-update public.teachings set status = 'draft', published_at = null where id = '00000000-0000-4000-9700-0000000000a1';
+update public.teachings set status = 'draft', published_at = null, sent_for_review_at = now() where id = '00000000-0000-4000-9700-0000000000a1';
 update public.teaching_sections set status = 'draft' where id = '00000000-0000-4000-9700-0000000000b1';
 
 do $$ begin perform set_config('request.jwt.claim.sub', '00000000-0000-4000-9700-000000000002', true); perform set_config('request.jwt.claim.role', 'authenticated', true); end $$;

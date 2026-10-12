@@ -192,10 +192,10 @@ function parseDay(section: string[]): ImportedDevotionalDay {
     // activation) is refused with a plain explanation rather than a missing-label error.
     const aliases = LABEL_ALIASES.breadReflection as readonly string[];
     if (!section.some((line) => aliases.includes(line))) {
-      throw new Error(`${section[0]} must use the Communion and rest format: The Rest Reflection, Today's Confession of Rest, The Table of Remembrance, Reverent Self-Examination & Blessing, The Bread Reflection, The Cup Reflection, and Series Closing Prayer. Day 7 has no journal prompt or prayer activation.`);
+      throw new Error(`${section[0]} must use the Communion and rest format: The Rest Reflection, Today's Confession of Rest, Reverent Self-Examination & Blessing, The Bread Reflection, The Cup Reflection, and Series Closing Prayer. Day 7 has no journal prompt or prayer activation.`);
     }
-    // Present in every Day 7 so the file matches the standard, but its wording is fixed by the site.
-    readBlock(section, "tableOfRemembrance");
+    // The Table of Remembrance sentence is added by the site on every Day 7, so a file does not need it.
+    // If a file still has the heading, its label ends the block before it and the sentence is ignored.
 
     return {
       day_number: dayNumber,

@@ -184,7 +184,7 @@ export function DevotionalImportForm({ action, hasPublishedDevotional }: { actio
     >
       <label className="block text-sm font-bold text-[#385245]">
         Devotional text file
-        <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">Use a plain .txt file with a title, an introduction, and Day 1 through Day 7. Days 1–6 have Anchor Scriptures, Devotional Reading, Today&apos;s Confession, 5-Minute Journal Prompt, and Prayer Activation Exercise. Day 7 (headed DAY 7 — COMMUNION AND REST) has Anchor Scriptures, The Rest Reflection, Today&apos;s Confession of Rest, The Table of Remembrance, Reverent Self-Examination &amp; Blessing, The Bread Reflection, The Cup Reflection, and Series Closing Prayer.</span>
+        <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">Use a plain .txt file with a title, an introduction, and Day 1 through Day 7. Days 1–6 have Anchor Scriptures, Devotional Reading, Today&apos;s Confession, 5-Minute Journal Prompt, and Prayer Activation Exercise. Day 7 (headed DAY 7 — COMMUNION AND REST) has Anchor Scriptures, The Rest Reflection, Today&apos;s Confession of Rest, Reverent Self-Examination &amp; Blessing, The Bread Reflection, The Cup Reflection, and Series Closing Prayer.</span>
         <input name="devotionalFile" type="file" accept=".txt,text/plain" required disabled={hasPublishedDevotional || isPending} className="admin-input py-2" />
       </label>
       {hasPublishedDevotional ? <p role="alert" className="text-sm font-bold text-[#a2472c]">Unpublish this devotional before importing replacement text.</p> : null}

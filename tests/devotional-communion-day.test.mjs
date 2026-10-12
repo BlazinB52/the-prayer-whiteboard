@@ -345,3 +345,61 @@ test("the website wording does not say 'tomorrow', and Español is translated in
     assert.notEqual(ui("es")[key], ui("en")[key], `${key} is translated`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// The Table of Remembrance is added by the site, so a Day 7 file does not need it
+// ---------------------------------------------------------------------------
+
+const sixDays = [1, 2, 3, 4, 5, 6].map((n) => `Day ${n}: Title ${n}
+Anchor Scriptures
+John 3:16 (KJV) — "For God so loved the world."
+Devotional Reading
+Reading ${n}.
+Today's Confession
+Confession ${n}.
+5-Minute Journal Prompt
+Prompt ${n}.
+Prayer Activation Exercise
+Activation ${n}.`);
+
+const day7Body = (table) => `DAY 7 — COMMUNION AND REST: Rest
+Anchor Scriptures
+Hebrews 4:9 (KJV) — "There remaineth therefore a rest."
+The Rest Reflection
+Rest.
+Today's Confession of Rest
+Rest confession.
+${table}Reverent Self-Examination & Blessing
+Examine yourself.
+The Bread Reflection
+Bread.
+The Cup Reflection
+Cup.
+Series Closing Prayer
+Closing prayer.`;
+
+test("a Day 7 file with no Table of Remembrance section imports, in the order the site shows it", () => {
+  const parsed = parseDevotionalText(["Title", "Intro.", ...sixDays, day7Body("")].join("\n"));
+  const d7 = parsed.days[6];
+  assert.equal(d7.confession, "Rest confession.");
+  assert.equal(d7.self_examination, "Examine yourself.");
+  assert.equal(d7.bread_reflection, "Bread.");
+  assert.equal(d7.cup_reflection, "Cup.");
+  assert.equal(d7.series_closing_prayer, "Closing prayer.");
+});
+
+test("a Day 7 file that still has the Table of Remembrance section imports, and its sentence is dropped", () => {
+  const withTable = day7Body("The Table of Remembrance\nPrepare a small piece of bread and a small cup of juice.\n");
+  const d7 = parseDevotionalText(["Title", "Intro.", ...sixDays, withTable].join("\n")).days[6];
+  assert.equal(d7.confession, "Rest confession.", "the confession does not swallow the Table text");
+  assert.equal(d7.self_examination, "Examine yourself.");
+  assert.doesNotMatch(JSON.stringify(d7), /Prepare a small piece of bread/, "the site's own sentence is shown instead");
+});
+
+test("the Day 7 format message no longer lists the Table of Remembrance as required", () => {
+  const oldFormat = (n) => `Day ${n}: Day ${n}\nAnchor Scriptures\nJohn 3:16 (KJV) — "x."\nDevotional Reading\nR.\nToday's Confession\nC.\n5-Minute Journal Prompt\nP.\nPrayer Activation Exercise\nA.`;
+  assert.throws(
+    () => parseDevotionalText(["Title", ...[1, 2, 3, 4, 5, 6, 7].map(oldFormat)].join("\n")),
+    (error) => /must use the Communion and rest format/.test(error.message) && !/Table of Remembrance/.test(error.message),
+  );
+});

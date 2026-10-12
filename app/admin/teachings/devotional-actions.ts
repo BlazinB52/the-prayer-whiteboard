@@ -498,14 +498,21 @@ export async function createStandaloneDevotional(previousState: DevotionalFormSt
   if (title.error || !title.value) return { error: title.error ?? "A devotional title is required." };
   const introduction = readText(formData, "introduction", MAX_LENGTHS.introduction);
   if (introduction.error) return introduction;
-  const titleValue = title.value;
+  const created = await insertStandaloneDraft(supabase, { title: title.value, introduction: introduction.value || null, language: readLanguage(formData) });
+  if ("error" in created) return { error: created.error };
 
-  // Provisional slug only. It is derived from the title now and can be replaced
-  // before publishing; the partial unique index ignores blank slugs but still
-  // rejects duplicate real ones, so retry on 23505 the way createTeaching does.
-  const baseSlug = slugifyDevotionalTitle(titleValue);
-  let createdId: string | null = null;
-  let createdSlug: string | null = null;
+  revalidateStandaloneDevotionalPaths(created.id, created.slug);
+  redirect(`/admin/devotionals/${created.id}?created=1`);
+}
+
+// Inserts a draft devotional that belongs to no teaching. The slug is provisional only: it is derived
+// from the title now and can be replaced before publishing; the partial unique index ignores blank
+// slugs but still rejects duplicate real ones, so retry on 23505 the way createTeaching does.
+async function insertStandaloneDraft(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  input: { title: string; introduction: string | null; language: "en" | "es" },
+): Promise<{ id: string; slug: string } | { error: string }> {
+  const baseSlug = slugifyDevotionalTitle(input.title);
 
   for (let suffix = 0; suffix < PROVISIONAL_SLUG_ATTEMPTS; suffix += 1) {
     const slug = suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`;
@@ -514,32 +521,55 @@ export async function createStandaloneDevotional(previousState: DevotionalFormSt
       .insert({
         teaching_id: null,
         slug,
-        language: readLanguage(formData),
-        title: titleValue,
-        introduction: introduction.value || null,
+        language: input.language,
+        title: input.title,
+        introduction: input.introduction,
         status: "draft",
         published_at: null,
       })
       .select("id, slug")
       .single();
 
-    if (!error && data) {
-      createdId = data.id as string;
-      createdSlug = data.slug as string;
-      break;
-    }
-
-    if (error?.code !== "23505") {
-      return { error: "This devotional could not be created." };
-    }
+    if (!error && data) return { id: data.id as string, slug: data.slug as string };
+    if (error?.code !== "23505") return { error: "This devotional could not be created." };
   }
 
-  if (!createdId) {
-    return { error: "This devotional title is already in use. Please choose another title." };
+  return { error: "This devotional title is already in use. Please choose another title." };
+}
+
+// The usual way to start a devotional: choose the language and the prepared text file. The title and
+// introduction come from the file, so nothing is typed twice, and all seven days are saved at once.
+export async function createStandaloneDevotionalFromFile(previousState: DevotionalImportState, formData: FormData): Promise<DevotionalImportState> {
+  void previousState;
+  const { supabase } = await requireAdmin();
+
+  const file = await readImportedDevotionalFile(formData);
+  if (file.error || !file.imported) return { error: file.error ?? "The devotional text file could not be parsed." };
+  const imported = file.imported;
+
+  // A file in the other language than the one chosen is almost certainly the wrong file.
+  const language = readLanguage(formData);
+  if (imported.language !== language) {
+    return { error: language === "es"
+      ? "You chose Español, but this file is written in English. Choose English, or pick the Español file."
+      : "You chose English, but this file is written in Español. Choose Español, or pick the English file." };
   }
 
-  revalidateStandaloneDevotionalPaths(createdId, createdSlug);
-  redirect(`/admin/devotionals/${createdId}?created=1`);
+  const created = await insertStandaloneDraft(supabase, { title: imported.title, introduction: imported.introduction || null, language });
+  if ("error" in created) return { error: created.error };
+
+  const { error: daysError } = await supabase
+    .from("teaching_devotional_days")
+    .upsert(imported.days.map((day) => importedDayRow(created.id, day)), { onConflict: "devotional_id,day_number" });
+
+  if (daysError) {
+    // Do not leave an empty draft behind when the days could not be saved.
+    await supabase.from("teaching_devotionals").delete().eq("id", created.id);
+    return { error: "The devotional days could not be imported." };
+  }
+
+  revalidateStandaloneDevotionalPaths(created.id, created.slug);
+  redirect(`/admin/devotionals/${created.id}?imported=1`);
 }
 
 export async function updateStandaloneDevotionalSeries(devotionalId: string, previousState: DevotionalFormState, formData: FormData): Promise<DevotionalFormState> {

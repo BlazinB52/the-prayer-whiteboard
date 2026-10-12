@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
-import type { DevotionalFormState } from "@/app/admin/teachings/devotional-actions";
+import type { DevotionalFormState, DevotionalImportState } from "@/app/admin/teachings/devotional-actions";
 
 type Action = (state: DevotionalFormState, formData: FormData) => Promise<DevotionalFormState>;
 
@@ -45,6 +45,34 @@ export function CreateStandaloneDevotionalForm({ action }: { action: Action }) {
       <button type="submit" disabled={isPending || !values.title.trim()} className="admin-primary-button">
         {isPending ? "Creating..." : "Create Devotional"}
       </button>
+    </form>
+  );
+}
+
+type FileAction = (state: DevotionalImportState, formData: FormData) => Promise<DevotionalImportState>;
+
+// The usual way to start a devotional: the language and the prepared text file. The title, introduction
+// and all seven days come from the file, so nothing is typed twice.
+export function CreateDevotionalFromFileForm({ action }: { action: FileAction }) {
+  const [state, formAction, isPending] = useActionState(action, {});
+
+  return (
+    <form action={formAction} className="mt-6 space-y-5">
+      <label className="block text-sm font-bold text-[#385245]">
+        Language
+        <select name="language" defaultValue="en" className="admin-input">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+        <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">Español devotionals appear on the Español homepage and are not emailed to subscribers automatically.</span>
+      </label>
+      <label className="block text-sm font-bold text-[#385245]">
+        Devotional text file <span className="text-[#a2472c]">*</span>
+        <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">A plain .txt file. The devotional title, introduction and all seven days are read from it, and the devotional is saved as a draft.</span>
+        <input name="devotionalFile" type="file" accept=".txt,text/plain" required disabled={isPending} className="admin-input py-2" />
+      </label>
+      {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
+      <button type="submit" disabled={isPending} className="admin-primary-button">{isPending ? "Creating..." : "Create Devotional From File"}</button>
     </form>
   );
 }

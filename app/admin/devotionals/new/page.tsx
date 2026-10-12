@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createStandaloneDevotional } from "@/app/admin/teachings/devotional-actions";
+import { createStandaloneDevotional, createStandaloneDevotionalFromFile } from "@/app/admin/teachings/devotional-actions";
 import { requireAdmin } from "@/lib/supabase/admin";
-import { CreateStandaloneDevotionalForm } from "./create-standalone-devotional-form";
+import { CreateDevotionalFromFileForm, CreateStandaloneDevotionalForm } from "./create-standalone-devotional-form";
 
 export const metadata: Metadata = {
   title: "New Devotional",
@@ -20,15 +20,21 @@ export default async function NewDevotionalPage() {
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">New Devotional</p>
           <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#243d31]">Create a 7-Day Devotional</h1>
           <p className="mt-3 text-sm leading-6 text-[#607066]">
-            This devotional is created on its own, with no teaching attached. You will go straight to the seven-day
-            workspace next, where you can write or import the content. Attach it to a teaching whenever you are ready.
+            Choose the language and the devotional text file. The title, introduction and all seven days are read from
+            the file, and you go straight to the draft to review it. The devotional is created on its own, with no
+            teaching attached. Attach it to a teaching whenever you are ready.
           </p>
         </header>
 
         <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
-          <h2 className="text-2xl font-extrabold text-[#243d31]">Series Information</h2>
-          <CreateStandaloneDevotionalForm action={createStandaloneDevotional} />
+          <h2 className="text-2xl font-extrabold text-[#243d31]">Create From a Text File</h2>
+          <CreateDevotionalFromFileForm action={createStandaloneDevotionalFromFile} />
         </section>
+
+        <details className="mt-6 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
+          <summary className="cursor-pointer text-sm font-extrabold text-[#385245]">No file yet? Start from a title and write the days by hand</summary>
+          <CreateStandaloneDevotionalForm action={createStandaloneDevotional} />
+        </details>
 
         <p className="mt-6 text-sm leading-6 text-[#607066]">
           A devotional becomes public only once it is assigned to a teaching and both are published. Assign it from that

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 import { COMMUNION_DAY_NUMBER, DEVOTIONAL_DAY_NUMBERS, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines, scripturesToTextareaValue, usesLegacyDayLayout, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { ui } from "@/lib/i18n";
@@ -40,6 +40,35 @@ function dayToValues(day: DevotionalDay | undefined): DayValues {
   };
 }
 
+// Tells a form whether its text differs from what was last saved, so the page can say "Unsaved changes"
+// instead of leaving a stale "Saved". The saved copy starts as what the page loaded, becomes what was
+// submitted once the server confirms a save, and is left alone when a save fails. While there are
+// unsaved changes the browser also asks before the page is closed or reloaded.
+function useUnsavedChanges<T extends Record<string, string>>(values: T, initial: T, state: { saved?: boolean }) {
+  const [saved, setSaved] = useState(initial);
+  const [submitted, setSubmitted] = useState<T | null>(null);
+  const [handled, setHandled] = useState<object | null>(null);
+
+  if (state.saved && submitted && state !== handled) {
+    setHandled(state);
+    setSaved(submitted);
+  }
+
+  const hasUnsavedChanges = Object.keys(values).some((key) => values[key] !== saved[key]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasUnsavedChanges]);
+
+  return { hasUnsavedChanges, markSubmitted: () => setSubmitted(values) };
+}
+
 export function DevotionalSeriesForm({ devotional, action }: { devotional: TeachingDevotional; action: Action }) {
   const [values, setValues] = useState({
     title: devotional.title,
@@ -47,9 +76,14 @@ export function DevotionalSeriesForm({ devotional, action }: { devotional: Teach
     language: devotional.language === "es" ? "es" : "en",
   });
   const [state, formAction, isPending] = useActionState(action, {});
+  const { hasUnsavedChanges, markSubmitted } = useUnsavedChanges(values, {
+    title: devotional.title,
+    introduction: devotional.introduction ?? "",
+    language: devotional.language === "es" ? "es" : "en",
+  }, state);
 
   return (
-    <form action={formAction} className="mt-6 space-y-5">
+    <form action={formAction} onSubmit={markSubmitted} className="mt-6 space-y-5">
       <label className="block text-sm font-bold text-[#385245]">
         Language
         <select name="language" value={values.language} onChange={(event) => setValues((current) => ({ ...current, language: event.target.value === "es" ? "es" : "en" }))} className="admin-input">
@@ -64,7 +98,8 @@ export function DevotionalSeriesForm({ devotional, action }: { devotional: Teach
       </label>
       <FormattedTextarea label="Introduction" name="introduction" value={values.introduction} onValueChange={(value) => setValues((current) => ({ ...current, introduction: value }))} maxLength={8000} rows={7} />
       {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
-      {state.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Series information saved.</p> : null}
+      {hasUnsavedChanges ? <p role="status" className="text-sm font-bold text-[#a2472c]">You have unsaved changes. Click Save Series Information to keep them.</p> : null}
+      {state.saved && !hasUnsavedChanges ? <p role="status" className="text-sm font-bold text-[#326048]">Series information saved.</p> : null}
       <button type="submit" disabled={isPending} className="admin-primary-button">{isPending ? "Saving..." : "Save Series Information"}</button>
     </form>
   );
@@ -74,6 +109,9 @@ export function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: numbe
   const [values, setValues] = useState(dayToValues(day));
   const [state, formAction, isPending] = useActionState(action, {});
   const [clientError, setClientError] = useState<string | null>(null);
+  const { hasUnsavedChanges, markSubmitted } = useUnsavedChanges(values, dayToValues(day), state);
+  // "Saved" means this day exists in the database and nothing has been typed since.
+  const isSaved = Boolean(day) || Boolean(state.saved);
   // Day 7 is the Communion and rest day. Its labels come from the same list the public page uses.
   const isCommunionDay = dayNumber === COMMUNION_DAY_NUMBER;
   const labels = ui("en");
@@ -87,7 +125,9 @@ export function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: numbe
     <section className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-sm shadow-[#4d5f52]/5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-xl font-extrabold text-[#243d31]">Day {dayNumber}</h3>
-        <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{day ? "Saved" : "Not saved"}</span>
+        {hasUnsavedChanges
+          ? <span className="rounded-full bg-[#fff3ed] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#a2472c]">Unsaved changes</span>
+          : <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{isSaved ? "Saved" : "Not saved"}</span>}
       </div>
       <form
         action={formAction}
@@ -99,6 +139,7 @@ export function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: numbe
             return;
           }
           setClientError(null);
+          markSubmitted();
         }}
         className="mt-5 space-y-5"
       >
@@ -147,7 +188,8 @@ export function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: numbe
         )}
         {clientError ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{clientError}</p> : null}
         {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
-        {state.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Day {dayNumber} saved.</p> : null}
+        {hasUnsavedChanges ? <p role="status" className="text-sm font-bold text-[#a2472c]">You have unsaved changes. Click Save Day {dayNumber} to keep them.</p> : null}
+        {state.saved && !hasUnsavedChanges ? <p role="status" className="text-sm font-bold text-[#326048]">Day {dayNumber} saved.</p> : null}
         <button type="submit" disabled={isPending} className="admin-primary-button">{isPending ? "Saving..." : `Save Day ${dayNumber}`}</button>
       </form>
     </section>

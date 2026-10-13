@@ -76,6 +76,14 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
           </div>
         </header>
 
+        <section id="export-for-translation" className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
+          <h2 className="text-2xl font-extrabold text-[#243d31]">Export for translation</h2>
+          <p className="mt-3 text-sm leading-6 text-[#607066]">
+            Downloads this devotional as a plain text file named es_yyyymmdd_devotional, with the title, introduction and all seven days. Have it translated into Español (El Salvador, with the vos forms), then create a new devotional from the translated file on the <Link href="/admin/devotionals/new" className="font-extrabold text-[#9d5a2f] underline underline-offset-2">New devotional</Link> page with Language set to Español. It offers to link the new devotional to this one. You can export as often as you like, and it works on a draft or a published devotional. Nothing here changes.
+          </p>
+          <a href={`/api/admin/devotional/export?devotional_id=${devotional.id}`} download className="admin-secondary-button mt-4 inline-flex items-center justify-center">Export for translation (text file)</a>
+        </section>
+
         {pendingRevisionCount ? (
           <p role="status" className="mt-6 rounded-xl border border-[#1a4fb4]/20 bg-[#e8f0fe] px-4 py-3 text-sm font-bold leading-6 text-[#1a3f8a]">
             {pendingRevisionCount} co-editor {pendingRevisionCount === 1 ? "revision is" : "revisions are"} waiting for your review. Publishing this devotional closes {pendingRevisionCount === 1 ? "it" : "them"} and deletes the proposed wording.{" "}

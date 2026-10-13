@@ -71,6 +71,10 @@ export function CreateDevotionalFromFileForm({ action }: { action: FileAction })
         <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">A plain .txt file. The devotional title, introduction and all seven days are read from it, and the devotional is saved as a draft.</span>
         <input name="devotionalFile" type="file" accept=".txt,text/plain" required disabled={isPending} className="admin-input py-2" />
       </label>
+      <label className="flex items-start gap-3 text-sm font-bold text-[#385245]">
+        <input type="checkbox" name="linkSource" defaultChecked disabled={isPending} className="mt-1 h-4 w-4" />
+        <span>If this file was exported from an existing devotional, link the new one to it as its translation. <span className="block text-xs font-normal leading-5 text-[#607066]">Only used when the file names its source and the two are in different languages. The two public pages then point to each other once both are published.</span></span>
+      </label>
       {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
       <button type="submit" disabled={isPending} className="admin-primary-button">{isPending ? "Creating..." : "Create Devotional From File"}</button>
     </form>

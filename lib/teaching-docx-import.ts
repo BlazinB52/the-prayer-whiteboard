@@ -7,6 +7,17 @@ import { findAll, firstChild, hasDescendant, openDocxPackage, parseXml, type Xml
 /** Translations the importer accepts. Must stay in step with the copyright disclaimer wording. */
 export const ACCEPTED_TEACHING_TRANSLATIONS = ["AMP", "AMPC", "ESV", "KJV", "NIV", "NKJV"] as const;
 
+/** The two Spanish Bible versions an Español teaching may use. */
+export const ACCEPTED_SPANISH_TEACHING_TRANSLATIONS = ["NVI", "RVR1960"] as const;
+
+export type TeachingImportLanguage = "en" | "es";
+export type TeachingImportOptions = { language?: TeachingImportLanguage };
+
+/** The Bible versions an import in this language may use: the English six, or NVI and RVR1960 for Español. */
+export function acceptedTranslationsFor(language: TeachingImportLanguage): readonly string[] {
+  return language === "es" ? ACCEPTED_SPANISH_TEACHING_TRANSLATIONS : ACCEPTED_TEACHING_TRANSLATIONS;
+}
+
 export const TEACHING_IMPORT_LIMITS = {
   title: 160,
   categoryTitle: 160,
@@ -17,6 +28,8 @@ export const TEACHING_IMPORT_LIMITS = {
   sectionText: 12000,
   scriptureReference: 240,
   scriptureTranslation: 80,
+  teaserHeading: 100,
+  teaserText: 300,
 } as const;
 
 export type ImportedSection =
@@ -36,6 +49,14 @@ export type ImportedTeaching = {
   centralTheme: string;
   introduction: string;
   summary: string;
+  /** Homepage teasers, written after the Short Summary in the Word file. Empty when the file has none. */
+  teaser1Heading: string;
+  teaser1Text: string;
+  teaser2Heading: string;
+  teaser2Text: string;
+  /** Set when the file was exported from an existing teaching: its id and type, so the new draft can be linked to it. */
+  sourceTeachingId: string | null;
+  sourceTeachingType: "standard" | "deep_dive" | null;
   categories: ImportedCategory[];
 };
 
@@ -48,6 +69,8 @@ export type TeachingImportResult = {
 
 export type TeachingDocxParts = {
   documentXml: string;
+  /** docProps/custom.xml, where an exported file keeps the id of the teaching it came from. */
+  customPropertiesXml?: string | null;
   stylesXml?: string | null;
   relationshipsXml?: string | null;
   hasComments?: boolean;
@@ -81,7 +104,33 @@ const CATEGORY_KIND_BY_NAME: Record<string, Kind> = {
 };
 
 const METADATA_LABELS = ["Central Theme", "Introduction", "Short Summary"] as const;
-const RESERVED_LABELS = new Set(METADATA_LABELS.map((label) => label.toLowerCase()));
+
+// The optional homepage teaser labels, written as Heading 1 paragraphs right after the Short Summary.
+const TEASER_LABELS = ["Homepage Teaser 1 Heading", "Homepage Teaser 1 Text", "Homepage Teaser 2 Heading", "Homepage Teaser 2 Text"] as const;
+
+function foldLabel(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s_-]+/g, " ").trim();
+}
+
+// A translator may translate the Heading 1 labels. These Spanish forms are accepted as well as the English
+// ones (accents and capital letters do not matter). The recommended way is to leave the labels in English.
+const LABEL_ALIASES: Record<string, string[]> = {
+  "Central Theme": ["tema central"],
+  Introduction: ["introduccion"],
+  "Short Summary": ["resumen breve", "resumen corto"],
+  "Homepage Teaser 1 Heading": ["encabezado del adelanto 1", "titular del adelanto 1", "adelanto 1 encabezado", "encabezado del adelanto de la pagina principal 1"],
+  "Homepage Teaser 1 Text": ["texto del adelanto 1", "adelanto 1 texto", "texto del adelanto de la pagina principal 1"],
+  "Homepage Teaser 2 Heading": ["encabezado del adelanto 2", "titular del adelanto 2", "adelanto 2 encabezado", "encabezado del adelanto de la pagina principal 2"],
+  "Homepage Teaser 2 Text": ["texto del adelanto 2", "adelanto 2 texto", "texto del adelanto de la pagina principal 2"],
+};
+
+function labelMatches(key: string, name: string) {
+  const folded = foldLabel(key);
+  return folded === foldLabel(name) || (LABEL_ALIASES[name] ?? []).includes(folded);
+}
+
+const RESERVED_LABELS = new Set([...METADATA_LABELS, ...TEASER_LABELS].flatMap((label) => [foldLabel(label), ...(LABEL_ALIASES[label] ?? [])]));
+type MetaName = (typeof METADATA_LABELS)[number] | (typeof TEASER_LABELS)[number];
 const SECTION_TYPE_LABEL = { paragraph: "Paragraph", takeaway: "Takeaway", quote: "Quote", bullets: "Bullets", scripture: "Scripture" } as const;
 const TRACKED_CHANGE_ELEMENTS = ["w:ins", "w:del", "w:moveFrom", "w:moveTo", "w:rPrChange", "w:pPrChange"];
 
@@ -291,7 +340,7 @@ function describeScriptureProblem(text: string) {
   return null;
 }
 
-function parseScripture(text: string): { reference: string; translation: string; quotation: string } | { error: string } {
+function parseScripture(text: string, accepted: readonly string[]): { reference: string; translation: string; quotation: string } | { error: string } {
   const problem = describeScriptureProblem(text);
   if (problem) return { error: problem };
   const match = text.match(/^(.+?)\s*\(([^()]+)\)\s*([—–-])\s*([\s\S]+)$/)!;
@@ -303,9 +352,9 @@ function parseScripture(text: string): { reference: string; translation: string;
   if (dash !== "—") return { error: "an em dash (—) must separate the translation and the quotation." };
   if (!reference) return { error: "the Scripture reference is missing." };
   if (reference.length > TEACHING_IMPORT_LIMITS.scriptureReference) return { error: `the Scripture reference is longer than ${TEACHING_IMPORT_LIMITS.scriptureReference} characters.` };
-  if (!(ACCEPTED_TEACHING_TRANSLATIONS as readonly string[]).includes(translation)) {
-    const caseMatch = ACCEPTED_TEACHING_TRANSLATIONS.find((accepted) => accepted.toLowerCase() === translation.toLowerCase());
-    return { error: caseMatch ? `the translation "${translation}" must be written exactly as ${caseMatch}.` : `the translation "${translation}" is not recognized. Accepted translations: ${ACCEPTED_TEACHING_TRANSLATIONS.join(", ")}.` };
+  if (!accepted.includes(translation)) {
+    const caseMatch = accepted.find((candidate) => candidate.toLowerCase() === translation.toLowerCase());
+    return { error: caseMatch ? `the translation "${translation}" must be written exactly as ${caseMatch}.` : `the translation "${translation}" is not recognized. Accepted translations: ${accepted.join(", ")}.` };
   }
   const curly = quotation.startsWith("“") && quotation.endsWith("”");
   const straight = quotation.startsWith('"') && quotation.endsWith('"');
@@ -325,7 +374,8 @@ function hiddenTitle(categoryTitle: string, format: keyof typeof SECTION_TYPE_LA
   return `${base}${suffix}`;
 }
 
-export function parseTeachingDocxParts(parts: TeachingDocxParts): TeachingImportResult {
+export function parseTeachingDocxParts(parts: TeachingDocxParts, options: TeachingImportOptions = {}): TeachingImportResult {
+  const acceptedTranslations = acceptedTranslationsFor(options.language ?? "en");
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -378,8 +428,9 @@ export function parseTeachingDocxParts(parts: TeachingDocxParts): TeachingImport
   let title: string | null = null;
   let beforeTitle = 0;
   let nextLabel = 0;
-  let meta: { name: (typeof METADATA_LABELS)[number]; paragraphs: string[] } | null = null;
-  const metaValues: Partial<Record<(typeof METADATA_LABELS)[number], string[]>> = {};
+  let meta: { name: MetaName; paragraphs: string[] } | null = null;
+  const metaValues: Partial<Record<MetaName, string[]>> = {};
+  const teaserSeen: string[] = [];
   const categories: ImportedCategory[] = [];
   let category: ImportedCategory | null = null;
   let pendingTitle: string | null = null;
@@ -474,15 +525,26 @@ export function parseTeachingDocxParts(parts: TeachingDocxParts): TeachingImport
     if (block.kind === "h1") {
       const label = block.plain.trim();
       const key = label.toLowerCase();
+      // After the three required labels, an optional homepage teaser label may follow, before the first category.
+      if (nextLabel === METADATA_LABELS.length && categories.length === 0) {
+        const teaser = TEASER_LABELS.find((name) => labelMatches(key, name));
+        if (teaser) {
+          finishMeta();
+          if (teaserSeen.includes(teaser)) errors.push(`The metadata label “${label}” appears more than once.`);
+          teaserSeen.push(teaser);
+          meta = { name: teaser, paragraphs: [] };
+          continue;
+        }
+      }
       if (nextLabel < METADATA_LABELS.length) {
         finishMeta();
         const expected = METADATA_LABELS[nextLabel];
-        if (key === expected.toLowerCase()) {
+        if (labelMatches(key, expected)) {
           meta = { name: expected, paragraphs: [] };
           nextLabel += 1;
         } else if (key === "summary") {
           errors.push("The Heading 1 “Summary” is not accepted. Use “Short Summary”, and place the labels in this order: Central Theme, Introduction, Short Summary.");
-        } else if (RESERVED_LABELS.has(key)) {
+        } else if (RESERVED_LABELS.has(foldLabel(key))) {
           errors.push(`The metadata label “${label}” is out of order. Expected “${expected}” next.`);
         } else {
           errors.push(`Expected the Heading 1 label “${expected}” but found “${label}”. The labels must appear in this order: Central Theme, Introduction, Short Summary.`);
@@ -491,7 +553,7 @@ export function parseTeachingDocxParts(parts: TeachingDocxParts): TeachingImport
       }
       finishMeta();
       closeCategory();
-      if (RESERVED_LABELS.has(key)) {
+      if (RESERVED_LABELS.has(foldLabel(key))) {
         errors.push(`The metadata label “${label}” appears more than once.`);
         continue;
       }
@@ -523,7 +585,7 @@ export function parseTeachingDocxParts(parts: TeachingDocxParts): TeachingImport
     if (meta) {
       if (block.kind === "normal") {
         if (block.hasNumbering) errors.push(`Metadata content under “${meta.name}” is a list item: ${describe(block)}.`);
-        else meta.paragraphs.push(meta.name === "Central Theme" ? inlinesToFormattedText(block.inlines.map((inline) => ({ ...inline, bold: false, italic: false, href: null })), formatContext) : formatted(block));
+        else meta.paragraphs.push(meta.name === "Central Theme" || (TEASER_LABELS as readonly string[]).includes(meta.name) ? inlinesToFormattedText(block.inlines.map((inline) => ({ ...inline, bold: false, italic: false, href: null })), formatContext) : formatted(block));
       } else {
         errors.push(`Metadata content under “${meta.name}” is styled ${block.styleName}: ${describe(block)}. It must use the Normal style.`);
       }
@@ -556,7 +618,7 @@ export function parseTeachingDocxParts(parts: TeachingDocxParts): TeachingImport
       }
     } else if (block.kind === "scripture") {
       flushRun();
-      const parsed = parseScripture(block.plain);
+      const parsed = parseScripture(block.plain, acceptedTranslations);
       if ("error" in parsed) {
         errors.push(`Scripture Quote ${describe(block)}: ${parsed.error}`);
         continue;
@@ -597,6 +659,22 @@ export function parseTeachingDocxParts(parts: TeachingDocxParts): TeachingImport
     if (summaryParagraphs.length > 1) errors.push("Short Summary must contain exactly one paragraph, but more than one was found.");
   }
 
+  const teaserField = (name: (typeof TEASER_LABELS)[number], limit: number) => {
+    const paragraphs = metaValues[name] ?? [];
+    if (!teaserSeen.includes(name)) return "";
+    if (paragraphs.length === 0) errors.push(`${name} has no content. Add exactly one Normal paragraph, or remove the label.`);
+    if (paragraphs.length > 1) errors.push(`${name} must contain exactly one paragraph, but more than one was found.`);
+    const value = paragraphs[0] ?? "";
+    if (value.length > limit) errors.push(`${name} is ${value.length} characters; the limit is ${limit}.`);
+    return value;
+  };
+  const teaser1Heading = teaserField("Homepage Teaser 1 Heading", TEACHING_IMPORT_LIMITS.teaserHeading);
+  const teaser1Text = teaserField("Homepage Teaser 1 Text", TEACHING_IMPORT_LIMITS.teaserText);
+  const teaser2Heading = teaserField("Homepage Teaser 2 Heading", TEACHING_IMPORT_LIMITS.teaserHeading);
+  const teaser2Text = teaserField("Homepage Teaser 2 Text", TEACHING_IMPORT_LIMITS.teaserText);
+  if (Boolean(teaser2Heading) !== Boolean(teaser2Text)) errors.push("Homepage Teaser 2 needs both its heading and its text, or neither.");
+  const source = readSourceProperties(parts.customPropertiesXml);
+
   const centralTheme = themeParagraphs[0] ?? "";
   const introduction = introductionParagraphs.join("\n\n");
   const summary = summaryParagraphs[0] ?? "";
@@ -611,10 +689,10 @@ export function parseTeachingDocxParts(parts: TeachingDocxParts): TeachingImport
   if (nestedListSeen) warnings.push("Nested bullet levels were found. All bullets are imported at a single level.");
 
   if (errors.length || title === null) return { ok: false, errors, warnings, teaching: null };
-  return { ok: true, errors, warnings, teaching: { title, centralTheme, introduction, summary, categories } };
+  return { ok: true, errors, warnings, teaching: { title, centralTheme, introduction, summary, teaser1Heading, teaser1Text, teaser2Heading, teaser2Text, sourceTeachingId: source.id, sourceTeachingType: source.type, categories } };
 }
 
-export function parseTeachingDocx(buffer: Buffer): TeachingImportResult {
+export function parseTeachingDocx(buffer: Buffer, options: TeachingImportOptions = {}): TeachingImportResult {
   try {
     const docx = openDocxPackage(buffer);
     const documentXml = docx.readPart("word/document.xml");
@@ -624,16 +702,34 @@ export function parseTeachingDocx(buffer: Buffer): TeachingImportResult {
       documentXml,
       stylesXml: docx.readPart("word/styles.xml"),
       relationshipsXml: docx.readPart("word/_rels/document.xml.rels"),
+      customPropertiesXml: docx.readPart("docProps/custom.xml"),
       hasComments: Boolean(comments && comments.includes("<w:comment ")),
-    });
+    }, options);
   } catch (error) {
     return { ok: false, errors: [error instanceof Error ? error.message : "The .docx document could not be read."], warnings: [], teaching: null };
   }
 }
 
 /** Suggests a gathering date from a leading YYYYMMDD in the file name. The administrator must confirm it. */
+/** Reads the id and type of the teaching an exported file came from, from the Word document's custom properties. */
+export function readSourceProperties(customPropertiesXml: string | null | undefined): { id: string | null; type: "standard" | "deep_dive" | null } {
+  const result: { id: string | null; type: "standard" | "deep_dive" | null } = { id: null, type: null };
+  if (!customPropertiesXml) return result;
+  try {
+    for (const property of findAll(parseXml(customPropertiesXml), "property")) {
+      const value = (function collect(node: XmlNode): string { return (node.text ?? "") + node.children.map(collect).join(""); })(property).trim();
+      if (property.attrs.name === "SourceTeachingId" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) result.id = value.toLowerCase();
+      if (property.attrs.name === "SourceTeachingType" && (value === "standard" || value === "deep_dive")) result.type = value;
+    }
+  } catch {
+    return { id: null, type: null };
+  }
+  return result;
+}
+
 export function suggestGatheringDate(fileName: string) {
-  const match = fileName.match(/^(\d{4})(\d{2})(\d{2})(?!\d)/);
+  // The date leads the file name, optionally after a language prefix: 20261010_teaching or es_20261010_teaching.
+  const match = fileName.match(/^(?:[a-z]{2}_)?(\d{4})(\d{2})(\d{2})(?!\d)/i);
   if (!match) return null;
   const value = `${match[1]}-${match[2]}-${match[3]}`;
   const parsed = new Date(`${value}T00:00:00Z`);

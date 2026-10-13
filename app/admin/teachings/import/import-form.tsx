@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { createTeachingFromImport, previewTeachingImport, type TeachingImportPreview } from "./actions";
 
-const LIMITS = { centralTheme: 400, introduction: 5000, summary: 600 };
+const LIMITS = { centralTheme: 400, introduction: 5000, summary: 600, teaserHeading: 100, teaserText: 300 };
 const FORMAT_LABEL = { paragraph: "Paragraph", bullets: "Bullets", scripture: "Scripture", takeaway: "Takeaway", quote: "Quote" } as const;
 
 function Count({ label, value, limit }: { label: string; value: string; limit: number }) {
@@ -27,6 +27,7 @@ export function TeachingImportForm() {
   const [preview, setPreview] = useState<TeachingImportPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gatheringDate, setGatheringDate] = useState("");
+  const [language, setLanguage] = useState<"en" | "es">("en");
   const [pending, startTransition] = useTransition();
 
   const resetPreview = () => {
@@ -66,11 +67,11 @@ export function TeachingImportForm() {
     <form ref={formRef} onSubmit={(event) => { event.preventDefault(); handlePreview(); }} className="space-y-6">
       <label className="block text-sm font-bold text-[#385245]">
         Language
-        <select name="language" defaultValue="en" onChange={resetPreview} disabled={pending} className="admin-input">
+        <select name="language" value={language} onChange={(event) => { setLanguage(event.target.value === "es" ? "es" : "en"); resetPreview(); }} disabled={pending} className="admin-input">
           <option value="en">English</option>
           <option value="es">Español</option>
         </select>
-        <span className="mt-1 block text-xs font-normal text-[#607066]">Which list the teaching appears under on the Teachings page.</span>
+        <span className="mt-1 block text-xs font-normal text-[#607066]">Which list the teaching appears under on the Teachings page. An Español teaching uses the Bible versions RVR1960 and NVI; an English teaching uses AMP, AMPC, ESV, KJV, NIV and NKJV.</span>
       </label>
       <label className="block text-sm font-bold text-[#385245]">
         Teaching document
@@ -108,7 +109,37 @@ export function TeachingImportForm() {
                 <Count label="Central Theme" value={teaching.centralTheme} limit={LIMITS.centralTheme} />
                 <Count label="Introduction" value={teaching.introduction} limit={LIMITS.introduction} />
                 <Count label="Short Summary" value={teaching.summary} limit={LIMITS.summary} />
+                {teaching.teaser1Heading || teaching.teaser1Text || teaching.teaser2Heading || teaching.teaser2Text ? (
+                  <>
+                    <Count label="Homepage teaser 1 heading" value={teaching.teaser1Heading} limit={LIMITS.teaserHeading} />
+                    <Count label="Homepage teaser 1 text" value={teaching.teaser1Text} limit={LIMITS.teaserText} />
+                    {teaching.teaser2Heading || teaching.teaser2Text ? (
+                      <>
+                        <Count label="Homepage teaser 2 heading" value={teaching.teaser2Heading} limit={LIMITS.teaserHeading} />
+                        <Count label="Homepage teaser 2 text" value={teaching.teaser2Text} limit={LIMITS.teaserText} />
+                      </>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="flex justify-between gap-4 text-sm"><dt className="text-[#607066]">Homepage teasers</dt><dd className="font-bold text-[#7a5a12]">None in this file</dd></div>
+                )}
               </dl>
+
+              {preview.source ? (
+                <div className="rounded-xl border border-[#1a4fb4]/20 bg-[#e8f0fe] p-4 text-sm text-[#1a3f8a]">
+                  <p className="font-extrabold">This file was exported from “{preview.source.title}” ({preview.source.language === "es" ? "Español" : "English"}).</p>
+                  {preview.source.language === language ? (
+                    <p className="mt-1">The Language above is the same as that teaching&apos;s, so it cannot be linked as its translation. Change the Language if this is a translation.</p>
+                  ) : preview.source.alreadyPaired ? (
+                    <p className="mt-1">That teaching already has a translation linked, so this draft will not be linked automatically. You can link it later from the edit page.</p>
+                  ) : (
+                    <label className="mt-2 flex items-start gap-3 font-bold">
+                      <input type="checkbox" name="linkSource" value={preview.source.id} defaultChecked disabled={pending} className="mt-1 h-4 w-4" />
+                      <span>Link this draft as the {language === "es" ? "Español" : "English"} version of “{preview.source.title}”. The two public pages will then point to each other once both are published.</span>
+                    </label>
+                  )}
+                </div>
+              ) : null}
 
               <div className="space-y-4">
                 {teaching.categories.map((category, categoryIndex) => (
@@ -133,7 +164,7 @@ export function TeachingImportForm() {
                 <span className="mt-1 block text-xs font-normal text-[#607066]">{preview.suggestedDate ? "Suggested from the file name. Confirm or change it." : "Optional. You can also set it later on the edit page."}</span>
               </label>
 
-              <p className="text-sm text-[#607066]">Approving creates a private <strong>draft</strong>. Teasers, chalkboards, footer, printable PDF link, teaching type, and publishing are completed afterward on the edit page.</p>
+              <p className="text-sm text-[#607066]">Approving creates a private <strong>draft</strong>. Chalkboards, the footer, the printable PDF link and publishing are completed afterward on the edit page.</p>
               <button type="button" onClick={handleCreate} disabled={pending || !preview.ok} className="admin-primary-button"><span>{pending ? "Creating draft..." : "Approve and create draft teaching"}</span></button>
             </>
           ) : null}

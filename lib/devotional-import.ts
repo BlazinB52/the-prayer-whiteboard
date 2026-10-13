@@ -22,6 +22,8 @@ export type ImportedDevotional = {
   days: ImportedDevotionalDay[];
   // Español when the file uses the Spanish day headings and labels.
   language: "en" | "es";
+  // Set when the file was exported from an existing devotional (a "# source-devotional: <id>" line).
+  sourceDevotionalId: string | null;
 };
 
 // English files use "Day 1:" headings and the English labels; Español files use "Día 1:" and the
@@ -128,16 +130,25 @@ function quoteBareAnchor(line: string) {
 function normalizeLines(text: string) {
   const lines: string[] = [];
   for (const rawLine of text.replace(/\r\n?/g, "\n").split("\n")) {
-    // Leftover **bold** markers from pasted text are not part of the wording.
-    const line = cleanText(rawLine.replace(/\*\*/g, ""));
-    if (!line) continue;
-    const label = canonicalLabel(line);
+    // A line that starts with # is a note to the person preparing the file (the translator's instructions, the
+    // source marker). It is never part of the devotional.
+    if (rawLine.trim().startsWith("#")) continue;
+    // Stray **bold** markers around a label, a day heading or an anchor Scripture are not part of the wording,
+    // so they are removed there. In the devotional's own text they are kept: they are the bold formatting.
+    const plain = cleanText(rawLine.replace(/\*\*/g, ""));
+    if (!plain) continue;
+    const label = canonicalLabel(plain);
     if (label) {
       lines.push(label);
       continue;
     }
-    for (const expanded of expandLabeledLine(line)) {
-      lines.push(expanded);
+    const expanded = expandLabeledLine(plain);
+    if (expanded.length > 1 || expanded[0] !== plain) {
+      lines.push(...expanded);
+    } else if (DAY_HEADING_PATTERN.test(plain)) {
+      lines.push(plain);
+    } else {
+      lines.push(cleanText(rawLine));
     }
   }
   return lines;
@@ -185,7 +196,7 @@ function parseDay(section: string[]): ImportedDevotionalDay {
   if (!match) throw new Error(`Invalid day heading: ${section[0]}`);
 
   const dayNumber = Number(match[1]);
-  const anchorScriptures = readBlock(section, "anchorScriptures").map(quoteBareAnchor);
+  const anchorScriptures = readBlock(section, "anchorScriptures").map((line) => quoteBareAnchor(line.replace(/\*\*/g, "")));
 
   if (dayNumber === COMMUNION_DAY_NUMBER) {
     // The Communion and rest day. A Day 7 written in the old format (journal prompt and prayer
@@ -233,7 +244,7 @@ function parseDay(section: string[]): ImportedDevotionalDay {
   };
 }
 
-function validateImportedDevotional(devotional: Omit<ImportedDevotional, "language">) {
+function validateImportedDevotional(devotional: Omit<ImportedDevotional, "language" | "sourceDevotionalId">) {
   if (!devotional.title) throw new Error("The devotional title is missing.");
   if (devotional.title.length > 180) throw new Error("The devotional title must be 180 characters or fewer.");
   if (devotional.introduction.length > 8000) throw new Error("The devotional introduction must be 8,000 characters or fewer.");
@@ -283,11 +294,12 @@ export function parseDevotionalText(text: string): ImportedDevotional {
     throw new Error("The file must start with a devotional title before Day 1.");
   }
 
-  const title = lines[0];
+  const title = lines[0].replace(/\*\*/g, "");
   const introduction = lines.slice(1, firstDayIndex).join("\n");
   const days = splitDaySections(lines.slice(firstDayIndex)).map(parseDay);
   const devotional = { title, introduction, days };
   validateImportedDevotional(devotional);
   const language = lines.slice(firstDayIndex).some((line) => SPANISH_DAY_HEADING_PATTERN.test(line)) ? "es" : "en";
-  return { ...devotional, language };
+  const sourceMatch = text.match(/^\s*#\s*source-devotional:\s*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\s*$/im);
+  return { ...devotional, language, sourceDevotionalId: sourceMatch ? sourceMatch[1].toLowerCase() : null };
 }

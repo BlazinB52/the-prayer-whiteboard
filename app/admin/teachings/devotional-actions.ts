@@ -510,7 +510,7 @@ export async function createStandaloneDevotional(previousState: DevotionalFormSt
 // slugs but still rejects duplicate real ones, so retry on 23505 the way createTeaching does.
 async function insertStandaloneDraft(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
-  input: { title: string; introduction: string | null; language: "en" | "es" },
+  input: { title: string; introduction: string | null; language: "en" | "es"; translationOf?: string | null },
 ): Promise<{ id: string; slug: string } | { error: string }> {
   const baseSlug = slugifyDevotionalTitle(input.title);
 
@@ -522,6 +522,7 @@ async function insertStandaloneDraft(
         teaching_id: null,
         slug,
         language: input.language,
+        translation_of: input.translationOf ?? null,
         title: input.title,
         introduction: input.introduction,
         status: "draft",
@@ -555,7 +556,19 @@ export async function createStandaloneDevotionalFromFile(previousState: Devotion
       : "You chose English, but this file is written in Español. Choose Español, or pick the English file." };
   }
 
-  const created = await insertStandaloneDraft(supabase, { title: imported.title, introduction: imported.introduction || null, language });
+  // A file exported for translation names the devotional it came from. If the Administrator asked for it, the
+  // new draft is linked to that devotional as its translation (only when it is in the other language and
+  // neither one is already paired). Otherwise it is created unlinked, and can be linked later.
+  let translationOf: string | null = null;
+  if (formData.get("linkSource") && imported.sourceDevotionalId) {
+    const { data: original } = await supabase.from("teaching_devotionals").select("id, language, translation_of").eq("id", imported.sourceDevotionalId).maybeSingle();
+    if (original && original.language !== language && !original.translation_of) {
+      const { data: pointingAtIt } = await supabase.from("teaching_devotionals").select("id").eq("translation_of", original.id).limit(1);
+      if (!(pointingAtIt ?? []).length) translationOf = original.id as string;
+    }
+  }
+
+  const created = await insertStandaloneDraft(supabase, { title: imported.title, introduction: imported.introduction || null, language, translationOf });
   if ("error" in created) return { error: created.error };
 
   const { error: daysError } = await supabase

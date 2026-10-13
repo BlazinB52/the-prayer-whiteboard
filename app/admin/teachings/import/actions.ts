@@ -11,9 +11,19 @@ import {
 } from "@/lib/teaching-docx-import";
 import { MAX_TEACHING_DOCX_BYTES } from "@/lib/teaching-docx-package";
 
+/** The teaching an exported file came from, when the file says so and that teaching still exists. */
+export type TeachingImportSource = {
+  id: string;
+  title: string;
+  language: "en" | "es";
+  /** True when the original already has a translation linked, or is itself a translation of something else. */
+  alreadyPaired: boolean;
+};
+
 export type TeachingImportPreview = {
   fileName: string;
   suggestedDate: string | null;
+  source: TeachingImportSource | null;
   ok: boolean;
   errors: string[];
   warnings: string[];
@@ -44,8 +54,23 @@ async function readImportFile(formData: FormData) {
   if (!DOCX_EXTENSION.test(file.name)) return { error: "The teaching document must be a .docx file." };
   if (file.size > MAX_TEACHING_DOCX_BYTES) return { error: "The .docx file must be 8 MiB or smaller." };
 
-  const result = parseTeachingDocx(Buffer.from(await file.arrayBuffer()));
-  return { fileName: file.name, result };
+  const language = formData.get("language") === "es" ? "es" : "en";
+  const result = parseTeachingDocx(Buffer.from(await file.arrayBuffer()), { language });
+  return { fileName: file.name, language, result };
+}
+
+/** Looks up the teaching an exported file says it came from. A missing or unreadable one simply means "no link offered". */
+async function findSource(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], sourceId: string | null): Promise<TeachingImportSource | null> {
+  if (!sourceId) return null;
+  const { data: original } = await supabase.from("teachings").select("id, title, language, translation_of").eq("id", sourceId).maybeSingle();
+  if (!original) return null;
+  const { data: pointingAtIt } = await supabase.from("teachings").select("id").eq("translation_of", sourceId).limit(1);
+  return {
+    id: original.id as string,
+    title: String(original.title ?? ""),
+    language: original.language === "es" ? "es" : "en",
+    alreadyPaired: Boolean(original.translation_of) || (pointingAtIt ?? []).length > 0,
+  };
 }
 
 function readGatheringDate(formData: FormData) {
@@ -60,7 +85,7 @@ function readGatheringDate(formData: FormData) {
 
 /** Step 1: validate the whole document and return a preview. Nothing is saved. */
 export async function previewTeachingImport(formData: FormData): Promise<TeachingImportPreviewState> {
-  await requireAdmin();
+  const { supabase } = await requireAdmin();
   const file = await readImportFile(formData);
   if ("error" in file) return { error: file.error };
 
@@ -68,6 +93,7 @@ export async function previewTeachingImport(formData: FormData): Promise<Teachin
     preview: {
       fileName: file.fileName,
       suggestedDate: suggestGatheringDate(file.fileName),
+      source: await findSource(supabase, file.result.teaching?.sourceTeachingId ?? null),
       ok: file.result.ok,
       errors: file.result.errors,
       warnings: file.result.warnings,
@@ -95,6 +121,14 @@ export async function createTeachingFromImport(formData: FormData): Promise<Teac
   const baseSlug = slugify(teaching.title, "teaching");
   let teachingId: string | null = null;
 
+  // Link the new draft to the teaching the file was exported from, only if the Administrator asked for it, that
+  // teaching is in the other language, and neither side is already paired. (A translation link is stored on one side.)
+  let translationOf: string | null = null;
+  if (formData.get("linkSource") && teaching.sourceTeachingId && String(formData.get("linkSource")) === teaching.sourceTeachingId) {
+    const source = await findSource(supabase, teaching.sourceTeachingId);
+    if (source && !source.alreadyPaired && source.language !== file.language) translationOf = source.id;
+  }
+
   for (let suffix = 0; suffix <= 99 && !teachingId; suffix += 1) {
     const { data, error } = await supabase
       .from("teachings")
@@ -104,12 +138,13 @@ export async function createTeachingFromImport(formData: FormData): Promise<Teac
         introduction: teaching.introduction || null,
         summary: teaching.summary || null,
         gathering_date: gatheringDate.value,
-        teaching_type: "standard",
-        language: formData.get("language") === "es" ? "es" : "en",
-        teaser_1_heading: null,
-        teaser_1_text: null,
-        teaser_2_heading: null,
-        teaser_2_text: null,
+        teaching_type: teaching.sourceTeachingType === "deep_dive" ? "deep_dive" : "standard",
+        language: file.language,
+        translation_of: translationOf,
+        teaser_1_heading: teaching.teaser1Heading || null,
+        teaser_1_text: teaching.teaser1Text || null,
+        teaser_2_heading: teaching.teaser2Heading || null,
+        teaser_2_text: teaching.teaser2Text || null,
         slug: suffix === 0 ? baseSlug : `${baseSlug}-${suffix}`,
         status: "draft",
         is_featured: false,

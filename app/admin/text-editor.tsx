@@ -46,7 +46,7 @@ export function AdminTextEditor({ action, fields, unit = "paragraph", structureA
 
   const changeStructure = (kind: "insert" | "delete", fieldKey: string) => {
     if (!structureAction) return;
-    if (kind === "delete" && !window.confirm("Delete this from the outline? This cannot be undone here.")) return;
+    if (kind === "delete" && !window.confirm("Delete this? This cannot be undone here.")) return;
     setStructureError(null);
     startStructure(async () => {
       const result = await structureAction(kind, fieldKey);

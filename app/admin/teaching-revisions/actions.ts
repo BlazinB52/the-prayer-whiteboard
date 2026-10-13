@@ -21,11 +21,12 @@ function refresh(revisionId?: string) {
   revalidatePath("/admin/devotionals");
   revalidatePath("/admin/weekly-updates");
   revalidatePath("/admin/outlines");
+  revalidatePath("/admin/handouts");
 }
 
 type AdminSupabase = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
 
-// A revision belongs to a teaching, devotional, weekly update or outline; each has its own review functions
+// A revision belongs to a teaching, devotional, weekly update, outline or handout; each has its own review functions
 // in the database, named in lib/review-subjects.ts.
 async function revisionSubject(supabase: AdminSupabase, revisionId: string) {
   const { data } = await supabase.from("content_revisions").select("subject_type").eq("id", revisionId).maybeSingle();

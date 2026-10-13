@@ -61,7 +61,7 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
         <header className="mt-4 border-b border-[#284a3b]/10 pb-8">
           <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Revisions</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
-            Co-editors propose changes to draft teachings, devotionals, weekly updates and teaching outlines here. Nothing changes until you accept it. Finished reviews stay in Review history, with what was accepted and rejected, until you clear them.
+            Co-editors propose changes to draft teachings, devotionals, weekly updates, teaching outlines and handouts here. Nothing changes until you accept it. Finished reviews stay in Review history, with what was accepted and rejected, until you clear them.
           </p>
         </header>
 

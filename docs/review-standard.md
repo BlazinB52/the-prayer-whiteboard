@@ -1,6 +1,6 @@
 # The review standard
 
-Teachings, 7-day devotionals, weekly updates and teaching outlines all go through the same Content Manager
+Teachings, 7-day devotionals, weekly updates, teaching outlines and handouts all go through the same Content Manager
 review cycle. This page is the one description of it, and the checklist for putting another kind of content
 through it.
 
@@ -24,6 +24,14 @@ through it.
    in the history until the Administrator clears it.
 
 Only drafts go through the cycle. To change a published item, unpublish it first.
+
+**Handouts** are the one kind that is never published. The Administrator uploads the Word handout at
+`/admin/handouts` (styles from `docs/handout-template.docx`: Heading 1 section title, Subtitle, Heading 2
+paragraph title, Normal, List Bullet, Quote), sends it for review, decides the proposals, and then copies
+the text from **Final text to copy** into the Word handout by hand. Every handout carries the date of the
+teaching it goes with (`gathering_date`, required; read from a file name such as `en_20261010_...docx`).
+That date is shown with `app/teaching-date-label.tsx` (formatting in `lib/teaching-date.ts`); the other
+publications should use the same label when they get their date.
 
 ## Where things live
 

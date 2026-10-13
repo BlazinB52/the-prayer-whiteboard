@@ -13,7 +13,7 @@ const read = (file) => readFile(file, "utf8");
 // ---------------------------------------------------------------------------
 
 test("teaching outlines are one of the reviewed kinds, alongside teachings, devotionals and weekly updates", () => {
-  assert.deepEqual([...REVIEW_SUBJECT_KINDS], ["teaching", "devotional", "weekly_update", "outline"]);
+  assert.deepEqual([...REVIEW_SUBJECT_KINDS], ["teaching", "devotional", "weekly_update", "outline", "handout"]);
   assert.equal(REVIEW_SUBJECTS.outline.reviewFolder, "outline-review");
   assert.equal(REVIEW_SUBJECTS.outline.adminPath("abc"), "/admin/outlines/abc");
   assert.equal(REVIEW_SUBJECTS.outline.reviewOneRpc, "review_outline_revision_change");
@@ -25,7 +25,7 @@ test("teaching outlines are one of the reviewed kinds, alongside teachings, devo
 });
 
 test("every kind except the weekly update has the Administrator's gate", () => {
-  assert.deepEqual(REVIEW_SUBJECT_KINDS.filter((kind) => REVIEW_SUBJECTS[kind].gateTable !== null), ["teaching", "devotional", "outline"]);
+  assert.deepEqual(REVIEW_SUBJECT_KINDS.filter((kind) => REVIEW_SUBJECTS[kind].gateTable !== null), ["teaching", "devotional", "outline", "handout"]);
   assert.equal(REVIEW_SUBJECTS.weekly_update.gateTable, null);
 });
 
@@ -36,7 +36,7 @@ test("an unknown subject type falls back to a teaching, so a bad value can never
 });
 
 test("the existing review functions are the ones the registry names", async () => {
-  const sql = (await read("supabase/migrations/20261006030000_content_revisions.sql")) + (await read("supabase/migrations/20261007020000_devotional_revisions.sql")) + (await read("supabase/migrations/20261007040000_weekly_update_revisions.sql")) + (await read("supabase/migrations/20261011030000_outline_review.sql"));
+  const sql = (await read("supabase/migrations/20261006030000_content_revisions.sql")) + (await read("supabase/migrations/20261007020000_devotional_revisions.sql")) + (await read("supabase/migrations/20261007040000_weekly_update_revisions.sql")) + (await read("supabase/migrations/20261011030000_outline_review.sql")) + (await read("supabase/migrations/20261013000000_handout_review.sql"));
   for (const kind of REVIEW_SUBJECT_KINDS) {
     for (const name of [REVIEW_SUBJECTS[kind].reviewOneRpc, REVIEW_SUBJECTS[kind].reviewAllRpc]) {
       assert.match(sql, new RegExp(`create or replace function public\\.${name}\\(`), name);

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { notifyContentManagers } from "@/lib/review-ready-send";
 import { REVIEW_SUBJECTS, gateTableFor, type GatedKind } from "@/lib/review-subjects";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { formatTeachingDateShort } from "@/lib/teaching-date";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -40,7 +41,13 @@ export async function sendForReview(kind: GateKind, id: string) {
   if (!data) redirect(`${pagePath(kind, id)}?review=already`);
 
   const { data: me } = await supabase.from("admin_authorizations").select("display_name").eq("user_id", user.id).maybeSingle();
-  const notified = await notifyContentManagers({ kind, id, title: String(data.title ?? ""), senderName: me?.display_name ?? null });
+  // A handout is named with the date of the teaching it goes with, so the email makes clear which one.
+  let title = String(data.title ?? "");
+  if (kind === "handout") {
+    const { data: handout } = await supabase.from("teaching_handouts").select("gathering_date").eq("id", id).maybeSingle();
+    if (handout?.gathering_date) title = `${title} (teaching of ${formatTeachingDateShort(handout.gathering_date)})`;
+  }
+  const notified = await notifyContentManagers({ kind, id, title, senderName: me?.display_name ?? null });
 
   refresh(kind, id);
   const outcome = notified.recipients === 0 ? "nocm" : notified.failed > 0 ? "partial" : "sent";

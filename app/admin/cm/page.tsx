@@ -45,6 +45,12 @@ const tools = [
     status: "Available",
     href: "/admin/cm/outline-review",
   },
+  {
+    title: "Handout - Review",
+    description: "Propose changes to handouts the Administrator sends you. Each shows the date of the teaching it goes with. Changes are proposals only until an Administrator accepts them.",
+    status: "Available",
+    href: "/admin/cm/handout-review",
+  },
 ];
 
 export default async function ContentManagementPage() {

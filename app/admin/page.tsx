@@ -29,7 +29,7 @@ const tools = [
   },
   {
     title: "Revisions",
-    description: "Review changes that co-editors propose to draft teachings, devotionals, weekly updates and teaching outlines, and accept or reject each one.",
+    description: "Review changes that co-editors propose to draft teachings, devotionals, weekly updates, teaching outlines and handouts, and accept or reject each one.",
     status: "Available",
     href: "/admin/teaching-revisions",
   },
@@ -68,6 +68,12 @@ const tools = [
     description: "Upload teacher's outlines from Word and file them by category.",
     status: "Available",
     href: "/admin/outlines",
+  },
+  {
+    title: "Handouts",
+    description: "Upload a handout from Word, send it to the Content Managers to proof, and copy the final text. Each is tied to its teaching date.",
+    status: "Available",
+    href: "/admin/handouts",
   },
   {
     title: "Content Managers",

@@ -71,7 +71,7 @@ type Action = (state: TeachingReviewState, formData: FormData) => Promise<Teachi
 
 // submitsAsOk: submitting is the editor's one and only pass and also tells the Administrator the item is OK to
 // publish, so it is allowed with no changes and the wording says so plainly.
-export function ReviewEditForm({ action, fields, canEdit, subject = "teaching", submitsAsOk = false }: { action: Action; fields: ReviewFormField[]; canEdit: boolean; subject?: "teaching" | "devotional" | "weekly update" | "teaching outline"; submitsAsOk?: boolean }) {
+export function ReviewEditForm({ action, fields, canEdit, subject = "teaching", submitsAsOk = false }: { action: Action; fields: ReviewFormField[]; canEdit: boolean; subject?: "teaching" | "devotional" | "weekly update" | "teaching outline" | "handout"; submitsAsOk?: boolean }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(fields.map((field) => [field.id, field.value])));
   const setValue = (id: string, value: string) => setValues((current) => ({ ...current, [id]: value }));

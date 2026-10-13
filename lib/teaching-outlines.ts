@@ -47,15 +47,15 @@ export type OutlineParseResult = {
 
 const SPACES = /[ \t ]+/g;
 
-function normalizeStyleKey(value: string) {
+export function normalizeStyleKey(value: string) {
   return value.toLowerCase().replace(/[\s_-]+/g, "");
 }
 
 // --- numbering (bullet vs. numbered) --------------------------------------
 
-type NumberingInfo = { isOrdered(numId: string, level: number): boolean };
+export type NumberingInfo = { isOrdered(numId: string, level: number): boolean };
 
-function readNumbering(numberingXml: string | null | undefined): NumberingInfo {
+export function readNumbering(numberingXml: string | null | undefined): NumberingInfo {
   const formats = new Map<string, Map<number, string>>();
   const abstractByNum = new Map<string, string>();
   if (numberingXml) {
@@ -83,9 +83,9 @@ function readNumbering(numberingXml: string | null | undefined): NumberingInfo {
 
 // --- inline handling --------------------------------------------------------
 
-type Context = { badLinks: string[] };
+export type Context = { badLinks: string[] };
 
-function toInlines(raw: Inline[], context: Context): OutlineInline[] {
+export function toInlines(raw: Inline[], context: Context): OutlineInline[] {
   const merged: OutlineInline[] = [];
   for (const inline of raw) {
     let href: string | undefined;

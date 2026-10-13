@@ -1,0 +1,112 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { TeachingDateLabel } from "@/app/teaching-date-label";
+import { requireContentManager } from "@/lib/supabase/admin";
+
+export const metadata: Metadata = {
+  title: "Handout - Review",
+  robots: { index: false, follow: false },
+};
+
+type RevisionRow = {
+  id: string;
+  handout_id: string | null;
+  subject_title: string;
+  status: "draft" | "submitted" | "completed" | "cancelled";
+  submitted_at: string | null;
+  completed_at: string | null;
+  total_changes: number;
+  accepted_count: number;
+  rejected_count: number;
+};
+
+const STATUS_LABELS: Record<RevisionRow["status"], string> = {
+  draft: "Your draft",
+  submitted: "Awaiting review",
+  completed: "Reviewed",
+  cancelled: "Closed",
+};
+
+function formatDate(value: string | null) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "America/Chicago" }).format(new Date(value));
+}
+
+export default async function HandoutReviewListPage() {
+  const { supabase } = await requireContentManager();
+  // The database only returns handouts the Administrator has sent, so this list is the whole gate.
+  const [{ data: handouts, error }, { data: revisions }] = await Promise.all([
+    supabase.from("teaching_handouts").select("id, title, gathering_date, updated_at").order("gathering_date", { ascending: false }),
+    supabase
+      .from("content_revisions")
+      .select("id, handout_id, subject_title, status, submitted_at, completed_at, total_changes, accepted_count, rejected_count")
+      .eq("subject_type", "handout")
+      .order("created_at", { ascending: false }),
+  ]);
+
+  const mine = (revisions ?? []) as RevisionRow[];
+  const openByHandout = new Map<string, RevisionRow>();
+  for (const revision of mine) {
+    if (revision.handout_id && (revision.status === "draft" || revision.status === "submitted") && !openByHandout.has(revision.handout_id)) {
+      openByHandout.set(revision.handout_id, revision);
+    }
+  }
+  const finished = mine.filter((revision) => revision.status === "completed" || revision.status === "cancelled");
+
+  return (
+    <main className="min-h-screen bg-[#f7f2e8] px-5 py-8 text-[#243126] sm:px-8 sm:py-12">
+      <div className="mx-auto max-w-4xl">
+        <Link href="/admin/cm" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Content Management</Link>
+        <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31] sm:text-5xl">Handout - Review</h1>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
+          Choose a handout to review. Each one goes with the teaching on the date shown. Your edits are proposals only: the handout does not change until an Administrator accepts them.
+        </p>
+
+        {error ? <p className="mt-6 text-sm font-bold text-[#a2472c]">Handouts could not be loaded.</p> : null}
+
+        <section className="mt-8">
+          <h2 className="border-b border-[#284a3b]/10 pb-3 text-2xl font-extrabold text-[#243d31]">
+            Sent to you for review <span className="text-sm font-bold text-[#607066]">({handouts?.length ?? 0})</span>
+          </h2>
+          {handouts?.length ? (
+            <ul className="divide-y divide-[#284a3b]/10">
+              {handouts.map((handout) => {
+                const open = openByHandout.get(handout.id);
+                return (
+                  <li key={handout.id}>
+                    <Link href={`/admin/cm/handout-review/${handout.id}`} className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 px-2 py-3 transition hover:bg-[#e7efe9]/60">
+                      <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{handout.title.trim() || "Untitled handout"}</span>
+                      <TeachingDateLabel date={handout.gathering_date} />
+                      {open ? <span className="rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a4fb4]">{STATUS_LABELS[open.status]}</span> : null}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="py-4 text-sm text-[#607066]">Nothing has been sent to you for review right now. The Administrator sends a handout when it is ready, and you will get an email.</p>
+          )}
+        </section>
+
+        {finished.length ? (
+          <section className="mt-10">
+            <h2 className="border-b border-[#284a3b]/10 pb-3 text-2xl font-extrabold text-[#243d31]">Your recent reviews</h2>
+            <ul className="divide-y divide-[#284a3b]/10">
+              {finished.map((revision) => (
+                <li key={revision.id} className="flex flex-wrap items-center gap-3 px-2 py-3 text-sm">
+                  <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{revision.subject_title}</span>
+                  <span className="text-[#607066]">
+                    {revision.status === "completed"
+                      ? `${revision.accepted_count} accepted, ${revision.rejected_count} rejected`
+                      : "Closed without a decision"}
+                  </span>
+                  <span className="text-[#607066]">{formatDate(revision.completed_at)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </div>
+    </main>
+  );
+}

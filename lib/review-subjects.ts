@@ -1,13 +1,13 @@
 // The one list of things that go through the Content Manager review cycle (teachings, devotionals,
-// weekly updates, teaching outlines). Every screen, email and action that has to know "which kind is this?"
+// weekly updates, teaching outlines, handouts). Every screen, email and action that has to know "which kind is this?"
 // looks it up here instead of keeping its own list, so a new reviewed type is added in one place (plus its
 // database functions; see docs/review-standard.md).
 
-export const REVIEW_SUBJECT_KINDS = ["teaching", "devotional", "weekly_update", "outline"] as const;
+export const REVIEW_SUBJECT_KINDS = ["teaching", "devotional", "weekly_update", "outline", "handout"] as const;
 export type ReviewSubjectKind = (typeof REVIEW_SUBJECT_KINDS)[number];
 
 /** Tables that carry the Administrator's gate (sent_for_review_at). Weekly updates send to chosen people instead. */
-export type GateTable = "teachings" | "teaching_devotionals" | "teaching_outlines";
+export type GateTable = "teachings" | "teaching_devotionals" | "teaching_outlines" | "teaching_handouts";
 
 export type ReviewSubject = {
   /** Used in sentences: "this teaching". */
@@ -67,6 +67,16 @@ export const REVIEW_SUBJECTS: Record<ReviewSubjectKind, ReviewSubject> = {
     reviewOneRpc: "review_outline_revision_change",
     reviewAllRpc: "review_all_outline_revision_changes",
     gateTable: "teaching_outlines",
+  },
+  handout: {
+    noun: "handout",
+    emailNoun: "handout",
+    badge: "Handout",
+    reviewFolder: "handout-review",
+    adminPath: (id) => `/admin/handouts/${id}`,
+    reviewOneRpc: "review_handout_revision_change",
+    reviewAllRpc: "review_all_handout_revision_changes",
+    gateTable: "teaching_handouts",
   },
 };
 

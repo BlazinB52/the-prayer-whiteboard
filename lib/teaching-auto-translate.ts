@@ -298,8 +298,10 @@ async function callClaude(group: TranslationSegment[], options: Required<Pick<Au
       max_tokens: MAX_OUTPUT_TOKENS,
       system: translationSystemPrompt(),
       tools: [SAVE_TOOL],
-      tool_choice: { type: "tool", name: SAVE_TOOL.name },
-      messages: [{ role: "user", content: `Translate these segments. Return every id.\n\n${JSON.stringify({ segments: group.map((segment) => ({ id: segment.id, kind: segment.kind, text: segment.text, ...(segment.note ? { note: segment.note } : {}) })) }, null, 2)}` }],
+      // Current models (Claude Opus 5.5 and later) reject a forced tool call with a 400, so the model chooses ("auto") and the
+      // prompt names the tool. If it answers without calling the tool, that is caught below as an unexpected answer and retried.
+      tool_choice: { type: "auto" },
+      messages: [{ role: "user", content: `Translate these segments. Return every id. Call the ${SAVE_TOOL.name} tool with the result; do not answer in plain text.\n\n${JSON.stringify({ segments: group.map((segment) => ({ id: segment.id, kind: segment.kind, text: segment.text, ...(segment.note ? { note: segment.note } : {}) })) }, null, 2)}` }],
     }),
   });
   const payload = await response.json().catch(() => null);

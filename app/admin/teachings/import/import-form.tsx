@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { createTeachingFromImport, previewTeachingImport, type TeachingImportPreview } from "./actions";
 
-const LIMITS = { centralTheme: 400, introduction: 5000, summary: 600, teaserHeading: 100, teaserText: 350 };
+const LIMITS = { centralTheme: 400, introduction: 5000, summary: 800, teaserHeading: 100, teaserText: 350 };
 const FORMAT_LABEL = { paragraph: "Paragraph", bullets: "Bullets", scripture: "Scripture", takeaway: "Takeaway", quote: "Quote" } as const;
 
 function Count({ label, value, limit }: { label: string; value: string; limit: number }) {

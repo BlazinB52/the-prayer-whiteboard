@@ -128,7 +128,7 @@ test("a long translation is kept whole: over the website limit, the save stops i
   const long = "Resumen largo. ".repeat(60);
   await assert.rejects(
     translateTeaching(teaching, categories, sections, { apiKey: "test", fetchImpl: fakeFetch({ override: { "teaching.summary": long } }) }),
-    /Short Summary is \d+ characters in Spanish, over the website's 600-character limit\. Nothing was saved and nothing was cut/,
+    /Short Summary is \d+ characters in Spanish, over the website's 800-character limit\. Nothing was saved and nothing was cut/,
   );
   const fits = await translateTeaching(teaching, categories, sections, { apiKey: "test", fetchImpl: fakeFetch({ override: { "teaching.summary": "Resumen completo." } }) });
   assert.equal(fits.teaching.summary, "Resumen completo.");

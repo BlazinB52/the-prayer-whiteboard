@@ -4,7 +4,7 @@ import { getAuthorizedUser } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { buildTeachingTranslationDocx, type ExportCategory, type ExportSection, type ExportTeaching } from "@/lib/teaching-docx-export";
 import { parseTeachingDocx } from "@/lib/teaching-docx-import";
-import { translateTeaching, type TeacherGender } from "@/lib/teaching-auto-translate";
+import { translateTeaching } from "@/lib/teaching-auto-translate";
 import { createDraftTeaching } from "@/lib/teaching-create";
 
 export const runtime = "nodejs";
@@ -13,7 +13,6 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const TEACHERS: TeacherGender[] = ["woman", "man", "unknown"];
 
 // "Convert & Save Spanish Version": translates an English teaching into Español (El Salvador, voseo) and saves
 // it as a new Spanish draft linked to the English one. The English teaching is only read, never changed. The
@@ -28,7 +27,6 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const teachingId = String(body?.teaching_id ?? "").trim();
-  const teacher = TEACHERS.includes(body?.teacher) ? (body.teacher as TeacherGender) : "unknown";
   if (!UUID_PATTERN.test(teachingId)) return NextResponse.json({ error: "A valid teaching_id is required." }, { status: 400 });
 
   const supabase = await createClient();
@@ -58,7 +56,6 @@ export async function POST(request: Request) {
     translated = await translateTeaching(teaching as ExportTeaching, (categories ?? []) as ExportCategory[], (sections ?? []) as ExportSection[], {
       apiKey,
       model: process.env.ANTHROPIC_TRANSLATION_MODEL?.trim() || undefined,
-      teacher,
     });
   } catch (translateError) {
     return NextResponse.json({ error: translateError instanceof Error ? translateError.message : "The translation failed. Nothing was saved." }, { status: 502 });

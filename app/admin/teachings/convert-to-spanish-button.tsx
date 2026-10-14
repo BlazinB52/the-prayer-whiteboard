@@ -10,7 +10,6 @@ type Result =
 
 // Admin control for "Convert & Save Spanish Version". The admin side stays in English; only the new draft is Spanish.
 export function ConvertToSpanishButton({ teachingId }: { teachingId: string }) {
-  const [teacher, setTeacher] = useState("unknown");
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
 
@@ -21,7 +20,7 @@ export function ConvertToSpanishButton({ teachingId }: { teachingId: string }) {
       const response = await fetch("/api/admin/teaching/translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teaching_id: teachingId, teacher }),
+        body: JSON.stringify({ teaching_id: teachingId }),
       });
       const payload = await response.json().catch(() => null);
       if (response.ok && payload?.editUrl) {
@@ -40,17 +39,9 @@ export function ConvertToSpanishButton({ teachingId }: { teachingId: string }) {
     <div className="mt-5 space-y-4 border-t border-[#284a3b]/10 pt-5">
       <h3 className="text-lg font-extrabold text-[#243d31]">Convert &amp; Save Spanish Version</h3>
       <p className="text-sm leading-6 text-[#607066]">
-        Translates this teaching into Español (El Salvador, with the vos forms) and saves it as a new Spanish draft, linked to this one. Scripture quotations use the RVR1960. This teaching is not changed. It usually takes one to two minutes. Afterwards, open the draft to review it, choose its chalkboard and footer, and publish it as usual.
+        Translates this teaching into Español (El Salvador, with the vos forms) following the Spanish Translation Rules, and saves it as a new Spanish draft, linked to this one. Scripture quotations use the RVR1960, and any field shortened to fit its character limit is listed for review. This teaching is not changed. It usually takes one to two minutes. Afterwards, open the draft to review it, choose its chalkboard and footer, and publish it as usual.
       </p>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <label className="text-sm font-bold text-[#385245] sm:w-64">
-          Who taught this teaching?
-          <select value={teacher} onChange={(event) => setTeacher(event.target.value)} className="admin-input mt-1" disabled={pending}>
-            <option value="unknown">Not specified</option>
-            <option value="woman">A woman (la maestra)</option>
-            <option value="man">A man (el maestro)</option>
-          </select>
-        </label>
+      <div>
         <button type="button" onClick={convert} disabled={pending} className="admin-primary-button min-h-12 disabled:cursor-not-allowed disabled:opacity-60">
           <span className="!text-white">{pending ? "Translating… please keep this page open" : "Convert & Save Spanish Version"}</span>
         </button>

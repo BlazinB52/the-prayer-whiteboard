@@ -359,7 +359,10 @@ test("a leading YYYYMMDD in the file name suggests a gathering date", () => {
 });
 
 test("the importer adds no schema changes and writes only to the existing teaching tables", async () => {
-  const source = await readFile("app/admin/teachings/import/actions.ts", "utf8");
+  // The importer saves through the shared draft creator (also used by Convert & Save Spanish Version).
+  const actions = await readFile("app/admin/teachings/import/actions.ts", "utf8");
+  assert.match(actions, /createDraftTeaching\(/);
+  const source = actions + (await readFile("lib/teaching-create.ts", "utf8"));
   const tables = [...source.matchAll(/\.from\("([a-z_]+)"\)/g)].map((match) => match[1]);
   assert.deepEqual([...new Set(tables)].sort(), ["teaching_categories", "teaching_sections", "teachings"]);
   assert.doesNotMatch(source, /\.rpc\(/);

@@ -9,15 +9,12 @@
 
 import type { ExportCategory, ExportSection, ExportTeaching } from "./teaching-docx-export.ts";
 
-export type TeacherGender = "woman" | "man" | "unknown";
-
 export type TranslationSegmentKind = "heading" | "text" | "scripture_reference" | "scripture_verse";
-export type TranslationSegment = { id: string; kind: TranslationSegmentKind; text: string; note?: string };
+export type TranslationSegment = { id: string; kind: TranslationSegmentKind; text: string; note?: string; limit?: number };
 
 export type AutoTranslateOptions = {
   apiKey: string;
   model?: string;
-  teacher?: TeacherGender;
   fetchImpl?: typeof fetch;
   /** How many requests run at once. Each category is one request, plus one for the title and summary fields. */
   concurrency?: number;
@@ -38,46 +35,67 @@ export const SPANISH_SCRIPTURE_VERSION = "RVR1960";
 const API_URL = "https://api.anthropic.com/v1/messages";
 const MAX_OUTPUT_TOKENS = 32000;
 
-const TEACHER_LINE: Record<TeacherGender, string> = {
-  woman: 'The person who taught is a woman: call her "la maestra" and use feminine agreement for her.',
-  man: 'The person who taught is a man: call him "el maestro" and use masculine agreement for him.',
-  unknown: 'The teacher\'s gender is not given. Follow the English pronouns when there are any ("she" → "la maestra", "he" → "el maestro"); otherwise use neutral wording such as "la enseñanza explicó" or "quien enseñó". Never use "el docente".',
-};
+/**
+ * Website field limits a translated field must fit. Each is the stricter of the translation rules document
+ * and what the site itself accepts (the Español importer and the database), so a draft can always be saved.
+ */
+export const SPANISH_FIELD_LIMITS = {
+  title: 160,
+  centralTheme: 300,
+  introduction: 5000,
+  summary: 600,
+  teaserHeading: 100,
+  teaserText: 350,
+  heading: 160,
+  sectionText: 12000,
+} as const;
 
-export function translationSystemPrompt(teacher: TeacherGender = "unknown") {
-  return `You are a professional theological translator for The Prayer Whiteboard, a prayer ministry website. You translate teachings from English into Spanish as spoken in El Salvador (Español de El Salvador), for Salvadoran readers in evangelical and Spirit-filled churches.
+/** The rules in "Spanish Translation Rules — The Prayer Whiteboard", written for the model. */
+export function translationSystemPrompt() {
+  return `You are a professional theological translator for The Prayer Whiteboard, a prayer ministry website. You translate teachings from English into Español de El Salvador for Salvadoran readers in evangelical and Spirit-filled churches. The wording is natural, warm and professional.
 
-PRONOUNS AND VERBS
-- Singular "you" is always vos with Salvadoran voseo forms: vos sos, tenés, podés, querés, sabés, llevás, mirá, orá, acercate, quedate, tomá, hacé, decí, vení, tené, prestá atención. Present subjunctive in the voseo style: "que notés", "que vengás". Object and possessive forms stay te / tu / tus. Never use tú forms (tienes, puedes, acércate, mira as a command).
-- Plural "you" is always ustedes (vengan, quédense, manténganse). Never vosotros.
-- Prayers addressed to God use vos: "Señor, ungí mis ojos", "Padre, ensanchá nuestro corazón", "Enseñanos", "Hacenos", "Mantenenos".
-- Words of prophecy spoken by God to the group use ustedes for the group and capitalized pronouns for God ("Ustedes son Mis tesoros", "Quédense cerca de Mí").
+FAITHFULNESS
+- Preserve the source's meaning, theological intent, tone and degree of certainty. Do not add doctrine, strengthen claims or soften them, and do not embellish prophetic words.
+- Translate everything; add nothing (no notes, explanations or bracketed comments) and leave nothing out.
+
+ADDRESSING PEOPLE
+- Addressing one person: always vos with its matching conjugations, including imperatives and subjunctives: vos sos, tenés, podés, elegí, suscribite, acercate, quedate, mirá, orá, que querás, que confirmés, que notés. Keep tu / tus and te where grammatically appropriate. Never use tú forms (tienes, puedes, acércate, mira as a command).
+- Addressing more than one person: ustedes (vengan, quédense, manténganse). Never vosotros.
+- Prophetic words: keep exactly whom the English addresses. If the word speaks to one person, use vos; if it speaks to the whole group, use ustedes.
+- Prayers addressed to God use vos: "Señor, ungí mis ojos", "Padre, ensanchá nuestro corazón", "Enseñanos", "Hacenos atentos".
+
+THE TEACHER
+- When the English says "the teacher" or refers to the person teaching, do not identify the teacher's gender, even if the English uses "she" or "he". Use natural neutral constructions: "En la enseñanza se explicó…", "La enseñanza relacionó…", "Se recordó…", "Para ilustrarlo, se contó…", "Se dieron gracias a Jesús…".
+- Do not use la maestra, el maestro, ella or él for the teacher. Use "la docente" or "el docente" only when the English clearly intends to identify the teacher's gender.
+
+WORDING
+- The small prayer group: el grupo or los participantes, never la congregación.
+- A spiritual prompting: un impulso or una dirección del Espíritu Santo, whichever fits the context. Avoid "inquietud" because it can suggest worry.
+- Communion with the bread and the cup: la Santa Cena. Spiritual fellowship: comunión ("comunión con Dios"). Never call the Lord's Supper "la Comunión".
+- Holy Spirit: el Espíritu Santo, always with the article.
+- Feminine nouns that begin with a stressed a- take el / un in the singular: un ama de casa, el agua, el alma.
+- Bible books use their Spanish names (Génesis, Isaías, Hageo, Santiago, 1 Corintios, 1 Juan). When an English sentence spells out an ordinal ("First Corinthians 6:17 says"), write "Primera de Corintios 6:17 dice".
+- Keep people's names and places as they are (Oklahoma City, Kenneth Copeland).
 
 CAPITALIZATION FOR GOD
-- Capitalize pronouns and possessives that refer to God the Father, Jesus or the Holy Spirit: Él, Su, Sus, Tu, Tus, Vos, Mí, Mi, Mis, Yo, Sí mismo. Leave object pronouns lowercase (lo, le, te, nos).
-- Do not capitalize pronouns that refer to people.
+- Capitalize pronouns and possessives that refer to God the Father, Jesus or the Holy Spirit: Él, Su, Sus, Tu, Tus, Vos, Mí, Mi, Mis, Yo, Sí mismo. Leave object pronouns lowercase (lo, le, te, nos). Do not capitalize pronouns that refer to people.
 
 HEADINGS (segments of kind "heading")
 - Use the site's title case: capitalize every main word, including verbs, nouns, adjectives, adverbs, possessives and "No"; keep articles, prepositions and conjunctions lowercase unless they are the first word (el, la, los, las, un, una, de, del, a, al, en, con, por, para, sin, y, o, que, lo, se).
-- Examples from the live site: "Palabra Profética para el Grupo", "Mantené Tus Ojos en Jesús", "Jesús Es Nuestro Modelo", "Mirá Más Allá de lo Temporal", "Prácticas que Vuelven el Corazón hacia la Luz", "Oración Final".
+- Examples from the live site: "Palabra Profética para el Grupo", "Mantené Tus Ojos en Jesús", "Jesús Es Nuestro Modelo", "Oración Final".
 - All other text uses normal Spanish sentence case.
 
-WORDING
-- Holy Spirit → el Espíritu Santo (always with the article). Communion and the Lord's Supper → la Santa Cena (never "la Comunión", because "comunión" is kept for fellowship: comunión con Dios).
-- gathering → la reunión; believers → los creyentes; Scripture → las Escrituras; a prompting of the Holy Spirit → una inquietud del Espíritu Santo; chalkboard → la pizarra; doing the dishes → lavar los trastes.
-- Bible books use their Spanish names (Génesis, Isaías, Hageo, Santiago, 1 Corintios, 1 Juan, Apocalipsis). When an English sentence spells out an ordinal ("First Corinthians 6:17 says"), write "Primera de Corintios 6:17 dice".
-- Keep people's names and places as they are (Oklahoma City, Kenneth Copeland).
-- ${TEACHER_LINE[teacher]}
-
 FORMATTING
-- Keep **bold**, *italic* and [link text](https://address) markup exactly where it is: translate the words inside, keep every address unchanged, and keep the same number of ** and * markers.
+- Preserve the structure, **bold**, *italic* and [link text](https://address) markup exactly: translate the words inside, keep every address unchanged, and keep the same number of ** and * markers.
 - Keep line breaks: a segment with N lines comes back with N lines, in the same order.
 - Use curly double quotes “ ” for quotations and single quotes ' ' for a quotation inside a quotation. Use ¿ ? and ¡ ! correctly.
-- Translate everything; add nothing (no notes, explanations or bracketed comments) and leave nothing out.
+
+LENGTH LIMITS
+- A segment with a "limit" must come back at that many characters or fewer. Translate faithfully first. Only if the faithful translation is longer than the limit, shorten it while keeping its meaning, and set "shortened": true for that segment so a person can review it.
 
 SCRIPTURE
-- "scripture_reference" segments: translate only the book name. "2 Corinthians 3:16-18" → "2 Corintios 3:16-18". Do not add a version.
-- "scripture_verse" segments: do not translate the English. Write the passage exactly as it reads in the Reina-Valera 1960 (RVR1960) for the reference given in the segment's note. No voseo inside Scripture; keep the Bible's own wording. Do not add quotation marks around the whole passage.
+- Preserve every Scripture reference. "scripture_reference" segments: translate only the book name ("2 Corinthians 3:16-18" → "2 Corintios 3:16-18"); do not add a version. The site labels these quotations RVR1960.
+- "scripture_verse" segments: do not translate the English. Write the passage exactly as published in the Reina-Valera 1960 (RVR1960) for the reference in the segment's note, as written, with no voseo and no other changes. Never present your own translation of the English as a published Bible version. Do not add quotation marks around the whole passage.
 
 OUTPUT
 - Call the save_translation tool once with every segment id you were given, each with its translated text.`;
@@ -93,7 +111,7 @@ const SAVE_TOOL = {
         type: "array",
         items: {
           type: "object",
-          properties: { id: { type: "string" }, text: { type: "string" } },
+          properties: { id: { type: "string" }, text: { type: "string" }, shortened: { type: "boolean" } },
           required: ["id", "text"],
         },
       },
@@ -103,6 +121,41 @@ const SAVE_TOOL = {
 } as const;
 
 const text = (value: unknown) => String(value ?? "").replace(/\r\n?/g, "\n").trim();
+
+/** The website field a segment fills, for limits and messages. */
+export function fieldLabel(id: string) {
+  const named: Record<string, string> = {
+    "teaching.title": "Title",
+    "teaching.central_theme": "Central Theme",
+    "teaching.introduction": "Introduction",
+    "teaching.summary": "Short Summary",
+    "teaching.teaser_1_heading": "Homepage Teaser 1 Heading",
+    "teaching.teaser_1_text": "Homepage Teaser 1 Text",
+    "teaching.teaser_2_heading": "Homepage Teaser 2 Heading",
+    "teaching.teaser_2_text": "Homepage Teaser 2 Text",
+  };
+  if (named[id]) return named[id];
+  if (id.startsWith("category.")) return "A category title";
+  if (id.endsWith(".title")) return "A section title";
+  return "A section";
+}
+
+function limitFor(id: string, kind: TranslationSegmentKind): number | undefined {
+  const byId: Record<string, number> = {
+    "teaching.title": SPANISH_FIELD_LIMITS.title,
+    "teaching.central_theme": SPANISH_FIELD_LIMITS.centralTheme,
+    "teaching.introduction": SPANISH_FIELD_LIMITS.introduction,
+    "teaching.summary": SPANISH_FIELD_LIMITS.summary,
+    "teaching.teaser_1_heading": SPANISH_FIELD_LIMITS.teaserHeading,
+    "teaching.teaser_1_text": SPANISH_FIELD_LIMITS.teaserText,
+    "teaching.teaser_2_heading": SPANISH_FIELD_LIMITS.teaserHeading,
+    "teaching.teaser_2_text": SPANISH_FIELD_LIMITS.teaserText,
+  };
+  if (byId[id]) return byId[id];
+  if (kind === "heading") return SPANISH_FIELD_LIMITS.heading;
+  if (kind === "text") return SPANISH_FIELD_LIMITS.sectionText;
+  return undefined;
+}
 
 type Collected = {
   groups: TranslationSegment[][];
@@ -114,7 +167,12 @@ export function collectSegments(teaching: ExportTeaching, categories: ExportCate
   const header: TranslationSegment[] = [];
   const add = (group: TranslationSegment[], id: string, kind: TranslationSegmentKind, value: unknown, note?: string) => {
     const t = text(value);
-    if (t) group.push(note ? { id, kind, text: t, note } : { id, kind, text: t });
+    if (!t) return;
+    const segment: TranslationSegment = { id, kind, text: t };
+    if (note) segment.note = note;
+    const limit = limitFor(id, kind);
+    if (limit) segment.limit = limit;
+    group.push(segment);
   };
 
   add(header, "teaching.title", "heading", teaching.title);
@@ -194,6 +252,15 @@ const TU_FORMS = /\b(tienes|puedes|eres|quieres|sabes|necesitas|debes|vienes|hac
 const VOSOTROS = /\b(vosotros|vosotras|os\s|habéis|tenéis|podéis|sois)\b/i;
 
 const paragraphCount = (value: string) => value.split("\n").filter((line) => line.trim()).length;
+// Wording the translation rules ask to avoid outside Scripture.
+const RULE_CHECKS: { pattern: RegExp; message: string }[] = [
+  { pattern: /\b(la maestra|el maestro|la docente|el docente)\b/i, message: "names the teacher's gender" },
+  { pattern: /\binquietud\b/i, message: "uses “inquietud” (use impulso or dirección for a prompting)" },
+  { pattern: /\bcongregaci[oó]n\b/i, message: "uses “congregación” (use el grupo or los participantes)" },
+  { pattern: /\b[Ll]a Comuni[oó]n\b/, message: "calls the Lord's Supper “la Comunión” (use la Santa Cena)" },
+  { pattern: /\buna (ama|agua|alma|área|águila|arma|hambre)\b/i, message: "uses “una” before a stressed a- (use un ama, un alma…)" },
+];
+
 const countOf = (value: string, pattern: RegExp) => (value.match(pattern) ?? []).length;
 const urls = (value: string) => [...value.matchAll(/\]\(([^\s)]+)\)/g)].map((match) => match[1]).sort().join("|");
 
@@ -210,18 +277,24 @@ export function checkSegment(source: TranslationSegment, translated: string | un
     if (tu) warnings.push(`Possible tú form “${tu[0]}” instead of vos in “${label}”.`);
     const vosotros = translated.match(VOSOTROS);
     if (vosotros) warnings.push(`Possible vosotros form “${vosotros[0].trim()}” in “${label}”.`);
+    for (const check of RULE_CHECKS) if (check.pattern.test(translated)) warnings.push(`“${label}” ${check.message}.`);
+  }
+  if (source.limit && translated.length > source.limit) {
+    return { error: `${fieldLabel(source.id)} is ${translated.length} characters in Spanish; the limit is ${source.limit}.`, warnings };
   }
   return { warnings };
 }
 
-async function callClaude(group: TranslationSegment[], options: Required<Pick<AutoTranslateOptions, "apiKey" | "model" | "teacher">> & { fetchImpl: typeof fetch }) {
+type GroupResult = { texts: Map<string, string>; shortened: Set<string> };
+
+async function callClaude(group: TranslationSegment[], options: Required<Pick<AutoTranslateOptions, "apiKey" | "model">> & { fetchImpl: typeof fetch }): Promise<GroupResult> {
   const response = await options.fetchImpl(API_URL, {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": options.apiKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: options.model,
       max_tokens: MAX_OUTPUT_TOKENS,
-      system: translationSystemPrompt(options.teacher),
+      system: translationSystemPrompt(),
       tools: [SAVE_TOOL],
       tool_choice: { type: "tool", name: SAVE_TOOL.name },
       messages: [{ role: "user", content: `Translate these segments. Return every id.\n\n${JSON.stringify({ segments: group }, null, 2)}` }],
@@ -236,18 +309,23 @@ async function callClaude(group: TranslationSegment[], options: Required<Pick<Au
   const block = (payload?.content ?? []).find((item: { type?: string; name?: string }) => item.type === "tool_use" && item.name === SAVE_TOOL.name);
   const segments = block?.input?.segments;
   if (!Array.isArray(segments)) throw Object.assign(new Error("The translation service returned an unexpected answer."), { retryable: true });
-  const map = new Map<string, string>();
-  for (const item of segments) if (item && typeof item.id === "string" && typeof item.text === "string") map.set(item.id, item.text.replace(/\r\n?/g, "\n").trim());
-  return map;
+  const texts = new Map<string, string>();
+  const shortened = new Set<string>();
+  for (const item of segments) {
+    if (!item || typeof item.id !== "string" || typeof item.text !== "string") continue;
+    texts.set(item.id, item.text.replace(/\r\n?/g, "\n").trim());
+    if (item.shortened === true) shortened.add(item.id);
+  }
+  return { texts, shortened };
 }
 
-async function translateGroup(group: TranslationSegment[], options: Parameters<typeof callClaude>[1]) {
+async function translateGroup(group: TranslationSegment[], options: Parameters<typeof callClaude>[1]): Promise<GroupResult> {
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const map = await callClaude(group, options);
-      const missing = group.filter((segment) => !map.get(segment.id));
-      if (!missing.length) return map;
+      const result = await callClaude(group, options);
+      const missing = group.filter((segment) => !result.texts.get(segment.id));
+      if (!missing.length) return result;
       lastError = new Error(`${missing.length} part${missing.length === 1 ? "" : "s"} of the teaching did not come back translated.`);
     } catch (error) {
       lastError = error;
@@ -268,12 +346,11 @@ export async function translateTeaching(
   const settings = {
     apiKey: options.apiKey,
     model: options.model || DEFAULT_TRANSLATION_MODEL,
-    teacher: options.teacher ?? "unknown",
     fetchImpl: options.fetchImpl ?? fetch,
   };
   const { groups, apply } = collectSegments(teaching, categories, sections);
 
-  const results: Map<string, string>[] = new Array(groups.length);
+  const results: GroupResult[] = new Array(groups.length);
   let next = 0;
   const worker = async () => {
     while (next < groups.length) {
@@ -288,10 +365,11 @@ export async function translateTeaching(
   const errors: string[] = [];
   groups.forEach((group, index) => {
     for (const segment of group) {
-      const value = results[index].get(segment.id);
+      const value = results[index].texts.get(segment.id);
       const check = checkSegment(segment, value);
       if (check.error) errors.push(check.error);
       warnings.push(...check.warnings);
+      if (results[index].shortened.has(segment.id)) warnings.push(`${fieldLabel(segment.id)} was shortened to fit the ${segment.limit ?? ""}-character limit. Please review it against the English.`);
       if (value) translated.set(segment.id, value);
     }
   });

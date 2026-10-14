@@ -42,16 +42,6 @@ function fakeFetch({ drop = new Set(), override = {}, calls = [] } = {}) {
   };
 }
 
-function shortenedFetch(id) {
-  const base = fakeFetch();
-  return async (url, init) => {
-    const response = await base(url, init);
-    const payload = await response.json();
-    for (const segment of payload.content[0].input.segments) if (segment.id === id) segment.shortened = true;
-    return new Response(JSON.stringify(payload), { status: 200 });
-  };
-}
-
 test("only text is sent: labels, ids and hidden titles are never offered for translation", () => {
   const { groups } = collectSegments(teaching, categories, sections);
   const all = groups.flat();
@@ -67,7 +57,7 @@ test("a translated teaching passes the Español importer, uses RVR1960 and lists
   assert.equal(calls.length, 3);
   assert.equal(calls[0].model, "claude-opus-5-5");
   assert.match(calls[0].system, /En la enseñanza se explicó/);
-  assert.equal(calls[0].messages[0].content.includes('"limit": 300'), true, "the Central Theme carries its 300-character limit");
+  assert.equal(calls.some((body) => body.messages[0].content.includes('"limit"')), false, "no length limit is ever sent, so nothing is shortened");
   assert.equal(calls[0].tool_choice.name, "save_translation");
 
   const parsed = parseTeachingDocx(buildTeachingTranslationDocx(result.teaching, result.categories, result.sections), { language: "es" });
@@ -108,7 +98,8 @@ test("the prompt follows the Spanish Translation Rules", () => {
   for (const rule of [/Español de El Salvador/, /natural, warm and professional/, /que querás, que confirmés/, /ustedes/, /keep exactly whom the English addresses/,
     /do not identify the teacher's gender/, /En la enseñanza se explicó/, /los participantes, never la congregación/, /un impulso or una dirección/, /Avoid "inquietud"/,
     /la Santa Cena/, /comunión con Dios/, /degree of certainty/, /do not embellish prophetic words/, /Never present your own translation/, /Él, Su, Sus, Tu, Tus, Vos/,
-    /Mantené Tus Ojos en Jesús/, /un ama de casa/, /"shortened": true/]) assert.match(prompt, rule);
+    /Mantené Tus Ojos en Jesús/, /un ama de casa/, /Never shorten, summarize, condense or cut/]) assert.match(prompt, rule);
+  assert.doesNotMatch(prompt, /shorten it|"shortened"/);
   assert.doesNotMatch(prompt, /una inquietud del Espíritu Santo/);
 });
 
@@ -121,12 +112,33 @@ test("rule checks: gendered teacher, inquietud, congregación and la Comunión a
   assert.match(warn("Una ama de casa oró."), /un ama/);
   assert.equal(warn("En la enseñanza se explicó que la comunión con Dios es real."), "");
   const over = checkSegment({ id: "teaching.central_theme", kind: "text", text: "Short.", limit: 300 }, "a".repeat(301));
-  assert.match(over.error, /Central Theme is 301 characters in Spanish; the limit is 300/);
+  assert.match(over.error, /Central Theme is 301 characters in Spanish, over the website's 300-character limit\. Nothing was saved and nothing was cut/);
 });
 
-test("a field the model shortened to fit is listed for review", async () => {
-  const result = await translateTeaching(teaching, categories, sections, { apiKey: "test", fetchImpl: shortenedFetch("teaching.summary") });
-  assert.match(result.warnings.join(" "), /Short Summary was shortened to fit the 600-character limit/);
+test("a long translation is kept whole: over the website limit, the save stops instead of cutting text", async () => {
+  const { SPANISH_FIELD_LIMITS } = await import("../lib/teaching-auto-translate.ts");
+  const { TEACHING_IMPORT_LIMITS } = await import("../lib/teaching-docx-import.ts");
+  assert.equal(SPANISH_FIELD_LIMITS.centralTheme, TEACHING_IMPORT_LIMITS.centralTheme, "the converter uses the site's own limits");
+  assert.equal(SPANISH_FIELD_LIMITS.summary, TEACHING_IMPORT_LIMITS.summary);
+  const long = "Resumen largo. ".repeat(60);
+  await assert.rejects(
+    translateTeaching(teaching, categories, sections, { apiKey: "test", fetchImpl: fakeFetch({ override: { "teaching.summary": long } }) }),
+    /Short Summary is \d+ characters in Spanish, over the website's 600-character limit\. Nothing was saved and nothing was cut/,
+  );
+  const fits = await translateTeaching(teaching, categories, sections, { apiKey: "test", fetchImpl: fakeFetch({ override: { "teaching.summary": "Resumen completo." } }) });
+  assert.equal(fits.teaching.summary, "Resumen completo.");
+});
+
+test("every exported file carries the Spanish Translation Rules for whoever translates it by hand", async () => {
+  const { TRANSLATOR_INSTRUCTIONS } = await import("../lib/teaching-docx-export.ts");
+  const { DEVOTIONAL_TRANSLATOR_INSTRUCTIONS } = await import("../lib/devotional-export.ts");
+  const { WEEKLY_UPDATE_TRANSLATOR_INSTRUCTIONS } = await import("../lib/weekly-update-export.ts");
+  const { SPANISH_TRANSLATION_RULES } = await import("../lib/spanish-translation-rules.ts");
+  for (const [name, text] of [["teaching", TRANSLATOR_INSTRUCTIONS], ["devotional", DEVOTIONAL_TRANSLATOR_INSTRUCTIONS.join("\n")], ["weekly update", WEEKLY_UPDATE_TRANSLATOR_INSTRUCTIONS]]) {
+    for (const rule of SPANISH_TRANSLATION_RULES) assert.equal(text.includes(rule), true, `${name} export carries: ${rule.slice(0, 40)}`);
+    for (const pattern of [/En la enseñanza se explicó/, /la Santa Cena/, /impulso or dirección/, /Never translate the English verse yourself/, /do not shorten/]) assert.match(text, pattern, name);
+  }
+  assert.doesNotMatch(TRANSLATOR_INSTRUCTIONS, /Translate the book name and the verse/, "verses are replaced with a published Bible text, not translated");
 });
 
 test("the convert route is for Administrators only, converts English only, and links the draft to its English teaching", async () => {

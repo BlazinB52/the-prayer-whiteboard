@@ -9,6 +9,7 @@
 // link the new draft to it, and carries the translator's instructions in the document properties, where they
 // can never be imported as teaching text.
 
+import { spanishTranslationRuleLines } from "./spanish-translation-rules.ts";
 import { buildDocxPackage, escapeXml, para, run } from "./docx-parts.ts";
 
 export type ExportTeaching = {
@@ -29,10 +30,11 @@ export type ExportCategory = { id: string; title: string; sort_order: number };
 export type ExportSection = { id: string; category_id: string; title: string; content: unknown; sort_order: number };
 
 export const TRANSLATOR_INSTRUCTIONS = [
-  "Translate this teaching into Español (El Salvador), using the voseo (vos) forms, not neutral Spanish. For example: vos tenés, mirá, orá, exaltá, prestá atención.",
+  "Translate this teaching into Español (El Salvador), using the voseo (vos) forms, not neutral Spanish, and following The Prayer Whiteboard's Spanish Translation Rules below.",
+  ...spanishTranslationRuleLines(),
   "Translate every paragraph and keep each paragraph's Word style (Title, Heading 1, Heading 2, Normal, Scripture Quote, List Bullet, Quote, Takeaway). Keep bold, italic and links.",
   "Leave the short Heading 1 labels in English: Central Theme, Introduction, Short Summary, and the Homepage Teaser labels. They tell the website where each part goes. Everything under them is translated.",
-  "Each Scripture Quote paragraph reads: Reference (VERSION) — “verse”. Translate the book name and the verse, and change the version in parentheses to RVR1960 or NVI.",
+  "Each Scripture Quote paragraph reads: Reference (VERSION) — “verse”. Translate the book name, replace the verse with the published RVR1960 or NVI text of that passage, and put that version in parentheses.",
   "Accept all tracked changes and delete comments before saving. Save as .docx, and name the file es_yyyymmdd_teaching (for example es_20261010_teaching).",
 ].join("\n");
 

@@ -8,6 +8,7 @@
 // passage and are listed for a person to check before publishing.
 
 import type { ExportCategory, ExportSection, ExportTeaching } from "./teaching-docx-export.ts";
+import { TEACHING_IMPORT_LIMITS } from "./teaching-docx-import.ts";
 
 export type TranslationSegmentKind = "heading" | "text" | "scripture_reference" | "scripture_verse";
 export type TranslationSegment = { id: string; kind: TranslationSegmentKind; text: string; note?: string; limit?: number };
@@ -36,18 +37,18 @@ const API_URL = "https://api.anthropic.com/v1/messages";
 const MAX_OUTPUT_TOKENS = 32000;
 
 /**
- * Website field limits a translated field must fit. Each is the stricter of the translation rules document
- * and what the site itself accepts (the Español importer and the database), so a draft can always be saved.
+ * The site's own field limits (the Español importer and the database). Text is never shortened to fit them: a
+ * translation that runs over stops the save with a message naming the field, and nothing is cut.
  */
 export const SPANISH_FIELD_LIMITS = {
-  title: 160,
-  centralTheme: 300,
-  introduction: 5000,
-  summary: 600,
-  teaserHeading: 100,
-  teaserText: 350,
-  heading: 160,
-  sectionText: 12000,
+  title: TEACHING_IMPORT_LIMITS.title,
+  centralTheme: TEACHING_IMPORT_LIMITS.centralTheme,
+  introduction: TEACHING_IMPORT_LIMITS.introduction,
+  summary: TEACHING_IMPORT_LIMITS.summary,
+  teaserHeading: TEACHING_IMPORT_LIMITS.teaserHeading,
+  teaserText: TEACHING_IMPORT_LIMITS.teaserText,
+  heading: Math.min(TEACHING_IMPORT_LIMITS.categoryTitle, TEACHING_IMPORT_LIMITS.sectionTitle),
+  sectionText: TEACHING_IMPORT_LIMITS.sectionText,
 } as const;
 
 /** The rules in "Spanish Translation Rules — The Prayer Whiteboard", written for the model. */
@@ -90,8 +91,8 @@ FORMATTING
 - Keep line breaks: a segment with N lines comes back with N lines, in the same order.
 - Use curly double quotes “ ” for quotations and single quotes ' ' for a quotation inside a quotation. Use ¿ ? and ¡ ! correctly.
 
-LENGTH LIMITS
-- A segment with a "limit" must come back at that many characters or fewer. Translate faithfully first. Only if the faithful translation is longer than the limit, shorten it while keeping its meaning, and set "shortened": true for that segment so a person can review it.
+COMPLETENESS
+- Translate every segment in full. Never shorten, summarize, condense or cut text, whatever its length.
 
 SCRIPTURE
 - Preserve every Scripture reference. "scripture_reference" segments: translate only the book name ("2 Corinthians 3:16-18" → "2 Corintios 3:16-18"); do not add a version. The site labels these quotations RVR1960.
@@ -111,7 +112,7 @@ const SAVE_TOOL = {
         type: "array",
         items: {
           type: "object",
-          properties: { id: { type: "string" }, text: { type: "string" }, shortened: { type: "boolean" } },
+          properties: { id: { type: "string" }, text: { type: "string" } },
           required: ["id", "text"],
         },
       },
@@ -280,12 +281,12 @@ export function checkSegment(source: TranslationSegment, translated: string | un
     for (const check of RULE_CHECKS) if (check.pattern.test(translated)) warnings.push(`“${label}” ${check.message}.`);
   }
   if (source.limit && translated.length > source.limit) {
-    return { error: `${fieldLabel(source.id)} is ${translated.length} characters in Spanish; the limit is ${source.limit}.`, warnings };
+    return { error: `${fieldLabel(source.id)} is ${translated.length} characters in Spanish, over the website's ${source.limit}-character limit. Nothing was saved and nothing was cut; shorten that field in the English teaching, then convert again.`, warnings };
   }
   return { warnings };
 }
 
-type GroupResult = { texts: Map<string, string>; shortened: Set<string> };
+type GroupResult = { texts: Map<string, string> };
 
 async function callClaude(group: TranslationSegment[], options: Required<Pick<AutoTranslateOptions, "apiKey" | "model">> & { fetchImpl: typeof fetch }): Promise<GroupResult> {
   const response = await options.fetchImpl(API_URL, {
@@ -297,7 +298,7 @@ async function callClaude(group: TranslationSegment[], options: Required<Pick<Au
       system: translationSystemPrompt(),
       tools: [SAVE_TOOL],
       tool_choice: { type: "tool", name: SAVE_TOOL.name },
-      messages: [{ role: "user", content: `Translate these segments. Return every id.\n\n${JSON.stringify({ segments: group }, null, 2)}` }],
+      messages: [{ role: "user", content: `Translate these segments. Return every id.\n\n${JSON.stringify({ segments: group.map((segment) => ({ id: segment.id, kind: segment.kind, text: segment.text, ...(segment.note ? { note: segment.note } : {}) })) }, null, 2)}` }],
     }),
   });
   const payload = await response.json().catch(() => null);
@@ -310,13 +311,11 @@ async function callClaude(group: TranslationSegment[], options: Required<Pick<Au
   const segments = block?.input?.segments;
   if (!Array.isArray(segments)) throw Object.assign(new Error("The translation service returned an unexpected answer."), { retryable: true });
   const texts = new Map<string, string>();
-  const shortened = new Set<string>();
   for (const item of segments) {
     if (!item || typeof item.id !== "string" || typeof item.text !== "string") continue;
     texts.set(item.id, item.text.replace(/\r\n?/g, "\n").trim());
-    if (item.shortened === true) shortened.add(item.id);
   }
-  return { texts, shortened };
+  return { texts };
 }
 
 async function translateGroup(group: TranslationSegment[], options: Parameters<typeof callClaude>[1]): Promise<GroupResult> {
@@ -369,7 +368,6 @@ export async function translateTeaching(
       const check = checkSegment(segment, value);
       if (check.error) errors.push(check.error);
       warnings.push(...check.warnings);
-      if (results[index].shortened.has(segment.id)) warnings.push(`${fieldLabel(segment.id)} was shortened to fit the ${segment.limit ?? ""}-character limit. Please review it against the English.`);
       if (value) translated.set(segment.id, value);
     }
   });

@@ -1,0 +1,22 @@
+// "Spanish Translation Rules — The Prayer Whiteboard", written as instructions for whoever translates an exported
+// file by hand (a person or another AI). The exported teaching, devotional and weekly update files all carry these,
+// so every Español item is translated the same way as "Convert & Save Spanish Version" (lib/teaching-auto-translate.ts).
+
+export const SPANISH_TRANSLATION_RULES = [
+  "Use Español de El Salvador, with natural, warm, professional wording.",
+  "Addressing one person: use vos (voseo) and its conjugations, including imperatives and subjunctives: vos tenés, podés, elegí, suscribite, acercate, mirá, orá, que querás, que confirmés. Keep tu / tus and te where grammatically appropriate. Never use tú forms (tienes, puedes, acércate).",
+  "Addressing more than one person: use ustedes, never vosotros. Keep whether a prophetic word speaks to one person or to the whole group.",
+  "Prayers addressed to God use vos: Señor, ungí mis ojos; Padre, ensanchá nuestro corazón; Enseñanos; Hacenos atentos.",
+  "Preserve the meaning, theological intent, tone and degree of certainty. Do not add doctrine, strengthen or soften claims, or embellish prophetic words. Translate everything in full: do not shorten or summarize, and add no notes.",
+  "Do not identify the teacher's gender when the English says \"the teacher\" (even if it uses she or he). Prefer \"En la enseñanza se explicó…\" or a similar natural construction. Use la docente / el docente only when gender identification is intended.",
+  "The small prayer group: el grupo or los participantes, not congregación. A spiritual prompting: impulso or dirección, according to context; avoid inquietud when it would suggest worry.",
+  "Communion with the bread and the cup: la Santa Cena. Spiritual fellowship: comunión (comunión con Dios). Holy Spirit: el Espíritu Santo, with the article. Feminine nouns with a stressed a- take el / un: un ama de casa, el agua.",
+  "Capitalize pronouns and possessives that refer to God: Él, Su, Sus, Tu, Tus, Vos, Mí, Mi, Yo. Headings use title case, as on the website: Palabra Profética para el Grupo, Mantené Tus Ojos en Jesús.",
+  "Scripture: keep every reference and translate only the book name (2 Corintios 3:16-18). Replace each quoted verse with the published RVR1960 or NVI text of the same passage, exactly as printed, and name that version. Never translate the English verse yourself and label it NVI or RVR1960. Do not change Bible quotations to voseo.",
+  "Keep the file's structure, styles, bold, italic and links exactly, and keep any English importer labels the uploader needs.",
+] as const;
+
+/** The rules as numbered lines, for the instructions inside an exported file. */
+export function spanishTranslationRuleLines(): string[] {
+  return SPANISH_TRANSLATION_RULES.map((rule, index) => `Rule ${index + 1}: ${rule}`);
+}

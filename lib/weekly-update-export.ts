@@ -3,11 +3,13 @@
 // file can be uploaded as a new Español weekly update. The title is not part of the body (the upload form has its
 // own Title box); it is in the document's title property, and the translator's instructions are in its comments.
 
+import { spanishTranslationRuleLines } from "./spanish-translation-rules.ts";
 import { buildDocxPackage, escapeXml, para, run } from "./docx-parts.ts";
 import type { WeeklyUpdateBlock, WeeklyUpdateInline } from "./weekly-update-docx.ts";
 
 export const WEEKLY_UPDATE_TRANSLATOR_INSTRUCTIONS = [
-  "Translate this weekly update into Español (El Salvador), using the voseo (vos) forms, not neutral Spanish. For example: vos tenés, mirá, orá, exaltá, prestá atención.",
+  "Translate this weekly update into Español (El Salvador), using the voseo (vos) forms, not neutral Spanish, and following The Prayer Whiteboard's Spanish Translation Rules below.",
+  ...spanishTranslationRuleLines(),
   "Translate every paragraph and keep each paragraph's Word style (Heading 1, Heading 2, Normal, List Bullet, Quote). Keep bold, italic and links.",
   "The title of the update is in this file's Title property (File > Info). Translate it too, and type the Spanish title into the Title box when you upload the file.",
   "Accept all tracked changes and delete comments before saving. Save as .docx, and name the file es_yyyymmdd_weekly_update.",

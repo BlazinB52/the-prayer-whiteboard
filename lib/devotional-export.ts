@@ -3,6 +3,8 @@
 // new Español draft. Lines that start with # are notes to the translator and the source marker; the importer
 // ignores them, so they can never end up in the devotional.
 
+import { spanishTranslationRuleLines } from "./spanish-translation-rules.ts";
+
 export type ExportDevotional = { id: string; title: string; introduction: string | null };
 export type ExportDevotionalDay = {
   day_number: number;
@@ -22,11 +24,12 @@ const COMMUNION_DAY = 7;
 
 export const DEVOTIONAL_TRANSLATOR_INSTRUCTIONS = [
   "TRANSLATION INSTRUCTIONS (lines that start with # are not imported; leave them or delete them)",
-  "Translate this devotional into Español (El Salvador), using the voseo (vos) forms, not neutral Spanish. For example: vos tenés, mirá, orá, exaltá, prestá atención.",
+  "Translate this devotional into Español (El Salvador), using the voseo (vos) forms, not neutral Spanish, and following The Prayer Whiteboard's Spanish Translation Rules below.",
+  ...spanishTranslationRuleLines(),
   "Translate every line, including the title, the introduction and each day's title. Write each day heading as 'Día 1: ...' (not 'Day 1: ...'): the importer decides the language from the day headings.",
   "Keep each label on its own line. You may leave the English labels as they are, or use exactly these Spanish ones: Pasajes bíblicos clave: / La dinámica espiritual: / Confesión de hoy: / Pregunta para tu diario de 5 minutos: / Ejercicio de activación en oración: (Day 7: La reflexión del descanso: / Confesión de descanso de hoy: / Autoexamen reverente y bendición: / La reflexión del pan: / La reflexión de la copa: / Oración de cierre de la serie:)",
   "Keep **bold**, *italic* and [link](https://address) marks exactly as they are around the translated words.",
-  "Each anchor Scripture reads: Reference (VERSION) — \"verse\". Translate the book name and the verse, and use RVR1960 or NVI as the version.",
+  "Each anchor Scripture reads: Reference (VERSION) — \"verse\". Translate the book name, replace the verse with the published RVR1960 or NVI text of that passage, and put that version in parentheses.",
   "Save as plain text (.txt, UTF-8), named es_yyyymmdd_devotional.",
 ].map((line) => `# ${line}`);
 

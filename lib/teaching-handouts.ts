@@ -25,7 +25,7 @@ import {
 export { isDocxMagicBytes, validateOutlineId as validateHandoutId } from "./teaching-outlines.ts";
 
 export const HANDOUT_LIMITS = { title: 200, blocks: 3000, characters: 120_000 } as const;
-export const HANDOUT_LANGUAGES = ["en"] as const;
+export const HANDOUT_LANGUAGES = ["en", "es"] as const;
 export type HandoutLanguage = (typeof HANDOUT_LANGUAGES)[number];
 
 export type HandoutInline = OutlineInline;

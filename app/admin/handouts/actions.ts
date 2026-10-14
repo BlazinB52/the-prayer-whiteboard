@@ -82,16 +82,43 @@ async function hasOpenProposals(supabase: AdminSupabase, id: string) {
  * "Create new handout": makes a blank draft and opens its page, where the title, teaching date and teaching
  * are entered and the Word draft is uploaded. Nothing is visible to Content Managers until it is sent.
  */
-export async function createHandout() {
+export async function createHandout(formData: FormData) {
   const { supabase } = await requireAdmin();
+  const language = formData.get("language") === "es" ? "es" : "en";
   const { data, error } = await supabase
     .from("teaching_handouts")
-    .insert({ title: UNTITLED, language: "en", status: "draft", content: [], original_content: [] })
+    .insert({ title: UNTITLED, language, status: "draft", content: [], original_content: [] })
     .select("id")
     .single();
   if (error || !data) redirect("/admin/handouts?error=create");
   revalidateHandoutPaths();
   redirect(`/admin/handouts/${data.id}?created=1`);
+}
+
+/**
+ * The footer printed at the bottom of the handout: the small credits block, chosen from the existing footers. An
+ * Español handout uses an Español footer, which is written for it and is not a translation of the English one.
+ */
+export async function setHandoutFooter(id: string, footerId: string): Promise<HandoutActionState> {
+  const { supabase } = await requireAdmin();
+  const idResult = validateHandoutId(id);
+  if (idResult.error || !idResult.value) return { error: idResult.error };
+  const footer = validateOptionalOutlineId(footerId);
+  if (footer.error) return { error: "That footer could not be found." };
+
+  const { data: handout } = await supabase.from("teaching_handouts").select("id, language").eq("id", idResult.value).maybeSingle();
+  if (!handout) return { error: "That handout could not be found." };
+  if (footer.value) {
+    const { data: row } = await supabase.from("content_footers").select("id, language, status").eq("id", footer.value).maybeSingle();
+    if (!row || row.status !== "active") return { error: "That footer is no longer available. Choose another." };
+    if (row.language !== handout.language) return { error: handout.language === "es" ? "Choose an Español footer for an Español handout." : "Choose an English footer for an English handout." };
+  }
+
+  const { error } = await supabase.from("teaching_handouts").update({ footer_id: footer.value }).eq("id", idResult.value);
+  if (error) return { error: "The footer could not be saved." };
+
+  revalidatePath(`/admin/handouts/${idResult.value}`);
+  return { ok: true };
 }
 
 /** The title, the date of the teaching the handout goes with, and the teaching itself. */
@@ -134,7 +161,7 @@ export async function uploadHandoutDraft(id: string, formData: FormData): Promis
 
   const { data: handout } = await supabase
     .from("teaching_handouts")
-    .select("id, title, gathering_date, status, sent_for_review_at")
+    .select("id, title, gathering_date, status, sent_for_review_at, language")
     .eq("id", idResult.value)
     .maybeSingle();
   if (!handout) return { error: "That handout could not be found." };
@@ -150,7 +177,10 @@ export async function uploadHandoutDraft(id: string, formData: FormData): Promis
   if (!isDocxMagicBytes(buffer)) return { error: "This file is not a valid Word (.docx) document." };
 
   const suggestion = suggestHandoutFromFileName(file.name);
-  if (suggestion.unsupportedLanguage) return { error: "Only English handouts are supported for now. The file name should start with en_." };
+  if (suggestion.unsupportedLanguage) return { error: `The file name starts with "${suggestion.unsupportedLanguage}_". Handouts are English (en_) or Español (es_).` };
+  if (suggestion.language && suggestion.language !== handout.language) {
+    return { error: handout.language === "es" ? "This is an Español handout, so the file name should start with es_." : "This is an English handout, so the file name should start with en_." };
+  }
 
   const result = parseHandoutDocx(buffer);
   if (!result.ok || !result.handout) {

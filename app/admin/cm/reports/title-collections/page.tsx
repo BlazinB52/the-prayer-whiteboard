@@ -104,7 +104,7 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
     supabase.from("teachings").select("id, title, language, status, gathering_date, translation_of, chalkboard_asset_id"),
     supabase.from("teaching_devotionals").select("id, title, language, status, teaching_id, translation_of"),
     supabase.from("teaching_outlines").select("id, title, language, status, teaching_id"),
-    supabase.from("teaching_handouts").select("id, title, language, teaching_id, status"),
+    supabase.from("teaching_handouts").select("id, title, language, teaching_id, status, translation_of"),
     supabase.from("weekly_updates").select("id, title, language, status, teaching_id"),
     supabase.from("chalkboard_assets").select("id, title, canonical_name, language, teaching_id").eq("status", "active").eq("is_current_version", true),
     supabase.from("teaching_chalkboard_assignments").select("teaching_id, chalkboard_asset_id"),
@@ -136,8 +136,8 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
     weeklyUpdate: ((updatesResult.data as { id: string; title: string; language: string | null; status: string; teaching_id: string | null }[] | null) ?? []).map((row) => ({
       id: row.id, title: row.title, language: language(row.language), teachingIds: link(row.teaching_id), state: row.status === "draft" ? "draft" as const : "published" as const, href: "/admin/weekly-updates",
     })),
-    handout: ((handoutsResult.data as { id: string; title: string; language: string | null; teaching_id: string | null; status: string }[] | null) ?? []).map((row) => ({
-      id: row.id, title: row.title, language: language(row.language), teachingIds: link(row.teaching_id), state: row.status === "published" ? "published" as const : "draft" as const, href: `/admin/handouts/${row.id}`,
+    handout: ((handoutsResult.data as { id: string; title: string; language: string | null; teaching_id: string | null; status: string; translation_of: string | null }[] | null) ?? []).map((row) => ({
+      id: row.id, title: row.title, language: language(row.language), teachingIds: link(row.teaching_id), parentId: row.translation_of, state: row.status === "published" ? "published" as const : "draft" as const, href: `/admin/handouts/${row.id}`,
     })),
     devotional: ((devotionalsResult.data as { id: string; title: string; language: string | null; status: string; teaching_id: string | null; translation_of: string | null }[] | null) ?? []).map((row) => ({
       id: row.id, title: row.title || "Devotional", language: language(row.language), teachingIds: link(row.teaching_id), parentId: row.translation_of, state: row.status === "published" ? "published" as const : "draft" as const, href: `/admin/devotionals/${row.id}`,

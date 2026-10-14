@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { PRINTABLE_PDF_BUCKET } from "@/lib/printable-pdf-links";
 import { cleanupPrintablePdfUpload, createPrintablePdfUploadTarget } from "../printable-pdfs/actions";
 import { TeachingChoiceOptions, type TeachingChoice } from "../teaching-choice";
-import { deleteHandout, publishHandout, saveHandoutDetails, unpublishHandout, uploadHandoutDraft, type HandoutDraftState } from "./actions";
+import Link from "next/link";
+import { deleteHandout, publishHandout, saveHandoutDetails, setHandoutFooter, unpublishHandout, uploadHandoutDraft, type HandoutDraftState } from "./actions";
 
 type Message = { ok: boolean; text: string } | null;
 
@@ -113,7 +114,7 @@ export function DraftUpload({ id, hasDraft, sourceFileName, locked }: { id: stri
       <h2 className="text-lg font-extrabold text-[#243d31]">2. Draft</h2>
       <p className="mt-1 text-sm leading-6 text-[#607066]">
         {hasDraft ? `The draft text came from ${sourceFileName ?? "a Word file"}. ` : "Upload the Word draft of the handout. "}
-        Use the styles in the handout template (Heading 1 section title, Subtitle, Heading 2 paragraph title, List Bullet, Quote). Name the file like <strong>en_20261010_handout.docx</strong> and the teaching date fills in for you if it is empty.
+        Use the styles in the handout template (Heading 1 section title, Subtitle, Heading 2 paragraph title, List Bullet, Quote). Name the file like <strong>en_20261010_handout.docx</strong> (or <strong>es_…</strong> for an Español handout) and the teaching date fills in for you if it is empty.
       </p>
       {locked ? (
         <p className="mt-3 rounded-xl border border-[#c49a3a]/40 bg-[#fbf4e1] px-4 py-3 text-sm font-bold text-[#6b5013]">{locked}</p>
@@ -300,6 +301,108 @@ export function DeleteHandoutButton({ id, disabledReason }: { id: string; disabl
       </button>
       {disabledReason ? <p className="mt-2 text-xs text-[#607066]">{disabledReason}</p> : null}
       {error ? <p role="alert" className="mt-2 text-sm font-bold text-[#a2472c]">{error}</p> : null}
+    </div>
+  );
+}
+
+export type FooterChoice = { id: string; title: string };
+
+/** The footer printed at the bottom of the handout, chosen from the existing footers of the handout's language. */
+export function FooterForm({ id, footerId, footers, language }: { id: string; footerId: string | null; footers: FooterChoice[]; language: "en" | "es" }) {
+  const router = useRouter();
+  const [value, setValue] = useState(footerId ?? "");
+  const [message, setMessage] = useState<Message>(null);
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <form
+      className="mt-6 space-y-3 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setMessage(null);
+        startTransition(async () => {
+          const result = await setHandoutFooter(id, value);
+          if (result.error) setMessage({ ok: false, text: result.error });
+          else {
+            setMessage({ ok: true, text: "Footer saved." });
+            router.refresh();
+          }
+        });
+      }}
+    >
+      <h2 className="text-lg font-extrabold text-[#243d31]">Handout footer</h2>
+      <p className="text-sm leading-6 text-[#607066]">
+        The small credits block at the bottom of the printed handout. It comes from the {language === "es" ? "Español" : "English"} footers, which are written for the handout and are not a translation of the other language&apos;s footer. Manage them under <Link href="/admin/footers" className="font-extrabold text-[#946332] underline underline-offset-2">Footers</Link>.
+      </p>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="block text-sm font-bold text-[#385245]">
+          Footer
+          <select value={value} onChange={(event) => setValue(event.target.value)} disabled={pending} className="admin-input max-w-sm">
+            <option value="">No footer chosen</option>
+            {footers.map((footer) => <option key={footer.id} value={footer.id}>{footer.title}</option>)}
+          </select>
+        </label>
+        <button type="submit" disabled={pending || value === (footerId ?? "")} className="admin-secondary-button"><span>{pending ? "Saving..." : "Save footer"}</span></button>
+        <MessageLine message={message} />
+      </div>
+      {footers.length === 0 ? <p className="text-sm font-bold text-[#6b5013]">There are no {language === "es" ? "Español" : "English"} footers yet. Add one under Footers first.</p> : null}
+    </form>
+  );
+}
+
+type TranslateResult = { tone: "success"; title: string; editUrl: string; warnings: string[] } | { tone: "error"; message: string; existingId?: string };
+
+/** "Translate to Español": creates the Español handout from this English one. English handouts only. */
+export function TranslateToEspanolButton({ handoutId }: { handoutId: string }) {
+  const [pending, setPending] = useState(false);
+  const [result, setResult] = useState<TranslateResult | null>(null);
+
+  async function translate() {
+    setPending(true);
+    setResult(null);
+    try {
+      const response = await fetch("/api/admin/handout/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handout_id: handoutId }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (response.ok && payload?.editUrl) {
+        setResult({ tone: "success", title: String(payload.title ?? ""), editUrl: payload.editUrl, warnings: payload.warnings ?? [] });
+      } else {
+        setResult({ tone: "error", message: payload?.error ?? "The Español handout could not be created. Nothing was saved.", existingId: payload?.existingId });
+      }
+    } catch {
+      setResult({ tone: "error", message: "The Español handout could not be created. Check your connection and try again." });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 space-y-4">
+      <button type="button" onClick={translate} disabled={pending} className="admin-primary-button disabled:cursor-not-allowed disabled:opacity-60">
+        <span className="!text-white">{pending ? "Translating… please keep this page open" : "Translate to Español"}</span>
+      </button>
+      {result?.tone === "error" ? (
+        <p role="alert" className="text-sm font-bold text-[#a2472c]">
+          {result.message}{result.existingId ? <> <Link href={`/admin/handouts/${result.existingId}`} className="underline underline-offset-2">Open it</Link>.</> : null}
+        </p>
+      ) : null}
+      {result?.tone === "success" ? (
+        <div role="status" className="space-y-2 rounded-xl bg-[#e7efe9] p-4 text-sm text-[#2f4d3f]">
+          <p className="font-bold">
+            Español handout saved: &ldquo;{result.title}&rdquo;.{" "}
+            <Link href={result.editUrl} className="font-extrabold text-[#9d5a2f] underline underline-offset-2">Open the Español handout</Link>
+          </p>
+          {result.warnings.length ? (
+            <div>
+              <p className="font-bold">Please look at these spots while reviewing:</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">{result.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

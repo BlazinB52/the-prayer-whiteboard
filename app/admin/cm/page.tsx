@@ -53,6 +53,16 @@ const tools = [
   },
 ];
 
+// Shown to the Administrator only; content managers do not see these.
+const adminOnlyTools = [
+  {
+    title: "Reports",
+    description: "See what is done and what is not. Start with Title Collections: every teaching with everything that goes with it.",
+    status: "Admin only",
+    href: "/admin/cm/reports",
+  },
+];
+
 export default async function ContentManagementPage() {
   const { user, role } = await requireContentManager();
 
@@ -88,7 +98,7 @@ export default async function ContentManagementPage() {
 
         <section className="py-10">
           <div className="grid gap-5 sm:grid-cols-2">
-            {tools.map((tool) => (
+            {(role === "admin" ? [...tools, adminOnlyTools[0]] : tools).map((tool) => (
               <Link
                 key={tool.title}
                 href={tool.href}

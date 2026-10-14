@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { TeachingChoiceOptions, type TeachingChoice } from "../teaching-choice";
 import { HandoutContent } from "./handout-content";
 import { previewHandout, saveHandout, type HandoutPreview } from "./actions";
 
@@ -9,7 +10,7 @@ function plural(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-export function UploadSection() {
+export function UploadSection({ teachings }: { teachings: TeachingChoice[] }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [preview, setPreview] = useState<HandoutPreview | null>(null);
@@ -122,6 +123,11 @@ export function UploadSection() {
                     Teaching date
                     <input name="gatheringDate" type="date" required value={date} onChange={(event) => setDate(event.target.value)} disabled={pending} className="admin-input" />
                     <span className="mt-1 block text-xs font-normal text-[#607066]">{preview.suggestedDate ? "Read from the file name. Check that it is right." : "Required. The file name did not start with a date."}</span>
+                  </label>
+                  <label className="block text-sm font-bold text-[#385245] sm:col-span-2">
+                    Teaching
+                    <select name="teachingId" defaultValue="" disabled={pending} className="admin-input"><TeachingChoiceOptions teachings={teachings} /></select>
+                    <span className="mt-1 block text-xs font-normal text-[#607066]">The teaching this handout goes with. It can be changed later.</span>
                   </label>
                   <p className="self-center text-sm font-bold text-[#385245]">This is saved as a draft that Content Managers cannot see. Send it to them for review from its page. It is never published on the site.</p>
                 </div>

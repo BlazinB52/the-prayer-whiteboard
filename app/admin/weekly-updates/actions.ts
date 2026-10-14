@@ -6,6 +6,7 @@ import { convertDocxToWeeklyUpdate } from "@/lib/weekly-update-docx";
 import { notifyContentManagers } from "@/lib/review-ready-send";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { validateOptionalOutlineId } from "@/lib/teaching-outlines";
 
 type FormState = { error?: string; saved?: boolean };
 export type WeeklyUpdateActionState = { error?: string };
@@ -204,6 +205,8 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
   if (chalkboard.error) return { error: chalkboard.error };
   const footer = await readFooterAssignment(supabase, formData, language);
   if (footer.error) return { error: footer.error };
+  const teaching = validateOptionalOutlineId(formData.get("teachingId"));
+  if (teaching.error) return { error: teaching.error };
 
   const docx = await readDocx(formData, true);
   if (docx.error) return { error: docx.error };
@@ -224,6 +227,7 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
       source_document_storage_path: stored.path,
       source_document_file_name: docx.value.fileName,
       chalkboard_asset_id: chalkboard.value?.[0] ?? null,
+      teaching_id: teaching.value,
       language,
       status: "draft",
       is_current: false,
@@ -258,11 +262,13 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
   if (chalkboard.error) return { error: chalkboard.error };
   const footer = await readFooterAssignment(supabase, formData, language);
   if (footer.error) return { error: footer.error };
+  const teaching = validateOptionalOutlineId(formData.get("teachingId"));
+  if (teaching.error) return { error: teaching.error };
 
   const docx = await readDocx(formData, false);
   if (docx.error) return { error: docx.error };
 
-  const update: Record<string, unknown> = { title: title.value, chalkboard_asset_id: chalkboard.value?.[0] ?? null };
+  const update: Record<string, unknown> = { title: title.value, chalkboard_asset_id: chalkboard.value?.[0] ?? null, teaching_id: teaching.value };
   let storedPath: string | null = null;
   if (docx.value) {
     const stored = await storeSourceDocument(supabase, id.value, docx.value.fileName, docx.value.buffer);

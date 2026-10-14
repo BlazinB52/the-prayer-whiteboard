@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TeachingDateLabel } from "@/app/teaching-date-label";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { loadTeachingChoices } from "../teaching-choice";
 import { UploadSection } from "./upload-section";
 
 export const metadata: Metadata = {
@@ -15,6 +16,7 @@ type HandoutRow = {
   id: string;
   title: string;
   gathering_date: string;
+  teaching_id: string | null;
   sent_for_review_at: string | null;
   created_at: string;
 };
@@ -23,10 +25,12 @@ export default async function AdminHandoutsPage() {
   const { supabase } = await requireAdmin();
   const { data, error } = await supabase
     .from("teaching_handouts")
-    .select("id, title, gathering_date, sent_for_review_at, created_at")
+    .select("id, title, gathering_date, teaching_id, sent_for_review_at, created_at")
     .order("gathering_date", { ascending: false })
     .order("created_at", { ascending: false });
   const handouts = (data as HandoutRow[] | null) ?? [];
+  const teachings = await loadTeachingChoices(supabase);
+  const teachingTitles = new Map(teachings.map((teaching) => [teaching.id, teaching.title]));
 
   return (
     <main className="admin-shell">
@@ -43,7 +47,7 @@ export default async function AdminHandoutsPage() {
           <p role="alert" className="mt-6 text-sm font-bold text-[#a2472c]">Handouts could not be loaded. The database update for handouts may not be applied yet.</p>
         ) : (
           <>
-            <UploadSection />
+            <UploadSection teachings={teachings} />
             <section className="py-7">
               <h2 className="text-xl font-extrabold text-[#243d31]">
                 Handouts <span className="text-sm font-bold text-[#607066]">({handouts.length})</span>
@@ -55,6 +59,9 @@ export default async function AdminHandoutsPage() {
                       <Link href={`/admin/handouts/${handout.id}`} className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition hover:bg-[#e7efe9]/60">
                         <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{handout.title}</span>
                         <TeachingDateLabel date={handout.gathering_date} />
+                        <span className={`max-w-56 truncate text-xs font-bold ${handout.teaching_id ? "text-[#326048]" : "text-[#a2472c]"}`}>
+                          {handout.teaching_id ? `Teaching: ${teachingTitles.get(handout.teaching_id) ?? "linked"}` : "Needs a teaching"}
+                        </span>
                         <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${handout.sent_for_review_at ? "bg-[#e8f0fe] text-[#1a4fb4]" : "bg-[#eee7da] text-[#6b5a3a]"}`}>
                           {handout.sent_for_review_at ? "With Content Managers" : "Not sent"}
                         </span>

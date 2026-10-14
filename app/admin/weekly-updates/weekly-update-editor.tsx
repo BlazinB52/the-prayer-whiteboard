@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
+import { TeachingChoiceOptions, type TeachingChoice } from "../teaching-choice";
 
 type FormState = { error?: string; saved?: boolean };
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
@@ -15,7 +16,7 @@ export type WeeklyUpdateFooterOption = { id: string; label: string; language: La
 
 const LANGUAGE_LABELS: Record<Language, string> = { en: "English", es: "Español (El Salvador)" };
 
-export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", initialLanguage = "en", languageLocked = false, initialChalkboardAssetIds = [], initialFooterId = "", chalkboards = [], footers = [], submitLabel = "Save Weekly Update", sourceRequired = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; initialLanguage?: Language; languageLocked?: boolean; initialChalkboardAssetIds?: string[]; initialFooterId?: string | null; chalkboards?: WeeklyUpdateChalkboardOption[]; footers?: WeeklyUpdateFooterOption[]; submitLabel?: string; sourceRequired?: boolean }) {
+export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", initialLanguage = "en", languageLocked = false, initialChalkboardAssetIds = [], initialFooterId = "", chalkboards = [], footers = [], teachings = [], initialTeachingId = "", submitLabel = "Save Weekly Update", sourceRequired = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; initialLanguage?: Language; languageLocked?: boolean; initialChalkboardAssetIds?: string[]; initialFooterId?: string | null; chalkboards?: WeeklyUpdateChalkboardOption[]; footers?: WeeklyUpdateFooterOption[]; teachings?: TeachingChoice[]; initialTeachingId?: string | null; submitLabel?: string; sourceRequired?: boolean }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [language, setLanguage] = useState<Language>(initialLanguage);
@@ -68,6 +69,11 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
           <span className="mt-1 block text-xs font-normal text-[#607066]">An English update is emailed only to subscribers who chose English. An Español update is emailed only to subscribers who chose Español. This cannot be changed later.</span>
         </label>
       )}
+      <label className="block text-sm font-bold text-[#385245]">
+        Teaching
+        <select name="teachingId" defaultValue={initialTeachingId ?? ""} className="admin-input"><TeachingChoiceOptions teachings={teachings} /></select>
+        <span className="mt-1 block text-xs font-normal text-[#607066]">The teaching this weekly update goes with. It shows in the Title Collections report.</span>
+      </label>
       <label className="block text-sm font-bold text-[#385245]">
         Weekly Update chalkboards
         <span className="mt-2 grid gap-2 rounded-xl border border-[#284a3b]/10 bg-white/70 p-3">

@@ -12,6 +12,7 @@ import {
   validateHandoutTitle,
   type ParsedHandout,
 } from "@/lib/teaching-handouts";
+import { validateOptionalOutlineId } from "@/lib/teaching-outlines";
 
 export type HandoutCounts = { sections: number; subtitles: number; paragraphTitles: number; paragraphs: number; bullets: number; taglines: number };
 export type HandoutPreview = {
@@ -97,10 +98,13 @@ export async function saveHandout(formData: FormData): Promise<HandoutActionStat
   if (title.error || !title.value) return { error: title.error ?? "Title is invalid." };
   const date = validateHandoutDate(formData.get("gatheringDate"));
   if (date.error || !date.value) return { error: date.error ?? "Choose the teaching date." };
+  const teachingId = validateOptionalOutlineId(formData.get("teachingId"));
+  if (teachingId.error) return { error: teachingId.error };
 
   const { data, error } = await supabase
     .from("teaching_handouts")
     .insert({
+      teaching_id: teachingId.value,
       title: title.value,
       gathering_date: date.value,
       language: "en",
@@ -131,6 +135,24 @@ export async function setHandoutDate(id: string, gatheringDate: string): Promise
 
   revalidateHandoutPaths();
   revalidatePath(`/admin/handouts/${idResult.value}`);
+  return { ok: true };
+}
+
+/** Links the handout to the teaching it goes with, or clears the link (empty id). */
+export async function setHandoutTeaching(id: string, teachingId: string): Promise<HandoutActionState> {
+  const { supabase } = await requireAdmin();
+  const idResult = validateHandoutId(id);
+  const teaching = validateOptionalOutlineId(teachingId);
+  if (idResult.error || !idResult.value) return { error: idResult.error };
+  if (teaching.error) return { error: teaching.error };
+
+  const { data, error } = await supabase.from("teaching_handouts").update({ teaching_id: teaching.value }).eq("id", idResult.value).select("id");
+  if (error) return { error: "The teaching could not be changed." };
+  if (!data?.length) return { error: "That handout could not be found." };
+
+  revalidateHandoutPaths();
+  revalidatePath(`/admin/handouts/${idResult.value}`);
+  revalidatePath("/admin/cm/reports");
   return { ok: true };
 }
 

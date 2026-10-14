@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { deleteHandout, setHandoutDate } from "./actions";
+import { TeachingChoiceOptions, type TeachingChoice } from "../teaching-choice";
+import { deleteHandout, setHandoutDate, setHandoutTeaching } from "./actions";
 
 export function HandoutDateForm({ id, date }: { id: string; date: string }) {
   const router = useRouter();
@@ -31,6 +32,38 @@ export function HandoutDateForm({ id, date }: { id: string; date: string }) {
         <input type="date" required value={value} onChange={(event) => setValue(event.target.value)} disabled={pending} className="admin-input" />
       </label>
       <button type="submit" disabled={pending || value === date} className="admin-secondary-button"><span>{pending ? "Saving..." : "Change date"}</span></button>
+      {message ? <p role={message.ok ? "status" : "alert"} className={`text-sm font-bold ${message.ok ? "text-[#326048]" : "text-[#a2472c]"}`}>{message.text}</p> : null}
+    </form>
+  );
+}
+
+export function HandoutTeachingForm({ id, teachingId, teachings }: { id: string; teachingId: string | null; teachings: TeachingChoice[] }) {
+  const router = useRouter();
+  const [value, setValue] = useState(teachingId ?? "");
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <form
+      className="mt-4 flex flex-wrap items-end gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setMessage(null);
+        startTransition(async () => {
+          const result = await setHandoutTeaching(id, value);
+          if (result.error) setMessage({ ok: false, text: result.error });
+          else {
+            setMessage({ ok: true, text: "Teaching saved." });
+            router.refresh();
+          }
+        });
+      }}
+    >
+      <label className="block text-sm font-bold text-[#385245]">
+        Teaching
+        <select value={value} onChange={(event) => setValue(event.target.value)} disabled={pending} className="admin-input max-w-xs"><TeachingChoiceOptions teachings={teachings} /></select>
+      </label>
+      <button type="submit" disabled={pending || value === (teachingId ?? "")} className="admin-secondary-button"><span>{pending ? "Saving..." : "Change teaching"}</span></button>
       {message ? <p role={message.ok ? "status" : "alert"} className={`text-sm font-bold ${message.ok ? "text-[#326048]" : "text-[#a2472c]"}`}>{message.text}</p> : null}
     </form>
   );

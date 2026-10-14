@@ -7,7 +7,8 @@ import { TeachingDateLabel } from "@/app/teaching-date-label";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { validateHandoutId } from "@/lib/teaching-handouts";
 import { HandoutContent } from "../handout-content";
-import { DeleteHandoutButton, HandoutDateForm } from "../handout-tools";
+import { loadTeachingChoices } from "../../teaching-choice";
+import { DeleteHandoutButton, HandoutDateForm, HandoutTeachingForm } from "../handout-tools";
 
 export const metadata: Metadata = {
   title: "Handout",
@@ -30,7 +31,7 @@ export default async function AdminHandoutPage({
   const { supabase } = await requireAdmin();
   const { data: handout } = await supabase
     .from("teaching_handouts")
-    .select("id, title, gathering_date, sent_for_review_at, content, source_file_name")
+    .select("id, title, gathering_date, teaching_id, sent_for_review_at, content, source_file_name")
     .eq("id", idResult.value)
     .maybeSingle();
   if (!handout) notFound();
@@ -58,6 +59,7 @@ export default async function AdminHandoutPage({
           </div>
           {handout.source_file_name ? <p className="mt-2 text-xs text-[#607066]">Uploaded from {handout.source_file_name}.</p> : null}
           <HandoutDateForm id={idResult.value} date={handout.gathering_date} />
+          <HandoutTeachingForm id={idResult.value} teachingId={handout.teaching_id} teachings={await loadTeachingChoices(supabase)} />
         </header>
 
         {flags.saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Saved as a draft. Check it below, then send it to the Content Managers.</p> : null}

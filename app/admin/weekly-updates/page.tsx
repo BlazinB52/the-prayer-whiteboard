@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { archiveWeeklyUpdate, createWeeklyUpdate, deleteWeeklyUpdate, publishWeeklyUpdate, sendWeeklyUpdateToProofing, setWeeklyUpdateReady, takeWeeklyUpdateBackFromProofing, updateWeeklyUpdate } from "./actions";
+import { loadTeachingChoices } from "../teaching-choice";
 import { WeeklyUpdateEditor, type WeeklyUpdateChalkboardOption, type WeeklyUpdateFooterOption } from "./weekly-update-editor";
 import { WeeklyUpdateDeleteButton, WeeklyUpdateStatusButton } from "./status-buttons";
 import { WeeklyUpdateTestSendForm } from "./test-send-form";
@@ -29,7 +30,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
   const [{ data: updates, error }, { data: chalkboards }, { data: chalkboardAssignments }, { data: footers }, { data: footerAssignments }] = await Promise.all([
     supabase
       .from("weekly_updates")
-      .select("id, title, language, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, conversion_report, ready_to_publish_at, sent_to_proofing_at")
+      .select("id, title, language, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, teaching_id, conversion_report, ready_to_publish_at, sent_to_proofing_at")
       .order("is_current", { ascending: false })
       .order("updated_at", { ascending: false }),
     supabase
@@ -59,6 +60,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
     current.push(assignment.chalkboard_asset_id);
     chalkboardIdsByUpdate.set(assignment.weekly_update_id, current);
   }
+  const teachingChoices = await loadTeachingChoices(supabase);
   const emailLookup = await getWeeklyUpdateEmailLookup(supabase);
   // Work that still needs attention comes first: drafts, then the current published updates, then the
   // archive. Within each group the most recently edited is first.
@@ -128,7 +130,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         <section className="py-8">
           <article className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8 sm:p-6">
             <h2 className="text-2xl font-extrabold text-[#243d31]">New weekly update</h2>
-            <div className="mt-5"><WeeklyUpdateEditor action={createWeeklyUpdate} chalkboards={chalkboardOptions} footers={footerOptions} submitLabel="Upload and convert draft" sourceRequired /></div>
+            <div className="mt-5"><WeeklyUpdateEditor action={createWeeklyUpdate} teachings={teachingChoices} chalkboards={chalkboardOptions} footers={footerOptions} submitLabel="Upload and convert draft" sourceRequired /></div>
           </article>
         </section>
 
@@ -158,7 +160,8 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <p className="mt-2 text-sm text-[#607066]">Published: {formatDate(update.published_at)}{update.archived_at ? ` · Archived: ${formatDate(update.archived_at)}` : ""}</p>
                       <p className="mt-1 text-sm text-[#607066]">Source document: <span className="font-bold text-[#385245]">{update.source_document_file_name ?? "Not retained"}</span></p>
                       <p className="mt-1 text-sm text-[#607066]">Weekly Update chalkboards: <span className="font-bold text-[#385245]">{(chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])).map((id) => chalkboardLabels.get(id)).filter(Boolean).join(", ") || "None selected"}</span></p>
-                      <p className="mt-1 text-sm text-[#607066]">Footer: <span className="font-bold text-[#385245]">{footerLabels.get(footerIdByUpdate.get(update.id) ?? "") ?? "None selected"}</span></p>
+                      <p className="mt-1 text-sm text-[#607066]">Teaching: {update.teaching_id ? <span className="font-bold text-[#385245]">{teachingChoices.find((teaching) => teaching.id === update.teaching_id)?.title ?? "Linked"}</span> : <span className="font-bold text-[#a2472c]">Needs a teaching</span>}</p>
+                      <p className="mt-1 text-sm text-[#607066]">Footer:<span className="font-bold text-[#385245]">{footerLabels.get(footerIdByUpdate.get(update.id) ?? "") ?? "None selected"}</span></p>
                     </div>
                     <div className="flex flex-wrap gap-3">
                       {update.status !== "archived" ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate} weeklyUpdateId={update.id} intent="publish" label="Publish current" confirmMessage={update.status === "draft" && (!update.ready_to_publish_at || proofsOutstanding) ? `${[!update.ready_to_publish_at ? "This draft has not been marked ready to publish." : "", proofsOutstanding ? `${proofs.filter((proof) => !proof.submitted_at).length} of ${proofs.length} Content Managers have not submitted their proof yet. Publishing ends their review.` : ""].filter(Boolean).join("\n")}\n\n${publishNotice.confirm}` : publishNotice.confirm} /> : null}
@@ -247,7 +250,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   {update.status !== "archived" ? (
                     <details className="mt-5">
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit title or replace document</summary>
-                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialLanguage={update.language === "es" ? "es" : "en"} languageLocked initialTitle={update.title} initialChalkboardAssetIds={chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} chalkboards={chalkboardOptions} footers={footerOptions} /></div>
+                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialLanguage={update.language === "es" ? "es" : "en"} languageLocked initialTitle={update.title} initialChalkboardAssetIds={chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} teachings={teachingChoices} initialTeachingId={update.teaching_id} chalkboards={chalkboardOptions} footers={footerOptions} /></div>
                     </details>
                   ) : null}
                   {update.is_current && update.status === "published" ? (

@@ -90,7 +90,7 @@ export function HandoutDetailsForm({
         </label>
         <label className="block text-sm font-bold text-[#385245]">
           Teaching
-          <select value={teachingValue} onChange={(event) => setTeachingValue(event.target.value)} disabled={pending} className="admin-input"><TeachingChoiceOptions teachings={teachings} /></select>
+          <select value={teachingValue} onChange={(event) => setTeachingValue(event.target.value)} disabled={pending} className="admin-input"><TeachingChoiceOptions teachings={teachings} selectedId={teachingId} /></select>
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-3">

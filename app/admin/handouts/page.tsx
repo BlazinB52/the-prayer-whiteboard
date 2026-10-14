@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { TeachingDateLabel } from "@/app/teaching-date-label";
 import { requireAdmin } from "@/lib/supabase/admin";
-import { loadTeachingChoices } from "../teaching-choice";
+import { loadTeachingChoices, teachingChoiceLabel } from "../teaching-choice";
 import { createHandout } from "./actions";
 
 export const metadata: Metadata = {
@@ -33,7 +33,7 @@ export default async function AdminHandoutsPage({ searchParams }: { searchParams
     .order("created_at", { ascending: false });
   const handouts = (data as HandoutRow[] | null) ?? [];
   const teachings = await loadTeachingChoices(supabase);
-  const teachingTitles = new Map(teachings.map((teaching) => [teaching.id, teaching.title]));
+  const teachingTitles = new Map(teachings.map((teaching) => [teaching.id, teachingChoiceLabel(teaching)]));
 
   return (
     <main className="admin-shell">

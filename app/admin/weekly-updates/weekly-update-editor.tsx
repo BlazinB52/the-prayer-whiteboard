@@ -71,7 +71,7 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
       )}
       <label className="block text-sm font-bold text-[#385245]">
         Teaching
-        <select name="teachingId" defaultValue={initialTeachingId ?? ""} className="admin-input"><TeachingChoiceOptions teachings={teachings} /></select>
+        <select name="teachingId" defaultValue={initialTeachingId ?? ""} className="admin-input"><TeachingChoiceOptions teachings={teachings} selectedId={initialTeachingId} /></select>
         <span className="mt-1 block text-xs font-normal text-[#607066]">The teaching this weekly update goes with. It shows in the Title Collections report.</span>
       </label>
       <label className="block text-sm font-bold text-[#385245]">

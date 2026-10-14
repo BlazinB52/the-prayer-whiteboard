@@ -66,8 +66,9 @@ ADDRESSING PEOPLE
 - Prayers addressed to God use vos: "Señor, ungí mis ojos", "Padre, ensanchá nuestro corazón", "Enseñanos", "Hacenos atentos".
 
 THE TEACHER
-- When the English says "the teacher" or refers to the person teaching, do not identify the teacher's gender, even if the English uses "she" or "he". Use natural neutral constructions: "En la enseñanza se explicó…", "La enseñanza relacionó…", "Se recordó…", "Para ilustrarlo, se contó…", "Se dieron gracias a Jesús…".
-- Do not use la maestra, el maestro, ella or él for the teacher. Use "la docente" or "el docente" only when the English clearly intends to identify the teacher's gender.
+- Follow the English. When it says "he" or "she" about the teacher ("the teacher said…", "she went on to say…"), keep that gender in Spanish: él / ella, el maestro / la maestra (or el docente / la docente), with matching articles and adjectives.
+- When the English says only "the teacher" and gives no gender, do not add one. Use natural neutral constructions: "En la enseñanza se explicó…", "La enseñanza relacionó…", "Se recordó…", "Para ilustrarlo, se contó…", "Se dieron gracias a Jesús…". Do not use la maestra, el maestro, ella or él unless the English gives the gender.
+- Never guess a gender from a name or from the context. Use only what the English states.
 
 WORDING
 - The small prayer group: el grupo or los participantes, never la congregación.
@@ -254,8 +255,8 @@ const VOSOTROS = /\b(vosotros|vosotras|os\s|habéis|tenéis|podéis|sois)\b/i;
 
 const paragraphCount = (value: string) => value.split("\n").filter((line) => line.trim()).length;
 // Wording the translation rules ask to avoid outside Scripture.
-const RULE_CHECKS: { pattern: RegExp; message: string }[] = [
-  { pattern: /\b(la maestra|el maestro|la docente|el docente)\b/i, message: "names the teacher's gender" },
+const RULE_CHECKS: { pattern: RegExp; message: string; /** The check is skipped when the English says this, for example when the English itself gives the teacher's gender. */ unlessSource?: RegExp }[] = [
+  { pattern: /\b(la maestra|el maestro|la docente|el docente)\b/i, message: "names the teacher's gender although the English gives none", unlessSource: /\b(she|he|her|his|him|herself|himself)\b/i },
   { pattern: /\binquietud\b/i, message: "uses “inquietud” (use impulso or dirección for a prompting)" },
   { pattern: /\bcongregaci[oó]n\b/i, message: "uses “congregación” (use el grupo or los participantes)" },
   { pattern: /\b[Ll]a Comuni[oó]n\b/, message: "calls the Lord's Supper “la Comunión” (use la Santa Cena)" },
@@ -278,10 +279,10 @@ export function checkSegment(source: TranslationSegment, translated: string | un
     if (tu) warnings.push(`Possible tú form “${tu[0]}” instead of vos in “${label}”.`);
     const vosotros = translated.match(VOSOTROS);
     if (vosotros) warnings.push(`Possible vosotros form “${vosotros[0].trim()}” in “${label}”.`);
-    for (const check of RULE_CHECKS) if (check.pattern.test(translated)) warnings.push(`“${label}” ${check.message}.`);
+    for (const check of RULE_CHECKS) if (check.pattern.test(translated) && !(check.unlessSource && check.unlessSource.test(source.text))) warnings.push(`“${label}” ${check.message}.`);
   }
   if (source.limit && translated.length > source.limit) {
-    return { error: `${fieldLabel(source.id)} is ${translated.length} characters in Spanish, over the website's ${source.limit}-character limit. Nothing was saved and nothing was cut; shorten that field in the English teaching, then convert again.`, warnings };
+    return { error: `${fieldLabel(source.id)} is ${translated.length} characters in Spanish, over the website's ${source.limit}-character limit. Nothing was saved and nothing was cut. Raise the limit, or shorten the English teaching, then convert again.`, warnings };
   }
   return { warnings };
 }

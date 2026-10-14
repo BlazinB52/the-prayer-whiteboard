@@ -58,7 +58,9 @@ test("a translated teaching passes the Español importer, uses RVR1960 and lists
   assert.equal(calls[0].model, "claude-opus-5-5");
   assert.match(calls[0].system, /En la enseñanza se explicó/);
   assert.equal(calls.some((body) => body.messages[0].content.includes('"limit"')), false, "no length limit is ever sent, so nothing is shortened");
-  assert.equal(calls[0].tool_choice.name, "save_translation");
+  // A forced tool call (type "tool" or "any") is rejected by current models, so the request lets the model choose and the prompt names the tool.
+  assert.deepEqual(calls[0].tool_choice, { type: "auto" });
+  assert.match(calls[0].messages[0].content, /Call the save_translation tool/);
 
   const parsed = parseTeachingDocx(buildTeachingTranslationDocx(result.teaching, result.categories, result.sections), { language: "es" });
   assert.equal(parsed.ok, true, parsed.errors.join("\n"));

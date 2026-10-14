@@ -7,6 +7,7 @@ import { DevotionalDayForms, DevotionalImportForm, DevotionalPreviewLink, Devoti
 import { DevotionalTestSendForm } from "@/app/admin/teachings/[id]/devotional/devotional-test-send-form";
 import { importStandaloneDevotionalText, publishStandaloneDevotional, unpublishStandaloneDevotional, updateStandaloneDevotionalDay, updateStandaloneDevotionalSeries } from "@/app/admin/teachings/devotional-actions";
 import { PublishDevotionalButton, UnpublishDevotionalButton } from "@/app/admin/teachings/devotional-buttons";
+import { DevotionalExportForTranslationSection } from "@/app/admin/devotionals/export-for-translation-section";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { TranslationPicker } from "@/app/admin/translations/translation-picker";
@@ -65,7 +66,10 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-4xl">
-        <Link href="/admin/devotionals" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to devotionals</Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/admin/devotionals" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to devotionals</Link>
+          <a href="#export-for-translation" className="text-sm font-extrabold text-[#9d5a2f] hover:underline">Export for translation</a>
+        </div>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -76,13 +80,7 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
           </div>
         </header>
 
-        <section id="export-for-translation" className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
-          <h2 className="text-2xl font-extrabold text-[#243d31]">Export for translation</h2>
-          <p className="mt-3 text-sm leading-6 text-[#607066]">
-            Downloads this devotional as a plain text file named es_yyyymmdd_devotional, with the title, introduction and all seven days. Have it translated into Español (El Salvador, with the vos forms), then create a new devotional from the translated file on the <Link href="/admin/devotionals/new" className="font-extrabold text-[#9d5a2f] underline underline-offset-2">New devotional</Link> page with Language set to Español. It offers to link the new devotional to this one. You can export as often as you like, and it works on a draft or a published devotional. Nothing here changes.
-          </p>
-          <a href={`/api/admin/devotional/export?devotional_id=${devotional.id}`} download className="admin-secondary-button mt-4 inline-flex items-center justify-center">Export for translation (text file)</a>
-        </section>
+        <DevotionalExportForTranslationSection devotionalId={devotional.id} />
 
         {pendingRevisionCount ? (
           <p role="status" className="mt-6 rounded-xl border border-[#1a4fb4]/20 bg-[#e8f0fe] px-4 py-3 text-sm font-bold leading-6 text-[#1a3f8a]">

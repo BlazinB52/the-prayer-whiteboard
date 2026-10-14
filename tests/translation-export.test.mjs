@@ -158,8 +158,12 @@ test("each edit screen has an export button that works on drafts and published i
   assert.match(teaching, /\/api\/admin\/teaching\/export\?teaching_id=/);
   const teachingRoute = await readFile("app/api/admin/teaching/export/route.ts", "utf8");
   assert.match(teachingRoute, /\.in\("status", \["draft", "published"\]\)/);
-  const devotional = await readFile("app/admin/devotionals/[id]/page.tsx", "utf8");
+  // Both devotional admin pages show the one shared export section.
+  const devotional = await readFile("app/admin/devotionals/export-for-translation-section.tsx", "utf8");
   assert.match(devotional, /\/api\/admin\/devotional\/export\?devotional_id=/);
+  for (const page of ["app/admin/devotionals/[id]/page.tsx", "app/admin/teachings/[id]/devotional/page.tsx"]) {
+    assert.match(await readFile(page, "utf8"), /<DevotionalExportForTranslationSection devotionalId=\{devotional\.id\} \/>/, page);
+  }
   const weekly = await readFile("app/admin/weekly-updates/page.tsx", "utf8");
   assert.match(weekly, /\/api\/admin\/weekly-update\/export\?weekly_update_id=/);
 });

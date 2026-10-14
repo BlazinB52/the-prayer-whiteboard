@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { DevotionalExportForTranslationSection } from "@/app/admin/devotionals/export-for-translation-section";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { TranslationPicker } from "@/app/admin/translations/translation-picker";
@@ -61,7 +62,10 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-4xl">
-        <Link href="/admin" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to dashboard</Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/admin" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to dashboard</Link>
+          {devotional ? <a href="#export-for-translation" className="text-sm font-extrabold text-[#9d5a2f] hover:underline">Export for translation</a> : null}
+        </div>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -72,6 +76,8 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
           </div>
           <p className="mt-3 text-sm leading-6 text-[#607066]">Devotional publishing is independent from teaching publishing. Once published, the devotional is readable at its own web address even if this teaching is still a draft.</p>
         </header>
+
+        {devotional ? <DevotionalExportForTranslationSection devotionalId={devotional.id} /> : null}
 
         {messages.created === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional created as a draft.</p> : null}
         {messages.assigned === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional assigned to this teaching.</p> : null}

@@ -193,8 +193,8 @@ test("a repeated metadata label after the categories begin is an error", () => {
 });
 
 test("field limits are enforced", () => {
-  assertError(parse(withReplaced((row) => row[1] === "A short summary.", [null, "x".repeat(601)])), /Short Summary is 601 characters/);
-  assert.equal(parse(withReplaced((row) => row[1] === "A short summary.", [null, "x".repeat(600)])).teaching.summary.length, 600);
+  assertError(parse(withReplaced((row) => row[1] === "A short summary.", [null, "x".repeat(801)])), /Short Summary is 801 characters/);
+  assert.equal(parse(withReplaced((row) => row[1] === "A short summary.", [null, "x".repeat(800)])).teaching.summary.length, 800);
   assertError(parse(withReplaced((row) => row[1] === "God places eternal treasure in ordinary vessels.", [null, "x".repeat(401)])), /Central Theme is 401 characters/);
   assertError(parse(withReplaced((row) => row[1] === "First introduction paragraph.", [null, "x".repeat(5000)])), /Introduction is/);
   assertError(parse(withReplaced((row) => row[0] === "Title", ["Title", "x".repeat(161)])), /title is 161 characters/);
@@ -370,12 +370,12 @@ test("the importer adds no schema changes and writes only to the existing teachi
   assert.doesNotMatch(source, /status: "published"/);
 });
 
-test("the Short Summary limit is 600 everywhere it is enforced", async () => {
+test("the Short Summary limit is 800 everywhere it is enforced", async () => {
   const { TEACHING_IMPORT_LIMITS } = await import("../lib/teaching-docx-import.ts");
-  assert.equal(TEACHING_IMPORT_LIMITS.summary, 600);
-  assert.match(await readFile("app/admin/teachings/import/import-form.tsx", "utf8"), /summary: 600/);
-  assert.match(await readFile("lib/teaching-revisions.ts", "utf8"), /"Short summary", teaching\.summary, 600,/);
-  const sql = await readFile("supabase/migrations/20261008010000_teaching_summary_limit_600.sql", "utf8");
-  assert.match(sql, /when 'summary' then 600/);
-  assert.doesNotMatch(sql, /when 'summary' then 500/);
+  assert.equal(TEACHING_IMPORT_LIMITS.summary, 800);
+  assert.match(await readFile("app/admin/teachings/import/import-form.tsx", "utf8"), /summary: 800/);
+  assert.match(await readFile("lib/teaching-revisions.ts", "utf8"), /"Short summary", teaching\.summary, 800,/);
+  const sql = await readFile("supabase/migrations/20261015010000_teaching_summary_limit_800.sql", "utf8");
+  assert.match(sql, /when 'summary' then 800/);
+  assert.doesNotMatch(sql, /when 'summary' then 600/);
 });

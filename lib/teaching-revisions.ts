@@ -89,9 +89,9 @@ export function buildEditableFields(teaching: TeachingRow, categories: CategoryR
   teachingField("introduction", "Introduction", teaching.introduction, 5000, true, 6, true);
   teachingField("summary", "Short summary", teaching.summary, 600, true, 4, true);
   teachingField("teaser_1_heading", "Homepage teaser 1 heading", teaching.teaser_1_heading, 100, false, 1, false);
-  teachingField("teaser_1_text", "Homepage teaser 1 text", teaching.teaser_1_text, 300, true, 3, false);
+  teachingField("teaser_1_text", "Homepage teaser 1 text", teaching.teaser_1_text, 350, true, 3, false);
   teachingField("teaser_2_heading", "Homepage teaser 2 heading", teaching.teaser_2_heading, 100, false, 1, false);
-  teachingField("teaser_2_text", "Homepage teaser 2 text", teaching.teaser_2_text, 300, true, 3, false);
+  teachingField("teaser_2_text", "Homepage teaser 2 text", teaching.teaser_2_text, 350, true, 3, false);
 
   for (const category of [...categories].sort((a, b) => a.sort_order - b.sort_order)) {
     fields.push({ id: fieldId("category", category.id, "title"), targetKind: "category", targetId: category.id, fieldKey: "title", label: "Category title", context: category.title, current: category.title, maxLength: 160, multiline: false, rows: 1, formatted: false });

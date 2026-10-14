@@ -12,13 +12,13 @@ test("admin teaching form exposes homepage teaser fields with counters", async (
   assert.match(source, /name="teaser2Text"/);
   assert.match(source, /value\.length/);
   assert.match(source, /maxLength=\{100\}/);
-  assert.match(source, /maxLength=\{300\}/);
+  assert.match(source, /maxLength=\{350\}/);
 });
 
 test("server actions validate teaser length and teaser 2 completeness", async () => {
   const source = await readFile("app/admin/teachings/actions.ts", "utf8");
   assert.match(source, /teaserHeading:\s*100/);
-  assert.match(source, /teaserText:\s*300/);
+  assert.match(source, /teaserText:\s*350/);
   assert.match(source, /Boolean\(teaser2Heading\.value\) !== Boolean\(teaser2Text\.value\)/);
   assert.match(source, /teaser_1_heading/);
   assert.match(source, /teaser_2_text/);
@@ -72,4 +72,24 @@ test("teaser migration keeps teaser 1 nullable while publish rpc requires it", a
   assert.match(deepDiveSource, /if v_teaching\.teaching_type = 'standard' then[\s\S]*Teaser 1 heading is required before publishing/);
   assert.match(source, /Teaser 1 heading is required before publishing/);
   assert.match(source, /teachings_teaser_2_completeness_check/);
+});
+
+test("the teaser text limit is 350 characters everywhere it is enforced, and the teaser heading stays at 100", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const { TEACHING_IMPORT_LIMITS } = await import("../lib/teaching-docx-import.ts");
+  assert.equal(TEACHING_IMPORT_LIMITS.teaserText, 350);
+  assert.equal(TEACHING_IMPORT_LIMITS.teaserHeading, 100);
+  assert.match(await readFile("app/admin/teachings/import/import-form.tsx", "utf8"), /teaserText: 350/);
+  const revisions = await readFile("lib/teaching-revisions.ts", "utf8");
+  assert.match(revisions, /teaching\.teaser_1_text, 350,/);
+  assert.match(revisions, /teaching\.teaser_2_text, 350,/);
+  const sql = await readFile("supabase/migrations/20261014010000_teaser_text_limit_350.sql", "utf8");
+  assert.match(sql, /teaser_1_text is null or char_length\(teaser_1_text\) <= 350/);
+  assert.match(sql, /teaser_2_text is null or char_length\(teaser_2_text\) <= 350/);
+  assert.match(sql, /char_length\(coalesce\(v_teaching\.teaser_1_text, ''\)\) > 350/);
+  assert.match(sql, /char_length\(coalesce\(v_teaching\.teaser_2_text, ''\)\) > 350/);
+  assert.match(sql, /when 'teaser_1_text' then 350/);
+  assert.match(sql, /when 'teaser_2_text' then 350/);
+  assert.doesNotMatch(sql, /teaser_[12]_text[^\n]*300/);
+  assert.match(sql, /when 'teaser_1_heading' then 100/);
 });

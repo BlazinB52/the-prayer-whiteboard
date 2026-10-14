@@ -29,7 +29,7 @@ export const TEACHING_IMPORT_LIMITS = {
   scriptureReference: 240,
   scriptureTranslation: 80,
   teaserHeading: 100,
-  teaserText: 300,
+  teaserText: 350,
 } as const;
 
 export type ImportedSection =

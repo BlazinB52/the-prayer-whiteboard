@@ -10,7 +10,7 @@ const MAX_LENGTHS = {
   introduction: 5000,
   summary: 600,
   teaserHeading: 100,
-  teaserText: 300,
+  teaserText: 350,
 };
 
 type FormState = { error?: string; saved?: boolean };

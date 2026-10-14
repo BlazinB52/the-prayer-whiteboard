@@ -110,9 +110,9 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
             <p className="mt-1 text-xs text-[#607066]">Teaser 1 is required before publication. Teaser 2 is optional, but both fields must be completed if either is used.</p>
           </div>
           <TeaserInput label="Teaser 1 heading" name="teaser1Heading" value={draftValues.teaser1Heading} onChange={handleChange} maxLength={100} requiredNote />
-          <TeaserTextarea label="Teaser 1 text" name="teaser1Text" value={draftValues.teaser1Text} onChange={handleChange} maxLength={300} requiredNote />
+          <TeaserTextarea label="Teaser 1 text" name="teaser1Text" value={draftValues.teaser1Text} onChange={handleChange} maxLength={350} requiredNote />
           <TeaserInput label="Teaser 2 heading" name="teaser2Heading" value={draftValues.teaser2Heading} onChange={handleChange} maxLength={100} />
-          <TeaserTextarea label="Teaser 2 text" name="teaser2Text" value={draftValues.teaser2Text} onChange={handleChange} maxLength={300} />
+          <TeaserTextarea label="Teaser 2 text" name="teaser2Text" value={draftValues.teaser2Text} onChange={handleChange} maxLength={350} />
         </fieldset>
       ) : (
         <>

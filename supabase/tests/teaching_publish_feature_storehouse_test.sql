@@ -185,7 +185,7 @@ where id = (select id from teaching_publish_test_ids where key = 'second_teachin
 
 select throws_ok(
   $$ update public.teachings
-     set teaser_1_text = repeat('x', 301)
+     set teaser_1_text = repeat('x', 351)
      where id = (select id from teaching_publish_test_ids where key = 'first_teaching') $$,
   '23514',
   null,

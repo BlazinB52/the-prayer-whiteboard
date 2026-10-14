@@ -29,7 +29,7 @@ export function sampleBody() {
     para("Heading1", text("Homepage Teaser 1 Heading")),
     para(null, text("Optional. One short Normal paragraph, 100 characters or fewer.")),
     para("Heading1", text("Homepage Teaser 1 Text")),
-    para(null, text("Optional. One Normal paragraph, 300 characters or fewer.")),
+    para(null, text("Optional. One Normal paragraph, 350 characters or fewer.")),
     para("Heading1", text("First Teaching Category")),
     para(null, text("Normal paragraphs in a row become one section. You can use "), run("bold", { b: true }), text(", "), run("italics", { i: true }), text(", and hyperlinks to http or https addresses.")),
     para("ScriptureQuote", run("Romans 8:1 (ESV)", { b: true }), text(" — "), run("“There is therefore now no condemnation for those who are in Christ Jesus.”", { i: true })),

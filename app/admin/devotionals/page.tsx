@@ -1,26 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { formatTeachingDateShort } from "@/lib/teaching-date";
 
 export const metadata: Metadata = {
   title: "Devotionals",
   robots: { index: false, follow: false },
 };
 
-type AssociatedTeaching = { id: string; title: string };
+type AssociatedTeaching = { id: string; title: string; gathering_date: string | null };
 
 type DevotionalRow = {
   id: string;
   teaching_id: string | null;
   title: string;
   status: string;
-  published_at: string | null;
   associatedTeachings: AssociatedTeaching[];
 };
 
-function formatDate(value: string | null) {
-  if (!value) return "Not published";
-  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
+// A devotional has no date of its own: it carries the gathering date of the teaching it belongs to.
+function gatheringDate(teachings: AssociatedTeaching[]) {
+  const dates = teachings.map((teaching) => teaching.gathering_date).filter((date): date is string => Boolean(date)).sort();
+  return dates.length ? formatTeachingDateShort(dates[dates.length - 1]) : "No gathering date";
 }
 
 function DevotionalGroup({ heading, id, devotionals, emptyText }: { heading: string; id: string; devotionals: DevotionalRow[]; emptyText: string }) {
@@ -49,7 +50,7 @@ function DevotionalGroup({ heading, id, devotionals, emptyText }: { heading: str
                   <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{devotional.title}</span>
                   <span className="hidden max-w-[16rem] truncate text-sm text-[#607066] md:inline">{usedBy}</span>
                   <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{devotional.status}</span>
-                  <span className="hidden w-28 shrink-0 text-right text-sm text-[#607066] sm:inline">{formatDate(devotional.published_at)}</span>
+                  <span className="hidden w-28 shrink-0 text-right text-sm text-[#607066] sm:inline">{gatheringDate(devotional.associatedTeachings)}</span>
                 </Link>
               </li>
             );
@@ -84,7 +85,7 @@ export default async function AdminDevotionalsPage() {
 
   const teachingIds = [...new Set((assignments ?? []).map((assignment) => assignment.teaching_id))];
   const { data: teachings, error: teachingsError } = teachingIds.length
-    ? await supabase.from("teachings").select("id, title").in("id", teachingIds)
+    ? await supabase.from("teachings").select("id, title, gathering_date").in("id", teachingIds)
     : { data: [], error: null };
 
   if (teachingsError) {
@@ -108,7 +109,6 @@ export default async function AdminDevotionalsPage() {
       teaching_id: devotional.teaching_id,
       title: devotional.title,
       status: devotional.status,
-      published_at: devotional.published_at,
       associatedTeachings: teachingAssociationsByDevotionalId.get(devotional.id) ?? [],
     } satisfies DevotionalRow,
   }));

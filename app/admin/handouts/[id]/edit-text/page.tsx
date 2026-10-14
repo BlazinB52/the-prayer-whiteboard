@@ -24,9 +24,11 @@ export default async function EditHandoutTextPage({ params }: { params: Promise<
   const { supabase } = await requireAdmin();
   const { data: handout } = await supabase
     .from("teaching_handouts")
-    .select("id, title, gathering_date, content, original_content, source_file_name")
+    .select("id, title, gathering_date, status, content, original_content, source_file_name")
     .eq("id", id)
+    .eq("status", "draft")
     .maybeSingle();
+  // Only a draft can be edited. To change a published handout, unpublish it first.
   if (!handout) notFound();
 
   const { data: fieldRows } = await supabase.rpc("handout_review_fields", { p_handout_id: id });

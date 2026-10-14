@@ -25,13 +25,17 @@ through it.
 
 Only drafts go through the cycle. To change a published item, unpublish it first.
 
-**Handouts** are the one kind that is never published. The Administrator uploads the Word handout at
-`/admin/handouts` (styles from `docs/handout-template.docx`: Heading 1 section title, Subtitle, Heading 2
-paragraph title, Normal, List Bullet, Quote), sends it for review, decides the proposals, and then copies
-the text from **Final text to copy** into the Word handout by hand. Every handout carries the date of the
-teaching it goes with (`gathering_date`, required; read from a file name such as `en_20261010_...docx`).
-That date is shown with `app/teaching-date-label.tsx` (formatting in `lib/teaching-date.ts`); the other
-publications should use the same label when they get their date.
+**Handouts** follow the same cycle, with a different way to publish. "Create new handout" at
+`/admin/handouts` makes a blank draft; on its page the Administrator enters the title, the teaching date
+(`gathering_date`) and the teaching, and uploads the Word draft (styles from `docs/handout-template.docx`:
+Heading 1 section title, Subtitle, Heading 2 paragraph title, Normal, List Bullet, Quote; a file name such as
+`en_20261010_...docx` fills in the date). From the same page the draft is sent for review (it needs a date and a
+draft) and the Administrator can copy the finished text from **Final text to copy** into the Word handout.
+**Publishing a handout is uploading its final PDF**: it is added to Printable PDF Links
+(`printable_pdf_links`), which is the public PDF library, and `printable_pdf_id` points at that row. Removing
+the PDF there, or **Unpublish**, puts the handout back to a draft. The date is shown with
+`app/teaching-date-label.tsx` (formatting in `lib/teaching-date.ts`); the other publications should use the
+same label when they get their date.
 
 ## Where things live
 

@@ -104,7 +104,7 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
     supabase.from("teachings").select("id, title, language, status, gathering_date, translation_of, chalkboard_asset_id"),
     supabase.from("teaching_devotionals").select("id, title, language, status, teaching_id, translation_of"),
     supabase.from("teaching_outlines").select("id, title, language, status, teaching_id"),
-    supabase.from("teaching_handouts").select("id, title, language, teaching_id"),
+    supabase.from("teaching_handouts").select("id, title, language, teaching_id, status"),
     supabase.from("weekly_updates").select("id, title, language, status, teaching_id"),
     supabase.from("chalkboard_assets").select("id, title, canonical_name, language, teaching_id").eq("status", "active").eq("is_current_version", true),
     supabase.from("teaching_chalkboard_assignments").select("teaching_id, chalkboard_asset_id"),
@@ -136,8 +136,8 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
     weeklyUpdate: ((updatesResult.data as { id: string; title: string; language: string | null; status: string; teaching_id: string | null }[] | null) ?? []).map((row) => ({
       id: row.id, title: row.title, language: language(row.language), teachingIds: link(row.teaching_id), state: row.status === "draft" ? "draft" as const : "published" as const, href: "/admin/weekly-updates",
     })),
-    handout: ((handoutsResult.data as { id: string; title: string; language: string | null; teaching_id: string | null }[] | null) ?? []).map((row) => ({
-      id: row.id, title: row.title, language: language(row.language), teachingIds: link(row.teaching_id), state: "exists" as const, href: `/admin/handouts/${row.id}`,
+    handout: ((handoutsResult.data as { id: string; title: string; language: string | null; teaching_id: string | null; status: string }[] | null) ?? []).map((row) => ({
+      id: row.id, title: row.title, language: language(row.language), teachingIds: link(row.teaching_id), state: row.status === "published" ? "published" as const : "draft" as const, href: `/admin/handouts/${row.id}`,
     })),
     devotional: ((devotionalsResult.data as { id: string; title: string; language: string | null; status: string; teaching_id: string | null; translation_of: string | null }[] | null) ?? []).map((row) => ({
       id: row.id, title: row.title || "Devotional", language: language(row.language), teachingIds: link(row.teaching_id), parentId: row.translation_of, state: row.status === "published" ? "published" as const : "draft" as const, href: `/admin/devotionals/${row.id}`,
@@ -240,7 +240,7 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
             <span className="rounded-md border border-[#326048]/25 bg-[#e7efe9] px-2 py-1 text-[#244a3a]">✓ Done</span>
             <span className="rounded-md border border-[#c49a3a]/50 bg-[#fbf1cf] px-2 py-1 text-[#6b5013]">● Draft, not published yet</span>
             <span className="rounded-md border border-dashed border-[#a2472c]/30 bg-[#fbeeea]/60 px-2 py-1 text-[#a2472c]/80">Missing</span>
-            <span>Showing {visible.length} of {total}. Handouts and whiteboards are never published, so they show as Done once they exist.</span>
+            <span>Showing {visible.length} of {total}. Whiteboards are never published, so they show as Done once they exist.</span>
           </p>
         </section>
 

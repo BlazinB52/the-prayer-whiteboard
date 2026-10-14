@@ -1,6 +1,6 @@
 begin;
 
-drop table if exists public.printable_pdf_links;
+drop table if exists public.printable_pdf_links cascade;
 
 create table public.teaching_printable_pdf_links (
   teaching_id uuid primary key references public.teachings(id) on delete cascade,

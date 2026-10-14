@@ -112,10 +112,14 @@ test("admin actions only support create, verify-before-save, and delete-with-sto
   assert.match(actions, /createSignedUploadUrl\(path\)/);
   assert.match(actions, /export async function cleanupPrintablePdfUpload/);
   assert.match(actions, /isValidPrintablePdfStoragePath\(path\)/);
-  assert.match(actions, /headers: \{ Range: "bytes=0-4" \}/);
-  assert.match(actions, /signal: AbortSignal\.timeout\(VERIFY_FETCH_TIMEOUT_MS\)/);
+  // The check that the upload is really a PDF lives in one place, shared with publishing a handout.
+  const verify = await readFile("lib/printable-pdf-verify.ts", "utf8");
+  assert.match(actions, /verifyUploadedPdf\(supabase, storagePath\)/);
+  assert.match(verify, /headers: \{ Range: "bytes=0-4" \}/);
+  assert.match(verify, /signal: AbortSignal\.timeout\(VERIFY_FETCH_TIMEOUT_MS\)/);
+  assert.doesNotMatch(verify, /storage\.from\([^)]*\)\.download\(/);
   assert.doesNotMatch(actions, /storage\.from\([^)]*\)\.download\(/);
-  assert.match(actions, /isValidPdfMagicBytes\(/);
+  assert.match(verify, /isValidPdfMagicBytes\(/);
   assert.match(actions, /A PDF file is required\./);
   assert.match(actions, /export async function savePrintablePdfLink/);
   assert.doesNotMatch(actions, /formData\.get\("id"\)/);

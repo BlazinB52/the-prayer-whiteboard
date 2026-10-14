@@ -4,11 +4,12 @@ import { notFound } from "next/navigation";
 import { sendForReview, takeBackFromReview } from "@/app/admin/review-gate-actions";
 import { ReviewGateMessage, ReviewGateSection } from "@/app/admin/review-gate-section";
 import { TeachingDateLabel } from "@/app/teaching-date-label";
+import { resolvePrintablePdfHref } from "@/lib/printable-pdf-links";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { validateHandoutId } from "@/lib/teaching-handouts";
-import { HandoutContent } from "../handout-content";
 import { loadTeachingChoices } from "../../teaching-choice";
-import { DeleteHandoutButton, HandoutDateForm, HandoutTeachingForm } from "../handout-tools";
+import { HandoutContent } from "../handout-content";
+import { DeleteHandoutButton, DraftUpload, HandoutDetailsForm, PublishSection, UnpublishButton } from "../handout-tools";
 
 export const metadata: Metadata = {
   title: "Handout",
@@ -17,12 +18,15 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
+const UNTITLED = "Untitled handout";
+const longDate = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "America/Chicago" });
+
 export default async function AdminHandoutPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ review?: string; mailed?: string; of?: string; saved?: string }>;
+  searchParams: Promise<{ review?: string; mailed?: string; of?: string; created?: string }>;
 }) {
   const [{ id }, flags] = await Promise.all([params, searchParams]);
   const idResult = validateHandoutId(id);
@@ -31,52 +35,103 @@ export default async function AdminHandoutPage({
   const { supabase } = await requireAdmin();
   const { data: handout } = await supabase
     .from("teaching_handouts")
-    .select("id, title, gathering_date, teaching_id, sent_for_review_at, content, source_file_name")
+    .select("id, title, gathering_date, teaching_id, status, sent_for_review_at, published_at, printable_pdf_id, content, source_file_name")
     .eq("id", idResult.value)
     .maybeSingle();
   if (!handout) notFound();
 
-  // Proposals Content Managers have submitted and the Administrator has not finished with.
-  const { count: awaiting } = await supabase
-    .from("content_revisions")
-    .select("id", { count: "exact", head: true })
-    .eq("subject_type", "handout")
-    .eq("handout_id", idResult.value)
-    .eq("status", "submitted");
+  const [{ data: proposals }, teachings, { data: pdf }] = await Promise.all([
+    supabase.from("content_revisions").select("id, status").eq("subject_type", "handout").eq("handout_id", idResult.value).in("status", ["draft", "submitted"]),
+    loadTeachingChoices(supabase),
+    handout.printable_pdf_id ? supabase.from("printable_pdf_links").select("storage_path").eq("id", handout.printable_pdf_id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+
+  const isPublished = handout.status === "published";
+  const untitled = !handout.title || handout.title === UNTITLED;
+  const blocks = Array.isArray(handout.content) ? handout.content : [];
+  const hasDraft = blocks.length > 0;
+  const hasDate = Boolean(handout.gathering_date);
+  const awaiting = (proposals ?? []).filter((proposal) => proposal.status === "submitted").length;
+  const openProposals = (proposals ?? []).length;
+  const sent = Boolean(handout.sent_for_review_at);
+  const pdfHref = pdf?.storage_path ? resolvePrintablePdfHref(pdf.storage_path, supabase) : null;
+
+  const draftLocked = isPublished
+    ? "This handout is published. Unpublish it first to replace its draft."
+    : sent
+      ? "This handout is with the Content Managers. Take it back from review first to replace its draft."
+      : openProposals
+        ? "A Content Manager proposal on this handout is still open. Decide or close it on the Revisions page first."
+        : null;
+
+  const notReadyToSend = !hasDate ? "Enter the teaching date and save the details first." : !hasDraft ? "Upload the draft first." : null;
+  const notReadyToPublish = untitled || !hasDate ? "Enter the title and the teaching date, and save the details, first." : null;
 
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-4xl">
         <Link href="/admin/handouts" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to handouts</Link>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-6">
-          <p className="text-xs font-black uppercase tracking-wider text-[#946332]">Handout</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">{handout.title}</h1>
+          <p className="text-xs font-black uppercase tracking-wider text-[#946332]">Handout · {isPublished ? "Published" : "Draft"}</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">{untitled ? "New handout" : handout.title}</h1>
           <div className="mt-3"><TeachingDateLabel date={handout.gathering_date} /></div>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-extrabold">
-            <Link href={`/admin/handouts/${idResult.value}/edit-text`} className="text-[#946332] hover:text-[#a85e32]">Edit text</Link>
-            <Link href={`/admin/handouts/${idResult.value}/final`} className="text-[#946332] hover:text-[#a85e32]">Final text to copy</Link>
+            {!isPublished && hasDraft ? <Link href={`/admin/handouts/${idResult.value}/edit-text`} className="text-[#946332] hover:text-[#a85e32]">Edit text</Link> : null}
+            {hasDraft ? <Link href={`/admin/handouts/${idResult.value}/final`} className="text-[#946332] hover:text-[#a85e32]">Final text to copy</Link> : null}
             <Link href="/admin/teaching-revisions" className="text-[#946332] hover:text-[#a85e32]">Revisions{awaiting ? ` (${awaiting} awaiting review)` : ""}</Link>
           </div>
-          {handout.source_file_name ? <p className="mt-2 text-xs text-[#607066]">Uploaded from {handout.source_file_name}.</p> : null}
-          <HandoutDateForm id={idResult.value} date={handout.gathering_date} />
-          <HandoutTeachingForm id={idResult.value} teachingId={handout.teaching_id} teachings={await loadTeachingChoices(supabase)} />
         </header>
 
-        {flags.saved === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Saved as a draft. Check it below, then send it to the Content Managers.</p> : null}
+        {flags.created === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">New handout created. Enter its details below, then upload the draft.</p> : null}
         <ReviewGateMessage review={flags.review} mailed={flags.mailed} of={flags.of} />
-        <ReviewGateSection
-          noun="handout"
-          sentAt={handout.sent_for_review_at ?? null}
-          sendAction={sendForReview.bind(null, "handout", idResult.value)}
-          takeBackAction={takeBackFromReview.bind(null, "handout", idResult.value)}
-        />
 
-        <div className="py-6">
-          <HandoutContent blocks={handout.content} />
-        </div>
+        {isPublished ? (
+          <section className="mt-6 rounded-2xl border border-[#326048]/25 bg-[#e7efe9] p-5">
+            <h2 className="text-lg font-extrabold text-[#243d31]">Published</h2>
+            <p className="mt-2 text-sm leading-6 text-[#385245]">
+              {handout.published_at ? `Published ${longDate.format(new Date(handout.published_at))}. ` : ""}
+              The final PDF is in the public PDF library{pdfHref ? <> — <a href={pdfHref} target="_blank" rel="noopener noreferrer" className="font-extrabold text-[#946332] underline underline-offset-2">open the PDF</a></> : null}. You can also manage it under <Link href="/admin/printable-pdfs" className="font-extrabold text-[#946332] underline underline-offset-2">Printable PDF Links</Link>.
+              To change the title, date or draft, unpublish it first.
+            </p>
+            <div className="mt-4"><UnpublishButton id={idResult.value} /></div>
+          </section>
+        ) : null}
 
-        <footer className="border-t border-[#284a3b]/10 pt-6">
-          <DeleteHandoutButton id={idResult.value} />
+        {!isPublished ? (
+          <HandoutDetailsForm id={idResult.value} title={handout.title} date={handout.gathering_date} teachingId={handout.teaching_id} teachings={teachings} untitled={untitled} />
+        ) : null}
+
+        <DraftUpload id={idResult.value} hasDraft={hasDraft} sourceFileName={handout.source_file_name} locked={draftLocked} />
+
+        {!isPublished ? (
+          notReadyToSend ? (
+            <section className="mt-6 rounded-2xl border border-[#1a4fb4]/20 bg-[#f4f7fe] p-5">
+              <h2 className="text-lg font-extrabold text-[#243d31]">3. Content Manager review</h2>
+              <p className="mt-2 text-sm leading-6 text-[#385245]">Optional. {notReadyToSend}</p>
+            </section>
+          ) : (
+            <ReviewGateSection
+              noun="handout"
+              sentAt={handout.sent_for_review_at ?? null}
+              sendAction={sendForReview.bind(null, "handout", idResult.value)}
+              takeBackAction={takeBackFromReview.bind(null, "handout", idResult.value)}
+            />
+          )
+        ) : null}
+
+        {!isPublished ? <PublishSection id={idResult.value} title={untitled ? "this handout" : handout.title} ready={notReadyToPublish} /> : null}
+
+        {hasDraft ? (
+          <section className="mt-8">
+            <h2 className="border-b border-[#284a3b]/10 pb-3 text-lg font-extrabold text-[#243d31]">Draft text</h2>
+            <div className="py-4">
+              <HandoutContent blocks={blocks} />
+            </div>
+          </section>
+        ) : null}
+
+        <footer className="mt-6 border-t border-[#284a3b]/10 pt-6">
+          <DeleteHandoutButton id={idResult.value} disabledReason={isPublished ? "Unpublish it before deleting." : null} />
         </footer>
       </div>
     </main>

@@ -234,3 +234,75 @@ test("the dashboards link to handouts", async () => {
   assert.match(await read("app/admin/page.tsx"), /href: "\/admin\/handouts"/);
   assert.match(await read("app/admin/cm/page.tsx"), /href: "\/admin\/cm\/handout-review"/);
 });
+
+// ---------------------------------------------------------------------------
+// Creating a handout blank, filling it in on its page, and publishing it
+// ---------------------------------------------------------------------------
+
+test("Create new handout makes a blank draft and opens its page; the list no longer uploads", async () => {
+  const list = await read("app/admin/handouts/page.tsx");
+  assert.match(list, /Create new handout/);
+  assert.match(list, /<form action=\{createHandout\}>/);
+  assert.doesNotMatch(list, /UploadSection/);
+  const actions = await read("app/admin/handouts/actions.ts");
+  assert.match(actions, /export async function createHandout\(\)/);
+  assert.match(actions, /content: \[\], original_content: \[\]/);
+  assert.match(actions, /redirect\(`\/admin\/handouts\/\$\{data\.id\}\?created=1`\)/);
+});
+
+test("the handout page holds the details, the draft upload, the review gate and publishing", async () => {
+  const page = await read("app/admin/handouts/[id]/page.tsx");
+  assert.match(page, /<HandoutDetailsForm/);
+  assert.match(page, /<DraftUpload/);
+  assert.match(page, /<ReviewGateSection/);
+  assert.match(page, /<PublishSection/);
+  assert.match(page, /<UnpublishButton/);
+  // Review is only offered once there is a date and a draft to review.
+  assert.match(page, /notReadyToSend/);
+});
+
+test("publishing adds the final PDF to Printable PDF Links, checks it is a PDF, and undoes itself on failure", async () => {
+  const actions = await read("app/admin/handouts/actions.ts");
+  const publish = actions.slice(actions.indexOf("export async function publishHandout"), actions.indexOf("export async function unpublishHandout"));
+  assert.match(publish, /requireAdmin\(\)/);
+  assert.match(publish, /verifyUploadedPdf\(supabase, storagePath\)/);
+  assert.match(publish, /from\("printable_pdf_links"\)\s*\.insert\(/);
+  assert.match(publish, /status: "published"/);
+  assert.match(publish, /printable_pdf_id: link\.id/);
+  assert.match(publish, /\.eq\("status", "draft"\)/);
+  // A failed publish leaves neither a library entry nor a stray file behind.
+  assert.match(publish, /from\("printable_pdf_links"\)\.delete\(\)\.eq\("id", link\.id\)/);
+  assert.ok((publish.match(/await discard\(\)/g) ?? []).length >= 4);
+});
+
+test("unpublishing removes the library entry, which the database turns into a draft", async () => {
+  const actions = await read("app/admin/handouts/actions.ts");
+  const unpublish = actions.slice(actions.indexOf("export async function unpublishHandout"), actions.indexOf("export async function deleteHandout"));
+  assert.match(unpublish, /from\("printable_pdf_links"\)\.delete\(\)\.eq\("id", handout\.printable_pdf_id\)/);
+  assert.match(unpublish, /storage\.from\(PRINTABLE_PDF_BUCKET\)\.remove/);
+  const sql = await read("supabase/migrations/20261015000000_handout_publish.sql");
+  assert.match(sql, /create trigger printable_pdf_links_unpublish_handout\s+before delete on public\.printable_pdf_links/);
+});
+
+test("replacing the draft is refused while the handout is published, sent, or has an open proposal", async () => {
+  const actions = await read("app/admin/handouts/actions.ts");
+  const upload = actions.slice(actions.indexOf("export async function uploadHandoutDraft"), actions.indexOf("export async function publishHandout"));
+  assert.match(upload, /handout\.status !== "draft"/);
+  assert.match(upload, /handout\.sent_for_review_at/);
+  assert.match(upload, /hasOpenProposals\(supabase, idResult\.value\)/);
+});
+
+test("the second migration lets a handout start blank, requires a date and text to send, and a PDF to publish", async () => {
+  const sql = await read("supabase/migrations/20261015000000_handout_publish.sql");
+  assert.match(sql, /alter column gathering_date drop not null/);
+  assert.match(sql, /sent_for_review_at is null or \(gathering_date is not null and jsonb_array_length\(content\) > 0\)/);
+  assert.match(sql, /status = 'draft' or \(gathering_date is not null and printable_pdf_id is not null and published_at is not null\)/);
+  assert.match(sql, /check \(status in \('draft', 'published'\)\)/);
+  assert.match(sql, /teaching_handouts_close_revisions_on_publish/);
+  assert.match(sql, /teaching_handouts_clear_review_gate/);
+});
+
+test("the Title Collections report counts a handout as done only once it is published", async () => {
+  const report = await read("app/admin/cm/reports/title-collections/page.tsx");
+  assert.match(report, /state: row\.status === "published" \? "published" as const : "draft" as const, href: `\/admin\/handouts\//);
+});

@@ -1,7 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { PRINTABLE_PDF_BUCKET, isValidPrintablePdfStoragePath } from "@/lib/printable-pdf-links";
+import { verifyUploadedPdf } from "@/lib/printable-pdf-verify";
 import { MAX_TEACHING_DOCX_BYTES } from "@/lib/teaching-docx-package";
 import {
   isDocxMagicBytes,
@@ -15,41 +18,43 @@ import {
 import { validateOptionalOutlineId } from "@/lib/teaching-outlines";
 
 export type HandoutCounts = { sections: number; subtitles: number; paragraphTitles: number; paragraphs: number; bullets: number; taglines: number };
-export type HandoutPreview = {
-  fileName: string;
-  suggestedDate: string | null;
-  /** Set when the file name begins with a language other than English, which handouts do not support yet. */
-  unsupportedLanguage: string | null;
-  ok: boolean;
-  errors: string[];
-  warnings: string[];
-  handout: ParsedHandout | null;
-  /** What was found, so the Administrator can check the styles took. */
-  counts: HandoutCounts | null;
+export type HandoutActionState = { error?: string; ok?: true };
+export type HandoutDraftState = {
+  error?: string;
+  ok?: true;
+  fileName?: string;
+  warnings?: string[];
+  counts?: HandoutCounts;
+  /** What the upload filled in because it was still empty, so the Administrator knows to check it. */
+  filled?: { title?: string; date?: string };
 };
-export type HandoutPreviewState = { error?: string; preview?: HandoutPreview };
-export type HandoutActionState = { error?: string; ok?: true; id?: string };
 
 const DOCX_EXTENSION = /\.docx$/i;
+const UNTITLED = "Untitled handout";
 
-function revalidateHandoutPaths() {
+type AdminSupabase = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
+
+function revalidateHandoutPaths(id?: string) {
   revalidatePath("/admin/handouts");
   revalidatePath("/admin/cm/handout-review");
   revalidatePath("/admin/cm");
+  revalidatePath("/admin/cm/reports");
+  revalidatePath("/admin/teaching-revisions");
+  if (id) {
+    revalidatePath(`/admin/handouts/${id}`);
+    revalidatePath(`/admin/handouts/${id}/edit-text`);
+    revalidatePath(`/admin/handouts/${id}/final`);
+  }
 }
 
-async function readHandoutFile(formData: FormData) {
-  const file = formData.get("sourceDocument");
-  if (!(file instanceof File) || !file.size) return { error: "Choose a Word (.docx) file." };
-  if (!DOCX_EXTENSION.test(file.name)) return { error: "The handout must be a Word (.docx) file. In Word, use File > Save As > Word Document." };
-  if (file.size > MAX_TEACHING_DOCX_BYTES) return { error: "The .docx file must be 8 MiB or smaller." };
-  const buffer = Buffer.from(await file.arrayBuffer());
-  if (!isDocxMagicBytes(buffer)) return { error: "This file is not a valid Word (.docx) document." };
-  return { file, result: parseHandoutDocx(buffer) };
+function revalidatePublicPdfPaths() {
+  revalidatePath("/admin");
+  revalidatePath("/admin/printable-pdfs");
+  revalidatePath("/pdf");
+  revalidatePath("/espanol/materiales-para-imprimir");
 }
 
-function countBlocks(handout: ParsedHandout | null): HandoutCounts | null {
-  if (!handout) return null;
+function countBlocks(handout: ParsedHandout): HandoutCounts {
   const counts: HandoutCounts = { sections: 0, subtitles: 0, paragraphTitles: 0, paragraphs: 0, bullets: 0, taglines: 0 };
   for (const block of handout.blocks) {
     if (block.type === "section_title") counts.sections += 1;
@@ -62,97 +67,198 @@ function countBlocks(handout: ParsedHandout | null): HandoutCounts | null {
   return counts;
 }
 
-/** Step 1: convert the document and return a preview. Nothing is saved. */
-export async function previewHandout(formData: FormData): Promise<HandoutPreviewState> {
-  await requireAdmin();
-  const read = await readHandoutFile(formData);
-  if ("error" in read) return { error: read.error };
-  const suggestion = suggestHandoutFromFileName(read.file.name);
-  return {
-    preview: {
-      fileName: read.file.name,
-      suggestedDate: suggestion.date,
-      unsupportedLanguage: suggestion.unsupportedLanguage,
-      ok: read.result.ok,
-      errors: read.result.errors,
-      warnings: read.result.warnings,
-      handout: read.result.handout,
-      counts: countBlocks(read.result.handout),
-    },
-  };
+/** A proposal a Content Manager has started or submitted and the Administrator has not finished with. */
+async function hasOpenProposals(supabase: AdminSupabase, id: string) {
+  const { count } = await supabase
+    .from("content_revisions")
+    .select("id", { count: "exact", head: true })
+    .eq("subject_type", "handout")
+    .eq("handout_id", id)
+    .in("status", ["draft", "submitted"]);
+  return (count ?? 0) > 0;
 }
 
 /**
- * Step 2: save after the Administrator approves the preview. The document is converted again here rather than
- * trusting anything the browser sends back. A handout is always a draft that Content Managers cannot see
- * until the Administrator sends it, and it is never published.
+ * "Create new handout": makes a blank draft and opens its page, where the title, teaching date and teaching
+ * are entered and the Word draft is uploaded. Nothing is visible to Content Managers until it is sent.
  */
-export async function saveHandout(formData: FormData): Promise<HandoutActionState> {
+export async function createHandout() {
   const { supabase } = await requireAdmin();
-  const read = await readHandoutFile(formData);
-  if ("error" in read) return { error: read.error };
-  if (!read.result.ok || !read.result.handout) return { error: "This document still has problems. Fix them in Word and preview it again." };
-  if (suggestHandoutFromFileName(read.file.name).unsupportedLanguage) return { error: "Only English handouts are supported for now." };
+  const { data, error } = await supabase
+    .from("teaching_handouts")
+    .insert({ title: UNTITLED, language: "en", status: "draft", content: [], original_content: [] })
+    .select("id")
+    .single();
+  if (error || !data) redirect("/admin/handouts?error=create");
+  revalidateHandoutPaths();
+  redirect(`/admin/handouts/${data.id}?created=1`);
+}
 
-  const title = validateHandoutTitle(formData.get("title") || read.result.handout.title);
-  if (title.error || !title.value) return { error: title.error ?? "Title is invalid." };
-  const date = validateHandoutDate(formData.get("gatheringDate"));
-  if (date.error || !date.value) return { error: date.error ?? "Choose the teaching date." };
-  const teachingId = validateOptionalOutlineId(formData.get("teachingId"));
-  if (teachingId.error) return { error: teachingId.error };
+/** The title, the date of the teaching the handout goes with, and the teaching itself. */
+export async function saveHandoutDetails(id: string, title: string, gatheringDate: string, teachingId: string): Promise<HandoutActionState> {
+  const { supabase } = await requireAdmin();
+  const idResult = validateHandoutId(id);
+  if (idResult.error || !idResult.value) return { error: idResult.error };
+  const titleResult = validateHandoutTitle(title);
+  if (titleResult.error || !titleResult.value) return { error: titleResult.error };
+  const trimmedDate = gatheringDate.trim();
+  const dateResult = trimmedDate ? validateHandoutDate(trimmedDate) : { value: null };
+  if ("error" in dateResult && dateResult.error) return { error: dateResult.error };
+  const teaching = validateOptionalOutlineId(teachingId);
+  if (teaching.error) return { error: teaching.error };
 
   const { data, error } = await supabase
     .from("teaching_handouts")
-    .insert({
-      teaching_id: teachingId.value,
-      title: title.value,
-      gathering_date: date.value,
-      language: "en",
-      status: "draft",
-      content: read.result.handout.blocks,
-      original_content: read.result.handout.blocks,
-      source_file_name: read.file.name,
-    })
-    .select("id")
-    .single();
-  if (error || !data) return { error: "The handout could not be saved. Nothing was saved." };
-
-  revalidateHandoutPaths();
-  return { ok: true, id: data.id };
-}
-
-/** The teaching date a handout goes with can be put right at any time. */
-export async function setHandoutDate(id: string, gatheringDate: string): Promise<HandoutActionState> {
-  const { supabase } = await requireAdmin();
-  const idResult = validateHandoutId(id);
-  const date = validateHandoutDate(gatheringDate);
-  if (idResult.error || !idResult.value) return { error: idResult.error };
-  if (date.error || !date.value) return { error: date.error };
-
-  const { data, error } = await supabase.from("teaching_handouts").update({ gathering_date: date.value }).eq("id", idResult.value).select("id");
-  if (error) return { error: "The teaching date could not be changed." };
+    .update({ title: titleResult.value, gathering_date: dateResult.value ?? null, teaching_id: teaching.value })
+    .eq("id", idResult.value)
+    .select("id");
+  if (error) {
+    // The only constraint a blank date can trip is "sent for review needs a date".
+    return { error: error.code === "23514" ? "The teaching date cannot be removed while the handout is with the Content Managers or published." : "The details could not be saved." };
+  }
   if (!data?.length) return { error: "That handout could not be found." };
 
-  revalidateHandoutPaths();
-  revalidatePath(`/admin/handouts/${idResult.value}`);
+  revalidateHandoutPaths(idResult.value);
   return { ok: true };
 }
 
-/** Links the handout to the teaching it goes with, or clears the link (empty id). */
-export async function setHandoutTeaching(id: string, teachingId: string): Promise<HandoutActionState> {
+/**
+ * Reads the Word draft and stores its text as the handout. It replaces whatever text was there, so it is
+ * refused once the handout is published, with the Content Managers, or has an open proposal: their
+ * proposals point at places in the old text.
+ */
+export async function uploadHandoutDraft(id: string, formData: FormData): Promise<HandoutDraftState> {
   const { supabase } = await requireAdmin();
   const idResult = validateHandoutId(id);
-  const teaching = validateOptionalOutlineId(teachingId);
   if (idResult.error || !idResult.value) return { error: idResult.error };
-  if (teaching.error) return { error: teaching.error };
 
-  const { data, error } = await supabase.from("teaching_handouts").update({ teaching_id: teaching.value }).eq("id", idResult.value).select("id");
-  if (error) return { error: "The teaching could not be changed." };
-  if (!data?.length) return { error: "That handout could not be found." };
+  const { data: handout } = await supabase
+    .from("teaching_handouts")
+    .select("id, title, gathering_date, status, sent_for_review_at")
+    .eq("id", idResult.value)
+    .maybeSingle();
+  if (!handout) return { error: "That handout could not be found." };
+  if (handout.status !== "draft") return { error: "This handout is published. Unpublish it first to replace its draft." };
+  if (handout.sent_for_review_at) return { error: "This handout is with the Content Managers. Take it back from review first to replace its draft." };
+  if (await hasOpenProposals(supabase, idResult.value)) return { error: "A Content Manager proposal on this handout is still open. Decide or close it on the Revisions page first." };
 
-  revalidateHandoutPaths();
-  revalidatePath(`/admin/handouts/${idResult.value}`);
-  revalidatePath("/admin/cm/reports");
+  const file = formData.get("sourceDocument");
+  if (!(file instanceof File) || !file.size) return { error: "Choose a Word (.docx) file." };
+  if (!DOCX_EXTENSION.test(file.name)) return { error: "The draft must be a Word (.docx) file. In Word, use File > Save As > Word Document." };
+  if (file.size > MAX_TEACHING_DOCX_BYTES) return { error: "The .docx file must be 8 MiB or smaller." };
+  const buffer = Buffer.from(await file.arrayBuffer());
+  if (!isDocxMagicBytes(buffer)) return { error: "This file is not a valid Word (.docx) document." };
+
+  const suggestion = suggestHandoutFromFileName(file.name);
+  if (suggestion.unsupportedLanguage) return { error: "Only English handouts are supported for now. The file name should start with en_." };
+
+  const result = parseHandoutDocx(buffer);
+  if (!result.ok || !result.handout) {
+    return { error: result.errors.join(" ") || "This document could not be read.", warnings: result.warnings };
+  }
+
+  // Fill in what is still empty from the file, so the Administrator has less to type. Anything already
+  // entered is left alone.
+  const update: Record<string, unknown> = { content: result.handout.blocks, original_content: result.handout.blocks, source_file_name: file.name };
+  const filled: { title?: string; date?: string } = {};
+  if ((!handout.title || handout.title === UNTITLED) && result.handout.title) {
+    update.title = result.handout.title.slice(0, 200);
+    filled.title = update.title as string;
+  }
+  if (!handout.gathering_date && suggestion.date) {
+    update.gathering_date = suggestion.date;
+    filled.date = suggestion.date;
+  }
+
+  const { error } = await supabase.from("teaching_handouts").update(update).eq("id", idResult.value);
+  if (error) return { error: "The draft could not be saved. Nothing was changed." };
+
+  revalidateHandoutPaths(idResult.value);
+  return { ok: true, fileName: file.name, warnings: result.warnings, counts: countBlocks(result.handout), filled };
+}
+
+/**
+ * Publishing a handout is adding its final PDF to Printable PDF Links, where the public PDF library shows
+ * it. The browser has already uploaded the file straight to storage (the same signed upload the Printable
+ * PDF Links page uses); this checks it is a real PDF, adds the link, and marks the handout published. If
+ * anything fails the uploaded file is removed again.
+ */
+export async function publishHandout(id: string, storagePath: string): Promise<HandoutActionState> {
+  const { supabase } = await requireAdmin();
+  const idResult = validateHandoutId(id);
+  if (idResult.error || !idResult.value) return { error: idResult.error };
+  if (!isValidPrintablePdfStoragePath(storagePath)) return { error: "A PDF file is required." };
+
+  const discard = () => supabase.storage.from(PRINTABLE_PDF_BUCKET).remove([storagePath]);
+
+  const { data: handout } = await supabase
+    .from("teaching_handouts")
+    .select("id, title, gathering_date, status, language")
+    .eq("id", idResult.value)
+    .maybeSingle();
+  if (!handout) {
+    await discard();
+    return { error: "That handout could not be found." };
+  }
+  if (handout.status !== "draft") {
+    await discard();
+    return { error: "This handout is already published." };
+  }
+  if (!handout.gathering_date || !handout.title || handout.title === UNTITLED) {
+    await discard();
+    return { error: "Enter the title and the teaching date, and save them, before publishing." };
+  }
+  if (!(await verifyUploadedPdf(supabase, storagePath))) {
+    await discard();
+    return { error: "The uploaded file is not a valid PDF." };
+  }
+
+  const { data: link, error: linkError } = await supabase
+    .from("printable_pdf_links")
+    .insert({ title: handout.title, storage_path: storagePath, language: handout.language === "es" ? "es" : "en" })
+    .select("id")
+    .single();
+  if (linkError || !link) {
+    await discard();
+    return { error: "The PDF could not be added to Printable PDF Links. Nothing was published." };
+  }
+
+  const { error: publishError } = await supabase
+    .from("teaching_handouts")
+    .update({ status: "published", published_at: new Date().toISOString(), printable_pdf_id: link.id })
+    .eq("id", idResult.value)
+    .eq("status", "draft");
+  if (publishError) {
+    // Take the link back out so the library never shows a handout that is not marked published.
+    await supabase.from("printable_pdf_links").delete().eq("id", link.id);
+    await discard();
+    return { error: "The handout could not be published. Nothing was changed." };
+  }
+
+  revalidateHandoutPaths(idResult.value);
+  revalidatePublicPdfPaths();
+  return { ok: true };
+}
+
+/** Takes the handout out of the public PDF library and back to a draft. The published PDF file is deleted. */
+export async function unpublishHandout(id: string): Promise<HandoutActionState> {
+  const { supabase } = await requireAdmin();
+  const idResult = validateHandoutId(id);
+  if (idResult.error || !idResult.value) return { error: idResult.error };
+
+  const { data: handout } = await supabase.from("teaching_handouts").select("id, status, printable_pdf_id").eq("id", idResult.value).maybeSingle();
+  if (!handout) return { error: "That handout could not be found." };
+  if (handout.status !== "published" || !handout.printable_pdf_id) return { error: "This handout is not published." };
+
+  const { data: link } = await supabase.from("printable_pdf_links").select("storage_path").eq("id", handout.printable_pdf_id).maybeSingle();
+
+  // Deleting the link is what takes the handout back to a draft (a database trigger does that part).
+  const { error } = await supabase.from("printable_pdf_links").delete().eq("id", handout.printable_pdf_id);
+  if (error) return { error: "The handout could not be unpublished." };
+  if (link?.storage_path) await supabase.storage.from(PRINTABLE_PDF_BUCKET).remove([link.storage_path]);
+
+  revalidateHandoutPaths(idResult.value);
+  revalidatePublicPdfPaths();
   return { ok: true };
 }
 
@@ -161,10 +267,12 @@ export async function deleteHandout(id: string): Promise<HandoutActionState> {
   const idResult = validateHandoutId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
 
+  const { data: handout } = await supabase.from("teaching_handouts").select("status").eq("id", idResult.value).maybeSingle();
+  if (handout?.status === "published") return { error: "This handout is published. Unpublish it first, then delete it." };
+
   const { error } = await supabase.from("teaching_handouts").delete().eq("id", idResult.value);
   if (error) return { error: "The handout could not be deleted." };
 
   revalidateHandoutPaths();
-  revalidatePath("/admin/teaching-revisions");
   return { ok: true };
 }

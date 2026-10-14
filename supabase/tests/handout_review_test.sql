@@ -4,7 +4,7 @@ select * from no_plan();
 
 -- Handouts in the review cycle (20261013000000_handout_review.sql).
 -- admin ...9910-01   editor ...02   other editor ...03
--- Handout H1 (a1) goes with the teaching of 2026-10-10. It has two sections, a subtitle, titled and untitled
+-- Handout H1 (a1) goes with the teaching of 2026-10-10 (handout_publish_test.sql covers creating, publishing and unpublishing). It has two sections, a subtitle, titled and untitled
 -- paragraphs (one with bold, one with an asterisk), a list and a closing line.
 
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, created_at, updated_at)
@@ -44,12 +44,12 @@ grant all on hrev to authenticated;
 -- ===========================================================================
 
 select throws_ok(
-  $$ insert into public.teaching_handouts (title, content, original_content) values ('No date', '[{"type":"paragraph","inlines":[{"text":"x"}]}]'::jsonb, '[]'::jsonb) $$,
-  '23502', null, 'a handout cannot be saved without its teaching date'
+  $$ insert into public.teaching_handouts (title, gathering_date, status, content, original_content) values ('Odd status', '2026-10-10', 'archived', '[{"type":"paragraph","inlines":[{"text":"x"}]}]'::jsonb, '[]'::jsonb) $$,
+  '23514', null, 'a handout is either a draft or published'
 );
 select throws_ok(
-  $$ insert into public.teaching_handouts (title, gathering_date, status, content, original_content) values ('Published', '2026-10-10', 'published', '[{"type":"paragraph","inlines":[{"text":"x"}]}]'::jsonb, '[]'::jsonb) $$,
-  '23514', null, 'a handout can never be published'
+  $$ insert into public.teaching_handouts (title, gathering_date, status, content, original_content) values ('No PDF', '2026-10-10', 'published', '[{"type":"paragraph","inlines":[{"text":"x"}]}]'::jsonb, '[]'::jsonb) $$,
+  '23514', null, 'a handout cannot be marked published without its PDF'
 );
 
 -- ===========================================================================

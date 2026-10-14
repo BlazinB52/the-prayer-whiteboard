@@ -31,6 +31,7 @@ const nav = [
   { href: "#profundo", label: "Estudios profundos" },
   { href: "#devocionales", label: "Devocionales" },
   { href: "/espanol/recursos-para-maestros", label: "Recursos para maestros" },
+  { href: "/espanol/materiales-para-imprimir", label: "Materiales para imprimir" },
   { href: "/", label: "English" },
 ];
 

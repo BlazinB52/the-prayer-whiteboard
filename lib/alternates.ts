@@ -11,6 +11,7 @@ export type TranslationPair = { en: string; es: string };
 export const STATIC_TRANSLATIONS = {
   home: { en: "/", es: "/espanol" },
   teacherResources: { en: "/teacher-resources", es: "/espanol/recursos-para-maestros" },
+  printables: { en: "/pdf", es: "/espanol/materiales-para-imprimir" },
   subscribe: { en: "/subscribe", es: "/espanol/suscribirse" },
   privacy: { en: "/privacy", es: "/espanol/privacidad" },
   copyright: { en: "/copyright-disclaimers", es: "/espanol/derechos-de-autor" },

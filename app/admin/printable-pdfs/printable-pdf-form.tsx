@@ -20,6 +20,7 @@ type PrintablePdfLink = {
   id: string;
   title: string;
   href: string;
+  language: "en" | "es";
   created_at: string;
 };
 
@@ -76,6 +77,7 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
+  const [language, setLanguage] = useState<"en" | "es">("en");
   const [search, setSearch] = useState("");
   const [pending, startTransition] = useTransition();
   const [phase, setPhase] = useState<"idle" | "uploading" | "saving">("idle");
@@ -120,6 +122,7 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
         const saveForm = new FormData();
         saveForm.set("title", title);
         saveForm.set("storagePath", target.path);
+        saveForm.set("language", language);
 
         const result = await withTimeout(savePrintablePdfLink({}, saveForm), 30_000, "Saving the PDF link");
         if (result.error) {
@@ -148,7 +151,7 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
         <h2 className="text-xl font-extrabold text-[#243d31]">Add PDF link</h2>
 
         <form onSubmit={submit} className="mt-4 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <label className="block text-sm font-bold text-[#385245]">
               Title
               <input
@@ -160,6 +163,14 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
                 required
                 className="admin-input"
               />
+            </label>
+
+            <label className="block text-sm font-bold text-[#385245]">
+              Language
+              <select name="language" value={language} onChange={(event) => setLanguage(event.target.value === "es" ? "es" : "en")} className="admin-input">
+                <option value="en">English (shown on /pdf)</option>
+                <option value="es">Español (shown on the Español side)</option>
+              </select>
             </label>
 
             <label className="block text-sm font-bold text-[#385245]">
@@ -200,6 +211,7 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
               <thead className="bg-[#eee7da] text-xs font-extrabold uppercase tracking-wide text-[#385245]">
                 <tr>
                   <th scope="col" className="px-3 py-3">Title</th>
+                  <th scope="col" className="px-3 py-3">Language</th>
                   <th scope="col" className="px-3 py-3">Date</th>
                   <th scope="col" className="px-3 py-3">PDF</th>
                   <th scope="col" className="px-3 py-3">Actions</th>
@@ -209,6 +221,7 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
                 {visibleLinks.map((link) => (
                   <tr key={link.id}>
                     <td className="max-w-md px-3 py-3 font-bold text-[#243d31]">{link.title}</td>
+                    <td className="whitespace-nowrap px-3 py-3 text-[#607066]">{link.language === "es" ? "Español" : "English"}</td>
                     <td className="whitespace-nowrap px-3 py-3 text-[#607066]">{formatDate(link.created_at)}</td>
                     <td className="whitespace-nowrap px-3 py-3">
                       <a href={link.href} target="_blank" rel="noopener noreferrer" className="font-bold text-[#946332] underline underline-offset-2 hover:text-[#a85e32]">View PDF</a>

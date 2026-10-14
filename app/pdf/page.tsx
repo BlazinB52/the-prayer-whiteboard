@@ -34,6 +34,7 @@ export default async function PrintablePdfLinksPage() {
   const { data, error } = await supabase
     .from("printable_pdf_links")
     .select("id, title, storage_path, created_at")
+    .eq("language", "en")
     .order("created_at", { ascending: false })
     .order("title", { ascending: true });
   const rows = (data as PrintablePdfLinkRow[] | null) ?? [];

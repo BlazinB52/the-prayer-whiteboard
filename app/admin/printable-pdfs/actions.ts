@@ -8,6 +8,7 @@ import {
   isValidPrintablePdfStoragePath,
   printablePdfStoragePath,
   validatePrintablePdfId,
+  validatePrintablePdfLanguage,
   validatePrintablePdfTitle,
 } from "@/lib/printable-pdf-links";
 import {
@@ -35,6 +36,7 @@ function revalidatePrintablePdfPaths() {
   revalidatePath("/admin");
   revalidatePath("/admin/printable-pdfs");
   revalidatePath("/pdf");
+  revalidatePath("/espanol/materiales-para-imprimir");
 }
 
 export async function createPrintablePdfUploadTarget(): Promise<UploadTargetState> {
@@ -198,7 +200,7 @@ export async function savePrintablePdfLink(_: PrintablePdfState, formData: FormD
     return { error: "The uploaded file is not a valid PDF." };
   }
 
-  const { error } = await supabase.from("printable_pdf_links").insert({ title: title.value, storage_path: storagePath });
+  const { error } = await supabase.from("printable_pdf_links").insert({ title: title.value, storage_path: storagePath, language: validatePrintablePdfLanguage(formData.get("language")) });
 
   if (error) {
     await removeStorageObject(supabase, storagePath);

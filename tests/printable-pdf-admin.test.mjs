@@ -203,9 +203,9 @@ test("admin list has only View and Delete actions, no Edit", async () => {
   assert.match(manager, /"Delete"/);
 });
 
-test("admin form's Title and PDF file fields are equal-structure grid siblings, not end-aligned", async () => {
+test("admin form's Title, Language and PDF file fields are equal-structure grid siblings, not end-aligned", async () => {
   const manager = await readFile("app/admin/printable-pdfs/printable-pdf-form.tsx", "utf8");
-  assert.match(manager, /<div className="grid gap-4 sm:grid-cols-2">/);
+  assert.match(manager, /<div className="grid gap-4 sm:grid-cols-3">/);
   assert.doesNotMatch(manager, /grid[^"]*items-end/);
 });
 
@@ -213,7 +213,7 @@ test("admin and public pages resolve a href from storage_path only, no legacy UR
   const adminPage = await readFile("app/admin/printable-pdfs/page.tsx", "utf8");
   const publicPage = await readFile("app/pdf/page.tsx", "utf8");
   for (const page of [adminPage, publicPage]) {
-    assert.match(page, /select\("id, title, storage_path, created_at/);
+    assert.match(page, /select\("id, title, storage_path, (language, )?created_at/);
     assert.doesNotMatch(page, /printable_pdf_url/);
     assert.match(page, /resolvePrintablePdfHref\(link\.storage_path, supabase\)/);
   }
@@ -306,4 +306,18 @@ test("chalkboard and printable-pdf uuid validation share one pattern", async () 
   const chalkboardSource = await readFile("lib/chalkboard-upload-paths.ts", "utf8");
   assert.match(chalkboardSource, /from "\.\/uuid\.ts"/);
   assert.doesNotMatch(chalkboardSource, /\/\^\[0-9a-f\]\{8\}/);
+});
+
+test("printables are split by language: English on /pdf, Español on its own page", async () => {
+  const publicEn = await readFile("app/pdf/page.tsx", "utf8");
+  const publicEs = await readFile("app/espanol/materiales-para-imprimir/page.tsx", "utf8");
+  const actions = await readFile("app/admin/printable-pdfs/actions.ts", "utf8");
+  const migration = await readFile("supabase/migrations/20261014000000_add_printable_pdf_language.sql", "utf8");
+  assert.match(publicEn, /\.eq\("language", "en"\)/);
+  assert.match(publicEs, /\.eq\("language", "es"\)/);
+  assert.match(actions, /language: validatePrintablePdfLanguage\(formData\.get\("language"\)\)/);
+  assert.match(migration, /language in \('en', 'es'\)/);
+  assert.equal(printablePdf.validatePrintablePdfLanguage("es"), "es");
+  assert.equal(printablePdf.validatePrintablePdfLanguage("fr"), "en");
+  assert.equal(printablePdf.validatePrintablePdfLanguage(null), "en");
 });

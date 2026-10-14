@@ -37,6 +37,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl("/weekly-update"), changeFrequency: "weekly", priority: 0.5 },
     { url: absoluteUrl("/about"), changeFrequency: "yearly", priority: 0.4 },
     { url: absoluteUrl("/subscribe"), changeFrequency: "yearly", priority: 0.4, alternates: alternatesFor(T.subscribe) },
+    { url: absoluteUrl("/espanol/materiales-para-imprimir"), changeFrequency: "monthly", priority: 0.3, alternates: alternatesFor(T.printables) },
     { url: absoluteUrl("/espanol/suscribirse"), changeFrequency: "yearly", priority: 0.3, alternates: alternatesFor(T.subscribe) },
     { url: absoluteUrl("/pdf"), changeFrequency: "monthly", priority: 0.3 },
     { url: absoluteUrl("/privacy"), changeFrequency: "yearly", priority: 0.2, alternates: alternatesFor(T.privacy) },

@@ -21,6 +21,10 @@ export function validatePrintablePdfId(value: unknown) {
   return { value: id };
 }
 
+export function validatePrintablePdfLanguage(value: unknown) {
+  return value === "es" ? ("es" as const) : ("en" as const);
+}
+
 export function validatePrintablePdfTitle(value: unknown) {
   const title = typeof value === "string" ? value.trim() : "";
 

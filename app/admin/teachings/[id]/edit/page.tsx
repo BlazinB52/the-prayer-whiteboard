@@ -8,6 +8,7 @@ import { DeleteTeachingButton } from "../../delete-teaching-button";
 import { PublishFeatureButton } from "../../publish-feature-button";
 import { UnpublishButton } from "../../unpublish-button";
 import { TeachingTestSendForm } from "../../test-send-form";
+import { ConvertToSpanishButton } from "../../convert-to-spanish-button";
 import {
   createCategory,
   createSection,
@@ -194,6 +195,16 @@ export default async function EditTeachingPage({ params, searchParams }: { param
             <Link href="/admin/teachings/import" className="font-extrabold text-[#9d5a2f] underline underline-offset-2">Import Teaching from Word</Link> page with Language set to Español. It creates a new draft and offers to link it to this teaching. You can export as often as you like, and it works on a draft or a published teaching. Nothing here changes.
           </p>
           <a href={`/api/admin/teaching/export?teaching_id=${id}`} download className="admin-secondary-button mt-4 inline-flex items-center justify-center">Export for translation (Word)</a>
+          {teaching.language !== "es" ? (
+            translation.currentId ? (
+              <p className="mt-5 border-t border-[#284a3b]/10 pt-5 text-sm leading-6 text-[#607066]">
+                This teaching already has a Spanish version.{" "}
+                <Link href={`/admin/teachings/${translation.currentId}/edit`} className="font-extrabold text-[#9d5a2f] underline underline-offset-2">Open the Spanish version</Link>. To convert it again, first remove the pairing under Translation below.
+              </p>
+            ) : (
+              <ConvertToSpanishButton teachingId={id} />
+            )
+          ) : null}
         </section>
         <TeachingForm
           action={updateTeaching.bind(null, id)}

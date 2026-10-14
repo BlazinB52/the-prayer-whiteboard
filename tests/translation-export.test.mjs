@@ -169,8 +169,10 @@ test("importing links the new draft to its source only when asked, only across l
   assert.match(teaching, /formData\.get\("linkSource"\)/);
   assert.match(teaching, /source\.language !== file\.language/);
   assert.match(teaching, /!source\.alreadyPaired/);
-  assert.match(teaching, /translation_of: translationOf/);
-  assert.match(teaching, /teaser_1_heading: teaching\.teaser1Heading \|\| null/);
+  assert.match(teaching, /createDraftTeaching\(supabase, teaching, \{[^}]*translationOf \}\)/);
+  const create = await readFile("lib/teaching-create.ts", "utf8");
+  assert.match(create, /translation_of: options\.translationOf/);
+  assert.match(create, /teaser_1_heading: teaching\.teaser1Heading \|\| null/);
   const devotional = await readFile("app/admin/teachings/devotional-actions.ts", "utf8");
   assert.match(devotional, /formData\.get\("linkSource"\) && imported\.sourceDevotionalId/);
   assert.match(devotional, /original\.language !== language && !original\.translation_of/);

@@ -7,16 +7,25 @@
 // to actually recover from one of these — an untested backup isn't real
 // disaster recovery.
 //
-// Deliberately excludes the "auth" schema (admin login). Restore-tested
+// The "auth" schema STRUCTURE is deliberately not dumped. Restore-tested
 // this: auth/storage schema objects are owned by internal roles
 // (supabase_admin, supabase_auth_admin, ...) that only a Supabase-managed
 // project provisions correctly — restoring that structure into an arbitrary
 // target fails with "must be able to SET ROLE ...". A fresh Supabase
 // project already has a correctly configured (empty) auth schema out of the
-// box, and there are only 1-2 admin accounts, so recreating admin login via
-// Supabase's normal signup flow after a disaster is trivial. Content in
-// "public" carries no such dependency and is what actually took hours of
-// work to create.
+// box.
+//
+// The auth DATA (user rows: emails, password hashes, user IDs) IS dumped, to
+// auth-data.sql, as a separate optional file. Without it, re-created admin
+// and content-manager accounts get new user IDs, so every public table row
+// that points at a user (admin_authorizations, etc.) would be orphaned.
+// Loading auth-data.sql into a fresh project's existing auth schema keeps the
+// original IDs and passwords. restore-supabase.mjs loads it only when
+// RESTORE_AUTH=1 is set. This file contains password hashes: keep backup
+// folders private.
+//
+// Each backup folder also gets a RESTORE.md with the restore steps and the
+// circular-foreign-key note, so the instructions travel with the files.
 //
 // This talks directly to the linked production Supabase project over the
 // network via the Supabase CLI's `db dump` (which shells out to pg_dump, no
@@ -26,7 +35,7 @@
 // Usage: node --env-file=.env.local scripts/backup-supabase.mjs [destinationRoot]
 //   destinationRoot defaults to D:\SupabaseBackups
 
-import { execFileSync } from "node:child_process";
+import { execSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -39,11 +48,14 @@ if (!url || !key) throw new Error("NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_
 const destinationRoot = process.argv[2] ?? "D:\\SupabaseBackups";
 const STORAGE_LIST_PAGE_SIZE = 100;
 
-// .cmd files on Windows (like the Supabase CLI's npx-resolved binary) can
-// only be launched through a shell — this is an OS constraint, not a Node.js
-// choice. That means destinationRoot (the one argv-derived value that flows
-// into the shell command below, via dbDumpPath) must be checked for shell
-// metacharacters first, since shell:true does not escape arguments.
+// .cmd files on Windows (like npx) can only be launched through a shell —
+// this is an OS constraint, not a Node.js choice. Passing an args array
+// together with shell:true triggers Node's DEP0190 deprecation warning (and
+// may become an error in a future Node version), so the CLI is run with a
+// single pre-built command string instead (see runSupabase below). That
+// means destinationRoot (the one argv-derived value that flows into the
+// command, via the dump file paths) must be checked for shell metacharacters
+// first; paths are also wrapped in double quotes so spaces are safe.
 function assertSafePathArgument(value, label) {
   if (/["'`$&|;<>\n\r^]/.test(value)) {
     throw new Error(`${label} contains characters that aren't safe to pass to the shell: ${value}`);
@@ -78,25 +90,86 @@ function nextBackupDir(root, stamp) {
 // teachings content. A real backup needs both a schema pass and a
 // --data-only pass, kept as two files so the data-only file can be replayed
 // on its own against a target that already has the schema.
+function runSupabase(args, outputPath) {
+  assertSafePathArgument(outputPath, "output path");
+  const command = `npx supabase ${args.join(" ")} -f "${outputPath}"`;
+  execSync(command, { stdio: "inherit" });
+}
+
 async function dumpDatabase(backupDir) {
   const schemaPath = path.join(backupDir, "schema.sql");
   const dataPath = path.join(backupDir, "data.sql");
+  const authDataPath = path.join(backupDir, "auth-data.sql");
 
   console.log(`Dumping schema (public) to ${schemaPath} ...`);
-  execFileSync(
-    "npx",
-    ["supabase", "db", "dump", "--linked", "--schema", "public", "-f", schemaPath],
-    { stdio: "inherit", shell: true },
-  );
+  runSupabase(["db", "dump", "--linked", "--schema", "public"], schemaPath);
 
+  // The Supabase CLI prints "Dumped schema to ..." for this step too — that's
+  // just its wording; this file really is the data.
   console.log(`Dumping data (public) to ${dataPath} ...`);
-  execFileSync(
-    "npx",
-    ["supabase", "db", "dump", "--linked", "--data-only", "--schema", "public", "-f", dataPath],
-    { stdio: "inherit", shell: true },
-  );
+  runSupabase(["db", "dump", "--linked", "--data-only", "--schema", "public"], dataPath);
+
+  // Login accounts. A failure here shouldn't throw away the content backup
+  // above, so it's reported (and sets a non-zero exit code) but isn't fatal.
+  let authDumped = false;
+  console.log(`Dumping login accounts (auth data) to ${authDataPath} ...`);
+  try {
+    runSupabase(["db", "dump", "--linked", "--data-only", "--schema", "auth"], authDataPath);
+    authDumped = true;
+  } catch (error) {
+    console.error(`  WARNING: auth data dump failed (content backup is still fine): ${error.message}`);
+    process.exitCode = 1;
+  }
 
   console.log("Database dump complete.");
+  return { authDumped };
+}
+
+function restoreInstructions(backupDir, authDumped) {
+  return `# Restoring this backup
+
+Made by scripts/backup-supabase.mjs on ${new Date().toString()}.
+
+## Files
+
+- schema.sql: structure of the public schema (tables, policies, functions)
+- data.sql: all site content in the public schema
+- ${authDumped ? "auth-data.sql: login accounts (emails, password hashes, user IDs). **Keep this folder private.**" : "auth-data.sql: NOT present. The auth dump failed during this backup."}
+- buckets.json, storage-content-types.json, storage/: Storage bucket settings and files
+- manifest.json: what was backed up and when
+
+## Restore into a fresh Supabase project
+
+From the PrayerWhiteboard folder (PowerShell):
+
+    $env:RESTORE_DB_URL = "<target Postgres connection string>"
+    $env:RESTORE_SUPABASE_URL = "<target project API URL>"
+    $env:RESTORE_SUPABASE_KEY = "<target project secret key>"
+    $env:RESTORE_AUTH = "1"   # optional: also restore login accounts
+    node scripts/restore-supabase.mjs "${backupDir}"
+
+That loads schema.sql, then (with RESTORE_AUTH=1) auth-data.sql, then
+data.sql, then recreates the buckets and uploads the files.
+
+## Circular foreign keys
+
+teachings, teaching_devotionals and chalkboard_assets reference each other,
+so no row order satisfies every foreign key while loading. pg_dump warns
+about this on every backup. That's expected and the backup is complete.
+
+restore-supabase.mjs handles it by running
+\`SET session_replication_role = replica;\` before loading the data files
+(this turns off foreign-key and trigger checks for that connection) and
+\`SET session_replication_role = origin;\` afterward. If you ever load data.sql
+by hand (psql, SQL editor), do the same around it.
+
+## Login accounts
+
+With RESTORE_AUTH=1, the original admin and content-manager accounts come back
+with the same passwords and user IDs, so admin_authorizations rows still
+match. Without it, sign up the admin account(s) again in the new project and
+re-grant access, since the old user IDs won't exist there.
+`;
 }
 
 async function listAllObjects(bucket, prefix = "") {
@@ -192,7 +265,7 @@ async function main() {
   console.log(`Backup destination: ${backupDir}\n`);
 
   const startedAt = new Date();
-  await dumpDatabase(backupDir);
+  const { authDumped } = await dumpDatabase(backupDir);
   const storageSummary = await backupStorage(backupDir);
   const finishedAt = new Date();
 
@@ -202,11 +275,14 @@ async function main() {
     durationSeconds: Math.round((finishedAt - startedAt) / 1000),
     databaseSchema: "schema.sql",
     databaseData: "data.sql",
+    authData: authDumped ? "auth-data.sql" : null,
+    restoreInstructions: "RESTORE.md",
     bucketConfigs: "buckets.json",
     storageContentTypes: "storage-content-types.json",
     storage: storageSummary,
   };
   await writeFile(path.join(backupDir, "manifest.json"), JSON.stringify(manifest, null, 2));
+  await writeFile(path.join(backupDir, "RESTORE.md"), restoreInstructions(backupDir, authDumped));
 
   const totalFiles = Object.values(storageSummary).reduce((sum, b) => sum + b.fileCount, 0);
   const totalFailures = Object.values(storageSummary).reduce((sum, b) => sum + b.failures, 0);

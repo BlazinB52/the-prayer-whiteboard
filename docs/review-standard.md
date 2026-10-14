@@ -37,6 +37,11 @@ the PDF there, or **Unpublish**, puts the handout back to a draft. The date is s
 `app/teaching-date-label.tsx` (formatting in `lib/teaching-date.ts`); the other publications should use the
 same label when they get their date.
 
+An English handout with a draft has **Translate to Español** (`/api/admin/handout/translate`, `lib/handout-translate.ts`),
+which uses the teachings' translator and the Spanish Translation Rules and saves a new Español handout linked to it
+(`translation_of`), with the same teaching and date. An Español handout has its own footer, chosen from the existing
+footers of its language (`footer_id`); it is written for the handout and is not a translation of the English one.
+
 ## Where things live
 
 | Piece | File |

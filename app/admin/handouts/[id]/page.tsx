@@ -9,7 +9,7 @@ import { requireAdmin } from "@/lib/supabase/admin";
 import { validateHandoutId } from "@/lib/teaching-handouts";
 import { loadTeachingChoices } from "../../teaching-choice";
 import { HandoutContent } from "../handout-content";
-import { DeleteHandoutButton, DraftUpload, HandoutDetailsForm, PublishSection, UnpublishButton } from "../handout-tools";
+import { DeleteHandoutButton, DraftUpload, FooterForm, HandoutDetailsForm, PublishSection, TranslateToEspanolButton, UnpublishButton } from "../handout-tools";
 
 export const metadata: Metadata = {
   title: "Handout",
@@ -35,16 +35,22 @@ export default async function AdminHandoutPage({
   const { supabase } = await requireAdmin();
   const { data: handout } = await supabase
     .from("teaching_handouts")
-    .select("id, title, gathering_date, teaching_id, status, sent_for_review_at, published_at, printable_pdf_id, content, source_file_name")
+    .select("id, title, gathering_date, teaching_id, language, translation_of, footer_id, status, sent_for_review_at, published_at, printable_pdf_id, content, source_file_name")
     .eq("id", idResult.value)
     .maybeSingle();
   if (!handout) notFound();
 
-  const [{ data: proposals }, teachings, { data: pdf }] = await Promise.all([
+  const language: "en" | "es" = handout.language === "es" ? "es" : "en";
+  const [{ data: proposals }, teachings, { data: pdf }, { data: footerRows }, { data: translation }, { data: original }] = await Promise.all([
     supabase.from("content_revisions").select("id, status").eq("subject_type", "handout").eq("handout_id", idResult.value).in("status", ["draft", "submitted"]),
     loadTeachingChoices(supabase),
     handout.printable_pdf_id ? supabase.from("printable_pdf_links").select("storage_path").eq("id", handout.printable_pdf_id).maybeSingle() : Promise.resolve({ data: null }),
+    supabase.from("content_footers").select("id, internal_title").eq("status", "active").eq("language", language).order("internal_title", { ascending: true }),
+    // The Español version of this handout, if it has one, and the English handout this one was translated from.
+    supabase.from("teaching_handouts").select("id, title").eq("translation_of", idResult.value).maybeSingle(),
+    handout.translation_of ? supabase.from("teaching_handouts").select("id, title").eq("id", handout.translation_of).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  const footers = ((footerRows as { id: string; internal_title: string }[] | null) ?? []).map((row) => ({ id: row.id, title: row.internal_title }));
 
   const isPublished = handout.status === "published";
   const untitled = !handout.title || handout.title === UNTITLED;
@@ -72,7 +78,7 @@ export default async function AdminHandoutPage({
       <div className="mx-auto max-w-4xl">
         <Link href="/admin/handouts" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to handouts</Link>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-6">
-          <p className="text-xs font-black uppercase tracking-wider text-[#946332]">Handout · {isPublished ? "Published" : "Draft"}</p>
+          <p className="text-xs font-black uppercase tracking-wider text-[#946332]">Handout · {language === "es" ? "Español · " : ""}{isPublished ? "Published" : "Draft"}</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">{untitled ? "New handout" : handout.title}</h1>
           <div className="mt-3"><TeachingDateLabel date={handout.gathering_date} /></div>
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-extrabold">
@@ -82,6 +88,11 @@ export default async function AdminHandoutPage({
           </div>
         </header>
 
+        {original ? (
+          <p className="mt-6 rounded-xl border border-[#284a3b]/10 bg-[#fffdf8] px-4 py-3 text-sm text-[#385245]">
+            Translated from the English handout <Link href={`/admin/handouts/${original.id}`} className="font-extrabold text-[#946332] underline underline-offset-2">{original.title}</Link>.
+          </p>
+        ) : null}
         {flags.created === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">New handout created. Enter its details below, then upload the draft.</p> : null}
         <ReviewGateMessage review={flags.review} mailed={flags.mailed} of={flags.of} />
 
@@ -117,6 +128,26 @@ export default async function AdminHandoutPage({
               takeBackAction={takeBackFromReview.bind(null, "handout", idResult.value)}
             />
           )
+        ) : null}
+
+        {!isPublished ? <FooterForm id={idResult.value} footerId={handout.footer_id} footers={footers} language={language} /> : null}
+
+        {language === "en" && hasDraft ? (
+          <section className="mt-6 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
+            <h2 className="text-lg font-extrabold text-[#243d31]">Español version</h2>
+            {translation ? (
+              <p className="mt-2 text-sm leading-6 text-[#385245]">
+                This handout has an Español version: <Link href={`/admin/handouts/${translation.id}`} className="font-extrabold text-[#946332] underline underline-offset-2">{translation.title}</Link>.
+              </p>
+            ) : (
+              <>
+                <p className="mt-1 text-sm leading-6 text-[#607066]">
+                  Translates this handout into Español (El Salvador, with the vos forms) following the Spanish Translation Rules, and saves it as a new Español handout linked to this one, with the same teaching and date. Everything is translated in full; nothing is shortened. This handout is not changed. It usually takes under a minute.
+                </p>
+                <TranslateToEspanolButton handoutId={idResult.value} />
+              </>
+            )}
+          </section>
         ) : null}
 
         {!isPublished ? <PublishSection id={idResult.value} title={untitled ? "this handout" : handout.title} ready={notReadyToPublish} /> : null}

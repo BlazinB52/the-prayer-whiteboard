@@ -117,7 +117,8 @@ test("a file that is not a Word document is refused rather than thrown", () => {
 test("the language and the teaching date are read from the front of the file name", () => {
   assert.deepEqual(suggestHandoutFromFileName("en_20261010_handout_draft_text.docx"), { language: "en", date: "2026-10-10", unsupportedLanguage: null });
   assert.deepEqual(suggestHandoutFromFileName("20261010 handout.docx"), { language: null, date: "2026-10-10", unsupportedLanguage: null });
-  assert.deepEqual(suggestHandoutFromFileName("es_20261010_x.docx"), { language: null, date: "2026-10-10", unsupportedLanguage: "es" });
+  assert.deepEqual(suggestHandoutFromFileName("es_20261010_x.docx"), { language: "es", date: "2026-10-10", unsupportedLanguage: null });
+  assert.deepEqual(suggestHandoutFromFileName("fr_20261010_x.docx"), { language: null, date: "2026-10-10", unsupportedLanguage: "fr" });
   assert.deepEqual(suggestHandoutFromFileName("handout.docx"), { language: null, date: null, unsupportedLanguage: null });
   assert.equal(suggestHandoutFromFileName("en_20261340_x.docx").date, null);
 });
@@ -242,10 +243,10 @@ test("the dashboards link to handouts", async () => {
 test("Create new handout makes a blank draft and opens its page; the list no longer uploads", async () => {
   const list = await read("app/admin/handouts/page.tsx");
   assert.match(list, /Create new handout/);
-  assert.match(list, /<form action=\{createHandout\}>/);
+  assert.match(list, /<form action=\{createHandout\}/);
   assert.doesNotMatch(list, /UploadSection/);
   const actions = await read("app/admin/handouts/actions.ts");
-  assert.match(actions, /export async function createHandout\(\)/);
+  assert.match(actions, /export async function createHandout\(formData: FormData\)/);
   assert.match(actions, /content: \[\], original_content: \[\]/);
   assert.match(actions, /redirect\(`\/admin\/handouts\/\$\{data\.id\}\?created=1`\)/);
 });

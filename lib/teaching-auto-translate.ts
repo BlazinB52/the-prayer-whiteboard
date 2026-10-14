@@ -138,6 +138,8 @@ export function fieldLabel(id: string) {
   };
   if (named[id]) return named[id];
   if (id.startsWith("category.")) return "A category title";
+  if (id === "handout.title") return "The handout title";
+  if (id.startsWith("handout.")) return "A part of the handout";
   if (id.endsWith(".title")) return "A section title";
   return "A section";
 }
@@ -345,13 +347,25 @@ export async function translateTeaching(
   sections: ExportSection[],
   options: AutoTranslateOptions,
 ): Promise<AutoTranslateResult> {
+  const { groups, apply } = collectSegments(teaching, categories, sections);
+  const { translated, warnings } = await translateSegments(groups, options);
+  return { ...apply(translated), warnings };
+}
+
+/**
+ * Translates groups of segments (one request per group, several at a time) and checks every answer against its
+ * English original. Anything that cannot be translated, or comes back over its limit, throws with a readable
+ * message; nothing is shortened and nothing is saved here. Used for teachings and for handouts.
+ */
+export async function translateSegments(
+  groups: TranslationSegment[][],
+  options: AutoTranslateOptions,
+): Promise<{ translated: Map<string, string>; warnings: string[] }> {
   const settings = {
     apiKey: options.apiKey,
     model: options.model || DEFAULT_TRANSLATION_MODEL,
     fetchImpl: options.fetchImpl ?? fetch,
   };
-  const { groups, apply } = collectSegments(teaching, categories, sections);
-
   const results: GroupResult[] = new Array(groups.length);
   let next = 0;
   const worker = async () => {
@@ -375,6 +389,5 @@ export async function translateTeaching(
     }
   });
   if (errors.length) throw new Error(errors.slice(0, 5).join(" "));
-
-  return { ...apply(translated), warnings };
+  return { translated, warnings };
 }

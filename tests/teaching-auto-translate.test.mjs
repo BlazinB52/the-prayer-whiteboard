@@ -96,7 +96,7 @@ test("a changed link is an error; tú forms and lost bold are warnings", async (
 test("the prompt follows the Spanish Translation Rules", () => {
   const prompt = translationSystemPrompt();
   for (const rule of [/Español de El Salvador/, /natural, warm and professional/, /que querás, que confirmés/, /ustedes/, /keep exactly whom the English addresses/,
-    /do not identify the teacher's gender/, /En la enseñanza se explicó/, /los participantes, never la congregación/, /un impulso or una dirección/, /Avoid "inquietud"/,
+    /keep that gender in Spanish/, /do not add one/, /Never guess a gender|Never guess a gender from a name/, /En la enseñanza se explicó/, /los participantes, never la congregación/, /un impulso or una dirección/, /Avoid "inquietud"/,
     /la Santa Cena/, /comunión con Dios/, /degree of certainty/, /do not embellish prophetic words/, /Never present your own translation/, /Él, Su, Sus, Tu, Tus, Vos/,
     /Mantené Tus Ojos en Jesús/, /un ama de casa/, /Never shorten, summarize, condense or cut/]) assert.match(prompt, rule);
   assert.doesNotMatch(prompt, /shorten it|"shortened"/);
@@ -106,13 +106,18 @@ test("the prompt follows the Spanish Translation Rules", () => {
 test("rule checks: gendered teacher, inquietud, congregación and la Comunión are flagged; over-limit fields stop the save", () => {
   const warn = (text) => checkSegment({ id: "x", kind: "text", text: "English." }, text).warnings.join(" ");
   assert.match(warn("La maestra explicó algo."), /teacher's gender/);
+  // When the English itself gives the teacher's gender, Spanish keeps it.
+  const gendered = (english, text) => checkSegment({ id: "x", kind: "text", text: english }, text).warnings.join(" ");
+  assert.equal(gendered("The teacher said she was grateful.", "La maestra dijo que estaba agradecida."), "");
+  assert.equal(gendered("The teacher went on to say he was grateful.", "El maestro continuó diciendo que estaba agradecido."), "");
+  assert.match(gendered("The teacher said it was true.", "La maestra dijo que era verdad."), /teacher's gender/);
   assert.match(warn("Obedecen una inquietud del Espíritu Santo."), /inquietud/);
   assert.match(warn("La congregación oró."), /congregación/);
   assert.match(warn("La Comunión reunió la enseñanza."), /Santa Cena/);
   assert.match(warn("Una ama de casa oró."), /un ama/);
   assert.equal(warn("En la enseñanza se explicó que la comunión con Dios es real."), "");
   const over = checkSegment({ id: "teaching.central_theme", kind: "text", text: "Short.", limit: 300 }, "a".repeat(301));
-  assert.match(over.error, /Central Theme is 301 characters in Spanish, over the website's 300-character limit\. Nothing was saved and nothing was cut/);
+  assert.match(over.error, /Central Theme is 301 characters in Spanish, over the website's 300-character limit\. Nothing was saved and nothing was cut\. Raise the limit, or shorten the English/);
 });
 
 test("a long translation is kept whole: over the website limit, the save stops instead of cutting text", async () => {

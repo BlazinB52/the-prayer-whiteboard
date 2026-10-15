@@ -4,6 +4,7 @@ import { FileText } from "lucide-react";
 import { PublicFooterEs } from "@/app/public-footer-es";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
+import { printablePdfDate } from "@/lib/printable-pdf-date";
 import { resolvePrintablePdfHref } from "@/lib/printable-pdf-links";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,22 +19,20 @@ const nav = [
 
 export const metadata: Metadata = buildPageMetadata({ title: "Materiales para imprimir", description: "Recursos para imprimir de The Prayer Whiteboard.", path: "/espanol/materiales-para-imprimir", language: "es", pair: STATIC_TRANSLATIONS.printables });
 
-type PrintablePdfLinkRow = { id: string; title: string; storage_path: string; created_at: string };
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es", { dateStyle: "long" }).format(new Date(value));
-}
+type PrintablePdfLinkRow = { id: string; title: string; storage_path: string; gathering_date: string | null; created_at: string };
 
 export default async function MaterialesParaImprimirPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("printable_pdf_links")
-    .select("id, title, storage_path, created_at")
+    .select("id, title, storage_path, gathering_date, created_at")
     .eq("language", "es")
+    .order("gathering_date", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .order("title", { ascending: true });
   const links = ((data as PrintablePdfLinkRow[] | null) ?? []).map((link) => ({
     ...link,
+    date: printablePdfDate(link, "es", "long"),
     href: resolvePrintablePdfHref(link.storage_path, supabase),
   }));
 
@@ -58,7 +57,7 @@ export default async function MaterialesParaImprimirPage() {
               <article key={link.id} className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-4">
                 <h2 className="min-w-0 font-extrabold text-[#243d31]">{link.title}</h2>
                 <a href={link.href} target="_blank" rel="noopener noreferrer" className="row-span-2 font-bold text-[#946332] underline underline-offset-2 hover:text-[#a85e32]">Ver PDF</a>
-                <time dateTime={link.created_at} className="text-sm text-[#607066]">{formatDate(link.created_at)}</time>
+                <time dateTime={link.date.iso} className="text-sm text-[#607066]">{link.date.text}</time>
               </article>
             ))}
           </div>

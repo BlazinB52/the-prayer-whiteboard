@@ -245,7 +245,7 @@ export async function publishHandout(id: string, storagePath: string): Promise<H
 
   const { data: link, error: linkError } = await supabase
     .from("printable_pdf_links")
-    .insert({ title: handout.title, storage_path: storagePath, language: handout.language === "es" ? "es" : "en" })
+    .insert({ title: handout.title, storage_path: storagePath, language: handout.language === "es" ? "es" : "en", gathering_date: handout.gathering_date })
     .select("id")
     .single();
   if (linkError || !link) {

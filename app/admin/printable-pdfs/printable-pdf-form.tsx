@@ -10,6 +10,7 @@ import {
   removePrintablePdfLink,
   savePrintablePdfLink,
   scanPrintablePdfStorageCleanup,
+  setPrintablePdfDate,
   type PrintablePdfCleanupDeleteState,
   type PrintablePdfCleanupScanState,
 } from "./actions";
@@ -21,6 +22,7 @@ type PrintablePdfLink = {
   title: string;
   href: string;
   language: "en" | "es";
+  gathering_date: string | null;
   created_at: string;
 };
 
@@ -78,6 +80,7 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState("");
   const [language, setLanguage] = useState<"en" | "es">("en");
+  const [gatheringDate, setGatheringDate] = useState("");
   const [search, setSearch] = useState("");
   const [pending, startTransition] = useTransition();
   const [phase, setPhase] = useState<"idle" | "uploading" | "saving">("idle");
@@ -123,6 +126,7 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
         saveForm.set("title", title);
         saveForm.set("storagePath", target.path);
         saveForm.set("language", language);
+        saveForm.set("gatheringDate", gatheringDate);
 
         const result = await withTimeout(savePrintablePdfLink({}, saveForm), 30_000, "Saving the PDF link");
         if (result.error) {
@@ -132,6 +136,7 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
         }
 
         setTitle("");
+        setGatheringDate("");
         if (fileInputRef.current) fileInputRef.current.value = "";
         setSaveState({ saved: true });
         router.refresh();
@@ -151,7 +156,7 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
         <h2 className="text-xl font-extrabold text-[#243d31]">Add PDF link</h2>
 
         <form onSubmit={submit} className="mt-4 space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <label className="block text-sm font-bold text-[#385245]">
               Title
               <input
@@ -171,6 +176,12 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
                 <option value="en">English (shown on /pdf)</option>
                 <option value="es">Español (shown on the Español side)</option>
               </select>
+            </label>
+
+            <label className="block text-sm font-bold text-[#385245]">
+              Teaching date
+              <input name="gatheringDate" type="date" value={gatheringDate} onChange={(event) => setGatheringDate(event.target.value)} className="admin-input" />
+              <span className="mt-1 block text-xs font-normal text-[#607066]">The date of the teaching it goes with. The lists show and sort by it.</span>
             </label>
 
             <label className="block text-sm font-bold text-[#385245]">
@@ -207,12 +218,13 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
           <p className="mt-6 text-sm text-[#607066]">No printable PDF links have been added yet.</p>
         ) : visibleLinks.length ? (
           <div className="mt-5 overflow-x-auto border-y border-[#284a3b]/10">
-            <table className="w-full min-w-[620px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
               <thead className="bg-[#eee7da] text-xs font-extrabold uppercase tracking-wide text-[#385245]">
                 <tr>
                   <th scope="col" className="px-3 py-3">Title</th>
                   <th scope="col" className="px-3 py-3">Language</th>
-                  <th scope="col" className="px-3 py-3">Date</th>
+                  <th scope="col" className="px-3 py-3">Teaching date</th>
+                  <th scope="col" className="px-3 py-3">Added</th>
                   <th scope="col" className="px-3 py-3">PDF</th>
                   <th scope="col" className="px-3 py-3">Actions</th>
                 </tr>
@@ -222,7 +234,8 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
                   <tr key={link.id}>
                     <td className="max-w-md px-3 py-3 font-bold text-[#243d31]">{link.title}</td>
                     <td className="whitespace-nowrap px-3 py-3 text-[#607066]">{link.language === "es" ? "Español" : "English"}</td>
-                    <td className="whitespace-nowrap px-3 py-3 text-[#607066]">{formatDate(link.created_at)}</td>
+                    <td className="whitespace-nowrap px-3 py-3"><TeachingDateCell id={link.id} date={link.gathering_date} /></td>
+                    <td className="whitespace-nowrap px-3 py-3 text-xs text-[#607066]">{formatDate(link.created_at)}</td>
                     <td className="whitespace-nowrap px-3 py-3">
                       <a href={link.href} target="_blank" rel="noopener noreferrer" className="font-bold text-[#946332] underline underline-offset-2 hover:text-[#a85e32]">View PDF</a>
                     </td>
@@ -241,6 +254,41 @@ export function PrintablePdfManager({ links }: { links: PrintablePdfLink[] }) {
 
       <PrintablePdfStorageCleanup />
     </>
+  );
+}
+
+// The teaching date of one PDF, editable in place. A PDF with no date yet shows a note, and the lists fall back to the
+// date it was added until one is set.
+function TeachingDateCell({ id, date }: { id: string; date: string | null }) {
+  const router = useRouter();
+  const [value, setValue] = useState(date ?? "");
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const changed = value !== (date ?? "");
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <input type="date" value={value} onChange={(event) => setValue(event.target.value)} aria-label="Teaching date" disabled={pending} className={`rounded-lg border px-2 py-1 text-sm ${date ? "border-[#284a3b]/15" : "border-[#c49a3a]/60 bg-[#fbf4e1]"}`} />
+      {changed ? (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            setMessage(null);
+            startTransition(async () => {
+              const result = await setPrintablePdfDate(id, value);
+              if (result.error) setMessage(result.error);
+              else router.refresh();
+            });
+          }}
+          className="rounded-lg bg-[#244a3a] px-3 py-1 text-xs font-extrabold text-white disabled:opacity-60"
+        >
+          {pending ? "Saving..." : "Save"}
+        </button>
+      ) : null}
+      {!date && !changed ? <span className="text-xs font-bold text-[#6b5013]">Not set</span> : null}
+      {message ? <span role="alert" className="text-xs font-bold text-[#a2472c]">{message}</span> : null}
+    </div>
   );
 }
 

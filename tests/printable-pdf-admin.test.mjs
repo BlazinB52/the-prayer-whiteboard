@@ -123,7 +123,9 @@ test("admin actions only support create, verify-before-save, and delete-with-sto
   assert.match(actions, /A PDF file is required\./);
   assert.match(actions, /export async function savePrintablePdfLink/);
   assert.doesNotMatch(actions, /formData\.get\("id"\)/);
-  assert.doesNotMatch(actions, /\.update\(/);
+  // The only update is the teaching date, in its own action; saving a link never edits an existing one.
+  assert.equal((actions.match(/\.update\(/g) ?? []).length, 1);
+  assert.match(actions.slice(actions.indexOf("export async function setPrintablePdfDate"), actions.indexOf("export async function removePrintablePdfLink")), /\.update\(\{ gathering_date:/);
   assert.match(actions, /export async function removePrintablePdfLink/);
   assert.match(actions, /existing\?\.storage_path/);
 });
@@ -209,7 +211,7 @@ test("admin list has only View and Delete actions, no Edit", async () => {
 
 test("admin form's Title, Language and PDF file fields are equal-structure grid siblings, not end-aligned", async () => {
   const manager = await readFile("app/admin/printable-pdfs/printable-pdf-form.tsx", "utf8");
-  assert.match(manager, /<div className="grid gap-4 sm:grid-cols-3">/);
+  assert.match(manager, /<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">/);
   assert.doesNotMatch(manager, /grid[^"]*items-end/);
 });
 
@@ -217,12 +219,13 @@ test("admin and public pages resolve a href from storage_path only, no legacy UR
   const adminPage = await readFile("app/admin/printable-pdfs/page.tsx", "utf8");
   const publicPage = await readFile("app/pdf/page.tsx", "utf8");
   for (const page of [adminPage, publicPage]) {
-    assert.match(page, /select\("id, title, storage_path, (language, )?created_at/);
+    assert.match(page, /select\("id, title, storage_path, (language, )?gathering_date, created_at/);
     assert.doesNotMatch(page, /printable_pdf_url/);
     assert.match(page, /resolvePrintablePdfHref\(link\.storage_path, supabase\)/);
   }
-  assert.match(adminPage, /\.order\("created_at", \{ ascending: false \}\)/);
-  assert.match(publicPage, /\.order\("created_at", \{ ascending: false \}\)/);
+  const byDate = /\.order\("gathering_date", \{ ascending: false, nullsFirst: false \}\)\s*\.order\("created_at", \{ ascending: false \}\)/;
+  assert.match(adminPage, byDate);
+  assert.match(publicPage, byDate);
 });
 
 test("storage migration creates a public bucket and (at that point) a one-source check", async () => {
@@ -272,7 +275,7 @@ test("public PDF page is read-only, sorted newest first, and responsive", async 
   assert.match(page, /https:\/\/theprayerwhiteboard\.com\/pdf/);
   assert.doesNotMatch(page, new RegExp("/" + "PDF"));
   assert.match(page, /\.from\("printable_pdf_links"\)/);
-  assert.match(page, /\.order\("created_at", \{ ascending: false \}\)/);
+  assert.match(page, /\.order\("gathering_date", \{ ascending: false, nullsFirst: false \}\)\s*\.order\("created_at", \{ ascending: false \}\)/);
   assert.match(page, />Title<\/th>/);
   assert.match(page, />Date<\/th>/);
   assert.match(page, />View PDF<\/a>/);

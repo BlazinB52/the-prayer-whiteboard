@@ -132,7 +132,7 @@ export default async function AdminHandoutPage({
 
         {!isPublished ? <FooterForm id={idResult.value} footerId={handout.footer_id} footers={footers} language={language} /> : null}
 
-        {hasDraft ? (
+        {hasDraft && !isPublished ? (
           <BuildHandoutSection
             handoutId={idResult.value}
             language={language}

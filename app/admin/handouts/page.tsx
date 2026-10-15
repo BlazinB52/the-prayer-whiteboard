@@ -24,6 +24,45 @@ type HandoutRow = {
   created_at: string;
 };
 
+function HandoutList({ heading, items, emptyText, teachingTitles }: { heading: string; items: HandoutRow[]; emptyText: string; teachingTitles: Map<string, string> }) {
+  return (
+    <section className="py-7">
+      <h2 className="text-xl font-extrabold text-[#243d31]">
+        {heading} <span className="text-sm font-bold text-[#607066]">({items.length})</span>
+      </h2>
+      {items.length ? (
+        <ul className="mt-3 divide-y divide-[#284a3b]/10 rounded-xl border border-[#284a3b]/10 bg-[#fffdf8]">
+          {items.map((handout) => {
+            const hasDraft = Array.isArray(handout.content) && handout.content.length > 0;
+            const state =
+              handout.status === "published"
+                ? { label: "Published", style: "bg-[#e7efe9] text-[#326048]" }
+                : handout.sent_for_review_at
+                  ? { label: "With Content Managers", style: "bg-[#e8f0fe] text-[#1a4fb4]" }
+                  : hasDraft
+                    ? { label: "Draft", style: "bg-[#eee7da] text-[#6b5a3a]" }
+                    : { label: "Needs a draft", style: "bg-[#fbf4e1] text-[#6b5013]" };
+            return (
+              <li key={handout.id}>
+                <Link href={`/admin/handouts/${handout.id}`} className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition hover:bg-[#e7efe9]/60">
+                  <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{handout.title}{handout.language === "es" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Español</span> : null}</span>
+                  {handout.gathering_date ? <TeachingDateLabel date={handout.gathering_date} /> : <span className="text-xs font-bold text-[#a2472c]">Needs a date</span>}
+                  <span className={`max-w-56 truncate text-xs font-bold ${handout.teaching_id ? "text-[#326048]" : "text-[#a2472c]"}`}>
+                    {handout.teaching_id ? `Teaching: ${teachingTitles.get(handout.teaching_id) ?? "linked"}` : "Needs a teaching"}
+                  </span>
+                  <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${state.style}`}>{state.label}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="py-4 text-sm text-[#607066]">{emptyText}</p>
+      )}
+    </section>
+  );
+}
+
 export default async function AdminHandoutsPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const flags = await searchParams;
   const { supabase } = await requireAdmin();
@@ -61,40 +100,10 @@ export default async function AdminHandoutsPage({ searchParams }: { searchParams
         {error ? (
           <p role="alert" className="mt-6 text-sm font-bold text-[#a2472c]">Handouts could not be loaded. The database update for handouts may not be applied yet.</p>
         ) : (
-          <section className="py-7">
-            <h2 className="text-xl font-extrabold text-[#243d31]">
-              Handouts <span className="text-sm font-bold text-[#607066]">({handouts.length})</span>
-            </h2>
-            {handouts.length ? (
-              <ul className="mt-3 divide-y divide-[#284a3b]/10 rounded-xl border border-[#284a3b]/10 bg-[#fffdf8]">
-                {handouts.map((handout) => {
-                  const hasDraft = Array.isArray(handout.content) && handout.content.length > 0;
-                  const state =
-                    handout.status === "published"
-                      ? { label: "Published", style: "bg-[#e7efe9] text-[#326048]" }
-                      : handout.sent_for_review_at
-                        ? { label: "With Content Managers", style: "bg-[#e8f0fe] text-[#1a4fb4]" }
-                        : hasDraft
-                          ? { label: "Draft", style: "bg-[#eee7da] text-[#6b5a3a]" }
-                          : { label: "Needs a draft", style: "bg-[#fbf4e1] text-[#6b5013]" };
-                  return (
-                    <li key={handout.id}>
-                      <Link href={`/admin/handouts/${handout.id}`} className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition hover:bg-[#e7efe9]/60">
-                        <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{handout.title}{handout.language === "es" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Español</span> : null}</span>
-                        {handout.gathering_date ? <TeachingDateLabel date={handout.gathering_date} /> : <span className="text-xs font-bold text-[#a2472c]">Needs a date</span>}
-                        <span className={`max-w-56 truncate text-xs font-bold ${handout.teaching_id ? "text-[#326048]" : "text-[#a2472c]"}`}>
-                          {handout.teaching_id ? `Teaching: ${teachingTitles.get(handout.teaching_id) ?? "linked"}` : "Needs a teaching"}
-                        </span>
-                        <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ${state.style}`}>{state.label}</span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="py-4 text-sm text-[#607066]">No handouts yet. Press Create new handout.</p>
-            )}
-          </section>
+          <>
+            <HandoutList heading="English" items={handouts.filter((handout) => handout.language !== "es")} emptyText="No English handouts yet. Press Create new handout." teachingTitles={teachingTitles} />
+            <HandoutList heading="Español" items={handouts.filter((handout) => handout.language === "es")} emptyText="No Español handouts yet. Translate an English handout, or create one in Español." teachingTitles={teachingTitles} />
+          </>
         )}
       </div>
     </main>

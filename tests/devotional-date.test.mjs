@@ -104,3 +104,9 @@ test("the Teachings list is ordered by gathering date, newest first, not by last
   const list = await read("app/admin/teachings/page.tsx");
   assert.match(list, /\.order\("gathering_date", \{ ascending: false, nullsFirst: false \}\)/);
 });
+
+test("the Handouts list is two lists, English and Español", async () => {
+  const list = await read("app/admin/handouts/page.tsx");
+  assert.match(list, /heading="English" items=\{handouts\.filter\(\(handout\) => handout\.language !== "es"\)\}/);
+  assert.match(list, /heading="Español" items=\{handouts\.filter\(\(handout\) => handout\.language === "es"\)\}/);
+});

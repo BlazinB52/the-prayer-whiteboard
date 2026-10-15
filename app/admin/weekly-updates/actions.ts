@@ -6,6 +6,7 @@ import { convertDocxToWeeklyUpdate } from "@/lib/weekly-update-docx";
 import { notifyContentManagers } from "@/lib/review-ready-send";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { validateOptionalGatheringDate } from "@/lib/teaching-date";
 import { validateOptionalOutlineId } from "@/lib/teaching-outlines";
 
 type FormState = { error?: string; saved?: boolean };
@@ -207,6 +208,10 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
   if (footer.error) return { error: footer.error };
   const teaching = validateOptionalOutlineId(formData.get("teachingId"));
   if (teaching.error) return { error: teaching.error };
+  // The gathering the letter is for. It is known before the teaching exists, and it is what ties the two together.
+  const gathering = validateOptionalGatheringDate(formData.get("gatheringDate"));
+  if (gathering.error) return { error: gathering.error };
+  if (!gathering.value) return { error: "Choose the gathering date this weekly update is for." };
 
   const docx = await readDocx(formData, true);
   if (docx.error) return { error: docx.error };
@@ -228,6 +233,7 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
       source_document_file_name: docx.value.fileName,
       chalkboard_asset_id: chalkboard.value?.[0] ?? null,
       teaching_id: teaching.value,
+      gathering_date: gathering.value,
       language,
       status: "draft",
       is_current: false,
@@ -264,11 +270,15 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
   if (footer.error) return { error: footer.error };
   const teaching = validateOptionalOutlineId(formData.get("teachingId"));
   if (teaching.error) return { error: teaching.error };
+  const gathering = validateOptionalGatheringDate(formData.get("gatheringDate"));
+  if (gathering.error) return { error: gathering.error };
 
   const docx = await readDocx(formData, false);
   if (docx.error) return { error: docx.error };
 
   const update: Record<string, unknown> = { title: title.value, chalkboard_asset_id: chalkboard.value?.[0] ?? null, teaching_id: teaching.value };
+  // An existing letter with no date can be saved without one; a date that is entered is kept.
+  if (gathering.value) update.gathering_date = gathering.value;
   let storedPath: string | null = null;
   if (docx.value) {
     const stored = await storeSourceDocument(supabase, id.value, docx.value.fileName, docx.value.buffer);
@@ -436,4 +446,44 @@ export async function archiveWeeklyUpdate(previousState: WeeklyUpdateActionState
   revalidatePath("/weekly-update");
   revalidatePath("/");
   redirect("/admin/weekly-updates?archived=1");
+}
+
+// Records a weekly update that already went out, so the Title Collections report and the lists know about it. Nothing is
+// published or emailed: the record is archived (so it never shows on the website and the current update is untouched),
+// and it holds only a note that the letter's text is not stored here. A record for that gathering and language that
+// already exists is not added twice.
+export async function recordSentWeeklyUpdate(_: FormState, formData: FormData): Promise<FormState> {
+  const { supabase } = await requireAdmin();
+  const language = readLanguage(formData);
+  const gathering = validateOptionalGatheringDate(formData.get("gatheringDate"));
+  if (gathering.error) return { error: gathering.error };
+  if (!gathering.value) return { error: "Choose the gathering date of the letter that went out." };
+  const sent = validateOptionalGatheringDate(formData.get("sentOn"));
+  if (sent.error) return { error: "The date it was sent must be a valid date." };
+  const sentOn = sent.value ?? gathering.value;
+
+  const { data: already } = await supabase.from("weekly_updates").select("id").eq("language", language).eq("gathering_date", gathering.value).limit(1);
+  if (already?.length) return { error: `There is already a ${language === "es" ? "Español" : "English"} weekly update for that gathering. Nothing was added.` };
+
+  // The English teaching of that date, if there is one, so the report finds the letter without any further step.
+  const { data: teaching } = await supabase.from("teachings").select("id").eq("language", "en").eq("gathering_date", gathering.value).neq("status", "archived").limit(1);
+
+  const title = cleanTitle(formData);
+  const { error } = await supabase.from("weekly_updates").insert({
+    title: title.value ?? (language === "es" ? `Actualización semanal del ${gathering.value} (registrada como enviada)` : `Weekly Update for ${gathering.value} (recorded as sent)`),
+    body_markdown: language === "es" ? "Registrada como ya enviada. El texto de esta carta no se guarda aquí." : "Recorded as already sent. The text of this letter is not stored here.",
+    converted_content: [],
+    status: "archived",
+    is_current: false,
+    archived_at: `${sentOn}T12:00:00Z`,
+    language,
+    teaching_id: teaching?.[0]?.id ?? null,
+    gathering_date: gathering.value,
+    recorded_sent_on: sentOn,
+  });
+  if (error) return { error: "The weekly update could not be recorded." };
+
+  revalidatePath("/admin/weekly-updates");
+  revalidatePath("/admin/cm/reports/title-collections");
+  return { saved: true };
 }

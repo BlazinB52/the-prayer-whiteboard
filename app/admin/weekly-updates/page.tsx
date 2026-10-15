@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { archiveWeeklyUpdate, createWeeklyUpdate, deleteWeeklyUpdate, publishWeeklyUpdate, sendWeeklyUpdateToProofing, setWeeklyUpdateReady, takeWeeklyUpdateBackFromProofing, updateWeeklyUpdate } from "./actions";
+import { archiveWeeklyUpdate, createWeeklyUpdate, deleteWeeklyUpdate, recordSentWeeklyUpdate, publishWeeklyUpdate, sendWeeklyUpdateToProofing, setWeeklyUpdateReady, takeWeeklyUpdateBackFromProofing, updateWeeklyUpdate } from "./actions";
 import { loadTeachingChoices } from "../teaching-choice";
 import { WeeklyUpdateEditor, type WeeklyUpdateChalkboardOption, type WeeklyUpdateFooterOption } from "./weekly-update-editor";
 import { WeeklyUpdateDeleteButton, WeeklyUpdateStatusButton } from "./status-buttons";
 import { WeeklyUpdateTestSendForm } from "./test-send-form";
 import { FinishSendingButton } from "./finish-sending-button";
+import { RecordSentForm } from "./record-sent-form";
+import { TeachingDateLabel } from "@/app/teaching-date-label";
 import { SendToSubscriberForm } from "./send-to-subscriber-form";
 import { WeeklyUpdateContent } from "@/app/weekly-update/weekly-update-content";
 import { ContentFooter } from "@/app/content-footer";
@@ -30,7 +32,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
   const [{ data: updates, error }, { data: chalkboards }, { data: chalkboardAssignments }, { data: footers }, { data: footerAssignments }] = await Promise.all([
     supabase
       .from("weekly_updates")
-      .select("id, title, language, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, teaching_id, conversion_report, ready_to_publish_at, sent_to_proofing_at")
+      .select("id, title, language, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, teaching_id, gathering_date, recorded_sent_on, conversion_report, ready_to_publish_at, sent_to_proofing_at")
       .order("is_current", { ascending: false })
       .order("updated_at", { ascending: false }),
     supabase
@@ -62,10 +64,16 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
   }
   const teachingChoices = await loadTeachingChoices(supabase);
   const emailLookup = await getWeeklyUpdateEmailLookup(supabase);
-  // Work that still needs attention comes first: drafts, then the current published updates, then the
-  // archive. Within each group the most recently edited is first.
-  const listRank = (item: { status: string; is_current: boolean }) => (item.status === "draft" ? 0 : item.is_current ? 1 : 2);
-  const sortedUpdates = [...(updates ?? [])].sort((a, b) => listRank(a) - listRank(b) || String(b.updated_at).localeCompare(String(a.updated_at)));
+  // Newest gathering date first, so a letter keeps its place when it is edited. A letter with no date comes first, so it
+  // is seen and given one. English and Español are two lists.
+  const sortedUpdates = [...(updates ?? [])].sort((a, b) => {
+    if (!a.gathering_date !== !b.gathering_date) return a.gathering_date ? 1 : -1;
+    return String(b.gathering_date ?? "").localeCompare(String(a.gathering_date ?? "")) || String(b.updated_at).localeCompare(String(a.updated_at));
+  });
+  const updateGroups = [
+    { heading: "English", items: sortedUpdates.filter((item) => item.language !== "es"), empty: "No English weekly updates yet." },
+    { heading: "Español", items: sortedUpdates.filter((item) => item.language === "es"), empty: "No Español weekly updates yet." },
+  ];
 
   // There is one current update PER LANGUAGE; publishing replaces only the current update of the same language.
   const currentByLanguage = { en: (updates ?? []).find((item) => item.is_current && item.language !== "es"), es: (updates ?? []).find((item) => item.is_current && item.language === "es") };
@@ -135,11 +143,22 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         </section>
 
         <section className="border-t border-[#284a3b]/10 py-8">
+          <details>
+            <summary className="cursor-pointer text-lg font-extrabold text-[#243d31]">Record a letter that already went out</summary>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[#607066]">For a weekly update that was sent before it was kept here. It is only recorded: nothing is emailed, nothing is shown on the website, and the current update does not change. It lets the Title Collections report show that the letter went out.</p>
+            <div className="mt-4"><RecordSentForm action={recordSentWeeklyUpdate} /></div>
+          </details>
+        </section>
+
+        <section className="border-t border-[#284a3b]/10 py-8">
           <h2 className="text-2xl font-extrabold text-[#243d31]">Update archive</h2>
           {error ? <p className="mt-4 text-sm font-bold text-[#a2472c]">Weekly updates could not be loaded.</p> : null}
-          {sortedUpdates.length ? (
+          {updateGroups.map((group) => (
+          <div key={group.heading} className="mt-8">
+            <h3 className="text-xl font-extrabold text-[#243d31]">{group.heading} <span className="text-sm font-bold text-[#607066]">({group.items.length})</span></h3>
+          {group.items.length ? (
             <div className="mt-5 grid gap-5">
-              {sortedUpdates.map((update) => {
+              {group.items.map((update) => {
                 const notes = ((update.conversion_report as { notes?: ConversionNote[] } | null)?.notes ?? []);
                 const updateLanguage = update.language === "es" ? "es" : "en";
                 const currentOfLanguage = currentByLanguage[updateLanguage];
@@ -157,6 +176,8 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                     <div>
                       <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{update.is_current ? "Current" : update.status} · {update.language === "es" ? "Español" : "English"}{update.status === "draft" && update.ready_to_publish_at ? <span className="ml-2 rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black tracking-wider text-[#1a4fb4]">Ready to publish</span> : null}{update.status === "draft" && update.sent_to_proofing_at ? <span className="ml-2 rounded-full bg-[#fbf1e1] px-3 py-1 text-[10px] font-black tracking-wider text-[#7a4a1d]">Proofs {proofs.filter((proof) => proof.submitted_at).length} of {proofs.length} in</span> : null}</p>
                       <h3 className="mt-2 text-2xl font-extrabold text-[#243d31]">{update.title}</h3>
+                      <div className="mt-2">{update.gathering_date ? <TeachingDateLabel date={update.gathering_date} /> : <span className="text-xs font-bold text-[#a2472c]">Needs a gathering date. Open Edit title or replace document to add one.</span>}</div>
+                      {update.recorded_sent_on ? <p className="mt-2 text-sm font-bold text-[#385245]">Recorded as already sent on {formatDate(update.recorded_sent_on)}. Nothing was emailed.</p> : null}
                       <p className="mt-2 text-sm text-[#607066]">Published: {formatDate(update.published_at)}{update.archived_at ? ` · Archived: ${formatDate(update.archived_at)}` : ""}</p>
                       <p className="mt-1 text-sm text-[#607066]">Source document: <span className="font-bold text-[#385245]">{update.source_document_file_name ?? "Not retained"}</span></p>
                       <p className="mt-1 text-sm text-[#607066]">Weekly Update chalkboards: <span className="font-bold text-[#385245]">{(chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])).map((id) => chalkboardLabels.get(id)).filter(Boolean).join(", ") || "None selected"}</span></p>
@@ -250,7 +271,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   {update.status !== "archived" ? (
                     <details className="mt-5">
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit title or replace document</summary>
-                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialLanguage={update.language === "es" ? "es" : "en"} languageLocked initialTitle={update.title} initialChalkboardAssetIds={chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} teachings={teachingChoices} initialTeachingId={update.teaching_id} chalkboards={chalkboardOptions} footers={footerOptions} /></div>
+                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialLanguage={update.language === "es" ? "es" : "en"} languageLocked initialTitle={update.title} initialChalkboardAssetIds={chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} teachings={teachingChoices} initialTeachingId={update.teaching_id} initialGatheringDate={update.gathering_date} chalkboards={chalkboardOptions} footers={footerOptions} /></div>
                     </details>
                   ) : null}
                   {update.is_current && update.status === "published" ? (
@@ -280,7 +301,9 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                 );
               })}
             </div>
-          ) : <p className="mt-4 text-sm text-[#607066]">No weekly updates have been created yet.</p>}
+          ) : <p className="mt-3 text-sm text-[#607066]">{group.empty}</p>}
+          </div>
+          ))}
         </section>
       </div>
     </main>

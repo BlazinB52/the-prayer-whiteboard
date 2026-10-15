@@ -10,6 +10,8 @@ type DevotionalOption = {
   id: string;
   title: string;
   status: string;
+  /** The gathering date of the teaching the devotional belongs to, as shown ("Oct 10, 2026"). */
+  dateLabel: string;
 };
 
 export function DevotionalAssignmentForm({
@@ -40,7 +42,7 @@ export function DevotionalAssignmentForm({
             <select name="devotionalId" defaultValue={currentDevotionalId ?? ""} required className="admin-input">
               <option value="" disabled>Choose a devotional</option>
               {devotionals.map((devotional) => (
-                <option key={devotional.id} value={devotional.id}>{devotional.title} ({devotional.status})</option>
+                <option key={devotional.id} value={devotional.id}>{devotional.dateLabel} · {devotional.title} ({devotional.status})</option>
               ))}
             </select>
           </label>

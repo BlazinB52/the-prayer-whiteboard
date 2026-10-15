@@ -74,12 +74,14 @@ export function DevotionalSeriesForm({ devotional, action }: { devotional: Teach
     title: devotional.title,
     introduction: devotional.introduction ?? "",
     language: devotional.language === "es" ? "es" : "en",
+    gatheringDate: devotional.gathering_date ?? "",
   });
   const [state, formAction, isPending] = useActionState(action, {});
   const { hasUnsavedChanges, markSubmitted } = useUnsavedChanges(values, {
     title: devotional.title,
     introduction: devotional.introduction ?? "",
     language: devotional.language === "es" ? "es" : "en",
+    gatheringDate: devotional.gathering_date ?? "",
   }, state);
 
   return (
@@ -91,6 +93,11 @@ export function DevotionalSeriesForm({ devotional, action }: { devotional: Teach
           <option value="es">Español</option>
         </select>
         <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">Español devotionals appear on the Español homepage and are not emailed to subscribers automatically.</span>
+      </label>
+      <label className="block text-sm font-bold text-[#385245]">
+        Gathering date
+        <input name="gatheringDate" type="date" value={values.gatheringDate} onChange={(event) => setValues((current) => ({ ...current, gatheringDate: event.target.value }))} className="admin-input" />
+        <span className="mt-1 block text-xs font-normal leading-5 text-[#607066]">The date of the teaching this devotional goes with. The devotional lists show and sort by it. If it is empty, the date of the teaching it is assigned to is used.</span>
       </label>
       <label className="block text-sm font-bold text-[#385245]">
         Devotional title <span className="text-[#a2472c]">*</span>

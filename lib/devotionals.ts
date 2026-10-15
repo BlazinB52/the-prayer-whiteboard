@@ -20,6 +20,8 @@ export type TeachingDevotional = {
   status: DevotionalStatus;
   published_at: string | null;
   language?: "en" | "es";
+  /** The date of the teaching it goes with; empty means the date of the teaching it is assigned to is used. */
+  gathering_date?: string | null;
 };
 
 export type DevotionalDay = {

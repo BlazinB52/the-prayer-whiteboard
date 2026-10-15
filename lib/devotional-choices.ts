@@ -1,11 +1,12 @@
+import { devotionalDate } from "./devotional-date.ts";
 import { formatTeachingDateShort } from "./teaching-date.ts";
 
-// The list in "Use Existing Devotional". A devotional has no date of its own: it carries the gathering date of the
+// The list in "Use Existing Devotional". A devotional has its own gathering date; when it has none it carries the date of the
 // teaching it belongs to (the same rule the Devotionals list uses), so each choice shows that date, newest first, with
 // devotionals that have no date after the rest. Only devotionals in the teaching's own language are offered, and the one
 // already assigned always stays in the list.
 
-export type DevotionalChoiceInput = { id: string; title: string; status: string; language: string | null; legacyTeachingId: string | null };
+export type DevotionalChoiceInput = { id: string; title: string; status: string; language: string | null; legacyTeachingId: string | null; gatheringDate?: string | null };
 export type DevotionalChoice = { id: string; title: string; status: string; date: string | null; dateLabel: string };
 
 export function devotionalChoices(input: {
@@ -21,8 +22,7 @@ export function devotionalChoices(input: {
     .filter((devotional) => (devotional.language === "es" ? "es" : "en") === input.teachingLanguage || devotional.id === input.currentDevotionalId)
     .map((devotional): DevotionalChoice => {
       const teachingIds = [...input.assignments.filter((row) => row.devotional_id === devotional.id).map((row) => row.teaching_id), ...(devotional.legacyTeachingId ? [devotional.legacyTeachingId] : [])];
-      const dates = teachingIds.map((id) => dateOf.get(id)).filter((date): date is string => Boolean(date)).sort();
-      const date = dates.length ? dates[dates.length - 1] : null;
+      const date = devotionalDate(devotional.gatheringDate, teachingIds.map((id) => dateOf.get(id)));
       return { id: devotional.id, title: devotional.title, status: devotional.status, date, dateLabel: date ? formatTeachingDateShort(date) : "No gathering date" };
     });
   return choices.sort((a, b) => {

@@ -7,6 +7,17 @@ function toDate(value: string) {
   return new Date(value.length === 10 ? `${value}T00:00:00Z` : value);
 }
 
+/** An optional teaching date from a form: empty means none, anything else must be a real calendar date. */
+export function validateOptionalGatheringDate(value: unknown): { value: string | null; error?: undefined } | { error: string; value?: undefined } {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text) return { value: null };
+  const parsed = new Date(`${text}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== text) {
+    return { error: "The gathering date must be a valid date." };
+  }
+  return { value: text };
+}
+
 /** "Saturday, Oct 10, 2026" */
 export function formatTeachingDate(value: string | null | undefined) {
   if (!value) return "";

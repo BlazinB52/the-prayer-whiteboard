@@ -9,6 +9,8 @@ import { importStandaloneDevotionalText, publishStandaloneDevotional, unpublishS
 import { PublishDevotionalButton, UnpublishDevotionalButton } from "@/app/admin/teachings/devotional-buttons";
 import { DevotionalExportForTranslationSection } from "@/app/admin/devotionals/export-for-translation-section";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
+import { TeachingDateLabel } from "@/app/teaching-date-label";
+import { devotionalDate } from "@/lib/devotional-date";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { TranslationPicker } from "@/app/admin/translations/translation-picker";
 import { loadTranslationOptions } from "@/lib/translation-options";
@@ -27,7 +29,7 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
   const { supabase } = await requireAdmin();
   const { data: devotional, error: devotionalError } = await supabase
     .from("teaching_devotionals")
-    .select("id, teaching_id, slug, title, introduction, status, published_at, language, sent_for_review_at")
+    .select("id, teaching_id, slug, title, introduction, status, published_at, language, sent_for_review_at, gathering_date")
     .eq("id", id)
     .maybeSingle();
 
@@ -42,7 +44,7 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
 
   const teachingIds = [...new Set((assignments ?? []).map((assignment) => assignment.teaching_id))];
   const { data: teachings } = teachingIds.length
-    ? await supabase.from("teachings").select("id, title").in("id", teachingIds)
+    ? await supabase.from("teachings").select("id, title, gathering_date").in("id", teachingIds)
     : { data: [] };
 
   const { data: days } = await supabase
@@ -75,6 +77,7 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Manage 7-Day Devotional</p>
               <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-[#243d31]">{devotional.title}</h1>
+              <div className="mt-3">{devotionalDate(devotional.gathering_date, assignedTeachings.map((teaching) => teaching.gathering_date)) ? <TeachingDateLabel date={devotionalDate(devotional.gathering_date, assignedTeachings.map((teaching) => teaching.gathering_date))} /> : <span className="text-xs font-bold text-[#6b5013]">No gathering date yet. Enter one under Series Information.</span>}</div>
             </div>
             <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{devotional.status}</span>
           </div>

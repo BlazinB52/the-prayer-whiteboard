@@ -41,7 +41,7 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
     .maybeSingle(),
     supabase
       .from("teaching_devotionals")
-      .select("id, teaching_id, slug, title, introduction, status, published_at, language")
+      .select("id, teaching_id, slug, title, introduction, status, published_at, language, gathering_date")
       .order("title", { ascending: true }),
     supabase.from("teaching_devotional_assignments").select("devotional_id, teaching_id"),
   ]);
@@ -92,7 +92,7 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
 
         <DevotionalAssignmentForm
           devotionals={devotionalChoices({
-            devotionals: (devotionals ?? []).map((item) => ({ id: item.id, title: item.title, status: item.status, language: item.language, legacyTeachingId: item.teaching_id ?? null })),
+            devotionals: (devotionals ?? []).map((item) => ({ id: item.id, title: item.title, status: item.status, language: item.language, legacyTeachingId: item.teaching_id ?? null, gatheringDate: item.gathering_date ?? null })),
             assignments: (allAssignments ?? []) as { devotional_id: string; teaching_id: string }[],
             teachingDates: (teachingDates ?? []) as { id: string; gathering_date: string | null }[],
             teachingLanguage: teaching.language === "es" ? "es" : "en",

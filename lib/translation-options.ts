@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { devotionalDate } from "./devotional-date.ts";
 import { formatTeachingDateShort } from "./teaching-date.ts";
 
 export type TranslationOption = { id: string; label: string; disabled?: boolean };
@@ -30,7 +31,7 @@ export async function loadTranslationOptions(
   language: "en" | "es",
 ): Promise<{ currentId: string; options: TranslationOption[] }> {
   const otherLanguage = language === "es" ? "en" : "es";
-  const columns = kind === "teachings" ? "id, title, status, slug, gathering_date" : "id, title, status, slug, teaching_id";
+  const columns = kind === "teachings" ? "id, title, status, slug, gathering_date" : "id, title, status, slug, teaching_id, gathering_date";
   const [{ data: items, error }, { data: all }] = await Promise.all([
     supabase.from(kind).select(columns).eq("language", otherLanguage).order("title", { ascending: true }),
     supabase.from(kind).select("id, translation_of"),
@@ -55,8 +56,7 @@ export async function loadTranslationOptions(
     const teachingDate = new Map(((teachings ?? []) as { id: string; gathering_date: string | null }[]).map((row) => [row.id, row.gathering_date]));
     for (const row of rows) {
       const teachingIds = [...((assignments ?? []) as { devotional_id: string; teaching_id: string }[]).filter((a) => a.devotional_id === row.id).map((a) => a.teaching_id), ...(row.teaching_id ? [row.teaching_id] : [])];
-      const found = teachingIds.map((teachingId) => teachingDate.get(teachingId)).filter((date): date is string => Boolean(date)).sort();
-      dates.set(row.id, found.length ? found[found.length - 1] : null);
+      dates.set(row.id, devotionalDate(row.gathering_date, teachingIds.map((teachingId) => teachingDate.get(teachingId))));
     }
   }
 

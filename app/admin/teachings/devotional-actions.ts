@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { parseDevotionalText } from "@/lib/devotional-import";
 import { COMMUNION_DAY_NUMBER, DEVOTIONAL_DAY_COLUMNS, findDevotionalPublishBlocker, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines } from "@/lib/devotionals";
+import { validateOptionalGatheringDate } from "@/lib/teaching-date";
+import { suggestHandoutFromFileName } from "@/lib/teaching-handouts";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -144,7 +146,7 @@ async function getTeaching(supabase: Awaited<ReturnType<typeof requireAdmin>>["s
   if (!UUID_PATTERN.test(teachingId)) return null;
   const { data } = await supabase
     .from("teachings")
-    .select("id, slug, title, status, language")
+    .select("id, slug, title, status, language, gathering_date")
     .eq("id", teachingId)
     .in("status", ["draft", "published"])
     .maybeSingle();
@@ -221,7 +223,7 @@ export async function createDevotional(teachingId: string, previousState: Devoti
 
   const { data: created, error } = await supabase
     .from("teaching_devotionals")
-    .insert({ teaching_id: teaching.id, slug: teaching.slug, title: `${teaching.title} 7-Day Devotional`, language: teaching.language === "es" ? "es" : "en", status: "draft", published_at: null })
+    .insert({ teaching_id: teaching.id, slug: teaching.slug, title: `${teaching.title} 7-Day Devotional`, language: teaching.language === "es" ? "es" : "en", gathering_date: teaching.gathering_date ?? null, status: "draft", published_at: null })
     .select("id")
     .single();
 
@@ -245,13 +247,17 @@ export async function assignExistingDevotional(teachingId: string, previousState
   if (!UUID_PATTERN.test(devotionalId)) return { error: "Choose a devotional to assign." };
   const { data: devotional } = await supabase
     .from("teaching_devotionals")
-    .select("id, slug")
+    .select("id, slug, gathering_date")
     .eq("id", devotionalId)
     .maybeSingle();
   if (!devotional) return { error: "This devotional could not be found." };
 
   const { error } = await saveAssignment(supabase, teaching.id, devotional.id);
   if (error) return { error: "This devotional could not be assigned." };
+  // A devotional with no date of its own takes the teaching's, so it is not left undated. A date already entered is kept.
+  if (!devotional.gathering_date && teaching.gathering_date) {
+    await supabase.from("teaching_devotionals").update({ gathering_date: teaching.gathering_date }).eq("id", devotional.id);
+  }
   revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
   redirect(`/admin/teachings/${teaching.id}/devotional?assigned=1`);
 }
@@ -282,6 +288,8 @@ export async function updateDevotionalSeries(teachingId: string, previousState: 
   const introduction = readText(formData, "introduction", MAX_LENGTHS.introduction);
   if (title.error) return title;
   if (introduction.error) return introduction;
+  const date = validateOptionalGatheringDate(formData.get("gatheringDate"));
+  if (date.error) return { error: date.error };
 
   const { devotional } = await getAssignedDevotional(supabase, teaching.id);
 
@@ -289,7 +297,7 @@ export async function updateDevotionalSeries(teachingId: string, previousState: 
 
   const { error } = await supabase
     .from("teaching_devotionals")
-    .update({ title: title.value, introduction: introduction.value || null, language: readLanguage(formData) })
+    .update({ title: title.value, introduction: introduction.value || null, language: readLanguage(formData), gathering_date: date.value ?? null })
     .eq("id", devotional.id);
 
   if (error) return { error: "The devotional series information could not be saved." };
@@ -510,7 +518,7 @@ export async function createStandaloneDevotional(previousState: DevotionalFormSt
 // slugs but still rejects duplicate real ones, so retry on 23505 the way createTeaching does.
 async function insertStandaloneDraft(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
-  input: { title: string; introduction: string | null; language: "en" | "es"; translationOf?: string | null },
+  input: { title: string; introduction: string | null; language: "en" | "es"; translationOf?: string | null; gatheringDate?: string | null },
 ): Promise<{ id: string; slug: string } | { error: string }> {
   const baseSlug = slugifyDevotionalTitle(input.title);
 
@@ -523,6 +531,7 @@ async function insertStandaloneDraft(
         slug,
         language: input.language,
         translation_of: input.translationOf ?? null,
+        gathering_date: input.gatheringDate ?? null,
         title: input.title,
         introduction: input.introduction,
         status: "draft",
@@ -568,7 +577,9 @@ export async function createStandaloneDevotionalFromFile(previousState: Devotion
     }
   }
 
-  const created = await insertStandaloneDraft(supabase, { title: imported.title, introduction: imported.introduction || null, language, translationOf });
+  // A file named like en_20261010_devotional.txt carries the teaching date in its name.
+  const fileName = (formData.get("devotionalFile") as File | null)?.name ?? "";
+  const created = await insertStandaloneDraft(supabase, { title: imported.title, introduction: imported.introduction || null, language, translationOf, gatheringDate: suggestHandoutFromFileName(fileName).date });
   if ("error" in created) return { error: created.error };
 
   const { error: daysError } = await supabase
@@ -595,10 +606,12 @@ export async function updateStandaloneDevotionalSeries(devotionalId: string, pre
   const introduction = readText(formData, "introduction", MAX_LENGTHS.introduction);
   if (title.error) return title;
   if (introduction.error) return introduction;
+  const date = validateOptionalGatheringDate(formData.get("gatheringDate"));
+  if (date.error) return { error: date.error };
 
   const { error } = await supabase
     .from("teaching_devotionals")
-    .update({ title: title.value, introduction: introduction.value || null, language: readLanguage(formData) })
+    .update({ title: title.value, introduction: introduction.value || null, language: readLanguage(formData), gathering_date: date.value ?? null })
     .eq("id", devotional.id);
 
   if (error) return { error: "The devotional series information could not be saved." };

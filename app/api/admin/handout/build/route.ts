@@ -45,11 +45,17 @@ export async function POST(request: Request) {
   // teaching that was translated from it.
   let teachingId: string = handout.teaching_id;
   if (language === "es") {
-    const { data: linked } = await supabase.from("teachings").select("id, language").eq("id", handout.teaching_id).maybeSingle();
+    const { data: linked } = await supabase.from("teachings").select("id, language, translation_of").eq("id", handout.teaching_id).maybeSingle();
     if (linked?.language !== "es") {
-      const { data: spanish } = await supabase.from("teachings").select("id").eq("translation_of", handout.teaching_id).eq("language", "es").limit(1);
-      if (!spanish?.length) return fail("The Español handout's teaching has no Español version yet, so there is no Español whiteboard to use. Translate the teaching first.", 422);
-      teachingId = spanish[0].id;
+      const { data: found } = await supabase.from("teachings").select("id").eq("translation_of", handout.teaching_id).eq("language", "es").limit(1);
+      let spanishId: string | null = found?.[0]?.id ?? null;
+      // The two teachings can also be linked the other way round, the English one pointing at its Español partner.
+      if (!spanishId && linked?.translation_of) {
+        const { data: partner } = await supabase.from("teachings").select("id").eq("id", linked.translation_of).eq("language", "es").maybeSingle();
+        spanishId = partner?.id ?? null;
+      }
+      if (!spanishId) return fail("The Español handout's teaching has no Español version yet, so there is no Español whiteboard to use. Translate the teaching first.", 422);
+      teachingId = spanishId;
     }
   }
 

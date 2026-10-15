@@ -115,3 +115,9 @@ test("a published handout does not offer to build its Word file", async () => {
   const page = await read("app/admin/handouts/[id]/page.tsx");
   assert.match(page, /\{hasDraft && !isPublished \?\s*\(\s*<BuildHandoutSection/);
 });
+
+test("the handout builder finds the Español teaching whichever way the two teachings are linked", async () => {
+  const route = await read("app/api/admin/handout/build/route.ts");
+  assert.match(route, /eq\("translation_of", handout\.teaching_id\)\.eq\("language", "es"\)/);
+  assert.match(route, /linked\.translation_of/);
+});

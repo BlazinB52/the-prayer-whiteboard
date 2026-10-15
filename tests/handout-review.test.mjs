@@ -325,3 +325,15 @@ test("file names lead with the date and then the language, and the older languag
   assert.equal(suggestGatheringDate("20261010_es_teaching.docx"), "2026-10-10");
   assert.equal(suggestGatheringDate("es_20261010_teaching.docx"), "2026-10-10");
 });
+
+test("a handout links itself to the one English teaching of its gathering date, and the details form follows what was saved", async () => {
+  const actions = await read("app/admin/handouts/actions.ts");
+  assert.match(actions, /async function teachingForDate/);
+  assert.match(actions, /eq\("language", "en"\)\.eq\("gathering_date", date\)\.neq\("status", "archived"\)\.limit\(2\)/);
+  assert.match(actions, /data\?\.length === 1 \? /, "two teachings on one date are left for the Administrator to choose");
+  assert.match(actions, /teaching_id: teachingToSave/);
+  assert.match(actions, /update\.teaching_id = linked/);
+  const page = await read("app/admin/handouts/[id]/page.tsx");
+  assert.match(page, /<HandoutDetailsForm key=\{`\$\{handout\.title\}\|\$\{handout\.gathering_date\}\|\$\{handout\.teaching_id\}`\}/);
+  assert.match(page, /press Save details/);
+});

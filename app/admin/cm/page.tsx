@@ -54,7 +54,8 @@ export default async function ContentManagementPage() {
   const { supabase, user, role } = await requireContentManager();
 
   // Only drafts that have been sent for review. The database already hides everything else from a Content Manager.
-  const [teachings, devotionals, outlines, handouts, weeklyUpdates, proofings, revisions] = await Promise.all([
+  const [reviewOks, teachings, devotionals, outlines, handouts, weeklyUpdates, proofings, revisions] = await Promise.all([
+    supabase.from("content_review_oks").select("subject_type, subject_id, ok_at").eq("user_id", user.id),
     supabase.from("teachings").select("id, title, language, gathering_date, sent_for_review_at").eq("status", "draft").not("sent_for_review_at", "is", null),
     supabase.from("teaching_devotionals").select("id, title, language, gathering_date, sent_for_review_at").eq("status", "draft").not("sent_for_review_at", "is", null),
     supabase.from("teaching_outlines").select("id, title, language, gathering_date, sent_for_review_at").eq("status", "draft").not("sent_for_review_at", "is", null),
@@ -68,7 +69,7 @@ export default async function ContentManagementPage() {
       .order("created_at", { ascending: false })
       .limit(60),
   ]);
-  const failed = [teachings, devotionals, outlines, handouts, weeklyUpdates, revisions].some((result) => result.error);
+  const failed = [reviewOks, teachings, devotionals, outlines, handouts, weeklyUpdates, revisions].some((result) => result.error);
 
   type Row = { id: string; title: string; language: string | null; gathering_date: string | null; sent_for_review_at: string | null };
   const gated = (rows: unknown): ReviewSource[] => ((rows as Row[] | null) ?? []).map((row) => ({ id: row.id, title: row.title, language: row.language, gathering_date: row.gathering_date, sent_at: row.sent_for_review_at }));
@@ -100,6 +101,7 @@ export default async function ContentManagementPage() {
   const { needsReview, history } = buildReviewList({
     sources,
     myRevisions,
+    reviewedNoChanges: new Map(((reviewOks.data as { subject_type: string; subject_id: string; ok_at: string }[] | null) ?? []).map((row) => [`${row.subject_type}:${row.subject_id}`, row.ok_at])),
     submittedWeeklyUpdates: new Set([...myProofings.entries()].filter(([, row]) => row.submitted_at).map(([id]) => id)),
   });
 

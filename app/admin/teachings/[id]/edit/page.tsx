@@ -249,7 +249,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
           </p>
         ) : null}
         <ReviewGateMessage review={flags.review} mailed={flags.mailed} of={flags.of} />
-        {teaching.status === "draft" ? <ReviewGateSection noun="teaching" sentAt={teaching.sent_for_review_at ?? null} sendAction={sendForReview.bind(null, "teaching", id)} takeBackAction={takeBackFromReview.bind(null, "teaching", id)} /> : null}
+        {teaching.status === "draft" ? <ReviewGateSection noun="teaching" kind="teaching" subjectId={id} sentAt={teaching.sent_for_review_at ?? null} sendAction={sendForReview.bind(null, "teaching", id)} takeBackAction={takeBackFromReview.bind(null, "teaching", id)} /> : null}
         {teaching.status === "draft" ? (
           <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Ready to publish</p>

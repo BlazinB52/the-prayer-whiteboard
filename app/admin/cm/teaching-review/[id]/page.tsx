@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ReviewOkBox, ReviewOkMessage } from "@/app/admin/cm/review-ok-box";
 import { requireContentManager } from "@/lib/supabase/admin";
 import { TrackedText } from "@/lib/tracked-text";
 import {
@@ -44,7 +45,7 @@ export default async function TeachingReviewEditPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ submitted?: string; discarded?: string; recalled?: string; new?: string }>;
+  searchParams: Promise<{ submitted?: string; discarded?: string; recalled?: string; new?: string; reviewed?: string }>;
 }) {
   const [{ id }, flags] = await Promise.all([params, searchParams]);
   if (!UUID_PATTERN.test(id)) notFound();
@@ -87,6 +88,10 @@ export default async function TeachingReviewEditPage({
   const changes = (changeRows ?? []) as RevisionChangeRow[];
 
   // Waiting on the Administrator: show the proposal as tracked changes and nothing editable.
+  // Whether this person already said they found nothing to change.
+  const { data: okRow } = await supabase.from("content_review_oks").select("ok_at").eq("subject_type", "teaching").eq("subject_id", id).eq("user_id", user.id).maybeSingle();
+  const okAt = (okRow?.ok_at as string | undefined) ?? null;
+
   const showWaiting = !draft && submitted && flags.new !== "1";
 
   const formFields: ReviewFormField[] = fields.map((field) => {
@@ -119,6 +124,9 @@ export default async function TeachingReviewEditPage({
         {flags.submitted === "1" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Submitted. An Administrator will review your changes.</p> : null}
         {flags.recalled === "1" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Taken back. Your changes are saved as a draft again, so you can keep editing and submit when ready.</p> : null}
         {flags.discarded === "1" ? <p role="status" className="mt-4 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Your draft was discarded.</p> : null}
+
+        <ReviewOkMessage reviewed={flags.reviewed} />
+        {!(draft && changes.length > 0) && !(showWaiting && submitted) ? <ReviewOkBox kind="teaching" id={id} noun="teaching" okAt={okAt} /> : null}
 
         {showWaiting && submitted ? (
           <section className="mt-8 space-y-5">

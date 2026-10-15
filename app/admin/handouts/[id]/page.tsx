@@ -123,6 +123,8 @@ export default async function AdminHandoutPage({
           ) : (
             <ReviewGateSection
               noun="handout"
+              kind="handout"
+              subjectId={idResult.value}
               sentAt={handout.sent_for_review_at ?? null}
               sendAction={sendForReview.bind(null, "handout", idResult.value)}
               takeBackAction={takeBackFromReview.bind(null, "handout", idResult.value)}

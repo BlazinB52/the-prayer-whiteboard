@@ -93,7 +93,7 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
         ) : null}
 
         <ReviewGateMessage review={messages.review} mailed={messages.mailed} of={messages.of} />
-        {devotional.status === "draft" ? <ReviewGateSection noun="devotional" sentAt={devotional.sent_for_review_at ?? null} sendAction={sendForReview.bind(null, "devotional", devotional.id)} takeBackAction={takeBackFromReview.bind(null, "devotional", devotional.id)} /> : null}
+        {devotional.status === "draft" ? <ReviewGateSection noun="devotional" kind="devotional" subjectId={devotional.id} sentAt={devotional.sent_for_review_at ?? null} sendAction={sendForReview.bind(null, "devotional", devotional.id)} takeBackAction={takeBackFromReview.bind(null, "devotional", devotional.id)} /> : null}
 
         {messages.created === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional created as a draft. Write the seven days below, or import them from a text file.</p> : null}
         {messages.imported === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional text imported as a draft.</p> : null}

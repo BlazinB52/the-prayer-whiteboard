@@ -406,3 +406,106 @@ export function TranslateToEspanolButton({ handoutId }: { handoutId: string }) {
     </div>
   );
 }
+
+type BuildReport = {
+  sections: { section: number; title: string; sizePt: number; usedPt: number; capacityPt: number; adjustments: string[] }[];
+  caption: { lines: number; roomLines: number; blank: boolean } | null;
+  footer: { sizePt: number } | null;
+  warnings: string[];
+};
+type BuildOutcome = { tone: "success"; fileName: string; report: BuildReport } | { tone: "error"; message: string; details: string[]; report: BuildReport | null };
+
+/** Builds the Word file from the language's template: the text, the whiteboard and its caption, and the footer. */
+export function BuildHandoutSection({ handoutId, language, blocker }: { handoutId: string; language: "en" | "es"; blocker: string | null }) {
+  const [pending, setPending] = useState(false);
+  const [leaveCaptionBlank, setLeaveCaptionBlank] = useState(false);
+  const [outcome, setOutcome] = useState<BuildOutcome | null>(null);
+
+  async function build() {
+    setPending(true);
+    setOutcome(null);
+    try {
+      const response = await fetch("/api/admin/handout/build", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handout_id: handoutId, leave_caption_blank: leaveCaptionBlank }),
+      });
+      if (response.ok) {
+        const fileName = response.headers.get("X-Handout-File") ?? "handout.docx";
+        const header = response.headers.get("X-Handout-Report");
+        const report = header ? (JSON.parse(decodeURIComponent(header)) as BuildReport) : { sections: [], caption: null, footer: null, warnings: [] };
+        const url = URL.createObjectURL(await response.blob());
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        setOutcome({ tone: "success", fileName, report });
+      } else {
+        const payload = await response.json().catch(() => null);
+        setOutcome({ tone: "error", message: payload?.error ?? "The handout could not be built.", details: Array.isArray(payload?.details) ? payload.details : [], report: payload?.report ?? null });
+      }
+    } catch {
+      setOutcome({ tone: "error", message: "The handout could not be built. Check your connection and try again.", details: [], report: null });
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="mt-6 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
+      <h2 className="text-lg font-extrabold text-[#243d31]">Build the handout (Word file)</h2>
+      <p className="mt-1 text-sm leading-6 text-[#607066]">
+        Fills the {language === "es" ? "Español" : "English"} handout template with this text, the {language === "es" ? "Español" : "English"} whiteboard and its caption from the teaching, and the footer chosen above. The text boxes stay exactly where they are. If a section does not fit, the build stops and says which and by how much; nothing is cut. Open the file in Word, check it, and save the PDF to publish.
+      </p>
+      {blocker ? (
+        <p className="mt-3 rounded-xl border border-[#c49a3a]/40 bg-[#fbf4e1] px-4 py-3 text-sm font-bold text-[#6b5013]">{blocker}</p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          <label className="flex items-center gap-3 text-sm font-bold text-[#385245]">
+            <input type="checkbox" checked={leaveCaptionBlank} onChange={(event) => setLeaveCaptionBlank(event.target.checked)} disabled={pending} />
+            Leave the whiteboard caption blank. I will add it in Word.
+          </label>
+          <button type="button" onClick={build} disabled={pending} className="admin-primary-button disabled:cursor-not-allowed disabled:opacity-60">
+            <span className="!text-white">{pending ? "Building…" : "Build handout (.docx)"}</span>
+          </button>
+        </div>
+      )}
+
+      {outcome?.tone === "error" ? (
+        <div role="alert" className="mt-4 text-sm font-bold text-[#a2472c]">
+          <p>{outcome.message}</p>
+          {outcome.details.length ? <ul className="mt-2 list-disc space-y-1 pl-5 font-normal">{outcome.details.map((detail) => <li key={detail}>{detail}</li>)}</ul> : null}
+        </div>
+      ) : null}
+
+      {outcome ? <BuildReportView report={outcome.report} fileName={outcome.tone === "success" ? outcome.fileName : null} /> : null}
+    </section>
+  );
+}
+
+function BuildReportView({ report, fileName }: { report: BuildReport | null; fileName: string | null }) {
+  if (!report) return null;
+  return (
+    <div role="status" className={`mt-4 space-y-3 rounded-xl p-4 text-sm ${fileName ? "bg-[#e7efe9] text-[#2f4d3f]" : "bg-[#f4efe5] text-[#385245]"}`}>
+      {fileName ? <p className="font-bold">Built and downloaded: {fileName}</p> : <p className="font-bold">How far the build got:</p>}
+      <ul className="list-disc space-y-1 pl-5">
+        {report.sections.map((section) => (
+          <li key={section.section}>
+            Section {section.section} ({section.title}): {section.sizePt} pt text, {Math.round((section.usedPt / section.capacityPt) * 100)}% of its box{section.adjustments.length ? `; ${section.adjustments.join("; ")}` : ""}.
+          </li>
+        ))}
+        {report.caption ? <li>{report.caption.blank ? "Caption: left blank with a yellow placeholder to fill in." : `Caption: ${report.caption.lines} of ${report.caption.roomLines} lines.`}</li> : null}
+        {report.footer ? <li>Footer: {report.footer.sizePt} pt.</li> : null}
+      </ul>
+      {report.warnings.length ? (
+        <div>
+          <p className="font-bold">Look at these in Word:</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">{report.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}

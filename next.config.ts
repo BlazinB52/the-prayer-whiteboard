@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
     },
   },
   outputFileTracingIncludes: {
+    // The handout templates (Word files) are read from disk when a handout is built.
+    "/api/admin/handout/build": ["./assets/handout-templates/**/*"],
     "/admin/chalkboards": [
       "./node_modules/sharp/**/*",
       "./node_modules/@img/sharp-linux-x64/**/*",

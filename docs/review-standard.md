@@ -42,6 +42,11 @@ which uses the teachings' translator and the Spanish Translation Rules and saves
 (`translation_of`), with the same teaching and date. An Español handout has its own footer, chosen from the existing
 footers of its language (`footer_id`); it is written for the handout and is not a translation of the English one.
 
+**Build the handout** (`lib/handout-docx/`, `/api/admin/handout/build`) fills the language's Word template
+(`assets/handout-templates/`, see the README there) with the handout's text, the whiteboard and caption of the teaching, and
+the footer, and downloads `en_` / `es_` + the teaching date + `_handout.docx`. The template's boxes never move. If a section does
+not fit, the build stops and says which and by how much; nothing is cut.
+
 ## Where things live
 
 | Piece | File |

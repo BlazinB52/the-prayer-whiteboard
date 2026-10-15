@@ -9,7 +9,7 @@ import { requireAdmin } from "@/lib/supabase/admin";
 import { validateHandoutId } from "@/lib/teaching-handouts";
 import { loadTeachingChoices } from "../../teaching-choice";
 import { HandoutContent } from "../handout-content";
-import { DeleteHandoutButton, DraftUpload, FooterForm, HandoutDetailsForm, PublishSection, TranslateToEspanolButton, UnpublishButton } from "../handout-tools";
+import { BuildHandoutSection, DeleteHandoutButton, DraftUpload, FooterForm, HandoutDetailsForm, PublishSection, TranslateToEspanolButton, UnpublishButton } from "../handout-tools";
 
 export const metadata: Metadata = {
   title: "Handout",
@@ -131,6 +131,14 @@ export default async function AdminHandoutPage({
         ) : null}
 
         {!isPublished ? <FooterForm id={idResult.value} footerId={handout.footer_id} footers={footers} language={language} /> : null}
+
+        {hasDraft ? (
+          <BuildHandoutSection
+            handoutId={idResult.value}
+            language={language}
+            blocker={!hasDate ? "Enter the teaching date and save the details first. The file is named from it." : !handout.teaching_id ? "Choose the teaching this handout goes with and save the details. The whiteboard comes from the teaching." : !handout.footer_id ? "Choose a footer in the Handout footer box above and save it." : null}
+          />
+        ) : null}
 
         {language === "en" && hasDraft ? (
           <section className="mt-6 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">

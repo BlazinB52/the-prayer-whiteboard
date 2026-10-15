@@ -577,7 +577,7 @@ export async function createStandaloneDevotionalFromFile(previousState: Devotion
     }
   }
 
-  // A file named like en_20261010_devotional.txt carries the teaching date in its name.
+  // A file named like 20261010_en_devotional.txt carries the teaching date in its name.
   const fileName = (formData.get("devotionalFile") as File | null)?.name ?? "";
   const created = await insertStandaloneDraft(supabase, { title: imported.title, introduction: imported.introduction || null, language, translationOf, gatheringDate: suggestHandoutFromFileName(fileName).date });
   if ("error" in created) return { error: created.error };

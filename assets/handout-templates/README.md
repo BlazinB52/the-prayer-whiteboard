@@ -4,7 +4,7 @@
 `lib/handout-docx/`). The builder replaces only the text inside the three section boxes, the whiteboard caption box, the footer box
 and the whiteboard picture. Every text box, picture and shape keeps the position and size it has in the file.
 
-- `handout-es.docx` is the finished Español handout (`es_20261010_handout.docx`), as it is.
+- `handout-es.docx` is the finished Español handout (`20261010_es_handout.docx`), as it is.
 - `handout-en.docx` is the same file with the English "Deepen your study" lines, the English QR code and the English footer text.
 - `handout-*.json` says which section goes in which box (`sectionOrder`, in the order the boxes are written in the file) and how much
   text each box holds (`capacityPt`), measured on the finished Español handout.

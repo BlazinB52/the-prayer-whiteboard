@@ -29,7 +29,7 @@ Only drafts go through the cycle. To change a published item, unpublish it first
 `/admin/handouts` makes a blank draft; on its page the Administrator enters the title, the teaching date
 (`gathering_date`) and the teaching, and uploads the Word draft (styles from `docs/handout-template.docx`:
 Heading 1 section title, Subtitle, Heading 2 paragraph title, Normal, List Bullet, Quote; a file name such as
-`en_20261010_...docx` fills in the date). From the same page the draft is sent for review (it needs a date and a
+`20261010_en_...docx` fills in the date). From the same page the draft is sent for review (it needs a date and a
 draft) and the Administrator can copy the finished text from **Final text to copy** into the Word handout.
 **Publishing a handout is uploading its final PDF**: it is added to Printable PDF Links
 (`printable_pdf_links`), which is the public PDF library, and `printable_pdf_id` points at that row. Removing
@@ -44,7 +44,7 @@ footers of its language (`footer_id`); it is written for the handout and is not 
 
 **Build the handout** (`lib/handout-docx/`, `/api/admin/handout/build`) fills the language's Word template
 (`assets/handout-templates/`, see the README there) with the handout's text, the whiteboard and caption of the teaching, and
-the footer, and downloads `en_` / `es_` + the teaching date + `_handout.docx`. The template's boxes never move. If a section does
+the footer, and downloads the teaching date + `_en_` or `_es_` + `handout.docx`. The template's boxes never move. If a section does
 not fit, the build stops and says which and by how much; nothing is cut.
 
 ## Where things live

@@ -69,9 +69,9 @@ test("a Spanish import accepts RVR1960 and NVI only, and an English import still
 });
 
 test("the file name is es_ then the teaching date then teaching, and the importer reads the date back from it", () => {
-  assert.equal(exportFileName("2026-10-10"), "es_20261010_teaching.docx");
-  assert.equal(exportFileName(null, new Date("2026-11-02T15:00:00Z")), "es_20261102_teaching.docx", "with no teaching date, today's date is used");
-  assert.equal(suggestGatheringDate("es_20261010_teaching.docx"), "2026-10-10");
+  assert.equal(exportFileName("2026-10-10"), "20261010_es_teaching.docx");
+  assert.equal(exportFileName(null, new Date("2026-11-02T15:00:00Z")), "20261102_es_teaching.docx", "with no teaching date, today's date is used");
+  assert.equal(suggestGatheringDate("20261010_es_teaching.docx"), "2026-10-10");
   assert.equal(suggestGatheringDate("20261010_teaching.docx"), "2026-10-10", "the old name still works");
   assert.equal(suggestGatheringDate("es_20261310_teaching.docx"), null, "an impossible date is not suggested");
   assert.equal(suggestGatheringDate("teaching_es_20261010.docx"), null);

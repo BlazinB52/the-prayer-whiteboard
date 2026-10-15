@@ -191,7 +191,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
         <section id="export-for-translation" className="mt-6 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
           <h2 className="text-2xl font-extrabold text-[#243d31]">Export for translation</h2>
           <p className="mt-3 text-sm leading-6 text-[#607066]">
-            Downloads this teaching as a Word file named es_{(teaching.gathering_date ?? "yyyymmdd").replaceAll("-", "")}_teaching, with the title, summary, homepage teasers and every category and section. Have it translated into Español (El Salvador, with the vos forms), then upload the translated file on the{" "}
+            Downloads this teaching as a Word file named {(teaching.gathering_date ?? "yyyymmdd").replaceAll("-", "")}_es_teaching, with the title, summary, homepage teasers and every category and section. Have it translated into Español (El Salvador, with the vos forms), then upload the translated file on the{" "}
             <Link href="/admin/teachings/import" className="font-extrabold text-[#9d5a2f] underline underline-offset-2">Import Teaching from Word</Link> page with Language set to Español. It creates a new draft and offers to link it to this teaching. You can export as often as you like, and it works on a draft or a published teaching. Nothing here changes.
           </p>
           <a href={`/api/admin/teaching/export?teaching_id=${id}`} download className="admin-secondary-button mt-4 inline-flex items-center justify-center">Export for translation (Word)</a>

@@ -2,6 +2,7 @@
 // Format Rules (Corrected v2)". Parsing is a pure function of the document: it
 // validates the whole file and returns either a structured teaching or a list
 // of errors. Nothing here touches the database.
+import { parseFileNameStamp } from "./file-names.ts";
 import { findAll, firstChild, hasDescendant, openDocxPackage, parseXml, type XmlNode } from "./teaching-docx-package.ts";
 
 /** Translations the importer accepts. Must stay in step with the copyright disclaimer wording. */
@@ -728,12 +729,9 @@ export function readSourceProperties(customPropertiesXml: string | null | undefi
 }
 
 export function suggestGatheringDate(fileName: string) {
-  // The date leads the file name, optionally after a language prefix: 20261010_teaching or es_20261010_teaching.
-  const match = fileName.match(/^(?:[a-z]{2}_)?(\d{4})(\d{2})(\d{2})(?!\d)/i);
-  if (!match) return null;
-  const value = `${match[1]}-${match[2]}-${match[3]}`;
-  const parsed = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value ? value : null;
+  // The date leads the file name, with the language after it: 20261010_es_teaching. The older es_20261010_teaching and a
+  // bare 20261010_teaching are read too.
+  return parseFileNameStamp(fileName).date;
 }
 
 /** The stored `teaching_sections.content` JSON for an imported section (same shape the section editor writes). */

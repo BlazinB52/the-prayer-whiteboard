@@ -267,7 +267,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   ) : null}
                   <p className="mt-5 text-sm">
                     <a href={`/api/admin/weekly-update/export?weekly_update_id=${update.id}`} download className="font-extrabold text-[#9d5a2f] underline underline-offset-2">Export for translation (Word)</a>
-                    <span className="ml-2 text-[#607066]">Downloads this update as a Word file named es_yyyymmdd_weekly_update, dated like the update (or today). Have it translated into Español (El Salvador, vos forms), then upload it above as a new weekly update with Language set to Español and the Spanish title.</span>
+                    <span className="ml-2 text-[#607066]">Downloads this update as a Word file named yyyymmdd_es_weekly_update, dated like the update (or today). Have it translated into Español (El Salvador, vos forms), then upload it above as a new weekly update with Language set to Español and the Spanish title.</span>
                   </p>
                   <details className="mt-5">
                     <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Preview converted content</summary>

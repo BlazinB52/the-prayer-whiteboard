@@ -4,6 +4,7 @@ import { FileText } from "lucide-react";
 import { PublicFooter } from "@/app/public-footer";
 import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
+import { printablePdfDate } from "@/lib/printable-pdf-date";
 import { resolvePrintablePdfHref } from "@/lib/printable-pdf-links";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,19 +23,17 @@ type PrintablePdfLinkRow = {
   id: string;
   title: string;
   storage_path: string;
+  gathering_date: string | null;
   created_at: string;
 };
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(value));
-}
 
 export default async function PrintablePdfLinksPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("printable_pdf_links")
-    .select("id, title, storage_path, created_at")
+    .select("id, title, storage_path, gathering_date, created_at")
     .eq("language", "en")
+    .order("gathering_date", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .order("title", { ascending: true });
   const rows = (data as PrintablePdfLinkRow[] | null) ?? [];
@@ -42,7 +41,7 @@ export default async function PrintablePdfLinksPage() {
     id: link.id,
     title: link.title,
     href: resolvePrintablePdfHref(link.storage_path, supabase),
-    created_at: link.created_at,
+    date: printablePdfDate(link, "en-US"),
   }));
 
   return (
@@ -67,7 +66,7 @@ export default async function PrintablePdfLinksPage() {
                 <article key={link.id} className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 px-4 py-4">
                   <h2 className="min-w-0 font-extrabold text-[#243d31]">{link.title}</h2>
                   <a href={link.href} target="_blank" rel="noopener noreferrer" className="row-span-2 self-center font-bold text-[#946332] underline underline-offset-2 hover:text-[#a85e32]">View PDF</a>
-                  <time dateTime={link.created_at} className="text-sm text-[#607066]">{formatDate(link.created_at)}</time>
+                  <time dateTime={link.date.iso} className="text-sm text-[#607066]">{link.date.text}</time>
                 </article>
               ))}
             </div>
@@ -86,7 +85,7 @@ export default async function PrintablePdfLinksPage() {
                     <tr key={link.id}>
                       <td className="px-4 py-4 font-bold text-[#243d31]">{link.title}</td>
                       <td className="whitespace-nowrap px-4 py-4 text-[#607066]">
-                        <time dateTime={link.created_at}>{formatDate(link.created_at)}</time>
+                        <time dateTime={link.date.iso}>{link.date.text}</time>
                       </td>
                       <td className="whitespace-nowrap px-4 py-4">
                         <a href={link.href} target="_blank" rel="noopener noreferrer" className="font-bold text-[#946332] underline underline-offset-2 hover:text-[#a85e32]">View PDF</a>

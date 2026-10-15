@@ -10,6 +10,7 @@ import {
   validatePrintablePdfLanguage,
   validatePrintablePdfTitle,
 } from "@/lib/printable-pdf-links";
+import { validateOptionalPdfDate } from "@/lib/printable-pdf-date";
 import { verifyUploadedPdf } from "@/lib/printable-pdf-verify";
 import {
   findOrphanedPrintablePdfStorageFiles,
@@ -150,6 +151,9 @@ export async function savePrintablePdfLink(_: PrintablePdfState, formData: FormD
     return { error: title.error ?? "Title is invalid." };
   }
 
+  const date = validateOptionalPdfDate(formData.get("gatheringDate"));
+  if (date.error) return { error: date.error };
+
   const rawStoragePath = formData.get("storagePath");
   const storagePath = typeof rawStoragePath === "string" ? rawStoragePath : "";
   if (!storagePath || !isValidPrintablePdfStoragePath(storagePath)) {
@@ -163,7 +167,7 @@ export async function savePrintablePdfLink(_: PrintablePdfState, formData: FormD
     return { error: "The uploaded file is not a valid PDF." };
   }
 
-  const { error } = await supabase.from("printable_pdf_links").insert({ title: title.value, storage_path: storagePath, language: validatePrintablePdfLanguage(formData.get("language")) });
+  const { error } = await supabase.from("printable_pdf_links").insert({ title: title.value, storage_path: storagePath, language: validatePrintablePdfLanguage(formData.get("language")), gathering_date: date.value ?? null });
 
   if (error) {
     await removeStorageObject(supabase, storagePath);
@@ -172,6 +176,22 @@ export async function savePrintablePdfLink(_: PrintablePdfState, formData: FormD
 
   revalidatePrintablePdfPaths();
   return { saved: true };
+}
+
+/** Sets (or clears) the teaching date a PDF goes with. The lists show and sort by it. */
+export async function setPrintablePdfDate(id: string, gatheringDate: string): Promise<{ error?: string; ok?: true }> {
+  const idResult = validatePrintablePdfId(id);
+  if (idResult.error || !idResult.value) return { error: idResult.error ?? "Printable PDF record ID is invalid." };
+  const date = validateOptionalPdfDate(gatheringDate);
+  if (date.error) return { error: date.error };
+
+  const { supabase } = await requireAdmin();
+  const { data, error } = await supabase.from("printable_pdf_links").update({ gathering_date: date.value ?? null }).eq("id", idResult.value).select("id");
+  if (error) return { error: "The teaching date could not be saved." };
+  if (!data?.length) return { error: "That PDF could not be found." };
+
+  revalidatePrintablePdfPaths();
+  return { ok: true };
 }
 
 export async function removePrintablePdfLink(id: string, previousState: PrintablePdfState): Promise<PrintablePdfState> {

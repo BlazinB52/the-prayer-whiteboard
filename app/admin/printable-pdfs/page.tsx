@@ -14,6 +14,7 @@ type PrintablePdfLinkRow = {
   title: string;
   storage_path: string;
   language: string;
+  gathering_date: string | null;
   created_at: string;
 };
 
@@ -22,7 +23,8 @@ export default async function AdminPrintablePdfsPage() {
 
   const { data: links, error: linksError } = await supabase
     .from("printable_pdf_links")
-    .select("id, title, storage_path, language, created_at")
+    .select("id, title, storage_path, language, gathering_date, created_at")
+    .order("gathering_date", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .order("title", { ascending: true });
 
@@ -32,6 +34,7 @@ export default async function AdminPrintablePdfsPage() {
     title: link.title,
     href: resolvePrintablePdfHref(link.storage_path, supabase),
     language: link.language === "es" ? ("es" as const) : ("en" as const),
+    gathering_date: link.gathering_date,
     created_at: link.created_at,
   }));
 

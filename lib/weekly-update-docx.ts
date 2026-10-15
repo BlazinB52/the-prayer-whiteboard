@@ -353,6 +353,15 @@ function buildReport(documentXml: string, numberingXml: string | null, hasCommen
   return { notes };
 }
 
+/** The update's words as plain text, blocks separated by a blank line; the stored copy used for searching and emails. */
+export function weeklyUpdatePlainText(blocks: WeeklyUpdateBlock[]): string {
+  return blocks.map((block) => {
+    if (block.type === "divider") return "---";
+    if (block.type === "list") return block.items.map((item) => `- ${plainLinks(paragraphText(item))}`).join("\n");
+    return plainLinks(paragraphText(block.children));
+  }).join("\n\n");
+}
+
 export function convertDocxToWeeklyUpdate(buffer: Buffer): { blocks: WeeklyUpdateBlock[]; plainText: string; report: ConversionReport } {
   if (buffer.byteLength > MAX_DOCX_BYTES) throw new Error("DOCX file exceeds the 8 MiB limit.");
   const entries = readZipEntries(buffer);
@@ -409,11 +418,7 @@ export function convertDocxToWeeklyUpdate(buffer: Buffer): { blocks: WeeklyUpdat
   if (!blocks.length) throw new Error("No readable weekly update content was found in the DOCX.");
   return {
     blocks,
-    plainText: blocks.map((block) => {
-      if (block.type === "divider") return "---";
-      if (block.type === "list") return block.items.map((item) => `- ${plainLinks(paragraphText(item))}`).join("\n");
-      return plainLinks(paragraphText(block.children));
-    }).join("\n\n"),
+    plainText: weeklyUpdatePlainText(blocks),
     report: buildReport(documentXml, numberingXml, entries.has("word/comments.xml"), stats),
   };
 }

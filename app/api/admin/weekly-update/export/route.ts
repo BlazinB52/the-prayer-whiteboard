@@ -20,13 +20,13 @@ export async function GET(request: Request) {
   if (!UUID_PATTERN.test(id)) return NextResponse.json({ error: "A valid weekly_update_id is required." }, { status: 400 });
 
   const supabase = await createClient();
-  const { data: update, error } = await supabase.from("weekly_updates").select("id, title, converted_content, published_at, created_at").eq("id", id).maybeSingle();
+  const { data: update, error } = await supabase.from("weekly_updates").select("id, title, converted_content, gathering_date, published_at, created_at").eq("id", id).maybeSingle();
   if (error) return NextResponse.json({ error: "The weekly update could not be read." }, { status: 500 });
   if (!update) return NextResponse.json({ error: "Weekly update not found." }, { status: 404 });
 
   const blocks = (Array.isArray(update.converted_content) ? update.converted_content : []) as WeeklyUpdateBlock[];
   const file = buildWeeklyUpdateTranslationDocx(String(update.title ?? ""), blocks);
-  const fileName = weeklyUpdateExportFileName(((update.published_at as string | null) ?? (update.created_at as string | null) ?? null));
+  const fileName = weeklyUpdateExportFileName(((update.gathering_date as string | null) ?? (update.published_at as string | null) ?? (update.created_at as string | null) ?? null));
 
   return new NextResponse(new Uint8Array(file), {
     status: 200,

@@ -213,6 +213,30 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
   if (gathering.error) return { error: gathering.error };
   if (!gathering.value) return { error: "Choose the gathering date this weekly update is for." };
 
+  // An Español update is linked to the English one it translates: the one chosen, or else the English update of the same
+  // gathering date that has no translation yet.
+  let translationOf: string | null = null;
+  if (language === "es") {
+    const chosen = String(formData.get("translationOf") ?? "").trim();
+    if (chosen) {
+      if (!UUID_PATTERN.test(chosen)) return { error: "Choose the English weekly update this translates." };
+      const { data: original } = await supabase.from("weekly_updates").select("id, language").eq("id", chosen).maybeSingle();
+      if (!original || original.language !== "en") return { error: "Choose an English weekly update as the original." };
+      const { data: taken } = await supabase.from("weekly_updates").select("id").eq("translation_of", chosen).limit(1);
+      if (taken?.length) return { error: "That English weekly update already has an Español version." };
+      translationOf = chosen;
+    } else {
+      const { data: matches } = await supabase.from("weekly_updates").select("id").eq("language", "en").eq("gathering_date", gathering.value).order("created_at", { ascending: true });
+      for (const match of matches ?? []) {
+        const { data: taken } = await supabase.from("weekly_updates").select("id").eq("translation_of", match.id).limit(1);
+        if (!taken?.length) {
+          translationOf = match.id as string;
+          break;
+        }
+      }
+    }
+  }
+
   const docx = await readDocx(formData, true);
   if (docx.error) return { error: docx.error };
   if (!docx.value) return { error: "Choose a .docx weekly update document." };
@@ -234,6 +258,7 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
       chalkboard_asset_id: chalkboard.value?.[0] ?? null,
       teaching_id: teaching.value,
       gathering_date: gathering.value,
+      translation_of: translationOf,
       language,
       status: "draft",
       is_current: false,

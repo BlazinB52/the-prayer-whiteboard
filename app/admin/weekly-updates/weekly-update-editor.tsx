@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { TeachingChoiceOptions, type TeachingChoice } from "../teaching-choice";
+import { parseFileNameStamp } from "@/lib/file-names";
 
 type FormState = { error?: string; saved?: boolean };
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
@@ -13,16 +14,20 @@ export type WeeklyUpdateChalkboardOption = {
   language: Language;
 };
 export type WeeklyUpdateFooterOption = { id: string; label: string; language: Language };
+/** An English weekly update an Español one can be the translation of. */
+export type EnglishOriginalOption = { id: string; label: string; disabled?: boolean };
 
 const LANGUAGE_LABELS: Record<Language, string> = { en: "English", es: "Español (El Salvador)" };
 
-export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", initialLanguage = "en", languageLocked = false, initialChalkboardAssetIds = [], initialFooterId = "", chalkboards = [], footers = [], teachings = [], initialTeachingId = "", initialGatheringDate = "", submitLabel = "Save Weekly Update", sourceRequired = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; initialLanguage?: Language; languageLocked?: boolean; initialChalkboardAssetIds?: string[]; initialFooterId?: string | null; chalkboards?: WeeklyUpdateChalkboardOption[]; footers?: WeeklyUpdateFooterOption[]; teachings?: TeachingChoice[]; initialTeachingId?: string | null; initialGatheringDate?: string | null; submitLabel?: string; sourceRequired?: boolean }) {
+export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", initialLanguage = "en", languageLocked = false, initialChalkboardAssetIds = [], initialFooterId = "", chalkboards = [], footers = [], teachings = [], initialTeachingId = "", initialGatheringDate = "", englishOriginals = [], submitLabel = "Save Weekly Update", sourceRequired = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; initialLanguage?: Language; languageLocked?: boolean; initialChalkboardAssetIds?: string[]; initialFooterId?: string | null; chalkboards?: WeeklyUpdateChalkboardOption[]; footers?: WeeklyUpdateFooterOption[]; teachings?: TeachingChoice[]; initialTeachingId?: string | null; initialGatheringDate?: string | null; englishOriginals?: EnglishOriginalOption[]; submitLabel?: string; sourceRequired?: boolean }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [language, setLanguage] = useState<Language>(initialLanguage);
   const [chalkboardAssetIds, setChalkboardAssetIds] = useState(initialChalkboardAssetIds);
   const [includeFooter, setIncludeFooter] = useState(Boolean(initialFooterId));
   const [footerId, setFooterId] = useState(initialFooterId ?? "");
+  const [gatheringDate, setGatheringDate] = useState(initialGatheringDate ?? "");
+  const [fileHint, setFileHint] = useState("");
   const [state, formAction, pending] = useActionState(async (previousState: FormState, formData: FormData) => {
     const result = await action(previousState, formData);
     if (result.saved) router.refresh();
@@ -39,6 +44,21 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
     const allowedChalkboards = new Set(chalkboards.filter((chalkboard) => chalkboard.language === next).map((chalkboard) => chalkboard.id));
     setChalkboardAssetIds((current) => current.filter((id) => allowedChalkboards.has(id)));
     if (!footers.some((footer) => footer.id === footerId && footer.language === next)) setFooterId("");
+  };
+  // A file named like 20261010_es_weekly_update.docx carries the gathering date and the language: fill them in, still editable.
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const name = event.target.files?.[0]?.name ?? "";
+    const { date, language: code } = parseFileNameStamp(name);
+    const notes: string[] = [];
+    if (date && !gatheringDate) {
+      setGatheringDate(date);
+      notes.push(`gathering date ${date}`);
+    }
+    if (!languageLocked && (code === "es" || code === "en") && code !== language) {
+      handleLanguageChange({ target: { value: code } } as React.ChangeEvent<HTMLSelectElement>);
+      notes.push(code === "es" ? "language Español" : "language English");
+    }
+    setFileHint(notes.length ? `Filled in from the file name: ${notes.join(", ")}. Check them.` : "");
   };
   const handleChalkboardChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { value, checked } = event.target;
@@ -71,7 +91,7 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
       )}
       <label className="block text-sm font-bold text-[#385245]">
         Gathering date
-        <input name="gatheringDate" type="date" defaultValue={initialGatheringDate ?? ""} required={!weeklyUpdateId} className="admin-input" />
+        <input name="gatheringDate" type="date" value={gatheringDate} onChange={(event) => setGatheringDate(event.target.value)} required={!weeklyUpdateId} className="admin-input" />
         <span className="mt-1 block text-xs font-normal text-[#607066]">The gathering this letter is for. The letter is written before its teaching exists, so the date is what ties the two together.</span>
       </label>
       <label className="block text-sm font-bold text-[#385245]">
@@ -79,6 +99,16 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
         <select name="teachingId" defaultValue={initialTeachingId ?? ""} className="admin-input"><TeachingChoiceOptions teachings={teachings} selectedId={initialTeachingId} /></select>
         <span className="mt-1 block text-xs font-normal text-[#607066]">The teaching this weekly update goes with. It shows in the Title Collections report.</span>
       </label>
+      {!weeklyUpdateId && language === "es" ? (
+        <label className="block text-sm font-bold text-[#385245]">
+          English weekly update this translates
+          <select name="translationOf" defaultValue="" className="admin-input">
+            <option value="">Match by gathering date</option>
+            {englishOriginals.map((option) => <option key={option.id} value={option.id} disabled={option.disabled}>{option.label}</option>)}
+          </select>
+          <span className="mt-1 block text-xs font-normal text-[#607066]">Links this Español update to its English original. Left on the first choice, it is linked to the English update of the same gathering date, if there is one.</span>
+        </label>
+      ) : null}
       <label className="block text-sm font-bold text-[#385245]">
         Weekly Update chalkboards
         <span className="mt-2 grid gap-2 rounded-xl border border-[#284a3b]/10 bg-white/70 p-3">
@@ -105,7 +135,8 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
       </fieldset>
       <label className="block text-sm font-bold text-[#385245]">
         Weekly update document
-        <input name="sourceDocument" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required={sourceRequired} className="admin-input py-2" />
+        <input name="sourceDocument" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required={sourceRequired} onChange={handleFileChange} className="admin-input py-2" />
+        {fileHint ? <span className="mt-1 block text-xs font-bold text-[#326048]">{fileHint}</span> : null}
         <span className="mt-1 block text-xs font-normal text-[#607066]">{sourceRequired ? "Upload the .docx source document. Conversion runs on the server." : "Upload a replacement .docx only when you want to reconvert the content."}</span>
       </label>
       {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}

@@ -7,6 +7,7 @@ import { WeeklyUpdateDeleteButton, WeeklyUpdateStatusButton } from "./status-but
 import { WeeklyUpdateTestSendForm } from "./test-send-form";
 import { FinishSendingButton } from "./finish-sending-button";
 import { RecordSentForm } from "./record-sent-form";
+import { TranslateWeeklyUpdateButton } from "./translate-button";
 import { TeachingDateLabel } from "@/app/teaching-date-label";
 import { SendToSubscriberForm } from "./send-to-subscriber-form";
 import { WeeklyUpdateContent } from "@/app/weekly-update/weekly-update-content";
@@ -32,7 +33,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
   const [{ data: updates, error }, { data: chalkboards }, { data: chalkboardAssignments }, { data: footers }, { data: footerAssignments }] = await Promise.all([
     supabase
       .from("weekly_updates")
-      .select("id, title, language, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, teaching_id, gathering_date, recorded_sent_on, conversion_report, ready_to_publish_at, sent_to_proofing_at")
+      .select("id, title, language, body_markdown, converted_content, source_document_file_name, source_document_storage_path, status, is_current, published_at, archived_at, updated_at, chalkboard_asset_id, teaching_id, gathering_date, recorded_sent_on, translation_of, conversion_report, ready_to_publish_at, sent_to_proofing_at")
       .order("is_current", { ascending: false })
       .order("updated_at", { ascending: false }),
     supabase
@@ -70,6 +71,11 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
     if (!a.gathering_date !== !b.gathering_date) return a.gathering_date ? 1 : -1;
     return String(b.gathering_date ?? "").localeCompare(String(a.gathering_date ?? "")) || String(b.updated_at).localeCompare(String(a.updated_at));
   });
+  // The English weekly updates an Español one can be the translation of, newest first; one that already has a translation is listed but disabled.
+  const translatedIds = new Set((updates ?? []).map((item) => item.translation_of).filter(Boolean));
+  const englishOriginals = sortedUpdates
+    .filter((item) => item.language !== "es")
+    .map((item) => ({ id: item.id, label: `${item.gathering_date ?? "No date"} · ${item.title}${translatedIds.has(item.id) ? " — already has an Español version" : ""}`, disabled: translatedIds.has(item.id) }));
   const updateGroups = [
     { heading: "English", items: sortedUpdates.filter((item) => item.language !== "es"), empty: "No English weekly updates yet." },
     { heading: "Español", items: sortedUpdates.filter((item) => item.language === "es"), empty: "No Español weekly updates yet." },
@@ -138,7 +144,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         <section className="py-8">
           <article className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8 sm:p-6">
             <h2 className="text-2xl font-extrabold text-[#243d31]">New weekly update</h2>
-            <div className="mt-5"><WeeklyUpdateEditor action={createWeeklyUpdate} teachings={teachingChoices} chalkboards={chalkboardOptions} footers={footerOptions} submitLabel="Upload and convert draft" sourceRequired /></div>
+            <div className="mt-5"><WeeklyUpdateEditor action={createWeeklyUpdate} englishOriginals={englishOriginals} teachings={teachingChoices} chalkboards={chalkboardOptions} footers={footerOptions} submitLabel="Upload and convert draft" sourceRequired /></div>
           </article>
         </section>
 
@@ -171,7 +177,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                 const proofs = proofsByUpdate.get(update.id) ?? [];
                 const proofsOutstanding = proofs.some((proof) => !proof.submitted_at);
                 return (
-                <article key={update.id} className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8">
+                <article key={update.id} id={`update-${update.id}`} className="scroll-mt-6 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-lg shadow-[#4d5f52]/8">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{update.is_current ? "Current" : update.status} · {update.language === "es" ? "Español" : "English"}{update.status === "draft" && update.ready_to_publish_at ? <span className="ml-2 rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black tracking-wider text-[#1a4fb4]">Ready to publish</span> : null}{update.status === "draft" && update.sent_to_proofing_at ? <span className="ml-2 rounded-full bg-[#fbf1e1] px-3 py-1 text-[10px] font-black tracking-wider text-[#7a4a1d]">Proofs {proofs.filter((proof) => proof.submitted_at).length} of {proofs.length} in</span> : null}</p>
@@ -285,6 +291,30 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Send a test email</summary>
                       <div className="mt-4"><WeeklyUpdateTestSendForm weeklyUpdateId={update.id} /></div>
                     </details>
+                  ) : null}
+                  {updateLanguage === "es" && update.translation_of ? (
+                    <p className="mt-5 text-sm text-[#607066]">
+                      Translation of the English weekly update{" "}
+                      <a href={`#update-${update.translation_of}`} className="font-extrabold text-[#9d5a2f] underline underline-offset-2">{(updates ?? []).find((item) => item.id === update.translation_of)?.title ?? "(see the English list)"}</a>.
+                    </p>
+                  ) : null}
+                  {updateLanguage === "en" && !update.recorded_sent_on && Array.isArray(update.converted_content) && update.converted_content.length ? (
+                    <div className="mt-5 rounded-xl border border-[#284a3b]/15 bg-[#f4f6f1] p-4">
+                      <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Español version</p>
+                      {(updates ?? []).find((item) => item.translation_of === update.id) ? (
+                        <p className="mt-2 text-sm leading-6 text-[#385245]">
+                          This weekly update has an Español version:{" "}
+                          <a href={`#update-${(updates ?? []).find((item) => item.translation_of === update.id)?.id}`} className="font-extrabold text-[#9d5a2f] underline underline-offset-2">{(updates ?? []).find((item) => item.translation_of === update.id)?.title}</a>.
+                        </p>
+                      ) : (
+                        <>
+                          <p className="mt-2 text-sm leading-6 text-[#385245]">
+                            Translates this weekly update into Español (El Salvador, with the vos forms), following the Spanish Translation Rules, and saves it as a new Español draft linked to this one, with the same gathering date. The Español whiteboard of the same date and the footer last used on an Español update are chosen for it. Nothing is published or emailed. You can also translate it yourself: use Export for translation below, then upload the translated file as a new Español weekly update.
+                          </p>
+                          <TranslateWeeklyUpdateButton weeklyUpdateId={update.id} />
+                        </>
+                      )}
+                    </div>
                   ) : null}
                   <p className="mt-5 text-sm">
                     <a href={`/api/admin/weekly-update/export?weekly_update_id=${update.id}`} download className="font-extrabold text-[#9d5a2f] underline underline-offset-2">Export for translation (Word)</a>

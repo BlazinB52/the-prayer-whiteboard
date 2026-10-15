@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { DevotionalExportForTranslationSection } from "@/app/admin/devotionals/export-for-translation-section";
 import { devotionalChoices } from "@/lib/devotional-choices";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
+import { sendForReview, takeBackFromReview } from "@/app/admin/review-gate-actions";
+import { ReviewGateMessage, ReviewGateSection } from "@/app/admin/review-gate-section";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { TranslationPicker } from "@/app/admin/translations/translation-picker";
 import { loadTranslationOptions } from "@/lib/translation-options";
@@ -19,7 +21,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function AdminDevotionalPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ assigned?: string; removed?: string; created?: string; imported?: string; published?: string; unpublished?: string }> }) {
+export default async function AdminDevotionalPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ assigned?: string; removed?: string; created?: string; imported?: string; published?: string; unpublished?: string; review?: string; mailed?: string; of?: string }> }) {
   const [{ id }, messages] = await Promise.all([params, searchParams]);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) notFound();
 
@@ -41,7 +43,7 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
     .maybeSingle(),
     supabase
       .from("teaching_devotionals")
-      .select("id, teaching_id, slug, title, introduction, status, published_at, language, gathering_date")
+      .select("id, teaching_id, slug, title, introduction, status, published_at, language, gathering_date, sent_for_review_at")
       .order("title", { ascending: true }),
     supabase.from("teaching_devotional_assignments").select("devotional_id, teaching_id"),
   ]);
@@ -89,6 +91,16 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
         {messages.imported === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional text imported as a draft.</p> : null}
         {messages.published === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional published.</p> : null}
         {messages.unpublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional unpublished and returned to draft.</p> : null}
+
+        <ReviewGateMessage review={messages.review} mailed={messages.mailed} of={messages.of} />
+        {devotional && devotional.status === "draft" ? (
+          <ReviewGateSection
+            noun="devotional"
+            sentAt={devotional.sent_for_review_at ?? null}
+            sendAction={sendForReview.bind(null, "devotional", devotional.id, `/admin/teachings/${teaching.id}/devotional`)}
+            takeBackAction={takeBackFromReview.bind(null, "devotional", devotional.id, `/admin/teachings/${teaching.id}/devotional`)}
+          />
+        ) : null}
 
         <DevotionalAssignmentForm
           devotionals={devotionalChoices({

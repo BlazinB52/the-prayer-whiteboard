@@ -70,6 +70,8 @@ export default async function AdminOutlinePreviewPage({
         {isDraft ? (
           <ReviewGateSection
             noun="teaching outline"
+            kind="outline"
+            subjectId={idResult.value}
             sentAt={outline.sent_for_review_at ?? null}
             sendAction={sendForReview.bind(null, "outline", idResult.value)}
             takeBackAction={takeBackFromReview.bind(null, "outline", idResult.value)}

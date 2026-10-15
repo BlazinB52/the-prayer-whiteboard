@@ -64,3 +64,34 @@ test("the Content Management home is the review list plus only the two places a 
   assert.equal((page.match(/status: "Available"/g) ?? []).length, 2, "only the two that create something say Available");
   assert.match(page, /\.not\("sent_for_review_at", "is", null\)/);
 });
+
+test("an item marked reviewed with no changes leaves the list and shows in their edits", () => {
+  const { needsReview, history } = buildReviewList({
+    sources: { ...empty, teaching: [{ id: "t1", title: "Teaching A", gathering_date: "2026-10-03" }, { id: "t2", title: "Teaching B", gathering_date: "2026-10-10" }] },
+    myRevisions: [],
+    submittedWeeklyUpdates: new Set(),
+    reviewedNoChanges: new Map([["teaching:t1", "2026-10-06T12:00:00Z"]]),
+  });
+  assert.deepEqual(needsReview.map((item) => item.key), ["teaching:t2"]);
+  assert.equal(history.length, 1);
+  assert.equal(history[0].summary, "Reviewed, no changes needed");
+  assert.equal(history[0].title, "Teaching A");
+});
+
+test("every review page offers Mark as reviewed, no changes, and the database function clears an empty draft and refuses real changes", async () => {
+  for (const kind of ["teaching", "devotional", "outline", "handout"]) {
+    const page = await readFile(`app/admin/cm/${kind}-review/[id]/page.tsx`, "utf8");
+    assert.match(page, new RegExp(`<ReviewOkBox kind="${kind}"`));
+    assert.match(page, /<ReviewOkMessage reviewed=\{flags\.reviewed\} \/>/);
+  }
+  const box = await readFile("app/admin/cm/review-ok-box.tsx", "utf8");
+  assert.match(box, /Mark as reviewed, no changes/);
+  const actions = await readFile("app/admin/cm/review-ok-actions.ts", "utf8");
+  assert.match(actions, /rpc\("mark_review_ok"/);
+  assert.match(actions, /rpc\("clear_review_ok"/);
+  const sql = await readFile("supabase/migrations/20261016020000_review_no_changes.sql", "utf8");
+  assert.match(sql, /Submit or discard your proposed changes first/);
+  assert.match(sql, /revoke all on public\.content_review_oks from public, anon, authenticated/);
+  const gate = await readFile("app/admin/review-gate-section.tsx", "utf8");
+  assert.match(gate, /reviewed it with no changes needed/);
+});

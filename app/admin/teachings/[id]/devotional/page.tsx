@@ -96,6 +96,8 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
         {devotional && devotional.status === "draft" ? (
           <ReviewGateSection
             noun="devotional"
+            kind="devotional"
+            subjectId={devotional.id}
             sentAt={devotional.sent_for_review_at ?? null}
             sendAction={sendForReview.bind(null, "devotional", devotional.id, `/admin/teachings/${teaching.id}/devotional`)}
             takeBackAction={takeBackFromReview.bind(null, "devotional", devotional.id, `/admin/teachings/${teaching.id}/devotional`)}

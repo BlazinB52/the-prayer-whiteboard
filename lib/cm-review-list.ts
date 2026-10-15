@@ -75,15 +75,19 @@ export function buildReviewList(input: {
   myRevisions: MyRevision[];
   /** For weekly updates: the ids this person has already submitted their one pass on. */
   submittedWeeklyUpdates: Set<string>;
+  /** Items this person marked "reviewed, no changes needed": "kind:id" to when. */
+  reviewedNoChanges?: Map<string, string>;
 }): { needsReview: ReviewListItem[]; history: ReviewHistoryItem[] } {
   const submitted = new Set(input.myRevisions.filter((revision) => revision.status === "submitted" && revision.subjectId).map((revision) => `${revision.kind}:${revision.subjectId}`));
   const started = new Set(input.myRevisions.filter((revision) => revision.status === "draft" && revision.subjectId).map((revision) => `${revision.kind}:${revision.subjectId}`));
+
+  const reviewed = input.reviewedNoChanges ?? new Map<string, string>();
 
   const needsReview: ReviewListItem[] = [];
   for (const kind of Object.keys(input.sources) as ReviewSubjectKind[]) {
     for (const source of input.sources[kind]) {
       const key = `${kind}:${source.id}`;
-      if (kind === "weekly_update" ? input.submittedWeeklyUpdates.has(source.id) : submitted.has(key)) continue;
+      if (kind === "weekly_update" ? input.submittedWeeklyUpdates.has(source.id) : submitted.has(key) || reviewed.has(key)) continue;
       needsReview.push({
         key,
         kind,
@@ -96,6 +100,14 @@ export function buildReviewList(input: {
         href: `/admin/cm/${REVIEW_SUBJECTS[kind].reviewFolder}/${source.id}`,
         started: started.has(key),
       });
+    }
+  }
+
+  const noChanges: ReviewHistoryItem[] = [];
+  for (const kind of Object.keys(input.sources) as ReviewSubjectKind[]) {
+    for (const source of input.sources[kind]) {
+      const at = reviewed.get(`${kind}:${source.id}`);
+      if (at && kind !== "weekly_update") noChanges.push({ key: `ok:${kind}:${source.id}`, kindLabel: REVIEW_KIND_LABELS[kind], title: source.title, status: "completed", summary: "Reviewed, no changes needed", date: at });
     }
   }
 
@@ -113,8 +125,8 @@ export function buildReviewList(input: {
             ? `${revision.accepted_count} accepted, ${revision.rejected_count} rejected`
             : "Closed without a decision",
       date: revision.status === "submitted" ? revision.submitted_at : revision.completed_at ?? revision.submitted_at,
-    }))
-    .sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
+    }));
+  const allHistory = [...history, ...noChanges].sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
 
-  return { needsReview: sortReviewList(needsReview), history };
+  return { needsReview: sortReviewList(needsReview), history: allHistory };
 }

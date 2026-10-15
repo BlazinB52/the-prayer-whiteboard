@@ -87,3 +87,15 @@ test("the Devotionals list is sorted by gathering date, newest first, undated la
   assert.match(page, /sortByDateThenTitle\(dated\)/);
   assert.match(page, /devotionalDate\(devotional\.gathering_date/);
 });
+
+test("the teaching's devotional page carries the Content Manager review box and returns to itself", async () => {
+  const page = await read("app/admin/teachings/[id]/devotional/page.tsx");
+  assert.match(page, /ReviewGateSection/);
+  assert.match(page, /ReviewGateMessage/);
+  assert.match(page, /sent_for_review_at/);
+  assert.match(page, /devotional\.status === "draft"/);
+  assert.match(page, /sendForReview\.bind\(null, "devotional", devotional\.id, `\/admin\/teachings\/\$\{teaching\.id\}\/devotional`\)/);
+  const actions = await read("app/admin/review-gate-actions.ts");
+  assert.ok(actions.includes("const TEACHING_DEVOTIONAL_PAGE = "));
+  assert.doesNotMatch(actions, /redirect\(`\$\{pagePath\(kind, id\)\}\?review/);
+});

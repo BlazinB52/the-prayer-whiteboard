@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TeachingDateLabel } from "@/app/teaching-date-label";
 import { requireContentManager } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
@@ -35,7 +36,7 @@ export default async function OutlineReviewListPage() {
   const { supabase } = await requireContentManager();
   // The database only returns draft outlines the Administrator has sent, so this list is the whole gate.
   const [{ data: outlines, error }, { data: revisions }] = await Promise.all([
-    supabase.from("teaching_outlines").select("id, title, language, updated_at").eq("status", "draft").order("updated_at", { ascending: false }),
+    supabase.from("teaching_outlines").select("id, title, language, gathering_date, updated_at").eq("status", "draft").order("gathering_date", { ascending: false, nullsFirst: false }).order("updated_at", { ascending: false }),
     supabase
       .from("content_revisions")
       .select("id, outline_id, subject_title, status, submitted_at, completed_at, total_changes, accepted_count, rejected_count")
@@ -75,6 +76,7 @@ export default async function OutlineReviewListPage() {
                   <li key={outline.id}>
                     <Link href={`/admin/cm/outline-review/${outline.id}`} className="flex min-h-12 items-center gap-3 px-2 py-3 transition hover:bg-[#e7efe9]/60">
                       <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{outline.title.trim() || "Untitled outline"}</span>
+                      <TeachingDateLabel date={outline.gathering_date} />
                       {outline.language === "es" ? <span className="rounded-full bg-[#eee7da] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Español</span> : null}
                       {open ? <span className="rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#1a4fb4]">{STATUS_LABELS[open.status]}</span> : null}
                     </Link>

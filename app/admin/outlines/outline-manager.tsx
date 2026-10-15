@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { OutlineContent } from "@/app/teaching-outlines/outline-content";
+import { TeachingChoiceOptions, type TeachingChoice } from "../teaching-choice";
 import {
   createOutlineCategory,
   deleteOutline,
@@ -19,7 +20,7 @@ import {
 } from "./actions";
 
 export type ManagerCategory = { id: string; name: string; nameEs: string | null };
-export type ManagerTeaching = { id: string; title: string; language: "en" | "es" };
+export type ManagerTeaching = TeachingChoice;
 export type ManagerOutline = {
   id: string;
   title: string;
@@ -37,15 +38,6 @@ export type ManagerOutline = {
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value.length === 10 ? `${value}T00:00:00Z` : value));
-}
-
-function TeachingOptions({ teachings }: { teachings: ManagerTeaching[] }) {
-  return (
-    <>
-      <option value="">None</option>
-      {teachings.map((teaching) => <option key={teaching.id} value={teaching.id}>{teaching.title}{teaching.language === "es" ? " (Español)" : ""}</option>)}
-    </>
-  );
 }
 
 function UploadSection({ categories, teachings }: { categories: ManagerCategory[]; teachings: ManagerTeaching[] }) {
@@ -177,7 +169,7 @@ function UploadSection({ categories, teachings }: { categories: ManagerCategory[
                     </label>
                     <label className="block text-sm font-bold text-[#385245] sm:col-span-2">
                       Related teaching
-                      <select name="teachingId" defaultValue="" disabled={pending} className="admin-input"><TeachingOptions teachings={teachings} /></select>
+                      <select name="teachingId" defaultValue="" disabled={pending} className="admin-input"><TeachingChoiceOptions teachings={teachings} /></select>
                       <span className="mt-1 block text-xs font-normal text-[#607066]">Optional. The public outline links to this teaching.</span>
                     </label>
                     <p className="self-center text-sm font-bold text-[#385245]">This will be saved as a draft that Content Managers cannot see. Send it to them for review from its page, then publish it when you are satisfied.</p>
@@ -362,7 +354,7 @@ function OutlineList({ categories, outlines, teachings }: { categories: ManagerC
                           onChange={(event) => run(() => setOutlineTeaching(outline.id, event.target.value))}
                           className="max-w-56 rounded-lg border border-[#284a3b]/20 bg-white px-2 py-1 text-sm"
                         >
-                          <TeachingOptions teachings={teachings} />
+                          <TeachingChoiceOptions teachings={teachings} selectedId={outline.teachingId} />
                         </select>
                       </label>
                       <button

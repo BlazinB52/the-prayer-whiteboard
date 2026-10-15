@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { OUTLINE_BUCKET } from "@/lib/teaching-outlines";
-import { OutlineManager, type ManagerCategory, type ManagerOutline, type ManagerTeaching } from "./outline-manager";
+import { loadTeachingChoices } from "../teaching-choice";
+import { OutlineManager, type ManagerCategory, type ManagerOutline } from "./outline-manager";
 
 export const metadata: Metadata = {
   title: "Teaching Outlines",
@@ -27,17 +28,16 @@ type OutlineRow = {
 export default async function AdminOutlinesPage() {
   const { supabase } = await requireAdmin();
 
-  const [categoriesResult, outlinesResult, teachingsResult] = await Promise.all([
+  const [categoriesResult, outlinesResult, teachings] = await Promise.all([
     supabase.from("outline_categories").select("id, name, name_es").order("sort_order", { ascending: true }).order("name", { ascending: true }),
     supabase
       .from("teaching_outlines")
       .select("id, title, subtitle, category_id, teaching_id, language, gathering_date, status, sent_for_review_at, source_path, source_file_name, created_at")
       .order("created_at", { ascending: false }),
-    supabase.from("teachings").select("id, title, language").order("gathering_date", { ascending: false, nullsFirst: false }).order("title", { ascending: true }),
+    loadTeachingChoices(supabase),
   ]);
 
   const categories = ((categoriesResult.data as { id: string; name: string; name_es: string | null }[] | null) ?? []).map((row): ManagerCategory => ({ id: row.id, name: row.name, nameEs: row.name_es }));
-  const teachings = (teachingsResult.data as ManagerTeaching[] | null) ?? [];
   const outlines: ManagerOutline[] = ((outlinesResult.data as OutlineRow[] | null) ?? []).map((row) => ({
     id: row.id,
     title: row.title,
@@ -53,7 +53,7 @@ export default async function AdminOutlinesPage() {
       .from(OUTLINE_BUCKET)
       .getPublicUrl(row.source_path, { download: row.source_file_name ?? "outline.docx" }).data.publicUrl,
   }));
-  const loadFailed = Boolean(categoriesResult.error || outlinesResult.error || teachingsResult.error);
+  const loadFailed = Boolean(categoriesResult.error || outlinesResult.error);
 
   return (
     <main className="admin-shell">

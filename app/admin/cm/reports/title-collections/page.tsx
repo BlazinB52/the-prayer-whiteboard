@@ -105,7 +105,7 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
     supabase.from("teaching_devotionals").select("id, title, language, status, teaching_id, translation_of"),
     supabase.from("teaching_outlines").select("id, title, language, status, teaching_id"),
     supabase.from("teaching_handouts").select("id, title, language, teaching_id, status, translation_of"),
-    supabase.from("weekly_updates").select("id, title, language, status, teaching_id"),
+    supabase.from("weekly_updates").select("id, title, language, status, teaching_id, gathering_date"),
     supabase.from("chalkboard_assets").select("id, title, canonical_name, language, teaching_id").eq("status", "active").eq("is_current_version", true),
     supabase.from("teaching_chalkboard_assignments").select("teaching_id, chalkboard_asset_id"),
     supabase.from("weekly_update_chalkboard_assignments").select("chalkboard_asset_id"),
@@ -133,8 +133,10 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
       const teachingIds = [...(teachingIdsByBoard.get(row.id) ?? []), ...link(row.teaching_id)];
       return { id: row.id, title: row.canonical_name ?? row.title ?? "Whiteboard", language: language(row.language), teachingIds, state: "exists" as const, href: `/admin/chalkboards/${row.id}` };
     }),
-    weeklyUpdate: ((updatesResult.data as { id: string; title: string; language: string | null; status: string; teaching_id: string | null }[] | null) ?? []).map((row) => ({
-      id: row.id, title: row.title, language: language(row.language), teachingIds: link(row.teaching_id), state: row.status === "draft" ? "draft" as const : "published" as const, href: "/admin/weekly-updates",
+    // A weekly update is written before its teaching exists, so when it has no teaching of its own it belongs to the
+    // English teaching of its gathering date.
+    weeklyUpdate: ((updatesResult.data as { id: string; title: string; language: string | null; status: string; teaching_id: string | null; gathering_date: string | null }[] | null) ?? []).map((row) => ({
+      id: row.id, title: row.title, language: language(row.language), teachingIds: row.teaching_id || !row.gathering_date ? link(row.teaching_id) : teachingRows.filter((teaching) => teaching.language === "en" && teaching.gathering_date === row.gathering_date).map((teaching) => teaching.id), state: row.status === "draft" ? "draft" as const : "published" as const, href: "/admin/weekly-updates",
     })),
     handout: ((handoutsResult.data as { id: string; title: string; language: string | null; teaching_id: string | null; status: string; translation_of: string | null }[] | null) ?? []).map((row) => ({
       id: row.id, title: row.title, language: language(row.language), teachingIds: link(row.teaching_id), parentId: row.translation_of, state: row.status === "published" ? "published" as const : "draft" as const, href: `/admin/handouts/${row.id}`,

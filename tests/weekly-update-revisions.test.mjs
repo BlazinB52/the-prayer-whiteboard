@@ -30,10 +30,9 @@ test("co-editor weekly update actions only call the review functions and never t
   }
 });
 
-test("the Content Management page offers Weekly Update - Review, listing only drafts", async () => {
+test("the Content Management list includes weekly updates sent for proofing, and the review pages list only drafts", async () => {
   const cm = await readFile("app/admin/cm/page.tsx", "utf8");
-  assert.match(cm, /title: "Weekly Update - Review"/);
-  assert.match(cm, /href: "\/admin\/cm\/weekly-update-review"/);
+  assert.match(cm, /supabase\.from\("weekly_updates"\)\.select\([^)]*\)\.eq\("status", "draft"\)\.not\("sent_to_proofing_at", "is", null\)/);
   for (const file of ["app/admin/cm/weekly-update-review/page.tsx", "app/admin/cm/weekly-update-review/[id]/page.tsx"]) {
     assert.match(await readFile(file, "utf8"), /\.eq\("status", "draft"\)/);
   }

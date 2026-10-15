@@ -190,7 +190,7 @@ test("the dashboard and the Content Management page link to the review tools", a
   assert.match(dashboard, /href: "\/admin\/teaching-revisions"/);
   assert.match(dashboard, /awaiting review/);
   const hub = await readFile("app/admin/cm/page.tsx", "utf8");
-  assert.match(hub, /href: "\/admin\/cm\/teaching-review"/);
+  assert.match(hub, /supabase\.from\("teachings"\)\.select\([^)]*\)\.eq\("status", "draft"\)\.not\("sent_for_review_at", "is", null\)/);
 });
 
 test("the migration locks the tables down and puts every write behind a checked function", async () => {

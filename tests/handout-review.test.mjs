@@ -233,7 +233,7 @@ test("the teaching date shows on the lists, the review page and the Revisions sc
 
 test("the dashboards link to handouts", async () => {
   assert.match(await read("app/admin/page.tsx"), /href: "\/admin\/handouts"/);
-  assert.match(await read("app/admin/cm/page.tsx"), /href: "\/admin\/cm\/handout-review"/);
+  assert.match(await read("app/admin/cm/page.tsx"), /supabase\.from\("teaching_handouts"\)\.select\([^)]*\)\.eq\("status", "draft"\)\.not\("sent_for_review_at", "is", null\)/);
 });
 
 // ---------------------------------------------------------------------------

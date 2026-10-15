@@ -72,3 +72,18 @@ test("the migration adds the date and fills it from the assigned teaching", asyn
   assert.match(sql, /teaching_devotional_assignments assignment/);
   assert.match(sql, /devotional\.teaching_id = teaching\.id/);
 });
+
+test("the Devotionals list is sorted by gathering date, newest first, undated last, within each language", async () => {
+  const { sortByDateThenTitle } = await import("../lib/devotional-date.ts");
+  const items = [
+    { title: "Walking in the Light", date: "2026-10-03" },
+    { title: "The Spiritual Ascent", date: "2026-08-30" },
+    { title: "5787", date: "2026-09-12" },
+    { title: "From Glory to Glory", date: null },
+    { title: "Treasure in Earthen Vessels", date: "2026-09-26" },
+  ];
+  assert.deepEqual(sortByDateThenTitle(items).map((item) => item.title), ["Walking in the Light", "Treasure in Earthen Vessels", "5787", "The Spiritual Ascent", "From Glory to Glory"]);
+  const page = await read("app/admin/devotionals/page.tsx");
+  assert.match(page, /sortByDateThenTitle\(dated\)/);
+  assert.match(page, /devotionalDate\(devotional\.gathering_date/);
+});

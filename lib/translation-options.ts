@@ -1,18 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { devotionalDate } from "./devotional-date.ts";
+import { devotionalDate, sortByDateThenTitle } from "./devotional-date.ts";
 import { formatTeachingDateShort } from "./teaching-date.ts";
 
 export type TranslationOption = { id: string; label: string; disabled?: boolean };
 
-/** Newest date first; an item with no date after the rest, in title order. */
-export function sortByDateThenTitle<T extends { date: string | null; title: string }>(items: T[]): T[] {
-  return [...items].sort((a, b) => {
-    if (a.date && b.date) return b.date.localeCompare(a.date) || a.title.localeCompare(b.title);
-    if (a.date) return -1;
-    if (b.date) return 1;
-    return a.title.localeCompare(b.title);
-  });
-}
+export { sortByDateThenTitle };
 
 /** "Oct 10, 2026 · Title (draft) — already paired with another item". */
 export function translationOptionLabel(item: { title: string; status: string; date: string | null }, takenBy: boolean) {

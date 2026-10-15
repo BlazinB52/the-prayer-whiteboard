@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { devotionalDate } from "@/lib/devotional-date";
+import { devotionalDate, sortByDateThenTitle } from "@/lib/devotional-date";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { formatTeachingDateShort } from "@/lib/teaching-date";
 
@@ -70,7 +70,7 @@ export default async function AdminDevotionalsPage() {
   const { data: devotionals, error: devotionalsError } = await supabase
     .from("teaching_devotionals")
     .select("id, teaching_id, slug, title, language, status, published_at, updated_at, gathering_date")
-    .order("updated_at", { ascending: false });
+    .order("title", { ascending: true });
 
   if (devotionalsError) {
     return <main className="admin-shell"><p className="text-sm font-bold text-[#a2472c]">Devotionals could not be loaded.</p></main>;
@@ -104,7 +104,13 @@ export default async function AdminDevotionalsPage() {
     teachingAssociationsByDevotionalId.set(assignment.devotional_id, current);
   }
 
-  const rows = (devotionals ?? []).map((devotional) => ({
+  // Newest gathering date first, in each language; a devotional with no date comes after the rest.
+  const dated = (devotionals ?? []).map((devotional) => ({
+    title: devotional.title as string,
+    date: devotionalDate(devotional.gathering_date, (teachingAssociationsByDevotionalId.get(devotional.id) ?? []).map((teaching) => teaching.gathering_date)),
+    devotional,
+  }));
+  const rows = sortByDateThenTitle(dated).map(({ devotional }) => ({
     language: devotional.language,
     row: {
       id: devotional.id,

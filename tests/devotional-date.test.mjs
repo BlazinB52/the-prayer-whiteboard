@@ -110,3 +110,8 @@ test("the Handouts list is two lists, English and Español", async () => {
   assert.match(list, /heading="English" items=\{handouts\.filter\(\(handout\) => handout\.language !== "es"\)\}/);
   assert.match(list, /heading="Español" items=\{handouts\.filter\(\(handout\) => handout\.language === "es"\)\}/);
 });
+
+test("a published handout does not offer to build its Word file", async () => {
+  const page = await read("app/admin/handouts/[id]/page.tsx");
+  assert.match(page, /\{hasDraft && !isPublished \?\s*\(\s*<BuildHandoutSection/);
+});

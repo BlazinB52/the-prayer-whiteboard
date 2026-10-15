@@ -3,6 +3,7 @@
 // new Español draft. Lines that start with # are notes to the translator and the source marker; the importer
 // ignores them, so they can never end up in the devotional.
 
+import { publicationFileName } from "./file-names.ts";
 import { spanishTranslationRuleLines } from "./spanish-translation-rules.ts";
 
 export type ExportDevotional = { id: string; title: string; introduction: string | null };
@@ -30,13 +31,12 @@ export const DEVOTIONAL_TRANSLATOR_INSTRUCTIONS = [
   "Keep each label on its own line. You may leave the English labels as they are, or use exactly these Spanish ones: Pasajes bíblicos clave: / La dinámica espiritual: / Confesión de hoy: / Pregunta para tu diario de 5 minutos: / Ejercicio de activación en oración: (Day 7: La reflexión del descanso: / Confesión de descanso de hoy: / Autoexamen reverente y bendición: / La reflexión del pan: / La reflexión de la copa: / Oración de cierre de la serie:)",
   "Keep **bold**, *italic* and [link](https://address) marks exactly as they are around the translated words.",
   "Each anchor Scripture reads: Reference (VERSION) — \"verse\". Translate the book name, replace the verse with the published RVR1960 or NVI text of that passage, and put that version in parentheses.",
-  "Save as plain text (.txt, UTF-8), named es_yyyymmdd_devotional.",
+  "Save as plain text (.txt, UTF-8), named yyyymmdd_es_devotional.",
 ].map((line) => `# ${line}`);
 
-/** es_20261010_devotional.txt: the language, a date, and the word devotional. */
+/** 20261010_es_devotional.txt: a date, the language, and the word devotional. */
 export function devotionalExportFileName(date: string | null, today: Date = new Date()) {
-  const digits = date && /^\d{4}-\d{2}-\d{2}/.test(date) ? date.slice(0, 10).replaceAll("-", "") : today.toISOString().slice(0, 10).replaceAll("-", "");
-  return `es_${digits}_devotional.txt`;
+  return publicationFileName(date, "es", "devotional", "txt", today);
 }
 
 const clean = (value: string | null | undefined) => String(value ?? "").replace(/\r\n?/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean);

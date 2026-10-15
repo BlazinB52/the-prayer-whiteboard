@@ -114,7 +114,7 @@ export function DraftUpload({ id, hasDraft, sourceFileName, locked }: { id: stri
       <h2 className="text-lg font-extrabold text-[#243d31]">2. Draft</h2>
       <p className="mt-1 text-sm leading-6 text-[#607066]">
         {hasDraft ? `The draft text came from ${sourceFileName ?? "a Word file"}. ` : "Upload the Word draft of the handout. "}
-        Use the styles in the handout template (Heading 1 section title, Subtitle, Heading 2 paragraph title, List Bullet, Quote). Name the file like <strong>en_20261010_handout.docx</strong> (or <strong>es_…</strong> for an Español handout) and the teaching date fills in for you if it is empty.
+        Use the styles in the handout template (Heading 1 section title, Subtitle, Heading 2 paragraph title, List Bullet, Quote). Name the file like <strong>20261010_en_handout.docx</strong> (or <strong>es_…</strong> for an Español handout) and the teaching date fills in for you if it is empty.
       </p>
       {locked ? (
         <p className="mt-3 rounded-xl border border-[#c49a3a]/40 bg-[#fbf4e1] px-4 py-3 text-sm font-bold text-[#6b5013]">{locked}</p>

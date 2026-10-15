@@ -73,8 +73,8 @@ test("a stray ** around a label, a day heading or an anchor Scripture is still r
 });
 
 test("the devotional file is named es_ then a date then devotional", () => {
-  assert.equal(devotionalExportFileName("2026-10-10"), "es_20261010_devotional.txt");
-  assert.equal(devotionalExportFileName(null, new Date("2026-11-02T15:00:00Z")), "es_20261102_devotional.txt");
+  assert.equal(devotionalExportFileName("2026-10-10"), "20261010_es_devotional.txt");
+  assert.equal(devotionalExportFileName(null, new Date("2026-11-02T15:00:00Z")), "20261102_es_devotional.txt");
 });
 
 // ------------------------------------------------------------ weekly update
@@ -98,8 +98,8 @@ test("an exported weekly update converts straight back to the same blocks", () =
 });
 
 test("the weekly update file is named es_ then a date then weekly_update", () => {
-  assert.equal(weeklyUpdateExportFileName("2026-10-07T12:00:00+00:00"), "es_20261007_weekly_update.docx");
-  assert.equal(weeklyUpdateExportFileName(null, new Date("2026-11-02T15:00:00Z")), "es_20261102_weekly_update.docx");
+  assert.equal(weeklyUpdateExportFileName("2026-10-07T12:00:00+00:00"), "20261007_es_weekly_update.docx");
+  assert.equal(weeklyUpdateExportFileName(null, new Date("2026-11-02T15:00:00Z")), "20261102_es_weekly_update.docx");
 });
 
 // ------------------------------------------------------- the teaching importer

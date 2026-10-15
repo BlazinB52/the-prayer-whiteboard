@@ -9,6 +9,7 @@
 // link the new draft to it, and carries the translator's instructions in the document properties, where they
 // can never be imported as teaching text.
 
+import { publicationFileName } from "./file-names.ts";
 import { spanishTranslationRuleLines } from "./spanish-translation-rules.ts";
 import { buildDocxPackage, escapeXml, para, run } from "./docx-parts.ts";
 
@@ -35,13 +36,12 @@ export const TRANSLATOR_INSTRUCTIONS = [
   "Translate every paragraph and keep each paragraph's Word style (Title, Heading 1, Heading 2, Normal, Scripture Quote, List Bullet, Quote, Takeaway). Keep bold, italic and links.",
   "Leave the short Heading 1 labels in English: Central Theme, Introduction, Short Summary, and the Homepage Teaser labels. They tell the website where each part goes. Everything under them is translated.",
   "Each Scripture Quote paragraph reads: Reference (VERSION) — “verse”. Translate the book name, replace the verse with the published RVR1960 or NVI text of that passage, and put that version in parentheses.",
-  "Accept all tracked changes and delete comments before saving. Save as .docx, and name the file es_yyyymmdd_teaching (for example es_20261010_teaching).",
+  "Accept all tracked changes and delete comments before saving. Save as .docx, and name the file yyyymmdd_es_teaching (for example 20261010_es_teaching).",
 ].join("\n");
 
-/** es_20261010_teaching.docx: the language, the teaching date, and the word teaching. */
+/** 20261010_es_teaching.docx: the teaching date, the language, and the word teaching. */
 export function exportFileName(gatheringDate: string | null, today: Date = new Date()) {
-  const digits = gatheringDate && /^\d{4}-\d{2}-\d{2}$/.test(gatheringDate) ? gatheringDate.replaceAll("-", "") : today.toISOString().slice(0, 10).replaceAll("-", "");
-  return `es_${digits}_teaching.docx`;
+  return publicationFileName(gatheringDate, "es", "teaching", "docx", today);
 }
 
 type Links = { id: string; url: string }[];

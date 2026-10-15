@@ -9,6 +9,7 @@
 //   List Bullet  a bullet                 Quote      the section's closing line
 //
 // Nothing here touches the database.
+import { parseFileNameStamp } from "./file-names.ts";
 import { readInlines, readRelationships, readStyleNames } from "./teaching-docx-import.ts";
 import { findAll, firstChild, openDocxPackage, parseXml, type XmlNode } from "./teaching-docx-package.ts";
 import {
@@ -230,14 +231,13 @@ export function parseHandoutDocx(buffer: Buffer): HandoutParseResult {
 // --- file name and validation ------------------------------------------------
 
 /**
- * The handout files are named en_YYYYMMDD_something.docx. The language and the teaching date are read from
- * the front of the name; the Administrator confirms both on the preview. A bare leading YYYYMMDD also works.
+ * The handout files are named YYYYMMDD_en_something.docx. The teaching date and the language are read from
+ * the front of the name; the Administrator confirms both on the preview. The older en_YYYYMMDD_something.docx and a
+ * bare leading YYYYMMDD also work.
  */
 export function suggestHandoutFromFileName(fileName: string): { language: HandoutLanguage | null; date: string | null; unsupportedLanguage: string | null } {
-  const match = fileName.match(/^(?:([a-z]{2})[_\- ])?(\d{4})(\d{2})(\d{2})(?!\d)/i);
-  if (!match) return { language: null, date: null, unsupportedLanguage: null };
-  const date = validateGatheringDate(`${match[2]}-${match[3]}-${match[4]}`).value ?? null;
-  const code = match[1]?.toLowerCase() ?? null;
+  const { date, language: code } = parseFileNameStamp(fileName);
+  if (!date && !code) return { language: null, date: null, unsupportedLanguage: null };
   if (code && !(HANDOUT_LANGUAGES as readonly string[]).includes(code)) return { language: null, date, unsupportedLanguage: code };
   return { language: code ? (code as HandoutLanguage) : null, date, unsupportedLanguage: null };
 }

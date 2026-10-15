@@ -307,3 +307,21 @@ test("the Title Collections report counts a handout as done only once it is publ
   const report = await read("app/admin/cm/reports/title-collections/page.tsx");
   assert.match(report, /state: row\.status === "published" \? "published" as const : "draft" as const, href: `\/admin\/handouts\//);
 });
+
+test("file names lead with the date and then the language, and the older language-first names still read", async () => {
+  const { parseFileNameStamp, publicationFileName } = await import("../lib/file-names.ts");
+  const { suggestGatheringDate } = await import("../lib/teaching-docx-import.ts");
+  assert.deepEqual(parseFileNameStamp("20261010_es_handout.docx"), { date: "2026-10-10", language: "es" });
+  assert.deepEqual(parseFileNameStamp("20261010_en_teaching.docx"), { date: "2026-10-10", language: "en" });
+  assert.deepEqual(parseFileNameStamp("es_20261010_handout.docx"), { date: "2026-10-10", language: "es" });
+  assert.deepEqual(parseFileNameStamp("20261010_teaching.docx"), { date: "2026-10-10", language: null });
+  assert.deepEqual(parseFileNameStamp("20261010_handout_draft_text.docx"), { date: "2026-10-10", language: null });
+  assert.deepEqual(parseFileNameStamp("20261340_es_x.docx"), { date: null, language: "es" });
+  assert.deepEqual(parseFileNameStamp("notes.docx"), { date: null, language: null });
+  assert.equal(publicationFileName("2026-10-10", "es", "handout", "docx"), "20261010_es_handout.docx");
+  assert.equal(publicationFileName(null, "en", "teaching", "docx", new Date("2026-11-02T15:00:00Z")), "20261102_en_teaching.docx");
+  assert.deepEqual(suggestHandoutFromFileName("20261010_es_handout_draft_text.docx"), { language: "es", date: "2026-10-10", unsupportedLanguage: null });
+  assert.deepEqual(suggestHandoutFromFileName("20261010_fr_x.docx"), { language: null, date: "2026-10-10", unsupportedLanguage: "fr" });
+  assert.equal(suggestGatheringDate("20261010_es_teaching.docx"), "2026-10-10");
+  assert.equal(suggestGatheringDate("es_20261010_teaching.docx"), "2026-10-10");
+});

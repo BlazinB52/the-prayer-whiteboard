@@ -109,7 +109,7 @@ export default async function AdminHandoutPage({
         ) : null}
 
         {!isPublished ? (
-          <HandoutDetailsForm id={idResult.value} title={handout.title} date={handout.gathering_date} teachingId={handout.teaching_id} teachings={teachings} untitled={untitled} />
+          <HandoutDetailsForm key={`${handout.title}|${handout.gathering_date}|${handout.teaching_id}`} id={idResult.value} title={handout.title} date={handout.gathering_date} teachingId={handout.teaching_id} teachings={teachings} untitled={untitled} />
         ) : null}
 
         <DraftUpload id={idResult.value} hasDraft={hasDraft} sourceFileName={handout.source_file_name} locked={draftLocked} />
@@ -138,7 +138,7 @@ export default async function AdminHandoutPage({
           <BuildHandoutSection
             handoutId={idResult.value}
             language={language}
-            blocker={!hasDate ? "Enter the teaching date and save the details first. The file is named from it." : !handout.teaching_id ? "Choose the teaching this handout goes with and save the details. The whiteboard comes from the teaching." : !handout.footer_id ? "Choose a footer in the Handout footer box above and save it." : null}
+            blocker={!hasDate ? "Enter the teaching date and save the details first. The file is named from it." : !handout.teaching_id ? "This handout is not linked to a teaching yet. Choose the teaching in 1. Details and press Save details (a choice that is not saved does not count). The whiteboard comes from the teaching." : !handout.footer_id ? "Choose a footer in the Handout footer box above and save it." : null}
           />
         ) : null}
 

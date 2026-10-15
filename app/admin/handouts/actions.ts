@@ -122,6 +122,16 @@ export async function setHandoutFooter(id: string, footerId: string): Promise<Ha
 }
 
 /** The title, the date of the teaching the handout goes with, and the teaching itself. */
+/**
+ * The English teaching of a gathering date, when there is exactly one, so a handout is linked to its teaching without
+ * the Administrator having to pick it. More than one, or none, leaves the choice to the Administrator.
+ */
+async function teachingForDate(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], date: string | null | undefined) {
+  if (!date) return null;
+  const { data } = await supabase.from("teachings").select("id").eq("language", "en").eq("gathering_date", date).neq("status", "archived").limit(2);
+  return data?.length === 1 ? (data[0].id as string) : null;
+}
+
 export async function saveHandoutDetails(id: string, title: string, gatheringDate: string, teachingId: string): Promise<HandoutActionState> {
   const { supabase } = await requireAdmin();
   const idResult = validateHandoutId(id);
@@ -134,9 +144,12 @@ export async function saveHandoutDetails(id: string, title: string, gatheringDat
   const teaching = validateOptionalOutlineId(teachingId);
   if (teaching.error) return { error: teaching.error };
 
+  // No teaching chosen: link the one teaching of that date, if there is exactly one.
+  const teachingToSave = teaching.value ?? (await teachingForDate(supabase, dateResult.value));
+
   const { data, error } = await supabase
     .from("teaching_handouts")
-    .update({ title: titleResult.value, gathering_date: dateResult.value ?? null, teaching_id: teaching.value })
+    .update({ title: titleResult.value, gathering_date: dateResult.value ?? null, teaching_id: teachingToSave })
     .eq("id", idResult.value)
     .select("id");
   if (error) {
@@ -161,7 +174,7 @@ export async function uploadHandoutDraft(id: string, formData: FormData): Promis
 
   const { data: handout } = await supabase
     .from("teaching_handouts")
-    .select("id, title, gathering_date, status, sent_for_review_at, language")
+    .select("id, title, gathering_date, status, sent_for_review_at, language, teaching_id")
     .eq("id", idResult.value)
     .maybeSingle();
   if (!handout) return { error: "That handout could not be found." };
@@ -198,6 +211,12 @@ export async function uploadHandoutDraft(id: string, formData: FormData): Promis
   if (!handout.gathering_date && suggestion.date) {
     update.gathering_date = suggestion.date;
     filled.date = suggestion.date;
+  }
+
+  // With a date and no teaching yet, link the one teaching of that date.
+  if (!handout.teaching_id) {
+    const linked = await teachingForDate(supabase, (update.gathering_date as string | undefined) ?? handout.gathering_date);
+    if (linked) update.teaching_id = linked;
   }
 
   const { error } = await supabase.from("teaching_handouts").update(update).eq("id", idResult.value);

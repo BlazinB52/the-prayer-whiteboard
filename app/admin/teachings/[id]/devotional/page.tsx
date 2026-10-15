@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DevotionalExportForTranslationSection } from "@/app/admin/devotionals/export-for-translation-section";
+import { devotionalChoices } from "@/lib/devotional-choices";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { TranslationPicker } from "@/app/admin/translations/translation-picker";
@@ -25,14 +26,14 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
   const { supabase } = await requireAdmin();
   const { data: teaching, error: teachingError } = await supabase
     .from("teachings")
-    .select("id, slug, title, status")
+    .select("id, slug, title, status, language")
     .eq("id", id)
     .in("status", ["draft", "published"])
     .maybeSingle();
 
   if (teachingError || !teaching) notFound();
 
-  const [{ data: assignment }, { data: devotionals }] = await Promise.all([
+  const [{ data: assignment }, { data: devotionals }, { data: allAssignments }] = await Promise.all([
     supabase
     .from("teaching_devotional_assignments")
     .select("devotional_id")
@@ -42,7 +43,10 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
       .from("teaching_devotionals")
       .select("id, teaching_id, slug, title, introduction, status, published_at, language")
       .order("title", { ascending: true }),
+    supabase.from("teaching_devotional_assignments").select("devotional_id, teaching_id"),
   ]);
+  const datedTeachingIds = [...new Set([...(allAssignments ?? []).map((row) => row.teaching_id as string), ...(devotionals ?? []).map((item) => item.teaching_id as string | null).filter((value): value is string => Boolean(value))])];
+  const { data: teachingDates } = datedTeachingIds.length ? await supabase.from("teachings").select("id, gathering_date").in("id", datedTeachingIds) : { data: [] };
   const devotional = (devotionals ?? []).find((item) => item.id === assignment?.devotional_id) ?? null;
 
   const translation = devotional ? await loadTranslationOptions(supabase, "teaching_devotionals", devotional.id, devotional.language === "es" ? "es" : "en") : null;
@@ -87,7 +91,13 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
         {messages.unpublished === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional unpublished and returned to draft.</p> : null}
 
         <DevotionalAssignmentForm
-          devotionals={(devotionals ?? []).map((item) => ({ id: item.id, title: item.title, status: item.status }))}
+          devotionals={devotionalChoices({
+            devotionals: (devotionals ?? []).map((item) => ({ id: item.id, title: item.title, status: item.status, language: item.language, legacyTeachingId: item.teaching_id ?? null })),
+            assignments: (allAssignments ?? []) as { devotional_id: string; teaching_id: string }[],
+            teachingDates: (teachingDates ?? []) as { id: string; gathering_date: string | null }[],
+            teachingLanguage: teaching.language === "es" ? "es" : "en",
+            currentDevotionalId: devotional?.id ?? null,
+          })}
           currentDevotionalId={devotional?.id ?? null}
           assignAction={assignExistingDevotional.bind(null, teaching.id)}
           removeAction={removeDevotionalAssignment.bind(null, teaching.id)}

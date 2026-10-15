@@ -138,6 +138,10 @@ export function buildCollectionReport(input: {
   let hiddenArchived = 0;
   const finished: CollectionRow[] = [];
   for (const row of rows.values()) {
+    // The row is headed by the English teaching. The grouping can land on the Español one (for example when the two are
+    // linked the other way round), and the row must not then read in Español.
+    const english = row.teachings.en.length ? byId.get(row.teachings.en[0].id) : undefined;
+    if (english) row.teaching = english;
     if (row.teaching.status === "archived") {
       hiddenArchived += 1;
       continue;

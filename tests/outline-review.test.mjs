@@ -194,7 +194,7 @@ test("a Content Manager's outline pages only read what the database lets through
 
 test("the Content Manager dashboard offers the outline review instead of the old upload tool", async () => {
   const cm = await read("app/admin/cm/page.tsx");
-  assert.match(cm, /href: "\/admin\/cm\/outline-review"/);
+  assert.match(cm, /supabase\.from\("teaching_outlines"\)\.select\([^)]*\)\.eq\("status", "draft"\)\.not\("sent_for_review_at", "is", null\)/);
   assert.doesNotMatch(cm, /href: "\/admin\/outlines"/);
 });
 

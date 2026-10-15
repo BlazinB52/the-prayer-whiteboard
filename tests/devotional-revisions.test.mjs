@@ -43,10 +43,9 @@ test("co-editor devotional actions only call the review functions and never writ
   }
 });
 
-test("the Content Management page offers Devotional - Review, and it lists only draft devotionals", async () => {
+test("the Content Management list includes sent draft devotionals, and the review pages list only draft devotionals", async () => {
   const cm = await readFile("app/admin/cm/page.tsx", "utf8");
-  assert.match(cm, /title: "Devotional - Review"/);
-  assert.match(cm, /href: "\/admin\/cm\/devotional-review"/);
+  assert.match(cm, /supabase\.from\("teaching_devotionals"\)\.select\([^)]*\)\.eq\("status", "draft"\)\.not\("sent_for_review_at", "is", null\)/);
   const list = await readFile("app/admin/cm/devotional-review/page.tsx", "utf8");
   assert.match(list, /\.eq\("status", "draft"\)/);
   const edit = await readFile("app/admin/cm/devotional-review/[id]/page.tsx", "utf8");

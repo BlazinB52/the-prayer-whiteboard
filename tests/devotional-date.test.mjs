@@ -99,3 +99,8 @@ test("the teaching's devotional page carries the Content Manager review box and 
   assert.ok(actions.includes("const TEACHING_DEVOTIONAL_PAGE = "));
   assert.doesNotMatch(actions, /redirect\(`\$\{pagePath\(kind, id\)\}\?review/);
 });
+
+test("the Teachings list is ordered by gathering date, newest first, not by last edit", async () => {
+  const list = await read("app/admin/teachings/page.tsx");
+  assert.match(list, /\.order\("gathering_date", \{ ascending: false, nullsFirst: false \}\)/);
+});

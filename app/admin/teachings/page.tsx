@@ -67,6 +67,8 @@ export default async function TeachingsPage({ searchParams }: { searchParams: Pr
   const { data: teachings, error } = await supabase
     .from("teachings")
     .select("id, title, teaching_type, language, gathering_date, status, is_featured, ready_to_publish_at, updated_at")
+    // Newest gathering date first, so a teaching keeps its place when it is edited; one with no date comes after the rest.
+    .order("gathering_date", { ascending: false, nullsFirst: false })
     .order("updated_at", { ascending: false });
 
   if (error) {

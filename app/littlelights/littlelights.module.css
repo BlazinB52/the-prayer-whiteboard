@@ -112,3 +112,53 @@
   outline-offset: -4px;
   box-shadow: inset 0 0 0 6px #fff;
 }
+
+.featuredAdventure { position: relative; width: 100%; }
+.featuredArtwork { display: block; width: 100%; height: auto; }
+
+.featuredLink { position: absolute; border-radius: 999px; }
+
+/* Hit areas follow the controls in the original 1920 × 819 image. */
+.seeAllAdventures {
+  left: 74%;
+  top: 3%;
+  width: 24%;
+  height: 12%;
+  min-height: 24px;
+}
+
+.beginAdventure {
+  left: 60.4%;
+  top: 73.25%;
+  width: 35.2%;
+  height: 16.5%;
+}
+
+.featuredLink:focus-visible, .backToLittleLights:focus-visible {
+  outline: 3px solid #183765;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #fff;
+}
+
+.comingSoonPage {
+  padding: 3rem 1.25rem;
+  text-align: center;
+  line-height: 1.7;
+}
+
+.comingSoonPage h1 {
+  margin-block: .75rem 1rem;
+  font-size: clamp(1.75rem, 6vw, 2.25rem);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.backToLittleLights {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding: .75rem 1.25rem;
+  border-radius: 999px;
+  background: #183765;
+  color: white;
+  font-weight: 700;
+}

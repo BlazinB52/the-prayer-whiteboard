@@ -2,6 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import styles from "./littlelights.module.css";
 
+const featuredAdventureLinks = {
+  allAdventures: "/littlelights/coming-soon",
+  begin: "/littlelights/coming-soon",
+};
+
 export default function LittleLightsPage() {
   return (
     <>
@@ -42,6 +47,28 @@ export default function LittleLightsPage() {
           prefetch={false}
           aria-label="Fun Activities"
           className={`${styles.cardLink} ${styles.funActivities}`}
+        />
+      </section>
+      <section className={styles.featuredAdventure} aria-label="Featured Adventure">
+        <Image
+          src="/images/littlelights/littlelights-featured-adventure.webp"
+          alt="Featured Adventure: God Is With You Every Day. A Little Lights Adventure with 6 story chapters. Jesus walks beside a happy child on a sunlit path."
+          width={1920}
+          height={819}
+          unoptimized
+          className={styles.featuredArtwork}
+        />
+        <Link
+          href={featuredAdventureLinks.allAdventures}
+          prefetch={false}
+          aria-label="See All Adventures"
+          className={`${styles.featuredLink} ${styles.seeAllAdventures}`}
+        />
+        <Link
+          href={featuredAdventureLinks.begin}
+          prefetch={false}
+          aria-label="Tap to Begin"
+          className={`${styles.featuredLink} ${styles.beginAdventure}`}
         />
       </section>
     </>

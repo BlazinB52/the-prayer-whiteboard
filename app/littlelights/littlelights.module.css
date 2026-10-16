@@ -6,7 +6,7 @@
 }
 
 .header {
-  padding: 1.75rem 1rem 1.25rem;
+  padding: .25rem .75rem .5rem;
   background: linear-gradient(120deg, #dceeff, #eef8ff);
   border-bottom: 2px solid #c6e0f5;
 }
@@ -17,74 +17,69 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: .25rem;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: .65rem;
-  min-height: 48px;
+  gap: .4rem;
+  min-height: 44px;
 }
 
 .brandStars {
   position: relative;
-  flex: 0 0 2.75rem;
-  height: 3.5rem;
+  flex: 0 0 1.5rem;
+  height: 1.75rem;
   color: #d39613;
 }
 
-.largeStar, .smallStar { position: absolute; fill: #ffd765; stroke-width: 1.5; }
-.largeStar { width: 2.5rem; height: 2.5rem; top: .15rem; transform: rotate(-12deg); }
-.smallStar { width: 1.25rem; height: 1.25rem; right: 0; bottom: 0; transform: rotate(15deg); }
+.largeStar, .smallStar, .trailingStar { position: absolute; fill: #ffd765; stroke-width: 1.5; }
+.largeStar { width: 1.125rem; height: 1.125rem; top: .1rem; transform: rotate(-12deg); }
+.smallStar { width: .65rem; height: .65rem; right: 0; bottom: 0; transform: rotate(15deg); }
 
 .title {
   display: block;
-  font-size: clamp(2rem, 8vw, 3rem);
+  font-size: 1.75rem;
   font-weight: 900;
   letter-spacing: -.055em;
   line-height: 1.15;
   text-shadow: 1px 2px 0 #fff;
 }
 
-.subtitle {
-  display: block;
-  max-width: 18rem;
-  margin-top: .4rem;
-  font-size: .75rem;
-  font-weight: 600;
-  line-height: 1.5;
-  letter-spacing: .015em;
-}
+.trailingStar { position: static; width: 1.5rem; height: 1.125rem; flex-shrink: 0; color: #d39613; transform: rotate(12deg); }
 
 .navigation {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: .5rem;
+  grid-template-columns: repeat(3, auto);
+  justify-content: center;
+  gap: .375rem;
   width: 100%;
-  max-width: 27rem;
+  max-width: 30rem;
 }
 
 .navLink {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: .35rem;
-  min-height: 64px;
-  padding: .65rem .35rem;
+  min-height: 44px;
+  padding: .5rem .625rem;
   border: 2px solid #b4d1eb;
-  border-radius: 1.25rem;
+  border-radius: 999px;
   background: #fff;
-  box-shadow: 0 3px 0 #bdd5e9;
-  font-size: .875rem;
+  box-shadow: 0 2px 0 #bdd5e9;
+  font-size: .8125rem;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .navLink[aria-current="page"] {
-  background: #ffe49a;
-  border-color: #bc8512;
-  box-shadow: 0 3px 0 #cfa138;
+  background: #245da8;
+  color: #fff;
+  border-color: #245da8;
+  box-shadow: 0 2px 0 #183765;
 }
 
 .navLink:hover { border-color: #183765; }
@@ -110,9 +105,8 @@
 .eyebrow { font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .comingSoon { margin-top: 1rem; font-size: .875rem; }
 
-@media (min-width: 800px) {
-  .header { padding: 2rem; }
-  .headerInner { flex-direction: row; justify-content: space-between; }
-  .navigation { width: auto; max-width: none; }
-  .navLink { flex-direction: row; min-height: 52px; padding: .75rem 1rem; gap: .5rem; }
+.navLink svg { flex-shrink: 0; }
+
+@media (min-width: 400px) {
+  .navLink { padding-inline: .875rem; font-size: .875rem; }
 }

@@ -22,10 +22,8 @@ export function LittleLightsHeader() {
             <Star className={styles.largeStar} />
             <Star className={styles.smallStar} />
           </span>
-          <span>
-            <span className={styles.title}>Little Lights</span>
-            <span className={styles.subtitle}>A Kids&apos; Corner of The Prayer Whiteboard</span>
-          </span>
+          <span className={styles.title}>Little Lights</span>
+          <Star className={styles.trailingStar} aria-hidden="true" />
         </Link>
         <nav aria-label="Little Lights" className={styles.navigation}>
           {links.map(({ href, label, icon: Icon }) => {
@@ -35,7 +33,7 @@ export function LittleLightsHeader() {
             return (
               <Link key={href} href={href} prefetch={false}
                 className={styles.navLink} aria-current={active ? "page" : undefined}>
-                <Icon size={20} aria-hidden="true" />
+                <Icon size={16} aria-hidden="true" />
                 <span>{label}</span>
               </Link>
             );

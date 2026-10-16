@@ -26,8 +26,8 @@ export default function LittleLightsPage() {
         <Image
           src="/images/littlelights/faith-adventures-activities.webp"
           alt="Faith Adventures: Discover God's Word, with an open Bible and a winding path. Fun Activities: Color, create, and play, with coloring pages, crayons, and craft supplies."
-          width={1680}
-          height={716}
+          width={1920}
+          height={819}
           unoptimized
           className={styles.discoveryArtwork}
         />

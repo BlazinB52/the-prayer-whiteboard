@@ -162,3 +162,23 @@
   color: white;
   font-weight: 700;
 }
+
+.discoveryPrintables { position: relative; width: 100%; }
+.printablesArtwork { display: block; width: 100%; height: auto; }
+
+/* Right-hand text and circular arrow in the supplied 1920 × 819 image.
+   Zack and his speech bubble remain outside the link. */
+.printablesLink {
+  position: absolute;
+  left: 61.5%;
+  top: 29%;
+  width: 36.5%;
+  height: 42%;
+  border-radius: 1rem;
+}
+
+.printablesLink:focus-visible {
+  outline: 3px solid #183765;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #fff;
+}

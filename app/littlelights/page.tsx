@@ -71,6 +71,22 @@ export default function LittleLightsPage() {
           className={`${styles.featuredLink} ${styles.beginAdventure}`}
         />
       </section>
+      <section className={styles.discoveryPrintables} aria-label="Discovery and Printables">
+        <Image
+          src="/images/littlelights/littlelights-discovery-printables.webp"
+          alt="Zack holds a glowing lantern and says: Follow the Light! Let’s see what we discover! Printables & Coloring: Fun pages to help you learn and grow! Illustrated coloring pages and crayons point toward a circular arrow."
+          width={1920}
+          height={819}
+          unoptimized
+          className={styles.printablesArtwork}
+        />
+        <Link
+          href="/littlelights/coming-soon"
+          prefetch={false}
+          aria-label="Open Printables and Coloring"
+          className={styles.printablesLink}
+        />
+      </section>
     </>
   );
 }

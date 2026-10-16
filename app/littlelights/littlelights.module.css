@@ -53,8 +53,32 @@
   transform: translateY(-200%);
 }
 .skipLink:focus { transform: translateY(0); }
-.content { max-width: 72rem; margin-inline: auto; padding: 3rem 1.25rem; }
-.placeholder { max-width: 36rem; margin-inline: auto; text-align: center; line-height: 1.7; }
-.placeholder h1 { margin: .5rem 0 1rem; font-size: clamp(1.75rem, 6vw, 2.5rem); font-weight: 800; line-height: 1.25; }
-.eyebrow { font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.comingSoon { margin-top: 1rem; font-size: .875rem; }
+.content { max-width: 72rem; margin-inline: auto; }
+
+.welcome {
+  position: relative;
+  width: 100%;
+}
+
+.welcomeArtwork {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Orange button bounds in the original 1388 × 846 artwork:
+   x=660, y=666, width=646, height=152. Scale with the image. */
+.startExploring {
+  position: absolute;
+  left: 47.5504%;
+  top: 78.7234%;
+  width: 46.5418%;
+  height: 17.967%;
+  border-radius: 999px;
+}
+
+.startExploring:focus-visible {
+  outline: 3px solid #183765;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #fff;
+}

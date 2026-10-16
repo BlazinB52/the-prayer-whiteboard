@@ -122,6 +122,62 @@ export async function setHandoutFooter(id: string, footerId: string): Promise<Ha
 }
 
 /** The title, the date of the teaching the handout goes with, and the teaching itself. */
+/** The name of a version ("Honduras", "US"): optional, at most 60 characters. Empty means an ordinary handout. */
+function validateVersionLabel(value: unknown): { value: string | null; error?: undefined } | { error: string; value?: undefined } {
+  const text = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  if (!text) return { value: null };
+  if (text.length > 60) return { error: "The version name must be 60 characters or fewer." };
+  return { value: text };
+}
+
+/**
+ * Makes another version of a handout: a new draft that starts as a copy of the one it is made from (its text, language and
+ * footer) with its own title, date, teaching and version name, so each version is edited, built and published on its own,
+ * each with its own final PDF. It is not a second translation: it never takes over the original's translation link.
+ */
+export async function createHandoutVersion(formData: FormData) {
+  const { supabase } = await requireAdmin();
+  const fail = (code: string) => redirect(`/admin/handouts/version?error=${code}`);
+  const baseId = validateHandoutId(String(formData.get("fromId") ?? ""));
+  if (baseId.error || !baseId.value) return fail("base");
+  const version = validateVersionLabel(formData.get("versionLabel"));
+  if (version.error || !version.value) return fail("version");
+  const title = validateHandoutTitle(formData.get("title"));
+  if (title.error || !title.value) return fail("title");
+  const date = validateHandoutDate(formData.get("gatheringDate"));
+  if (date.error || !date.value) return fail("date");
+  const teaching = validateOptionalOutlineId(formData.get("teachingId"));
+  if (teaching.error) return fail("teaching");
+
+  const { data: base } = await supabase
+    .from("teaching_handouts")
+    .select("id, language, footer_id, content, original_content, source_file_name, teaching_id, version_of")
+    .eq("id", baseId.value)
+    .maybeSingle();
+  if (!base) return fail("base");
+
+  const { data, error } = await supabase
+    .from("teaching_handouts")
+    .insert({
+      title: title.value,
+      gathering_date: date.value,
+      teaching_id: teaching.value ?? base.teaching_id ?? (await teachingForDate(supabase, date.value)),
+      language: base.language,
+      status: "draft",
+      content: base.content,
+      original_content: base.original_content,
+      source_file_name: base.source_file_name,
+      footer_id: base.footer_id,
+      version_label: version.value,
+      version_of: base.version_of ?? base.id,
+    })
+    .select("id")
+    .single();
+  if (error || !data) return fail("create");
+  revalidateHandoutPaths();
+  redirect(`/admin/handouts/${data.id}?created=1&version=1`);
+}
+
 /**
  * The English teaching of a gathering date, when there is exactly one, so a handout is linked to its teaching without
  * the Administrator having to pick it. More than one, or none, leaves the choice to the Administrator.
@@ -132,7 +188,7 @@ async function teachingForDate(supabase: Awaited<ReturnType<typeof requireAdmin>
   return data?.length === 1 ? (data[0].id as string) : null;
 }
 
-export async function saveHandoutDetails(id: string, title: string, gatheringDate: string, teachingId: string): Promise<HandoutActionState> {
+export async function saveHandoutDetails(id: string, title: string, gatheringDate: string, teachingId: string, versionLabel = ""): Promise<HandoutActionState> {
   const { supabase } = await requireAdmin();
   const idResult = validateHandoutId(id);
   if (idResult.error || !idResult.value) return { error: idResult.error };
@@ -144,12 +200,15 @@ export async function saveHandoutDetails(id: string, title: string, gatheringDat
   const teaching = validateOptionalOutlineId(teachingId);
   if (teaching.error) return { error: teaching.error };
 
+  const version = validateVersionLabel(versionLabel);
+  if (version.error) return { error: version.error };
+
   // No teaching chosen: link the one teaching of that date, if there is exactly one.
   const teachingToSave = teaching.value ?? (await teachingForDate(supabase, dateResult.value));
 
   const { data, error } = await supabase
     .from("teaching_handouts")
-    .update({ title: titleResult.value, gathering_date: dateResult.value ?? null, teaching_id: teachingToSave })
+    .update({ title: titleResult.value, gathering_date: dateResult.value ?? null, teaching_id: teachingToSave, version_label: version.value })
     .eq("id", idResult.value)
     .select("id");
   if (error) {

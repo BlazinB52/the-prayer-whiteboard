@@ -45,3 +45,13 @@ export function fileNameDate(date: string | null | undefined, today: Date = new 
 export function publicationFileName(date: string | null | undefined, language: "en" | "es", kind: string, extension: string, today: Date = new Date()) {
   return `${fileNameDate(date, today)}_${language}_${kind}.${extension}`;
 }
+
+/** "Honduras" becomes honduras, "U.S. Edition" becomes u-s-edition: the version part of a file name. */
+export function versionSlug(label: string) {
+  return label
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}

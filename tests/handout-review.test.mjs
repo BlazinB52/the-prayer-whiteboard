@@ -337,3 +337,29 @@ test("a handout links itself to the one English teaching of its gathering date, 
   assert.match(page, /<HandoutDetailsForm key=\{`\$\{handout\.title\}\|\$\{handout\.gathering_date\}\|\$\{handout\.teaching_id\}`\}/);
   assert.match(page, /press Save details/);
 });
+
+test("another version of a handout: a link on the handout, a button on the list, its own copy, and a version in the file name", async () => {
+  const { versionSlug, publicationFileName } = await import("../lib/file-names.ts");
+  assert.equal(versionSlug("Honduras"), "honduras");
+  assert.equal(versionSlug("  U.S. Edition! "), "u-s-edition");
+  assert.equal(versionSlug("Hondúras"), "honduras");
+  assert.equal(publicationFileName("2026-09-19", "es", "handout_honduras", "docx"), "20260919_es_handout_honduras.docx");
+
+  const page = await read("app/admin/handouts/[id]/page.tsx");
+  assert.match(page, /href=\{`\/admin\/handouts\/version\?from=\$\{idResult\.value\}`\}[^>]*>Publish other version<\/Link>/);
+  assert.match(page, /Other versions:/);
+  const list = await read("app/admin/handouts/page.tsx");
+  assert.match(list, /href="\/admin\/handouts\/version"[^>]*>Add another version<\/Link>/);
+  const actions = await read("app/admin/handouts/actions.ts");
+  const start = actions.indexOf("export async function createHandoutVersion");
+  const body = actions.slice(start, actions.indexOf("async function teachingForDate"));
+  assert.match(body, /status: "draft"/);
+  assert.match(body, /version_of: base\.version_of \?\? base\.id/);
+  assert.doesNotMatch(body, /translation_of/, "a version never takes over the translation link");
+  assert.match(body, /requireAdmin\(\)/);
+  assert.match(actions, /The version name must be 60 characters or fewer/);
+  const build = await read("app/api/admin/handout/build/route.ts");
+  assert.match(build, /handout_\$\{versionSlug\(String\(handout\.version_label\)\)\}/);
+  const sql = await read("supabase/migrations/20261016030000_handout_versions.sql");
+  assert.match(sql, /version_of uuid references public\.teaching_handouts\(id\) on delete set null/);
+});

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1200" height="280" viewBox="0 0 1200 280">
+<defs>
+ <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#e5f4ff"/></linearGradient>
+ <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#3497f6"/><stop offset="1" stop-color="#1164cc"/></linearGradient>
+ <filter id="soft"><feGaussianBlur stdDeviation="6"/></filter>
+ <g id="star"><path d="M0 -23 L6 -7 L22 0 L6 7 L0 23 L-6 7 L-22 0 L-6 -7Z" fill="#fff2ad" stroke="#f5bb31" stroke-width="3" stroke-linejoin="round"/></g>
+</defs>
+<rect width="1200" height="280" fill="url(#sky)"/>
+<g opacity=".75" fill="#d1eafd"><path d="M0 110 Q25 76 72 89 Q96 40 149 68 Q201 55 219 104 Q252 102 264 126 L264 155 L0 155Z"/><path d="M950 128 Q976 96 1010 108 Q1029 65 1072 83 Q1102 45 1143 91 Q1180 84 1200 116 L1200 166 L950 166Z"/></g>
+<g opacity=".7" fill="#ffffff"><ellipse cx="100" cy="130" rx="150" ry="35"/><ellipse cx="1110" cy="145" rx="170" ry="30"/></g>
+<!-- title decorative sparks -->
+<g transform="translate(350 59)"><use xlink:href="#star" transform="scale(.6)"/><circle cx="-36" cy="24" r="4" fill="#f7c64b"/></g>
+<g transform="translate(844 54)"><use xlink:href="#star" transform="scale(.65)"/></g>
+<g stroke="#fac33a" stroke-width="8" stroke-linecap="round"><path d="M390 54 l-18 -13 M390 88 l-24 9 M813 48 l19 -14 M817 86 l24 9"/></g>
+<!-- title outline simulates puffy lettering -->
+<text x="600" y="105" font-family="DejaVu Sans, sans-serif" font-size="76" font-weight="bold" text-anchor="middle" letter-spacing="-4" fill="#102b58" stroke="#102b58" stroke-width="1.5" stroke-linejoin="round">Little Lights</text>
+<path d="M455 121 Q601 136 740 120" stroke="#ffc849" stroke-width="9" stroke-linecap="round" fill="none"/>
+<!-- Nav background -->
+<rect x="35" y="148" width="1130" height="118" rx="57" fill="#bdd7ed" opacity=".38"/>
+<rect x="39" y="145" width="1122" height="115" rx="54" fill="#ffffff" opacity=".93"/>
+<!-- home shadow -->
+<rect x="60" y="161" width="330" height="83" rx="41.5" fill="#0750a9" opacity=".22"/>
+<rect x="60" y="154" width="330" height="83" rx="41.5" fill="url(#blue)" stroke="#6cb5ff" stroke-width="3"/>
+<path d="M98 194 L120 175 L142 194 V218 H126 V200 H114 V218 H98Z" fill="none" stroke="white" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="161" y="213" font-family="DejaVu Sans, sans-serif" font-size="35" font-weight="bold" fill="#ffffff">Home</text>
+<!-- yellow active underline -->
+<path d="M130 241 Q228 249 329 241" fill="none" stroke="#f8c444" stroke-width="7" stroke-linecap="round"/>
+<!-- adventure -->
+<path d="M452 182 Q479 173 507 187 V219 Q478 207 452 215Z M507 187 Q534 173 561 182 V215 Q534 207 507 219Z" fill="none" stroke="#193967" stroke-width="6" stroke-linejoin="round"/>
+<path d="M507 188 V219" stroke="#193967" stroke-width="5"/>
+<text x="585" y="212" fill="#132f5c" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="bold">Adventures</text>
+<!-- activities pencil -->
+<g transform="translate(902 179) rotate(39)"><rect x="0" y="0" width="21" height="42" rx="4" fill="#63aaff" stroke="#193967" stroke-width="5"/><path d="M0 42 L10.5 57 L21 42Z" fill="#ffe2a0" stroke="#193967" stroke-width="5" stroke-linejoin="round"/><path d="M0 11 H21" stroke="#193967" stroke-width="4"/></g>
+<text x="949" y="212" fill="#132f5c" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="bold">Activities</text>
+</svg>

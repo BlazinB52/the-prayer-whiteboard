@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, House, Palette, Star } from "lucide-react";
+import Image from "next/image";
 import styles from "./littlelights.module.css";
 
 const links = [
-  { href: "/littlelights", label: "Home", icon: House },
-  { href: "/littlelights/adventures", label: "Adventures", icon: BookOpen },
-  { href: "/littlelights/activities", label: "Activities", icon: Palette },
+  { href: "/littlelights", label: "Home" },
+  { href: "/littlelights/adventures", label: "Adventures" },
+  { href: "/littlelights/activities", label: "Activities" },
 ];
 
 export function LittleLightsHeader() {
@@ -17,24 +17,24 @@ export function LittleLightsHeader() {
   return (
     <header className={styles.header}>
       <div className={styles.headerInner}>
-        <Link href="/littlelights" className={styles.brand} aria-label="Little Lights home">
-          <span className={styles.brandStars} aria-hidden="true">
-            <Star className={styles.largeStar} />
-            <Star className={styles.smallStar} />
-          </span>
-          <span className={styles.title}>Little Lights</span>
-          <Star className={styles.trailingStar} aria-hidden="true" />
-        </Link>
+        <Image
+          src="/images/littlelights/navigation-banner.svg"
+          alt="Little Lights"
+          width={1200}
+          height={280}
+          priority
+          className={styles.banner}
+        />
         <nav aria-label="Little Lights" className={styles.navigation}>
-          {links.map(({ href, label, icon: Icon }) => {
+          {links.map(({ href, label }, index) => {
             const active = href === "/littlelights"
               ? pathname === href
               : pathname === href || pathname.startsWith(`${href}/`);
             return (
               <Link key={href} href={href} prefetch={false}
-                className={styles.navLink} aria-current={active ? "page" : undefined}>
-                <Icon size={16} aria-hidden="true" />
-                <span>{label}</span>
+                className={styles.navLink} style={{ left: `${[5, 35, 71][index]}%`, width: `${[27.5, 34, 24.5][index]}%` }}
+                aria-label={label} aria-current={active ? "page" : undefined}>
+
               </Link>
             );
           })}

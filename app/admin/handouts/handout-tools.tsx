@@ -45,6 +45,7 @@ export function HandoutDetailsForm({
   teachingId,
   teachings,
   untitled,
+  versionLabel,
 }: {
   id: string;
   title: string;
@@ -52,14 +53,16 @@ export function HandoutDetailsForm({
   teachingId: string | null;
   teachings: TeachingChoice[];
   untitled: boolean;
+  versionLabel: string | null;
 }) {
   const router = useRouter();
   const [titleValue, setTitleValue] = useState(untitled ? "" : title);
   const [dateValue, setDateValue] = useState(date ?? "");
   const [teachingValue, setTeachingValue] = useState(teachingId ?? "");
+  const [versionValue, setVersionValue] = useState(versionLabel ?? "");
   const [message, setMessage] = useState<Message>(null);
   const [pending, startTransition] = useTransition();
-  const changed = titleValue !== (untitled ? "" : title) || dateValue !== (date ?? "") || teachingValue !== (teachingId ?? "");
+  const changed = titleValue !== (untitled ? "" : title) || dateValue !== (date ?? "") || teachingValue !== (teachingId ?? "") || versionValue !== (versionLabel ?? "");
 
   return (
     <form
@@ -68,7 +71,7 @@ export function HandoutDetailsForm({
         event.preventDefault();
         setMessage(null);
         startTransition(async () => {
-          const result = await saveHandoutDetails(id, titleValue, dateValue, teachingValue);
+          const result = await saveHandoutDetails(id, titleValue, dateValue, teachingValue, versionValue);
           if (result.error) setMessage({ ok: false, text: result.error });
           else {
             setMessage({ ok: true, text: "Details saved." });
@@ -83,6 +86,11 @@ export function HandoutDetailsForm({
           Title
           <input value={titleValue} onChange={(event) => setTitleValue(event.target.value)} required maxLength={200} disabled={pending} className="admin-input" placeholder="For example: From Glory to Glory" />
           <span className="mt-1 block text-xs font-normal text-[#607066]">Also the name it will have in the public PDF library.</span>
+        </label>
+        <label className="block text-sm font-bold text-[#385245] sm:col-span-2">
+          Version <span className="font-normal text-[#607066]">(optional)</span>
+          <input value={versionValue} onChange={(event) => setVersionValue(event.target.value)} maxLength={60} disabled={pending} className="admin-input" placeholder="For example: Honduras" />
+          <span className="mt-1 block text-xs font-normal text-[#607066]">Only when the same handout is published in more than one version. It becomes part of the Word file name.</span>
         </label>
         <label className="block text-sm font-bold text-[#385245]">
           Teaching date

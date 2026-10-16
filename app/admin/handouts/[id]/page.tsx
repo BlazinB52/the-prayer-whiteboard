@@ -35,7 +35,7 @@ export default async function AdminHandoutPage({
   const { supabase } = await requireAdmin();
   const { data: handout } = await supabase
     .from("teaching_handouts")
-    .select("id, title, gathering_date, teaching_id, language, translation_of, footer_id, status, sent_for_review_at, published_at, printable_pdf_id, content, source_file_name")
+    .select("id, title, gathering_date, teaching_id, language, translation_of, footer_id, status, sent_for_review_at, published_at, printable_pdf_id, content, source_file_name, version_label, version_of")
     .eq("id", idResult.value)
     .maybeSingle();
   if (!handout) notFound();
@@ -53,6 +53,14 @@ export default async function AdminHandoutPage({
   const footers = ((footerRows as { id: string; internal_title: string }[] | null) ?? []).map((row) => ({ id: row.id, title: row.internal_title }));
 
   const isPublished = handout.status === "published";
+  // The other versions of this handout: the one it was made from and the others made from the same one.
+  const familyRoot = (handout.version_of as string | null) ?? idResult.value;
+  const { data: familyRows } = await supabase
+    .from("teaching_handouts")
+    .select("id, version_label, status, version_of")
+    .or(`id.eq.${familyRoot},version_of.eq.${familyRoot}`);
+  const otherVersions = ((familyRows ?? []) as { id: string; version_label: string | null; status: string }[]).filter((row) => row.id !== idResult.value);
+
   const untitled = !handout.title || handout.title === UNTITLED;
   const blocks = Array.isArray(handout.content) ? handout.content : [];
   const hasDraft = blocks.length > 0;
@@ -80,11 +88,23 @@ export default async function AdminHandoutPage({
         <header className="mt-4 border-b border-[#284a3b]/10 pb-6">
           <p className="text-xs font-black uppercase tracking-wider text-[#946332]">Handout · {language === "es" ? "Español · " : ""}{isPublished ? "Published" : "Draft"}</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31]">{untitled ? "New handout" : handout.title}</h1>
-          <div className="mt-3"><TeachingDateLabel date={handout.gathering_date} /></div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <TeachingDateLabel date={handout.gathering_date} />
+            {handout.version_label ? <span className="rounded-full bg-[#eee7da] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Version: {handout.version_label}</span> : null}
+          </div>
+          {otherVersions.length ? (
+            <p className="mt-3 text-sm text-[#607066]">
+              Other versions:{" "}
+              {otherVersions.map((version, index) => (
+                <span key={version.id}>{index ? ", " : ""}<Link href={`/admin/handouts/${version.id}`} className="font-extrabold text-[#946332] underline underline-offset-2">{version.version_label ?? "Original"}{version.status === "published" ? "" : " (draft)"}</Link></span>
+              ))}
+            </p>
+          ) : null}
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-extrabold">
             {!isPublished && hasDraft ? <Link href={`/admin/handouts/${idResult.value}/edit-text`} className="text-[#946332] hover:text-[#a85e32]">Edit text</Link> : null}
             {hasDraft ? <Link href={`/admin/handouts/${idResult.value}/final`} className="text-[#946332] hover:text-[#a85e32]">Final text to copy</Link> : null}
             <Link href="/admin/teaching-revisions" className="text-[#946332] hover:text-[#a85e32]">Revisions{awaiting ? ` (${awaiting} awaiting review)` : ""}</Link>
+            <Link href={`/admin/handouts/version?from=${idResult.value}`} className="text-[#946332] hover:text-[#a85e32]">Publish other version</Link>
           </div>
         </header>
 
@@ -109,7 +129,7 @@ export default async function AdminHandoutPage({
         ) : null}
 
         {!isPublished ? (
-          <HandoutDetailsForm key={`${handout.title}|${handout.gathering_date}|${handout.teaching_id}`} id={idResult.value} title={handout.title} date={handout.gathering_date} teachingId={handout.teaching_id} teachings={teachings} untitled={untitled} />
+          <HandoutDetailsForm key={`${handout.title}|${handout.gathering_date}|${handout.teaching_id}`} id={idResult.value} title={handout.title} date={handout.gathering_date} teachingId={handout.teaching_id} teachings={teachings} untitled={untitled} versionLabel={handout.version_label ?? null} />
         ) : null}
 
         <DraftUpload id={idResult.value} hasDraft={hasDraft} sourceFileName={handout.source_file_name} locked={draftLocked} />

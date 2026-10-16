@@ -18,6 +18,7 @@ type HandoutRow = {
   gathering_date: string | null;
   teaching_id: string | null;
   language: "en" | "es";
+  version_label: string | null;
   status: "draft" | "published";
   sent_for_review_at: string | null;
   content: unknown;
@@ -45,7 +46,7 @@ function HandoutList({ heading, items, emptyText, teachingTitles }: { heading: s
             return (
               <li key={handout.id}>
                 <Link href={`/admin/handouts/${handout.id}`} className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition hover:bg-[#e7efe9]/60">
-                  <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{handout.title}{handout.language === "es" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Español</span> : null}</span>
+                  <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{handout.title}{handout.version_label ? <span className="ml-2 rounded-full bg-[#e7efe9] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#326048]">{handout.version_label}</span> : null}{handout.language === "es" ? <span className="ml-2 rounded-full bg-[#eee7da] px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-[#6b5a3a]">Español</span> : null}</span>
                   {handout.gathering_date ? <TeachingDateLabel date={handout.gathering_date} /> : <span className="text-xs font-bold text-[#a2472c]">Needs a date</span>}
                   <span className={`max-w-56 truncate text-xs font-bold ${handout.teaching_id ? "text-[#326048]" : "text-[#a2472c]"}`}>
                     {handout.teaching_id ? `Teaching: ${teachingTitles.get(handout.teaching_id) ?? "linked"}` : "Needs a teaching"}
@@ -68,7 +69,7 @@ export default async function AdminHandoutsPage({ searchParams }: { searchParams
   const { supabase } = await requireAdmin();
   const { data, error } = await supabase
     .from("teaching_handouts")
-    .select("id, title, gathering_date, teaching_id, language, status, sent_for_review_at, content, created_at")
+    .select("id, title, gathering_date, teaching_id, language, version_label, status, sent_for_review_at, content, created_at")
     .order("gathering_date", { ascending: false, nullsFirst: true })
     .order("created_at", { ascending: false });
   const handouts = (data as HandoutRow[] | null) ?? [];
@@ -86,6 +87,8 @@ export default async function AdminHandoutsPage({ searchParams }: { searchParams
               Create a handout, enter its title and teaching date, and upload the Word draft. Then send it to the Content Managers to proof, and publish it by uploading the final PDF. An English handout can be translated into an Español handout from its own page. Published handouts appear in the public PDF library (Printable PDF Links).
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-3">
+          <Link href="/admin/handouts/version" className="admin-secondary-button inline-flex items-center justify-center">Add another version</Link>
           <form action={createHandout} className="flex flex-wrap items-center gap-3">
             <select name="language" defaultValue="en" aria-label="Language" className="admin-input !w-auto">
               <option value="en">English</option>
@@ -93,6 +96,7 @@ export default async function AdminHandoutsPage({ searchParams }: { searchParams
             </select>
             <button type="submit" className="admin-primary-button"><span>Create new handout</span></button>
           </form>
+          </div>
         </header>
 
         {flags.error ? <p role="alert" className="mt-6 text-sm font-bold text-[#a2472c]">The handout could not be created. Try again.</p> : null}

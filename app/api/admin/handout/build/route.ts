@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { publicationFileName } from "@/lib/file-names";
+import { publicationFileName, versionSlug } from "@/lib/file-names";
 import { buildHandoutDocx, type TemplateDescriptor } from "@/lib/handout-docx/build";
 import { createClient } from "@/lib/supabase/server";
 import type { HandoutBlock } from "@/lib/teaching-handouts";
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
 
   const { data: handout } = await supabase
     .from("teaching_handouts")
-    .select("id, title, gathering_date, language, teaching_id, footer_id, content")
+    .select("id, title, gathering_date, language, teaching_id, footer_id, content, version_label")
     .eq("id", handoutId)
     .maybeSingle();
   if (!handout) return fail("Handout not found.", 404);
@@ -115,7 +115,7 @@ export async function POST(request: Request) {
   if (matching.length > 1) result.report.warnings.push(`The teaching has ${matching.length} ${language === "es" ? "Español" : "English"} whiteboards; the first one, "${whiteboard.canonical_name ?? whiteboard.title}", was used.`);
   if (!result.ok) return fail("The handout could not be built.", 422, { details: result.errors, report: result.report });
 
-  const fileName = publicationFileName(String(handout.gathering_date), language, "handout", "docx");
+  const fileName = publicationFileName(String(handout.gathering_date), language, handout.version_label ? `handout_${versionSlug(String(handout.version_label))}` : "handout", "docx");
   return new NextResponse(new Uint8Array(result.docx), {
     status: 200,
     headers: {

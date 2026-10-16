@@ -256,7 +256,7 @@ test("the build route is Administrator-only and needs the date, the teaching, th
   assert.match(route, /Choose a footer/);
   assert.match(route, /has no \$\{language === "es" \? "Español" : "English"\} whiteboard assigned/);
   assert.match(route, /eq\("translation_of", handout\.teaching_id\)\.eq\("language", "es"\)/, "an Español handout takes the whiteboard of the Español teaching");
-  assert.match(route, /publicationFileName\(String\(handout\.gathering_date\), language, "handout", "docx"\)/);
+  assert.match(route, /publicationFileName\(String\(handout\.gathering_date\), language, handout\.version_label \? `handout_\$\{versionSlug\(String\(handout\.version_label\)\)\}` : "handout", "docx"\)/);
   assert.doesNotMatch(route, /\.(insert|update|delete)\(/, "building saves nothing");
 });
 

@@ -1,0 +1,118 @@
+.shell {
+  min-height: 100svh;
+  background: #edf7ff;
+  color: #183765;
+  font-family: ui-rounded, "Avenir Next", "Trebuchet MS", sans-serif;
+}
+
+.header {
+  padding: 1.75rem 1rem 1.25rem;
+  background: linear-gradient(120deg, #dceeff, #eef8ff);
+  border-bottom: 2px solid #c6e0f5;
+}
+
+.headerInner {
+  max-width: 72rem;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  min-height: 48px;
+}
+
+.brandStars {
+  position: relative;
+  flex: 0 0 2.75rem;
+  height: 3.5rem;
+  color: #d39613;
+}
+
+.largeStar, .smallStar { position: absolute; fill: #ffd765; stroke-width: 1.5; }
+.largeStar { width: 2.5rem; height: 2.5rem; top: .15rem; transform: rotate(-12deg); }
+.smallStar { width: 1.25rem; height: 1.25rem; right: 0; bottom: 0; transform: rotate(15deg); }
+
+.title {
+  display: block;
+  font-size: clamp(2rem, 8vw, 3rem);
+  font-weight: 900;
+  letter-spacing: -.055em;
+  line-height: 1.15;
+  text-shadow: 1px 2px 0 #fff;
+}
+
+.subtitle {
+  display: block;
+  max-width: 18rem;
+  margin-top: .4rem;
+  font-size: .75rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: .015em;
+}
+
+.navigation {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .5rem;
+  width: 100%;
+  max-width: 27rem;
+}
+
+.navLink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  min-height: 64px;
+  padding: .65rem .35rem;
+  border: 2px solid #b4d1eb;
+  border-radius: 1.25rem;
+  background: #fff;
+  box-shadow: 0 3px 0 #bdd5e9;
+  font-size: .875rem;
+  font-weight: 800;
+}
+
+.navLink[aria-current="page"] {
+  background: #ffe49a;
+  border-color: #bc8512;
+  box-shadow: 0 3px 0 #cfa138;
+}
+
+.navLink:hover { border-color: #183765; }
+.navLink:focus-visible, .brand:focus-visible, .skipLink:focus-visible {
+  outline: 3px solid #183765;
+  outline-offset: 5px;
+  border-radius: 1rem;
+}
+
+.skipLink {
+  position: absolute;
+  left: 1rem;
+  top: .5rem;
+  z-index: 10;
+  padding: .75rem 1rem;
+  background: white;
+  transform: translateY(-200%);
+}
+.skipLink:focus { transform: translateY(0); }
+.content { max-width: 72rem; margin-inline: auto; padding: 3rem 1.25rem; }
+.placeholder { max-width: 36rem; margin-inline: auto; text-align: center; line-height: 1.7; }
+.placeholder h1 { margin: .5rem 0 1rem; font-size: clamp(1.75rem, 6vw, 2.5rem); font-weight: 800; line-height: 1.25; }
+.eyebrow { font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.comingSoon { margin-top: 1rem; font-size: .875rem; }
+
+@media (min-width: 800px) {
+  .header { padding: 2rem; }
+  .headerInner { flex-direction: row; justify-content: space-between; }
+  .navigation { width: auto; max-width: none; }
+  .navLink { flex-direction: row; min-height: 52px; padding: .75rem 1rem; gap: .5rem; }
+}

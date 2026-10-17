@@ -1,0 +1,199 @@
+.shell {
+  min-height: 100svh;
+  background: #edf7ff;
+  color: #183765;
+  font-family: ui-rounded, "Avenir Next", "Trebuchet MS", sans-serif;
+}
+
+.header {
+  padding-block: 7px;
+  background: #fff;
+}
+
+.headerInner {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  margin-inline: auto;
+}
+
+.banner {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Coordinates follow the supplied 1200 × 280 SVG viewBox. Keep the
+   overlays relative to the image, including when its width is capped. */
+.navigation {
+  position: absolute;
+  inset: 0;
+}
+
+.navLink {
+  position: absolute;
+  bottom: 0;
+  height: max(44px, 50%);
+  border-radius: 999px;
+}
+
+.navLink:focus-visible, .skipLink:focus-visible {
+  outline: 3px solid #183765;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #fff;
+}
+
+.skipLink {
+  position: absolute;
+  left: 1rem;
+  top: .5rem;
+  z-index: 10;
+  padding: .75rem 1rem;
+  background: white;
+  transform: translateY(-200%);
+}
+.skipLink:focus { transform: translateY(0); }
+.content { max-width: 560px; margin-inline: auto; }
+
+.welcome {
+  position: relative;
+  width: 100%;
+}
+
+.welcomeArtwork {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Orange button bounds in the original 1388 × 846 artwork:
+   x=660, y=666, width=646, height=152. Scale with the image. */
+.startExploring {
+  position: absolute;
+  left: 47.5504%;
+  top: 78.7234%;
+  width: 46.5418%;
+  height: 17.967%;
+  border-radius: 999px;
+}
+
+.startExploring:focus-visible {
+  outline: 3px solid #183765;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #fff;
+}
+
+.discoveryCards {
+  position: relative;
+  width: 100%;
+}
+
+.discoveryArtwork {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Full card bounds in the supplied 1680 × 716 illustration.
+   Percentages keep both hit areas aligned at every rendered width. */
+.cardLink {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 50%;
+  border-radius: 10%;
+}
+
+.faithAdventures { left: 0; }
+.funActivities { left: 50%; }
+
+.cardLink:focus-visible {
+  outline: 3px solid #183765;
+  outline-offset: -4px;
+  box-shadow: inset 0 0 0 6px #fff;
+}
+
+.featuredAdventure { position: relative; z-index: 1; width: 100%; }
+.featuredArtwork { display: block; width: 100%; height: auto; }
+
+.featuredLink { position: absolute; border-radius: 999px; }
+
+/* Hit areas follow the controls in the original 1920 × 819 image. */
+.seeAllAdventures {
+  left: 74%;
+  top: 3%;
+  width: 24%;
+  height: 12%;
+  min-height: 24px;
+}
+
+.beginAdventure {
+  left: 60.4%;
+  top: 73.25%;
+  width: 35.2%;
+  height: 16.5%;
+}
+
+.featuredLink:focus-visible, .backToLittleLights:focus-visible {
+  outline: 3px solid #183765;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #fff;
+}
+
+.comingSoonPage {
+  padding-bottom: 1.5rem;
+  text-align: center;
+  line-height: 1.7;
+}
+
+.underConstructionArtwork {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.backToLittleLights {
+  display: inline-block;
+  margin-top: 1.5rem;
+  padding: .75rem 1.25rem;
+  border-radius: 999px;
+  background: #183765;
+  color: white;
+  font-weight: 700;
+}
+
+.discoveryPrintables {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  width: 100%;
+  /* Compensate for 250px of combined blank image space at the original
+     1920px width, leaving roughly 2–5px above Zack's hair. */
+  margin-top: calc(6px - 13.0208333333%);
+}
+.printablesArtwork {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Only the embedded blank top margin is transparent. All illustrated
+     pixels begin below 24%, so neither illustration obscures the other. */
+  mask-image: linear-gradient(to bottom, transparent 24%, #000 24%);
+}
+
+/* Right-hand text and circular arrow in the supplied 1920 × 819 image.
+   Zack and his speech bubble remain outside the link. */
+.printablesLink {
+  position: absolute;
+  pointer-events: auto;
+  left: 61.5%;
+  top: 29%;
+  width: 36.5%;
+  height: 42%;
+  border-radius: 1rem;
+}
+
+.printablesLink:focus-visible {
+  outline: 3px solid #183765;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #fff;
+}

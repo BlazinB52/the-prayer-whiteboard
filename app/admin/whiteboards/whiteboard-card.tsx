@@ -2,15 +2,15 @@
 
 import { useActionState, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { ChalkboardActionState } from "./actions";
+import type { WhiteboardActionState } from "./actions";
 
-type Action = (state: ChalkboardActionState, formData: FormData) => Promise<ChalkboardActionState>;
+type Action = (state: WhiteboardActionState, formData: FormData) => Promise<WhiteboardActionState>;
 
 type Asset = {
   id: string;
   canonicalName: string;
   language: "en" | "es";
-  chalkboardDate: string;
+  whiteboardDate: string;
   assignments: string[];
   title: string;
   alt_text: string;
@@ -24,18 +24,18 @@ type Asset = {
   previewUrl: string | null;
 };
 
-export function ChalkboardCard({ asset, updateAction, deleteAction }: { asset: Asset; updateAction: Action; deleteAction: Action }) {
+export function WhiteboardCard({ asset, updateAction, deleteAction }: { asset: Asset; updateAction: Action; deleteAction: Action }) {
   const router = useRouter();
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const deleteRef = useRef<HTMLDetailsElement>(null);
   const [language, setLanguage] = useState(asset.language);
-  const [chalkboardDate, setChalkboardDate] = useState(asset.chalkboardDate);
+  const [whiteboardDate, setWhiteboardDate] = useState(asset.whiteboardDate);
   const [title, setTitle] = useState(asset.title);
   const [altText, setAltText] = useState(asset.alt_text);
   const [caption, setCaption] = useState(asset.caption ?? "");
   const [includeInPrint, setIncludeInPrint] = useState(asset.include_in_print);
   const [allowDownload, setAllowDownload] = useState(asset.allow_download);
-  const [updateState, updateFormAction, updatePending] = useActionState(async (previousState: ChalkboardActionState, formData: FormData) => {
+  const [updateState, updateFormAction, updatePending] = useActionState(async (previousState: WhiteboardActionState, formData: FormData) => {
     const result = await updateAction(previousState, formData);
     if (result.saved) {
       if (detailsRef.current) detailsRef.current.open = false;
@@ -43,11 +43,11 @@ export function ChalkboardCard({ asset, updateAction, deleteAction }: { asset: A
     }
     return result;
   }, {});
-  const [deleteState, deleteFormAction, deletePending] = useActionState(async (previousState: ChalkboardActionState, formData: FormData) => {
+  const [deleteState, deleteFormAction, deletePending] = useActionState(async (previousState: WhiteboardActionState, formData: FormData) => {
     const result = await deleteAction(previousState, formData);
     if (result.deleted) {
       if (deleteRef.current) deleteRef.current.open = false;
-      router.push("/admin/chalkboards");
+      router.push("/admin/whiteboards");
     }
     return result;
   }, {});
@@ -81,10 +81,10 @@ export function ChalkboardCard({ asset, updateAction, deleteAction }: { asset: A
           <details ref={detailsRef} className="mt-5">
             <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit details</summary>
             <form action={updateFormAction} className="mt-4 space-y-4">
-              <input type="hidden" name="chalkboardId" value={asset.id} />
+              <input type="hidden" name="whiteboardId" value={asset.id} />
               <label className="block text-sm font-bold text-[#385245]">Language<select name="language" value={language} onChange={(event) => setLanguage(event.target.value === "es" ? "es" : "en")} className="admin-input"><option value="en">English</option><option value="es">Español (El Salvador)</option></select></label>
-              <label className="block text-sm font-bold text-[#385245]">Chalkboard date<input name="chalkboardDate" type="date" value={chalkboardDate} onChange={(event) => setChalkboardDate(event.target.value)} required className="admin-input" /></label>
-              <label className="block text-sm font-bold text-[#385245]">Chalkboard title<input name="title" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={160} className="admin-input" /></label>
+              <label className="block text-sm font-bold text-[#385245]">Whiteboard date<input name="whiteboardDate" type="date" value={whiteboardDate} onChange={(event) => setWhiteboardDate(event.target.value)} required className="admin-input" /></label>
+              <label className="block text-sm font-bold text-[#385245]">Whiteboard title<input name="title" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={160} className="admin-input" /></label>
               <label className="block text-sm font-bold text-[#385245]">Alternative text<input name="altText" value={altText} onChange={(event) => setAltText(event.target.value)} required maxLength={500} className="admin-input" /></label>
               <label className="block text-sm font-bold text-[#385245]">Caption <span className="font-normal text-[#607066]">(optional)</span><textarea name="caption" value={caption} onChange={(event) => setCaption(event.target.value)} maxLength={500} rows={2} className="admin-input resize-y py-3" /></label>
               <div className="grid gap-3">
@@ -97,13 +97,13 @@ export function ChalkboardCard({ asset, updateAction, deleteAction }: { asset: A
             </form>
           </details>
           <details ref={deleteRef} className="mt-5 rounded-xl border border-[#a2472c]/20 bg-[#fff3ed] p-4">
-            <summary className="cursor-pointer text-sm font-extrabold text-[#a2472c]">Permanently delete chalkboard</summary>
+            <summary className="cursor-pointer text-sm font-extrabold text-[#a2472c]">Permanently delete whiteboard</summary>
             <form action={deleteFormAction} className="mt-4 space-y-3">
               <p className="text-sm leading-6 text-[#754033]">This removes the library record and all stored website/download files. Any teaching association will be cleared first.</p>
               <label className="block text-sm font-bold text-[#5d2b1f]">Type DELETE to confirm<input name="confirmation" className="admin-input" /></label>
               {deleteState.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{deleteState.error}</p> : null}
-              {deleteState.deleted ? <p role="status" className="text-sm font-bold text-[#326048]">Chalkboard deleted.</p> : null}
-              <button type="submit" disabled={deletePending} className="min-h-11 rounded-xl bg-[#a2472c] px-5 font-extrabold text-white transition hover:bg-[#8f3823] disabled:cursor-not-allowed disabled:opacity-60"><span className="!text-white">{deletePending ? "Deleting..." : "Delete chalkboard"}</span></button>
+              {deleteState.deleted ? <p role="status" className="text-sm font-bold text-[#326048]">Whiteboard deleted.</p> : null}
+              <button type="submit" disabled={deletePending} className="min-h-11 rounded-xl bg-[#a2472c] px-5 font-extrabold text-white transition hover:bg-[#8f3823] disabled:cursor-not-allowed disabled:opacity-60"><span className="!text-white">{deletePending ? "Deleting..." : "Delete whiteboard"}</span></button>
             </form>
           </details>
         </div>

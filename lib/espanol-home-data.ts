@@ -17,21 +17,21 @@ export type EspanolTeaching = FeaturedTeachingCandidate & {
 export type EspanolGathering = { id: string; slug: string; title: string; gathering_date: string | null; devotionalSlug: string | null };
 export type EspanolDeepDive = { id: string; slug: string; title: string; gathering_date: string | null; summary: string | null; central_theme: string | null };
 export type EspanolDevotional = { id: string; slug: string; title: string; introduction: string | null };
-export type EspanolChalkboard = { url: string; altText: string; caption: string | null };
+export type EspanolWhiteboard = { url: string; altText: string; caption: string | null };
 
 export type EspanolHomepageData = {
   featured: (EspanolTeaching & { devotionalSlug: string | null }) | null;
   teasers: { id: string; heading: string; text: string }[];
-  chalkboard: EspanolChalkboard | null;
+  whiteboard: EspanolWhiteboard | null;
   gatherings: EspanolGathering[];
   deepDives: EspanolDeepDive[];
   devotionals: EspanolDevotional[];
 };
 
 const FEATURED_COLUMNS = "id, slug, title, gathering_date, is_featured, status, central_theme, introduction, summary, teaser_1_heading, teaser_1_text, teaser_2_heading, teaser_2_text, chalkboard_asset_id";
-const CHALKBOARD_SIGNED_URL_TTL_SECONDS = 60 * 60;
+const WHITEBOARD_SIGNED_URL_TTL_SECONDS = 60 * 60;
 
-async function getSignedChalkboard(assetId: string | null): Promise<EspanolChalkboard | null> {
+async function getSignedWhiteboard(assetId: string | null): Promise<EspanolWhiteboard | null> {
   if (!assetId) return null;
   const signer = createServiceRoleClient();
   if (!signer) return null;
@@ -45,7 +45,7 @@ async function getSignedChalkboard(assetId: string | null): Promise<EspanolChalk
   if (error || !asset) return null;
 
   for (const path of [asset.website_storage_path, asset.storage_path].filter((value): value is string => Boolean(value))) {
-    const { data, error: signError } = await signer.storage.from("chalkboards").createSignedUrl(path, CHALKBOARD_SIGNED_URL_TTL_SECONDS);
+    const { data, error: signError } = await signer.storage.from("chalkboards").createSignedUrl(path, WHITEBOARD_SIGNED_URL_TTL_SECONDS);
     if (!signError && data?.signedUrl) return { url: data.signedUrl, altText: asset.alt_text, caption: asset.caption };
   }
   return null;
@@ -70,7 +70,7 @@ async function getPublishedDevotionalSlugsByTeachingId(teachingIds: string[]) {
   return slugs;
 }
 
-/** Everything the Español homepage shows: only teachings, devotionals and chalkboards that are in Español. */
+/** Everything the Español homepage shows: only teachings, devotionals and whiteboards that are in Español. */
 export async function getEspanolHomepageData(): Promise<EspanolHomepageData> {
   const supabase = await createClient();
 
@@ -100,7 +100,7 @@ export async function getEspanolHomepageData(): Promise<EspanolHomepageData> {
   const featured = (picked ? teachings.find((teaching) => teaching.id === picked.id) : null) ?? teachings[0] ?? null;
   const devotionalSlugs = await getPublishedDevotionalSlugsByTeachingId(teachings.map((teaching) => teaching.id));
 
-  let chalkboardId: string | null = featured?.chalkboard_asset_id ?? null;
+  let whiteboardId: string | null = featured?.chalkboard_asset_id ?? null;
   if (featured) {
     const { data: assignments } = await supabase
       .from("teaching_chalkboard_assignments")
@@ -108,7 +108,7 @@ export async function getEspanolHomepageData(): Promise<EspanolHomepageData> {
       .eq("teaching_id", featured.id)
       .order("display_order", { ascending: true })
       .limit(1);
-    chalkboardId = assignments?.[0]?.chalkboard_asset_id ?? chalkboardId;
+    whiteboardId = assignments?.[0]?.chalkboard_asset_id ?? whiteboardId;
   }
 
   return {
@@ -119,7 +119,7 @@ export async function getEspanolHomepageData(): Promise<EspanolHomepageData> {
           { id: "teaser-2", heading: featured.teaser_2_heading?.trim() ?? "", text: featured.teaser_2_text?.trim() ?? "" },
         ].filter((teaser) => teaser.heading && teaser.text)
       : [],
-    chalkboard: await getSignedChalkboard(chalkboardId),
+    whiteboard: await getSignedWhiteboard(whiteboardId),
     gatherings: teachings.map((teaching) => ({
       id: teaching.id,
       slug: teaching.slug,

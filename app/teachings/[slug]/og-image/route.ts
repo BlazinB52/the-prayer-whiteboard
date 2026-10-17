@@ -10,7 +10,7 @@ function createPublicClient() {
   return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
 }
 
-// A permanent URL for a published teaching's first chalkboard, for og:image.
+// A permanent URL for a published teaching's first whiteboard, for og:image.
 // The storage bucket is private and signed URLs expire, which would break link
 // previews that are cached for days, so the bytes are proxied from here instead.
 export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {

@@ -17,7 +17,7 @@ export function truncateDescription(value: string | null | undefined, limit = DE
   return `${(lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut).replace(/[\s,;:.\-–—]+$/, "")}…`;
 }
 
-// Stable, non-expiring chalkboard image for a teaching (served by
+// Stable, non-expiring whiteboard image for a teaching (served by
 // app/teachings/[slug]/og-image/route.ts); signed storage URLs expire.
 export function teachingOgImagePath(slug: string) {
   return `/teachings/${encodeURIComponent(slug)}/og-image`;

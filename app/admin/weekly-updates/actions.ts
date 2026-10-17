@@ -92,14 +92,14 @@ function readLanguage(formData: FormData): WeeklyUpdateLanguage {
   return formData.get("language") === "es" ? "es" : "en";
 }
 
-async function readChalkboardAssetIds(
+async function readWhiteboardAssetIds(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
   formData: FormData,
   language: WeeklyUpdateLanguage,
 ) {
-  const values = Array.from(new Set(formData.getAll("chalkboardAssetIds").map((value) => String(value).trim()).filter(Boolean)));
+  const values = Array.from(new Set(formData.getAll("whiteboardAssetIds").map((value) => String(value).trim()).filter(Boolean)));
   if (!values.length) return { value: [] as string[] };
-  if (values.some((value) => !UUID_PATTERN.test(value))) return { error: "Choose valid Weekly Update chalkboards." };
+  if (values.some((value) => !UUID_PATTERN.test(value))) return { error: "Choose valid Weekly Update whiteboards." };
 
   const { data, error } = await supabase
     .from("chalkboard_assets")
@@ -108,29 +108,29 @@ async function readChalkboardAssetIds(
     .eq("status", "active")
     .eq("is_current_version", true);
 
-  if (error) return { error: `Weekly Update chalkboard could not be verified: ${error.message}` };
-  if ((data ?? []).length !== values.length) return { error: "Choose active current chalkboards from the library." };
+  if (error) return { error: `Weekly Update whiteboard could not be verified: ${error.message}` };
+  if ((data ?? []).length !== values.length) return { error: "Choose active current whiteboards from the library." };
   if ((data ?? []).some((asset) => asset.language !== language)) {
-    return { error: language === "es" ? "Choose only Español (El Salvador) chalkboards for an Español weekly update." : "Choose only English chalkboards for an English weekly update." };
+    return { error: language === "es" ? "Choose only Español (El Salvador) whiteboards for an Español weekly update." : "Choose only English whiteboards for an English weekly update." };
   }
-  if ((data ?? []).some((asset) => !asset.website_storage_path && !asset.storage_path)) return { error: "Choose chalkboards with usable image files." };
+  if ((data ?? []).some((asset) => !asset.website_storage_path && !asset.storage_path)) return { error: "Choose whiteboards with usable image files." };
   return { value: values };
 }
 
-async function replaceWeeklyUpdateChalkboards(
+async function replaceWeeklyUpdateWhiteboards(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
   weeklyUpdateId: string,
-  chalkboardAssetIds: string[],
+  whiteboardAssetIds: string[],
 ) {
   const { error: deleteError } = await supabase.from("weekly_update_chalkboard_assignments").delete().eq("weekly_update_id", weeklyUpdateId);
-  if (deleteError) return { error: "This Weekly Update's chalkboard assignments could not be updated." };
-  if (!chalkboardAssetIds.length) return {};
-  const { error: insertError } = await supabase.from("weekly_update_chalkboard_assignments").insert(chalkboardAssetIds.map((chalkboardAssetId, index) => ({
+  if (deleteError) return { error: "This Weekly Update's whiteboard assignments could not be updated." };
+  if (!whiteboardAssetIds.length) return {};
+  const { error: insertError } = await supabase.from("weekly_update_chalkboard_assignments").insert(whiteboardAssetIds.map((whiteboardAssetId, index) => ({
     weekly_update_id: weeklyUpdateId,
-    chalkboard_asset_id: chalkboardAssetId,
+    chalkboard_asset_id: whiteboardAssetId,
     display_order: index + 1,
   })));
-  if (insertError) return { error: "This Weekly Update's chalkboard assignments could not be saved." };
+  if (insertError) return { error: "This Weekly Update's whiteboard assignments could not be saved." };
   return {};
 }
 
@@ -204,8 +204,8 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
   if (!title.value) return { error: "Please check the weekly update details and try again." };
   // The language is chosen once, here, and never changes: it decides who the email goes to.
   const language = readLanguage(formData);
-  const chalkboard = await readChalkboardAssetIds(supabase, formData, language);
-  if (chalkboard.error) return { error: chalkboard.error };
+  const whiteboard = await readWhiteboardAssetIds(supabase, formData, language);
+  if (whiteboard.error) return { error: whiteboard.error };
   const footer = await readFooterAssignment(supabase, formData, language);
   if (footer.error) return { error: footer.error };
   const teaching = validateOptionalOutlineId(formData.get("teachingId"));
@@ -257,7 +257,7 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
       conversion_report: docx.value.converted.report,
       source_document_storage_path: stored.path,
       source_document_file_name: docx.value.fileName,
-      chalkboard_asset_id: chalkboard.value?.[0] ?? null,
+      chalkboard_asset_id: whiteboard.value?.[0] ?? null,
       teaching_id: teaching.value,
       gathering_date: gathering.value,
       translation_of: translationOf,
@@ -271,8 +271,8 @@ export async function createWeeklyUpdate(_: FormState, formData: FormData): Prom
     await supabase.storage.from(SOURCE_BUCKET).remove([stored.path]);
     return { error: "The weekly update could not be created." };
   }
-  const chalkboardResult = await replaceWeeklyUpdateChalkboards(supabase, data.id, chalkboard.value ?? []);
-  if (chalkboardResult.error) return { error: chalkboardResult.error };
+  const whiteboardResult = await replaceWeeklyUpdateWhiteboards(supabase, data.id, whiteboard.value ?? []);
+  if (whiteboardResult.error) return { error: whiteboardResult.error };
   const footerResult = await replaceWeeklyUpdateFooter(supabase, data.id, footer.value ?? null);
   if (footerResult.error) return { error: footerResult.error };
 
@@ -291,8 +291,8 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
   const { data: existing } = await supabase.from("weekly_updates").select("language, status").eq("id", id.value).maybeSingle();
   if (!existing) return { error: "The weekly update could not be found." };
   const language: WeeklyUpdateLanguage = existing.language === "es" ? "es" : "en";
-  const chalkboard = await readChalkboardAssetIds(supabase, formData, language);
-  if (chalkboard.error) return { error: chalkboard.error };
+  const whiteboard = await readWhiteboardAssetIds(supabase, formData, language);
+  if (whiteboard.error) return { error: whiteboard.error };
   const footer = await readFooterAssignment(supabase, formData, language);
   if (footer.error) return { error: footer.error };
   const teaching = validateOptionalOutlineId(formData.get("teachingId"));
@@ -305,7 +305,7 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
   // An archived update is a record of what went out: its details can be put right, but its text is not replaced.
   if (existing.status === "archived" && docx.value) return { error: "An archived weekly update's document cannot be replaced. Its title, date, teaching, whiteboards and footer can be corrected." };
 
-  const update: Record<string, unknown> = { title: title.value, chalkboard_asset_id: chalkboard.value?.[0] ?? null, teaching_id: teaching.value };
+  const update: Record<string, unknown> = { title: title.value, chalkboard_asset_id: whiteboard.value?.[0] ?? null, teaching_id: teaching.value };
   // An existing letter with no date can be saved without one; a date that is entered is kept.
   if (gathering.value) update.gathering_date = gathering.value;
   let storedPath: string | null = null;
@@ -336,8 +336,8 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
   // A new document means what the Content Managers already proofed is out of date: everyone who was sent
   // the draft gets a fresh pass. This does nothing if the draft was never sent for proofing.
   if (docx.value) await supabase.rpc("restart_weekly_update_proofing", { p_weekly_update_id: id.value });
-  const chalkboardResult = await replaceWeeklyUpdateChalkboards(supabase, id.value, chalkboard.value ?? []);
-  if (chalkboardResult.error) return { error: chalkboardResult.error };
+  const whiteboardResult = await replaceWeeklyUpdateWhiteboards(supabase, id.value, whiteboard.value ?? []);
+  if (whiteboardResult.error) return { error: whiteboardResult.error };
   const footerResult = await replaceWeeklyUpdateFooter(supabase, id.value, footer.value ?? null);
   if (footerResult.error) return { error: footerResult.error };
 

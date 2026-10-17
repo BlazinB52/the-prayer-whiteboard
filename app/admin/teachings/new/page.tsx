@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function NewTeachingPage() {
   const { supabase } = await requireAdmin();
-  const [{ data: chalkboards }, { data: footers }] = await Promise.all([
+  const [{ data: whiteboards }, { data: footers }] = await Promise.all([
     supabase
       .from("chalkboard_assets")
       .select("id, title, canonical_name, language, chalkboard_date")
@@ -21,10 +21,10 @@ export default async function NewTeachingPage() {
       .order("canonical_name", { ascending: true }),
     supabase.from("content_footers").select("id, internal_title, language").eq("status", "active").order("internal_title", { ascending: true }),
   ]);
-  const chalkboardOptions = (chalkboards ?? []).map((chalkboard) => ({
-    id: chalkboard.id,
-    label: chalkboard.canonical_name ?? chalkboard.title,
-    language: (chalkboard.language === "es" ? "es" : "en") as "en" | "es",
+  const whiteboardOptions = (whiteboards ?? []).map((whiteboard) => ({
+    id: whiteboard.id,
+    label: whiteboard.canonical_name ?? whiteboard.title,
+    language: (whiteboard.language === "es" ? "es" : "en") as "en" | "es",
   }));
   const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title, language: (footer.language === "es" ? "es" : "en") as "en" | "es" }));
 
@@ -34,7 +34,7 @@ export default async function NewTeachingPage() {
         <Link href="/admin/teachings" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Teachings</Link>
         <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-[#243d31]">New Teaching</h1>
         <p className="mt-3 text-sm text-[#607066]">Start with private draft metadata. Publishing and content structure will come later.</p>
-        <TeachingForm action={createTeaching} values={{ title: "", teachingType: "standard", language: "en", gatheringDate: "", centralTheme: "", introduction: "", summary: "", teaser1Heading: "", teaser1Text: "", teaser2Heading: "", teaser2Text: "", chalkboardAssetIds: [], includeFooter: false, footerId: "" }} chalkboards={chalkboardOptions} footers={footerOptions} />
+        <TeachingForm action={createTeaching} values={{ title: "", teachingType: "standard", language: "en", gatheringDate: "", centralTheme: "", introduction: "", summary: "", teaser1Heading: "", teaser1Text: "", teaser2Heading: "", teaser2Text: "", whiteboardAssetIds: [], includeFooter: false, footerId: "" }} whiteboards={whiteboardOptions} footers={footerOptions} />
       </div>
     </main>
   );

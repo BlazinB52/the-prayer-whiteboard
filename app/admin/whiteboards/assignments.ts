@@ -2,8 +2,8 @@ import type { requireAdmin } from "@/lib/supabase/admin";
 
 type Supabase = Awaited<ReturnType<typeof requireAdmin>>["supabase"];
 
-/** Maps chalkboard asset id to readable assignment labels (teachings and weekly updates). */
-export async function loadChalkboardAssignments(supabase: Supabase) {
+/** Maps whiteboard asset id to readable assignment labels (teachings and weekly updates). */
+export async function loadWhiteboardAssignments(supabase: Supabase) {
   const [{ data: teachings }, { data: teachingAssignments }, { data: weeklyUpdateAssignments }] = await Promise.all([
     supabase.from("teachings").select("id, title, chalkboard_asset_id").in("status", ["draft", "published"]).order("gathering_date", { ascending: false }),
     supabase.from("teaching_chalkboard_assignments").select("chalkboard_asset_id, teachings(title, status)"),

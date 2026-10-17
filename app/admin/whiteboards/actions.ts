@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { Metadata, Sharp } from "sharp";
-import { chalkboardStoragePaths, extensionForChalkboardFile, parseIncomingChalkboardPath, validChalkboardAssetGroupId } from "@/lib/chalkboard-upload-paths";
+import { whiteboardStoragePaths, extensionForWhiteboardFile, parseIncomingWhiteboardPath, validWhiteboardAssetGroupId } from "@/lib/whiteboard-upload-paths";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 const BUCKET = "chalkboards";
@@ -15,15 +15,15 @@ const DOWNLOAD_WIDTH = 2160;
 const DOWNLOAD_HEIGHT = 2880;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-export type ChalkboardActionState = { error?: string; saved?: boolean; deleted?: boolean; path?: string; token?: string; assetGroupId?: string };
-type UploadActionState = ChalkboardActionState & { canonicalName?: string };
+export type WhiteboardActionState = { error?: string; saved?: boolean; deleted?: boolean; path?: string; token?: string; assetGroupId?: string };
+type UploadActionState = WhiteboardActionState & { canonicalName?: string };
 
 type FinalizeInput = {
   assetGroupId: string;
   incomingPath: string;
   language: "en" | "es";
-  chalkboardDate: string;
-  chalkboardTitle: string;
+  whiteboardDate: string;
+  whiteboardTitle: string;
   altText: string;
   caption: string;
   includeInPrint: boolean;
@@ -31,7 +31,7 @@ type FinalizeInput = {
 };
 
 function validId(value: string) {
-  return validChalkboardAssetGroupId(value);
+  return validWhiteboardAssetGroupId(value);
 }
 
 function cleanText(value: string, maxLength: number) {
@@ -58,12 +58,12 @@ function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 80)
-    .replace(/-+$/, "") || "chalkboard";
+    .replace(/-+$/, "") || "whiteboard";
 }
 
-function buildNames(chalkboardDate: string, chalkboardTitle: string) {
-  const date = readDate(chalkboardDate);
-  const title = cleanText(chalkboardTitle, 160);
+function buildNames(whiteboardDate: string, whiteboardTitle: string) {
+  const date = readDate(whiteboardDate);
+  const title = cleanText(whiteboardTitle, 160);
   if (!date || !title) return null;
   const dateKey = compactDate(date);
   return {
@@ -85,43 +85,43 @@ async function removeObjects(supabase: Awaited<ReturnType<typeof requireAdmin>>[
   if (existing.length) await supabase.storage.from(BUCKET).remove(existing);
 }
 
-export async function createChalkboardUploadTarget(chalkboardDate: string, chalkboardTitle: string, fileName: string): Promise<UploadActionState> {
-  const names = buildNames(chalkboardDate, chalkboardTitle);
-  if (!names) return { error: "Enter a valid chalkboard date and title." };
-  const extension = extensionForChalkboardFile(fileName);
+export async function createWhiteboardUploadTarget(whiteboardDate: string, whiteboardTitle: string, fileName: string): Promise<UploadActionState> {
+  const names = buildNames(whiteboardDate, whiteboardTitle);
+  if (!names) return { error: "Enter a valid whiteboard date and title." };
+  const extension = extensionForWhiteboardFile(fileName);
   if (!extension) return { error: "Choose a JPEG, PNG, or WebP image." };
 
   const { supabase } = await requireAdmin();
   const assetGroupId = crypto.randomUUID();
-  const path = `${chalkboardStoragePaths(names.storageSlug, assetGroupId).incoming}.${extension}`;
+  const path = `${whiteboardStoragePaths(names.storageSlug, assetGroupId).incoming}.${extension}`;
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUploadUrl(path);
   if (error || !data) return { error: "The secure upload destination could not be created." };
   return { path, token: data.token, assetGroupId, canonicalName: names.canonicalName };
 }
 
-export async function cleanupChalkboardUpload(assetGroupId: string, incomingPath: string) {
+export async function cleanupWhiteboardUpload(assetGroupId: string, incomingPath: string) {
   if (!validId(assetGroupId)) return;
-  const parsedPath = parseIncomingChalkboardPath(incomingPath);
+  const parsedPath = parseIncomingWhiteboardPath(incomingPath);
   if (!parsedPath || parsedPath.assetGroupId.toLowerCase() !== assetGroupId.toLowerCase()) return;
   const { supabase } = await requireAdmin();
   await removeObjects(supabase, [incomingPath]);
 }
 
-export async function finalizeChalkboardUpload(input: FinalizeInput): Promise<UploadActionState> {
-  const names = buildNames(input.chalkboardDate, input.chalkboardTitle);
+export async function finalizeWhiteboardUpload(input: FinalizeInput): Promise<UploadActionState> {
+  const names = buildNames(input.whiteboardDate, input.whiteboardTitle);
   const altText = cleanText(input.altText, 500);
   const caption = input.caption.trim();
-  if (!names || !validId(input.assetGroupId)) return { error: "The chalkboard date, title, or asset identifier is invalid." };
+  if (!names || !validId(input.assetGroupId)) return { error: "The whiteboard date, title, or asset identifier is invalid." };
   if (!altText) return { error: "Alternative text is required and must be 500 characters or fewer." };
   if (caption.length > 500) return { error: "Caption must be 500 characters or fewer." };
 
-  const parsedPath = parseIncomingChalkboardPath(input.incomingPath);
+  const parsedPath = parseIncomingWhiteboardPath(input.incomingPath);
   if (!parsedPath || parsedPath.storageSlug !== names.storageSlug || parsedPath.assetGroupId.toLowerCase() !== input.assetGroupId.toLowerCase()) {
     return { error: "The secure upload path is invalid." };
   }
 
   const { supabase } = await requireAdmin();
-  const paths = chalkboardStoragePaths(names.storageSlug, input.assetGroupId);
+  const paths = whiteboardStoragePaths(names.storageSlug, input.assetGroupId);
   const { data: source, error: downloadError } = await supabase.storage.from(BUCKET).download(input.incomingPath);
   if (downloadError || !source) return { error: "The uploaded image could not be read from private storage." };
   const sourceBuffer = Buffer.from(await source.arrayBuffer());
@@ -186,35 +186,35 @@ export async function finalizeChalkboardUpload(input: FinalizeInput): Promise<Up
     if (insertError) throw new Error("metadata");
   } catch (error) {
     await removeObjects(supabase, [input.incomingPath, paths.website, paths.download]);
-    return { error: error instanceof Error && error.message === "duplicate" ? "This chalkboard upload already exists." : "The chalkboard could not be finalized. No metadata record was saved." };
+    return { error: error instanceof Error && error.message === "duplicate" ? "This whiteboard upload already exists." : "The whiteboard could not be finalized. No metadata record was saved." };
   }
 
   await removeObjects(supabase, [input.incomingPath]);
-  revalidatePath("/admin/chalkboards");
+  revalidatePath("/admin/whiteboards");
   return { saved: true };
 }
 
-export async function getChalkboardPreviewUrl(path: string) {
+export async function getWhiteboardPreviewUrl(path: string) {
   const { supabase } = await requireAdmin();
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 300);
   return error ? null : data.signedUrl;
 }
 
-export async function updateChalkboardDetails(_: ChalkboardActionState, formData: FormData): Promise<ChalkboardActionState> {
-  const assetId = String(formData.get("chalkboardId") ?? "").trim();
-  if (!validId(assetId)) return { error: "This chalkboard could not be found." };
-  const names = buildNames(String(formData.get("chalkboardDate") ?? ""), String(formData.get("title") ?? ""));
+export async function updateWhiteboardDetails(_: WhiteboardActionState, formData: FormData): Promise<WhiteboardActionState> {
+  const assetId = String(formData.get("whiteboardId") ?? "").trim();
+  if (!validId(assetId)) return { error: "This whiteboard could not be found." };
+  const names = buildNames(String(formData.get("whiteboardDate") ?? ""), String(formData.get("title") ?? ""));
   const altText = cleanText(String(formData.get("altText") ?? ""), 500);
   const caption = String(formData.get("caption") ?? "").trim();
-  if (!names) return { error: "Enter a valid chalkboard date and title." };
+  if (!names) return { error: "Enter a valid whiteboard date and title." };
   if (!altText) return { error: "Alternative text is required and must be 500 characters or fewer." };
   if (caption.length > 500) return { error: "Caption must be 500 characters or fewer." };
 
   const { supabase } = await requireAdmin();
   const { data: asset } = await supabase.from("chalkboard_assets").select("id, download_storage_path").eq("id", assetId).eq("status", "active").maybeSingle();
-  if (!asset) return { error: "This chalkboard could not be found." };
+  if (!asset) return { error: "This whiteboard could not be found." };
   const allowDownload = formData.get("allowDownload") === "on" || formData.get("allowDownload") === "true";
-  if (allowDownload && !asset.download_storage_path) return { error: "Public download cannot be enabled because this chalkboard has no download file." };
+  if (allowDownload && !asset.download_storage_path) return { error: "Public download cannot be enabled because this whiteboard has no download file." };
 
   const { data, error } = await supabase.from("chalkboard_assets").update({
     title: names.title,
@@ -226,18 +226,18 @@ export async function updateChalkboardDetails(_: ChalkboardActionState, formData
     include_in_print: formData.get("includeInPrint") === "on" || formData.get("includeInPrint") === "true",
     allow_download: allowDownload,
   }).eq("id", assetId).select("id").maybeSingle();
-  if (error || !data) return { error: "The chalkboard details could not be saved." };
-  revalidatePath("/admin/chalkboards");
-  revalidatePath(`/admin/chalkboards/${assetId}`);
+  if (error || !data) return { error: "The whiteboard details could not be saved." };
+  revalidatePath("/admin/whiteboards");
+  revalidatePath(`/admin/whiteboards/${assetId}`);
   revalidatePath("/admin/teachings");
   revalidatePath("/");
   return { saved: true };
 }
 
-export async function deleteChalkboard(assetId: string, _: ChalkboardActionState, formData: FormData): Promise<ChalkboardActionState> {
-  if (!validId(assetId)) return { error: "This chalkboard could not be found." };
+export async function deleteWhiteboard(assetId: string, _: WhiteboardActionState, formData: FormData): Promise<WhiteboardActionState> {
+  if (!validId(assetId)) return { error: "This whiteboard could not be found." };
   if (String(formData.get("confirmation") ?? "").trim() !== "DELETE") {
-    return { error: "Type DELETE to permanently delete this chalkboard." };
+    return { error: "Type DELETE to permanently delete this whiteboard." };
   }
 
   const { supabase } = await requireAdmin();
@@ -246,7 +246,7 @@ export async function deleteChalkboard(assetId: string, _: ChalkboardActionState
     .select("id, storage_path, website_storage_path, download_storage_path, tv_storage_path")
     .eq("id", assetId)
     .maybeSingle();
-  if (!asset) return { error: "This chalkboard could not be found." };
+  if (!asset) return { error: "This whiteboard could not be found." };
 
   const [{ count: teachingCount }, { count: weeklyUpdateCount }, { count: legacyTeachingCount }] = await Promise.all([
     supabase.from("teaching_chalkboard_assignments").select("teaching_id", { count: "exact", head: true }).eq("chalkboard_asset_id", assetId),
@@ -254,18 +254,18 @@ export async function deleteChalkboard(assetId: string, _: ChalkboardActionState
     supabase.from("teachings").select("id", { count: "exact", head: true }).eq("chalkboard_asset_id", assetId),
   ]);
   if ((teachingCount ?? 0) + (weeklyUpdateCount ?? 0) + (legacyTeachingCount ?? 0) > 0) {
-    return { error: "This chalkboard is assigned. Remove its assignments before deleting it." };
+    return { error: "This whiteboard is assigned. Remove its assignments before deleting it." };
   }
 
   const paths = [asset.storage_path, asset.website_storage_path, asset.download_storage_path, asset.tv_storage_path].filter((path): path is string => Boolean(path));
 
   const { error: storageError } = await supabase.storage.from(BUCKET).remove(paths);
-  if (storageError) return { error: "This chalkboard was not deleted because one or more files could not be removed." };
+  if (storageError) return { error: "This whiteboard was not deleted because one or more files could not be removed." };
 
   const { data: deleted, error: deleteError } = await supabase.from("chalkboard_assets").delete().eq("id", assetId).select("id").maybeSingle();
-  if (deleteError || !deleted) return { error: "The chalkboard files were removed, but the metadata record could not be deleted. Please contact an administrator before retrying." };
+  if (deleteError || !deleted) return { error: "The whiteboard files were removed, but the metadata record could not be deleted. Please contact an administrator before retrying." };
 
-  revalidatePath("/admin/chalkboards");
+  revalidatePath("/admin/whiteboards");
   revalidatePath("/admin/teachings");
   revalidatePath("/");
   return { deleted: true };

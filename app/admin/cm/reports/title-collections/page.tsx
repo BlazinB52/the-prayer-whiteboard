@@ -140,7 +140,7 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
   const pieces: Record<CollectionPiece, PieceInput[]> = {
     whiteboard: ((whiteboardsResult.data as { id: string; title: string | null; canonical_name: string | null; language: string | null; teaching_id: string | null }[] | null) ?? []).map((row) => {
       const teachingIds = [...(teachingIdsByBoard.get(row.id) ?? []), ...link(row.teaching_id)];
-      return { id: row.id, title: row.canonical_name ?? row.title ?? "Whiteboard", language: language(row.language), teachingIds, state: "exists" as const, href: `/admin/chalkboards/${row.id}` };
+      return { id: row.id, title: row.canonical_name ?? row.title ?? "Whiteboard", language: language(row.language), teachingIds, state: "exists" as const, href: `/admin/whiteboards/${row.id}` };
     }),
     // A weekly update is written before its teaching exists, so when it has no teaching of its own it belongs to the
     // English teaching of its gathering date.

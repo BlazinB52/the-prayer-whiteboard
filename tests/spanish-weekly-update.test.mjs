@@ -92,7 +92,7 @@ test("the Español page reads only the Español view and the English page only t
   assert.match(es, /lang="es"/);
 });
 
-test("the admin forces chalkboards and footers to match the update's language", async () => {
+test("the admin forces whiteboards and footers to match the update's language", async () => {
   const actions = await readFile("app/admin/weekly-updates/actions.ts", "utf8");
   assert.match(actions, /readLanguage/);
   assert.match(actions, /language/);

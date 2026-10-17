@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChalkboardForm } from "./chalkboard-form";
-import { getChalkboardPreviewUrl } from "./actions";
-import { loadChalkboardAssignments } from "./assignments";
+import { WhiteboardForm } from "./whiteboard-form";
+import { getWhiteboardPreviewUrl } from "./actions";
+import { loadWhiteboardAssignments } from "./assignments";
 import { requireAdmin } from "@/lib/supabase/admin";
 
 export const metadata: Metadata = {
-  title: "Chalkboard Library",
+  title: "Whiteboard Library",
   robots: { index: false, follow: false },
 };
 
-type ChalkboardRow = {
+type WhiteboardRow = {
   id: string;
   name: string;
   date: string | null;
@@ -24,7 +24,7 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value.slice(0, 10)}T00:00:00Z`));
 }
 
-function ChalkboardGroup({ heading, id, rows, emptyText }: { heading: string; id: string; rows: ChalkboardRow[]; emptyText: string }) {
+function WhiteboardGroup({ heading, id, rows, emptyText }: { heading: string; id: string; rows: WhiteboardRow[]; emptyText: string }) {
   return (
     <section aria-labelledby={id} className="mt-8">
       <h3 id={id} className="border-b border-[#284a3b]/10 pb-3 text-xl font-extrabold text-[#243d31]">
@@ -34,7 +34,7 @@ function ChalkboardGroup({ heading, id, rows, emptyText }: { heading: string; id
         <ul className="divide-y divide-[#284a3b]/10">
           {rows.map((row) => (
             <li key={row.id}>
-              <Link href={`/admin/chalkboards/${row.id}`} className="flex min-h-14 items-center gap-3 px-2 py-2 transition hover:bg-[#e7efe9]/60">
+              <Link href={`/admin/whiteboards/${row.id}`} className="flex min-h-14 items-center gap-3 px-2 py-2 transition hover:bg-[#e7efe9]/60">
                 <span className="flex h-12 w-9 shrink-0 items-center justify-center overflow-hidden rounded bg-[#eee7da]">
                   {row.previewUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -58,10 +58,10 @@ function ChalkboardGroup({ heading, id, rows, emptyText }: { heading: string; id
   );
 }
 
-export default async function AdminChalkboardsPage() {
+export default async function AdminWhiteboardsPage() {
   const { supabase } = await requireAdmin();
   const [assignmentsByAsset, { data: assets, error }] = await Promise.all([
-    loadChalkboardAssignments(supabase),
+    loadWhiteboardAssignments(supabase),
     supabase
       .from("chalkboard_assets")
       .select("id, title, canonical_name, language, chalkboard_date, website_storage_path, include_in_print")
@@ -79,8 +79,8 @@ export default async function AdminChalkboardsPage() {
       date: asset.chalkboard_date,
       assignmentCount: (assignmentsByAsset.get(asset.id) ?? []).length,
       includeInPrint: asset.include_in_print,
-      previewUrl: asset.website_storage_path ? await getChalkboardPreviewUrl(asset.website_storage_path) : null,
-    } satisfies ChalkboardRow,
+      previewUrl: asset.website_storage_path ? await getWhiteboardPreviewUrl(asset.website_storage_path) : null,
+    } satisfies WhiteboardRow,
   })));
 
   return (
@@ -88,19 +88,19 @@ export default async function AdminChalkboardsPage() {
       <div className="mx-auto max-w-6xl">
         <Link href="/admin" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Dashboard</Link>
         <div className="mt-4 max-w-3xl">
-          <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Chalkboard Library</h1>
-          <p className="mt-3 text-sm text-[#607066]">Upload reusable chalkboards independently, then attach one optional chalkboard to each teaching.</p>
+          <h1 className="text-4xl font-extrabold tracking-tight text-[#243d31]">Whiteboard Library</h1>
+          <p className="mt-3 text-sm text-[#607066]">Upload reusable whiteboards independently, then attach one optional whiteboard to each teaching.</p>
         </div>
-        <section className="py-8"><ChalkboardForm /></section>
+        <section className="py-8"><WhiteboardForm /></section>
         <section className="border-t border-[#284a3b]/10 py-8">
-          <h2 className="text-2xl font-extrabold text-[#243d31]">Existing chalkboards</h2>
-          {error ? <p className="mt-4 text-sm font-bold text-[#a2472c]">Chalkboards could not be loaded.</p> : null}
+          <h2 className="text-2xl font-extrabold text-[#243d31]">Existing whiteboards</h2>
+          {error ? <p className="mt-4 text-sm font-bold text-[#a2472c]">Whiteboards could not be loaded.</p> : null}
           {rows.length ? (
             <>
-              <ChalkboardGroup heading="English" id="chalkboards-en" rows={rows.filter((item) => item.language !== "es").map((item) => item.row)} emptyText="No English chalkboards yet." />
-              <ChalkboardGroup heading="Español (El Salvador)" id="chalkboards-es" rows={rows.filter((item) => item.language === "es").map((item) => item.row)} emptyText="Aún no hay pizarras en español." />
+              <WhiteboardGroup heading="English" id="whiteboards-en" rows={rows.filter((item) => item.language !== "es").map((item) => item.row)} emptyText="No English whiteboards yet." />
+              <WhiteboardGroup heading="Español (El Salvador)" id="whiteboards-es" rows={rows.filter((item) => item.language === "es").map((item) => item.row)} emptyText="Aún no hay pizarras en español." />
             </>
-          ) : <p className="mt-4 text-sm text-[#607066]">No chalkboards have been uploaded yet.</p>}
+          ) : <p className="mt-4 text-sm text-[#607066]">No whiteboards have been uploaded yet.</p>}
         </section>
       </div>
     </main>

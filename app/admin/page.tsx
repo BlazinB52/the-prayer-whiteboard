@@ -22,10 +22,10 @@ const tools = [
     href: "/admin/devotionals",
   },
   {
-    title: "Chalkboards",
+    title: "Whiteboards",
     description: "Manage the visual teaching assets.",
     status: "Available",
-    href: "/admin/chalkboards",
+    href: "/admin/whiteboards",
   },
   {
     title: "Revisions",

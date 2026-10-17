@@ -133,43 +133,43 @@ function validateMetadata(formData: FormData) {
   };
 }
 
-async function validateChalkboardSelection(
+async function validateWhiteboardSelection(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
   formData: FormData,
 ) {
   const language = formData.get("language") === "es" ? "es" : "en";
-  const chalkboardAssetIds = Array.from(new Set(formData.getAll("chalkboardAssetIds").map((value) => String(value).trim()).filter(Boolean)));
-  if (!chalkboardAssetIds.length) return { value: [] as string[] };
-  if (chalkboardAssetIds.some((id) => !UUID_PATTERN.test(id))) return { error: "Choose valid chalkboards." };
+  const whiteboardAssetIds = Array.from(new Set(formData.getAll("whiteboardAssetIds").map((value) => String(value).trim()).filter(Boolean)));
+  if (!whiteboardAssetIds.length) return { value: [] as string[] };
+  if (whiteboardAssetIds.some((id) => !UUID_PATTERN.test(id))) return { error: "Choose valid whiteboards." };
 
-  const { data: chalkboards, error } = await supabase
+  const { data: whiteboards, error } = await supabase
     .from("chalkboard_assets")
     .select("id, language, website_storage_path, storage_path")
-    .in("id", chalkboardAssetIds)
+    .in("id", whiteboardAssetIds)
     .eq("is_current_version", true)
     .eq("status", "active");
-  if (error) return { error: "The selected chalkboards could not be verified." };
-  if ((chalkboards ?? []).length !== chalkboardAssetIds.length) return { error: "Choose available chalkboards from the library." };
-  if ((chalkboards ?? []).some((chalkboard) => chalkboard.language !== language)) return { error: language === "es" ? "Choose only Español (El Salvador) chalkboards for an Español teaching." : "Choose only English chalkboards for an English teaching." };
-  if ((chalkboards ?? []).some((chalkboard) => !chalkboard.website_storage_path && !chalkboard.storage_path)) return { error: "Choose chalkboards with usable image files." };
+  if (error) return { error: "The selected whiteboards could not be verified." };
+  if ((whiteboards ?? []).length !== whiteboardAssetIds.length) return { error: "Choose available whiteboards from the library." };
+  if ((whiteboards ?? []).some((whiteboard) => whiteboard.language !== language)) return { error: language === "es" ? "Choose only Español (El Salvador) whiteboards for an Español teaching." : "Choose only English whiteboards for an English teaching." };
+  if ((whiteboards ?? []).some((whiteboard) => !whiteboard.website_storage_path && !whiteboard.storage_path)) return { error: "Choose whiteboards with usable image files." };
 
-  return { value: chalkboardAssetIds };
+  return { value: whiteboardAssetIds };
 }
 
-async function replaceTeachingChalkboards(
+async function replaceTeachingWhiteboards(
   supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
   teachingId: string,
-  chalkboardAssetIds: string[],
+  whiteboardAssetIds: string[],
 ) {
   const { error: deleteError } = await supabase.from("teaching_chalkboard_assignments").delete().eq("teaching_id", teachingId);
-  if (deleteError) return { error: "This teaching's chalkboard assignments could not be updated." };
-  if (!chalkboardAssetIds.length) return {};
-  const { error: insertError } = await supabase.from("teaching_chalkboard_assignments").insert(chalkboardAssetIds.map((chalkboardAssetId, index) => ({
+  if (deleteError) return { error: "This teaching's whiteboard assignments could not be updated." };
+  if (!whiteboardAssetIds.length) return {};
+  const { error: insertError } = await supabase.from("teaching_chalkboard_assignments").insert(whiteboardAssetIds.map((whiteboardAssetId, index) => ({
     teaching_id: teachingId,
-    chalkboard_asset_id: chalkboardAssetId,
+    chalkboard_asset_id: whiteboardAssetId,
     display_order: index + 1,
   })));
-  if (insertError) return { error: "This teaching's chalkboard assignments could not be saved." };
+  if (insertError) return { error: "This teaching's whiteboard assignments could not be saved." };
   return {};
 }
 
@@ -222,8 +222,8 @@ export async function createTeaching(_: FormState, formData: FormData): Promise<
     return { error: "Please check the teaching details and try again." };
   }
 
-  const chalkboard = await validateChalkboardSelection(supabase, formData);
-  if (chalkboard.error) return { error: chalkboard.error };
+  const whiteboard = await validateWhiteboardSelection(supabase, formData);
+  if (whiteboard.error) return { error: whiteboard.error };
   const footer = await readFooterAssignment(supabase, formData);
   if (footer.error) return { error: footer.error };
 
@@ -239,14 +239,14 @@ export async function createTeaching(_: FormState, formData: FormData): Promise<
         status: "draft",
         is_featured: false,
         published_at: null,
-        chalkboard_asset_id: chalkboard.value?.[0] ?? null,
+        chalkboard_asset_id: whiteboard.value?.[0] ?? null,
       })
       .select("id")
       .single();
 
     if (!error && data) {
-      const chalkboardResult = await replaceTeachingChalkboards(supabase, data.id, chalkboard.value ?? []);
-      if (chalkboardResult.error) return { error: chalkboardResult.error };
+      const whiteboardResult = await replaceTeachingWhiteboards(supabase, data.id, whiteboard.value ?? []);
+      if (whiteboardResult.error) return { error: whiteboardResult.error };
       const footerResult = await replaceTeachingFooter(supabase, data.id, footer.value ?? null);
       if (footerResult.error) return { error: footerResult.error };
       redirect(`/admin/teachings/${data.id}/edit`);
@@ -280,14 +280,14 @@ export async function updateTeaching(
     return { error: "Please check the teaching details and try again." };
   }
 
-  const chalkboard = await validateChalkboardSelection(supabase, formData);
-  if (chalkboard.error) return { error: chalkboard.error };
+  const whiteboard = await validateWhiteboardSelection(supabase, formData);
+  if (whiteboard.error) return { error: whiteboard.error };
   const footer = await readFooterAssignment(supabase, formData);
   if (footer.error) return { error: footer.error };
 
   const { data, error } = await supabase
     .from("teachings")
-    .update({ ...result.value, chalkboard_asset_id: chalkboard.value?.[0] ?? null })
+    .update({ ...result.value, chalkboard_asset_id: whiteboard.value?.[0] ?? null })
     .eq("id", id)
     .in("status", ["draft", "published"])
     .select("id, slug")
@@ -296,8 +296,8 @@ export async function updateTeaching(
   if (error || !data) {
     return { error: "This teaching could not be found or saved." };
   }
-  const chalkboardResult = await replaceTeachingChalkboards(supabase, id, chalkboard.value ?? []);
-  if (chalkboardResult.error) return { error: chalkboardResult.error };
+  const whiteboardResult = await replaceTeachingWhiteboards(supabase, id, whiteboard.value ?? []);
+  if (whiteboardResult.error) return { error: whiteboardResult.error };
   const footerResult = await replaceTeachingFooter(supabase, id, footer.value ?? null);
   if (footerResult.error) return { error: footerResult.error };
 
@@ -403,7 +403,7 @@ export async function deleteTeaching(
 
   const { error: detachError } = await supabase.from("chalkboard_assets").update({ teaching_id: null, category_id: null, section_id: null }).eq("teaching_id", teaching.id);
   if (detachError) {
-    return { error: "This teaching's chalkboard associations could not be detached." };
+    return { error: "This teaching's whiteboard associations could not be detached." };
   }
 
   const { data: deleted, error: deleteError } = await supabase
@@ -426,7 +426,7 @@ export async function deleteTeaching(
   revalidatePath(`/admin/teachings/${id}/devotional/preview`);
   revalidatePath(`/teachings/${teaching.slug}`);
   revalidateTeachingDevotionalPaths(teaching.slug);
-  revalidatePath("/admin/chalkboards");
+  revalidatePath("/admin/whiteboards");
   redirect("/admin/teachings?deleted=1");
 }
 

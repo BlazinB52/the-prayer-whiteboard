@@ -175,7 +175,7 @@ a {
   .public-site-footer,
   .teaching-print-toolbar,
   .print-to-pdf-button,
-  .chalkboard-download-link,
+  .whiteboard-download-link,
   .return-to-top,
   .print-controls,
   .email-updates-cta,
@@ -201,7 +201,7 @@ a {
     page-break-inside: avoid;
   }
 
-  .public-chalkboard {
+  .public-whiteboard {
     display: none !important;
   }
 
@@ -264,13 +264,13 @@ a {
     page-break-inside: auto;
   }
 
-  .print-chalkboard {
+  .print-whiteboard {
     break-inside: avoid;
     break-before: auto;
     page-break-inside: avoid;
   }
 
-  .print-chalkboard + .print-chalkboard {
+  .print-whiteboard + .print-whiteboard {
     break-before: auto;
   }
 

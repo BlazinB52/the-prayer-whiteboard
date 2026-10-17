@@ -13,7 +13,7 @@ function createPublicClient() {
 
 function safeFileName(value: string) {
   const normalized = value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
-  return `${normalized || "chalkboard"}.png`;
+  return `${normalized || "whiteboard"}.png`;
 }
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string; assetId: string }> }) {

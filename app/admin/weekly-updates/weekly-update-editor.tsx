@@ -8,7 +8,7 @@ import { parseFileNameStamp } from "@/lib/file-names";
 type FormState = { error?: string; saved?: boolean };
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
 type Language = "en" | "es";
-export type WeeklyUpdateChalkboardOption = {
+export type WeeklyUpdateWhiteboardOption = {
   id: string;
   label: string;
   language: Language;
@@ -19,11 +19,11 @@ export type EnglishOriginalOption = { id: string; label: string; disabled?: bool
 
 const LANGUAGE_LABELS: Record<Language, string> = { en: "English", es: "Español (El Salvador)" };
 
-export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", initialLanguage = "en", languageLocked = false, initialChalkboardAssetIds = [], initialFooterId = "", chalkboards = [], footers = [], teachings = [], initialTeachingId = "", initialGatheringDate = "", englishOriginals = [], submitLabel = "Save Weekly Update", sourceRequired = false, hideDocument = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; initialLanguage?: Language; languageLocked?: boolean; initialChalkboardAssetIds?: string[]; initialFooterId?: string | null; chalkboards?: WeeklyUpdateChalkboardOption[]; footers?: WeeklyUpdateFooterOption[]; teachings?: TeachingChoice[]; initialTeachingId?: string | null; initialGatheringDate?: string | null; englishOriginals?: EnglishOriginalOption[]; submitLabel?: string; sourceRequired?: boolean; hideDocument?: boolean }) {
+export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", initialLanguage = "en", languageLocked = false, initialWhiteboardAssetIds = [], initialFooterId = "", whiteboards = [], footers = [], teachings = [], initialTeachingId = "", initialGatheringDate = "", englishOriginals = [], submitLabel = "Save Weekly Update", sourceRequired = false, hideDocument = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; initialLanguage?: Language; languageLocked?: boolean; initialWhiteboardAssetIds?: string[]; initialFooterId?: string | null; whiteboards?: WeeklyUpdateWhiteboardOption[]; footers?: WeeklyUpdateFooterOption[]; teachings?: TeachingChoice[]; initialTeachingId?: string | null; initialGatheringDate?: string | null; englishOriginals?: EnglishOriginalOption[]; submitLabel?: string; sourceRequired?: boolean; hideDocument?: boolean }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [language, setLanguage] = useState<Language>(initialLanguage);
-  const [chalkboardAssetIds, setChalkboardAssetIds] = useState(initialChalkboardAssetIds);
+  const [whiteboardAssetIds, setWhiteboardAssetIds] = useState(initialWhiteboardAssetIds);
   const [includeFooter, setIncludeFooter] = useState(Boolean(initialFooterId));
   const [footerId, setFooterId] = useState(initialFooterId ?? "");
   const [gatheringDate, setGatheringDate] = useState(initialGatheringDate ?? "");
@@ -34,15 +34,15 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
     return result;
   }, {});
 
-  // An update only ever uses chalkboards and footers written in its own language.
-  const availableChalkboards = chalkboards.filter((chalkboard) => chalkboard.language === language);
+  // An update only ever uses whiteboards and footers written in its own language.
+  const availableWhiteboards = whiteboards.filter((whiteboard) => whiteboard.language === language);
   const availableFooters = footers.filter((footer) => footer.language === language);
 
   const handleLanguageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const next: Language = event.target.value === "es" ? "es" : "en";
     setLanguage(next);
-    const allowedChalkboards = new Set(chalkboards.filter((chalkboard) => chalkboard.language === next).map((chalkboard) => chalkboard.id));
-    setChalkboardAssetIds((current) => current.filter((id) => allowedChalkboards.has(id)));
+    const allowedWhiteboards = new Set(whiteboards.filter((whiteboard) => whiteboard.language === next).map((whiteboard) => whiteboard.id));
+    setWhiteboardAssetIds((current) => current.filter((id) => allowedWhiteboards.has(id)));
     if (!footers.some((footer) => footer.id === footerId && footer.language === next)) setFooterId("");
   };
   // A file named like 20261010_es_weekly_update.docx carries the gathering date and the language: fill them in, still editable.
@@ -60,9 +60,9 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
     }
     setFileHint(notes.length ? `Filled in from the file name: ${notes.join(", ")}. Check them.` : "");
   };
-  const handleChalkboardChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWhiteboardChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { value, checked } = event.target;
-    setChalkboardAssetIds((current) => checked ? [...current, value] : current.filter((id) => id !== value));
+    setWhiteboardAssetIds((current) => checked ? [...current, value] : current.filter((id) => id !== value));
   };
   const handleFooterToggle = (event: React.ChangeEvent<HTMLInputElement>) => {
     const checked = event.target.checked;
@@ -110,14 +110,14 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
         </label>
       ) : null}
       <label className="block text-sm font-bold text-[#385245]">
-        Weekly Update chalkboards
+        Weekly Update whiteboards
         <span className="mt-2 grid gap-2 rounded-xl border border-[#284a3b]/10 bg-white/70 p-3">
-          {availableChalkboards.length ? availableChalkboards.map((chalkboard) => (
-            <span key={chalkboard.id} className="flex items-center gap-3 font-normal text-[#385245]">
-              <input type="checkbox" name="chalkboardAssetIds" value={chalkboard.id} checked={chalkboardAssetIds.includes(chalkboard.id)} onChange={handleChalkboardChange} />
-              <span>{chalkboard.label}</span>
+          {availableWhiteboards.length ? availableWhiteboards.map((whiteboard) => (
+            <span key={whiteboard.id} className="flex items-center gap-3 font-normal text-[#385245]">
+              <input type="checkbox" name="whiteboardAssetIds" value={whiteboard.id} checked={whiteboardAssetIds.includes(whiteboard.id)} onChange={handleWhiteboardChange} />
+              <span>{whiteboard.label}</span>
             </span>
-          )) : <span className="text-sm font-normal text-[#607066]">{language === "es" ? "No Español (El Salvador) chalkboards are available. Upload one in the Chalkboard Library first." : "No current chalkboards are available."}</span>}
+          )) : <span className="text-sm font-normal text-[#607066]">{language === "es" ? "No Español (El Salvador) whiteboards are available. Upload one in the Whiteboard Library first." : "No current whiteboards are available."}</span>}
         </span>
       </label>
       <fieldset className="space-y-3 rounded-xl border border-[#284a3b]/10 bg-white/70 p-4">

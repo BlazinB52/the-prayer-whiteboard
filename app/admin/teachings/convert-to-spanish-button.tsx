@@ -39,7 +39,7 @@ export function ConvertToSpanishButton({ teachingId }: { teachingId: string }) {
     <div className="mt-5 space-y-4 border-t border-[#284a3b]/10 pt-5">
       <h3 className="text-lg font-extrabold text-[#243d31]">Convert &amp; Save Spanish Version</h3>
       <p className="text-sm leading-6 text-[#607066]">
-        Translates this teaching into Español (El Salvador, with the vos forms) following the Spanish Translation Rules, and saves it as a new Spanish draft, linked to this one. Everything is translated in full; nothing is shortened. Scripture quotations use the RVR1960. This teaching is not changed. It usually takes one to two minutes. Afterwards, open the draft to review it, choose its chalkboard and footer, and publish it as usual.
+        Translates this teaching into Español (El Salvador, with the vos forms) following the Spanish Translation Rules, and saves it as a new Spanish draft, linked to this one. Everything is translated in full; nothing is shortened. Scripture quotations use the RVR1960. This teaching is not changed. It usually takes one to two minutes. Afterwards, open the draft to review it, choose its whiteboard and footer, and publish it as usual.
       </p>
       <div>
         <button type="button" onClick={convert} disabled={pending} className="admin-primary-button min-h-12 disabled:cursor-not-allowed disabled:opacity-60">

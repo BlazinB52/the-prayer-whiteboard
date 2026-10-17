@@ -164,7 +164,7 @@ export function TeachingImportForm() {
                 <span className="mt-1 block text-xs font-normal text-[#607066]">{preview.suggestedDate ? "Suggested from the file name. Confirm or change it." : "Optional. You can also set it later on the edit page."}</span>
               </label>
 
-              <p className="text-sm text-[#607066]">Approving creates a private <strong>draft</strong>. Chalkboards, the footer, the printable PDF link and publishing are completed afterward on the edit page.</p>
+              <p className="text-sm text-[#607066]">Approving creates a private <strong>draft</strong>. Whiteboards, the footer, the printable PDF link and publishing are completed afterward on the edit page.</p>
               <button type="button" onClick={handleCreate} disabled={pending || !preview.ok} className="admin-primary-button"><span>{pending ? "Creating draft..." : "Approve and create draft teaching"}</span></button>
             </>
           ) : null}

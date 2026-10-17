@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CHALKBOARD_BUCKET = "chalkboards";
+const WHITEBOARD_BUCKET = "chalkboards";
 const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 const fail = (error: string, status: number, extra: Record<string, unknown> = {}) => NextResponse.json({ error, ...extra }, { status });
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     supabase.from("teachings").select("chalkboard_asset_id").eq("id", teachingId).maybeSingle(),
   ]);
   const assetIds = [...new Set([...(assignments ?? []).map((row) => row.chalkboard_asset_id as string), ...(teaching?.chalkboard_asset_id ? [teaching.chalkboard_asset_id as string] : [])])];
-  if (!assetIds.length) return fail("The teaching has no whiteboard assigned. Choose one in the teaching's Chalkboards box.", 422);
+  if (!assetIds.length) return fail("The teaching has no whiteboard assigned. Choose one in the teaching's Whiteboards box.", 422);
   const { data: assets } = await supabase
     .from("chalkboard_assets")
     .select("id, canonical_name, title, language, caption, alt_text, download_storage_path, status, is_current_version")
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     .eq("status", "active")
     .eq("is_current_version", true);
   const matching = assetIds.map((id) => (assets ?? []).find((asset) => asset.id === id && asset.language === language)).filter(Boolean);
-  if (!matching.length) return fail(`The teaching has no ${language === "es" ? "Español" : "English"} whiteboard assigned. Choose one in the teaching's Chalkboards box.`, 422);
+  if (!matching.length) return fail(`The teaching has no ${language === "es" ? "Español" : "English"} whiteboard assigned. Choose one in the teaching's Whiteboards box.`, 422);
   const whiteboard = matching[0]!;
   if (!whiteboard.download_storage_path) return fail("The whiteboard has no full-size image stored.", 422);
 
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
   if (footer.language !== language) return fail(`Choose ${language === "es" ? "an Español" : "an English"} footer for this handout.`, 422);
 
   // The full-size whiteboard image (the same PNG the website offers for download).
-  const { data: signed } = await supabase.storage.from(CHALKBOARD_BUCKET).createSignedUrl(whiteboard.download_storage_path, 120);
+  const { data: signed } = await supabase.storage.from(WHITEBOARD_BUCKET).createSignedUrl(whiteboard.download_storage_path, 120);
   if (!signed?.signedUrl) return fail("The whiteboard image could not be reached.", 502);
   let imageBytes: Buffer;
   try {

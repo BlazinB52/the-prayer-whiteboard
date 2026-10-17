@@ -65,14 +65,14 @@ export default async function EspanolHomePage() {
             </p>
           </div>
           <div className="relative mx-auto w-full max-w-[510px]">
-            {data.chalkboard ? (
+            {data.whiteboard ? (
               <>
                 <div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" />
                 <div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4">
-                  <a href={data.chalkboard.url} target="_blank" rel="noreferrer" aria-label="Ver la pizarra más grande">
-                    <img src={data.chalkboard.url} alt={data.chalkboard.altText} className="h-auto w-full rounded-2xl object-contain" />
+                  <a href={data.whiteboard.url} target="_blank" rel="noreferrer" aria-label="Ver la pizarra más grande">
+                    <img src={data.whiteboard.url} alt={data.whiteboard.altText} className="h-auto w-full rounded-2xl object-contain" />
                   </a>
-                  {data.chalkboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{data.chalkboard.caption}</p> : null}
+                  {data.whiteboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{data.whiteboard.caption}</p> : null}
                   {featured ? (
                     <div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10">
                       <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">La pizarra de esta semana</p>

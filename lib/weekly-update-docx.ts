@@ -322,7 +322,7 @@ function buildReport(documentXml: string, numberingXml: string | null, hasCommen
   }
   const images = count(/<w:(?:drawing|pict|object)\b/g, documentXml);
   if (images > 0) {
-    notes.push({ level: "warning", code: "images", message: `${plural(images, "picture or drawing is", "pictures or drawings are")} not included. A weekly update's picture is chosen separately, in the chalkboard list above.` });
+    notes.push({ level: "warning", code: "images", message: `${plural(images, "picture or drawing is", "pictures or drawings are")} not included. A weekly update's picture is chosen separately, in the whiteboard list above.` });
   }
   const tables = count(/<w:tbl\b/g, documentXml);
   if (tables > 0) {

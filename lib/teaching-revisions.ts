@@ -76,7 +76,7 @@ const FORMAT_LABELS: Record<string, string> = { paragraph: "Paragraph", takeaway
 /**
  * Every field a co-editor may propose changes to, in reading order, with the approved wording.
  * What is left out stays Administrator-only: the gathering date, teaching type, language, slug,
- * chalkboards, footer, devotional links, publish status, section format and callouts, order, adding
+ * whiteboards, footer, devotional links, publish status, section format and callouts, order, adding
  * or removing sections, and a scripture's translation (it decides the copyright notice).
  */
 export function buildEditableFields(teaching: TeachingRow, categories: CategoryRow[], sections: SectionRow[]): EditableField[] {

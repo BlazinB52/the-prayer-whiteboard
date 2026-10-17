@@ -3,7 +3,7 @@
 //
 // What is carried: the title, Central Theme, Introduction, Short Summary, the homepage teasers, every category
 // and section in order (visible section titles as Heading 2, paragraphs, bullets, Takeaway, Quote and Scripture
-// Quote), with bold, italic and links. What is not: chalkboards, the footer, highlighted-section boxes, and the
+// Quote), with bold, italic and links. What is not: whiteboards, the footer, highlighted-section boxes, and the
 // grouping of a bullets section's introduction and conclusion (they come back as their own paragraphs).
 // The file also records which teaching it came from (a custom document property), so the import can offer to
 // link the new draft to it, and carries the translator's instructions in the document properties, where they

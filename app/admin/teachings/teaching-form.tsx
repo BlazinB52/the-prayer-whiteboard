@@ -16,24 +16,24 @@ type TeachingValues = {
   teaser1Text: string;
   teaser2Heading: string;
   teaser2Text: string;
-  chalkboardAssetIds: string[];
+  whiteboardAssetIds: string[];
   includeFooter: boolean;
   footerId: string;
 };
 
 type FormState = { error?: string; saved?: boolean };
 type Action = (state: FormState, formData: FormData) => Promise<FormState>;
-type ChalkboardOption = {
+type WhiteboardOption = {
   id: string;
   label: string;
   language: "en" | "es";
 };
 type FooterOption = { id: string; label: string; language: "en" | "es" };
 
-export function TeachingForm({ values, action, chalkboards = [], footers = [] }: { values: TeachingValues; action: Action; chalkboards?: ChalkboardOption[]; footers?: FooterOption[] }) {
+export function TeachingForm({ values, action, whiteboards = [], footers = [] }: { values: TeachingValues; action: Action; whiteboards?: WhiteboardOption[]; footers?: FooterOption[] }) {
   const router = useRouter();
   const [draftValues, setDraftValues] = useState<TeachingValues>(values);
-  const formKey = [values.title, values.teachingType, values.language, values.gatheringDate, values.centralTheme, values.introduction, values.summary, values.teaser1Heading, values.teaser1Text, values.teaser2Heading, values.teaser2Text, values.chalkboardAssetIds.join(","), String(values.includeFooter), values.footerId].join("::");
+  const formKey = [values.title, values.teachingType, values.language, values.gatheringDate, values.centralTheme, values.introduction, values.summary, values.teaser1Heading, values.teaser1Text, values.teaser2Heading, values.teaser2Text, values.whiteboardAssetIds.join(","), String(values.includeFooter), values.footerId].join("::");
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target;
@@ -42,16 +42,16 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
   const handleLanguageChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const language = event.target.value === "es" ? "es" : "en";
     setDraftValues((current) => {
-      const allowed = new Set(chalkboards.filter((chalkboard) => chalkboard.language === language).map((chalkboard) => chalkboard.id));
+      const allowed = new Set(whiteboards.filter((whiteboard) => whiteboard.language === language).map((whiteboard) => whiteboard.id));
       const footerAllowed = footers.some((footer) => footer.id === current.footerId && footer.language === language);
-      return { ...current, language, chalkboardAssetIds: current.chalkboardAssetIds.filter((id) => allowed.has(id)), footerId: footerAllowed ? current.footerId : "" };
+      return { ...current, language, whiteboardAssetIds: current.whiteboardAssetIds.filter((id) => allowed.has(id)), footerId: footerAllowed ? current.footerId : "" };
     });
   };
-  const handleChalkboardChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWhiteboardChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { value, checked } = event.target;
     setDraftValues((current) => ({
       ...current,
-      chalkboardAssetIds: checked ? [...current.chalkboardAssetIds, value] : current.chalkboardAssetIds.filter((id) => id !== value),
+      whiteboardAssetIds: checked ? [...current.whiteboardAssetIds, value] : current.whiteboardAssetIds.filter((id) => id !== value),
     }));
   };
   const handleFooterToggle = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,7 +69,7 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
     }
     return result;
   }, {});
-  const availableChalkboards = chalkboards.filter((chalkboard) => chalkboard.language === draftValues.language);
+  const availableWhiteboards = whiteboards.filter((whiteboard) => whiteboard.language === draftValues.language);
   const availableFooters = footers.filter((footer) => footer.language === draftValues.language);
   const showHomepageTeasers = draftValues.teachingType !== "deep_dive";
 
@@ -123,16 +123,16 @@ export function TeachingForm({ values, action, chalkboards = [], footers = [] }:
         </>
       )}
       <label className="block text-sm font-bold text-[#385245]">
-        Chalkboards
+        Whiteboards
         <span className="mt-2 grid gap-2 rounded-xl border border-[#284a3b]/10 bg-white/70 p-3">
-          {availableChalkboards.length ? availableChalkboards.map((chalkboard) => (
-            <span key={chalkboard.id} className="flex items-center gap-3 font-normal text-[#385245]">
-              <input type="checkbox" name="chalkboardAssetIds" value={chalkboard.id} checked={draftValues.chalkboardAssetIds.includes(chalkboard.id)} onChange={handleChalkboardChange} />
-              <span>{chalkboard.label}</span>
+          {availableWhiteboards.length ? availableWhiteboards.map((whiteboard) => (
+            <span key={whiteboard.id} className="flex items-center gap-3 font-normal text-[#385245]">
+              <input type="checkbox" name="whiteboardAssetIds" value={whiteboard.id} checked={draftValues.whiteboardAssetIds.includes(whiteboard.id)} onChange={handleWhiteboardChange} />
+              <span>{whiteboard.label}</span>
             </span>
-          )) : <span className="text-sm font-normal text-[#607066]">{draftValues.language === "es" ? "No Español (El Salvador) chalkboards are available. Upload one in the Chalkboard Library first." : "No current chalkboards are available."}</span>}
+          )) : <span className="text-sm font-normal text-[#607066]">{draftValues.language === "es" ? "No Español (El Salvador) whiteboards are available. Upload one in the Whiteboard Library first." : "No current whiteboards are available."}</span>}
         </span>
-        <span className="mt-1 block text-xs font-normal text-[#607066]">Only chalkboards in the teaching&apos;s language are listed. A teaching can reference multiple library chalkboards. Removing a selection does not delete the chalkboard.</span>
+        <span className="mt-1 block text-xs font-normal text-[#607066]">Only whiteboards in the teaching&apos;s language are listed. A teaching can reference multiple library whiteboards. Removing a selection does not delete the whiteboard.</span>
       </label>
       <fieldset className="space-y-3 rounded-xl border border-[#284a3b]/10 bg-white/70 p-4">
         <label className="flex items-center gap-3 text-sm font-bold text-[#385245]">

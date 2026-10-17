@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { ContentFooter } from "@/app/content-footer";
 import { FormattedTextBlocks, formatInlineText, ScriptureTranslationLabel } from "@/app/formatted-text";
-import { getChalkboardPreviewUrl } from "../../../chalkboards/actions";
+import { getWhiteboardPreviewUrl } from "../../../whiteboards/actions";
 import { getCalloutBulletListClassName, getCalloutContainerClassName, getCalloutLabel, getCalloutStyles, normalizeCallout, normalizeHighlightHorizontalAlignment, type HighlightHorizontalAlignment } from "../../callout-utils";
 import { PrintButton } from "./print-button";
 
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type Content = Record<string, unknown>;
-type ChalkboardAsset = {
+type WhiteboardAsset = {
   id: string;
   title: string;
   alt_text: string;
@@ -54,7 +54,7 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
     .eq("teaching_id", id)
     .eq("status", teaching.status)
     .order("sort_order", { ascending: true });
-  const { data: chalkboardAssignments, error: chalkboardError } = await supabase
+  const { data: whiteboardAssignments, error: whiteboardError } = await supabase
     .from("teaching_chalkboard_assignments")
     .select("display_order, chalkboard_assets(id, title, alt_text, caption, website_storage_path, storage_path, display_order, include_in_print, is_current_version, status)")
     .eq("teaching_id", teaching.id)
@@ -65,18 +65,18 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
     .eq("teaching_id", teaching.id)
     .maybeSingle();
 
-  if (categoriesError || sectionsError || chalkboardError) notFound();
+  if (categoriesError || sectionsError || whiteboardError) notFound();
   if ((categories ?? []).some((category) => category.teaching_id !== teaching.id) || (sections ?? []).some((section) => section.teaching_id !== teaching.id)) notFound();
 
   const orderedCategories = (categories ?? []).map((category) => ({
     ...category,
     sections: (sections ?? []).filter((section) => section.category_id === category.id),
   }));
-  const printableAssets = (chalkboardAssignments ?? []).flatMap((assignment) => {
+  const printableAssets = (whiteboardAssignments ?? []).flatMap((assignment) => {
     const asset = Array.isArray(assignment.chalkboard_assets) ? assignment.chalkboard_assets[0] : assignment.chalkboard_assets;
-    return asset && asset.status === "active" && asset.is_current_version && asset.include_in_print ? [asset as ChalkboardAsset] : [];
+    return asset && asset.status === "active" && asset.is_current_version && asset.include_in_print ? [asset as WhiteboardAsset] : [];
   });
-  const assetsWithUrls = await Promise.all(printableAssets.map(async (asset) => ({ asset, url: await getChalkboardPreviewUrl(asset.website_storage_path || asset.storage_path) })));
+  const assetsWithUrls = await Promise.all(printableAssets.map(async (asset) => ({ asset, url: await getWhiteboardPreviewUrl(asset.website_storage_path || asset.storage_path) })));
   const footer = Array.isArray(footerAssignment?.content_footers) ? footerAssignment.content_footers[0] : footerAssignment?.content_footers;
 
   return (
@@ -95,7 +95,7 @@ export default async function PrintableTeachingPage({ params }: { params: Promis
           {teaching.summary ? <TextParagraphs text={teaching.summary} className="mt-5 text-[#52645a]" /> : null}
         </header>
         <div className="mt-8 space-y-6">
-          {assetsWithUrls.map(({ asset, url }) => <PrintableChalkboard key={asset.id} asset={asset} url={url} />)}
+          {assetsWithUrls.map(({ asset, url }) => <PrintableWhiteboard key={asset.id} asset={asset} url={url} />)}
         </div>
         <div className="mt-10 space-y-10">
           {orderedCategories.map((category) => (
@@ -279,10 +279,10 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-function PrintableChalkboard({ asset, url }: { asset: ChalkboardAsset; url: string | null }) {
+function PrintableWhiteboard({ asset, url }: { asset: WhiteboardAsset; url: string | null }) {
   if (!url) return null;
   return (
-    <figure className="print-chalkboard">
+    <figure className="print-whiteboard">
       <img src={url} alt={asset.alt_text} className="mx-auto block h-auto max-h-[850px] w-full max-w-[540px] object-contain" />
       {asset.caption?.trim() ? <figcaption className="mt-3 text-center text-sm text-[#607066]">{asset.caption.trim()}</figcaption> : null}
     </figure>

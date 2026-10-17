@@ -80,7 +80,7 @@ type FeaturedHomepageData = {
     devotionalSlug: string | null;
   };
   teasers: HomepageTeaser[];
-  chalkboard: { url: string; altText: string; caption: string | null } | null;
+  whiteboard: { url: string; altText: string; caption: string | null } | null;
   previousGatherings: PreviousGathering[];
 };
 
@@ -99,13 +99,13 @@ type PreviousGathering = {
   devotionalSlug?: string | null;
 };
 
-type HomepageChalkboard = { url: string; altText: string; caption: string | null };
-type CurrentWeeklyUpdate = { id: string; title: string; chalkboard: HomepageChalkboard | null } | null;
+type HomepageWhiteboard = { url: string; altText: string; caption: string | null };
+type CurrentWeeklyUpdate = { id: string; title: string; whiteboard: HomepageWhiteboard | null } | null;
 type ServiceRoleClient = NonNullable<ReturnType<typeof createServiceRoleClient>>;
-const CHALKBOARD_SIGNED_URL_TTL_SECONDS = 60 * 60;
-const fallbackHomepageChalkboard: HomepageChalkboard = {
-  url: "/prayergroup/aliyah-chalkboard.jpg",
-  altText: "Chalkboard teaching about Aliyah, Israel, the harvest, and prayer",
+const WHITEBOARD_SIGNED_URL_TTL_SECONDS = 60 * 60;
+const fallbackHomepageWhiteboard: HomepageWhiteboard = {
+  url: "/prayergroup/aliyah-whiteboard.jpg",
+  altText: "Whiteboard teaching about Aliyah, Israel, the harvest, and prayer",
   caption: null,
 };
 
@@ -126,7 +126,7 @@ async function retryNullable<T>(operation: () => Promise<T | null>, attempts = 2
   return null;
 }
 
-async function getSignedChalkboard(assetId: string | null, client?: ServiceRoleClient): Promise<HomepageChalkboard | null> {
+async function getSignedWhiteboard(assetId: string | null, client?: ServiceRoleClient): Promise<HomepageWhiteboard | null> {
   if (!assetId) return null;
   const signer = client ?? createServiceRoleClient();
   if (!signer) return null;
@@ -145,7 +145,7 @@ async function getSignedChalkboard(assetId: string | null, client?: ServiceRoleC
   const paths = [asset.website_storage_path, asset.storage_path].filter((path): path is string => Boolean(path));
   for (const path of paths) {
     const signedUrl = await retryNullable(async () => {
-      const { data, error } = await signer.storage.from("chalkboards").createSignedUrl(path, CHALKBOARD_SIGNED_URL_TTL_SECONDS);
+      const { data, error } = await signer.storage.from("chalkboards").createSignedUrl(path, WHITEBOARD_SIGNED_URL_TTL_SECONDS);
       return error ? null : data?.signedUrl ?? null;
     });
     if (signedUrl) return { url: signedUrl, altText: asset.alt_text, caption: asset.caption };
@@ -169,17 +169,17 @@ async function getCurrentWeeklyUpdate(): Promise<CurrentWeeklyUpdate> {
         .eq("weekly_update_id", data.id)
         .order("display_order", { ascending: true })
     : { data: null };
-  const assignedChalkboardIds = (assignments ?? []).map((assignment) => assignment.chalkboard_asset_id as string).filter(Boolean);
-  const candidateChalkboardIds = [...assignedChalkboardIds, data.chalkboard_asset_id as string | null].filter((assetId, index, values): assetId is string => Boolean(assetId) && values.indexOf(assetId) === index);
-  let chalkboard: HomepageChalkboard | null = null;
-  for (const assetId of candidateChalkboardIds) {
-    chalkboard = await getSignedChalkboard(assetId, signer ?? undefined);
-    if (chalkboard) break;
+  const assignedWhiteboardIds = (assignments ?? []).map((assignment) => assignment.chalkboard_asset_id as string).filter(Boolean);
+  const candidateWhiteboardIds = [...assignedWhiteboardIds, data.chalkboard_asset_id as string | null].filter((assetId, index, values): assetId is string => Boolean(assetId) && values.indexOf(assetId) === index);
+  let whiteboard: HomepageWhiteboard | null = null;
+  for (const assetId of candidateWhiteboardIds) {
+    whiteboard = await getSignedWhiteboard(assetId, signer ?? undefined);
+    if (whiteboard) break;
   }
   return {
     id: data.id,
     title: data.title,
-    chalkboard,
+    whiteboard,
   };
 }
 
@@ -266,18 +266,18 @@ async function getFeaturedHomepageData(supabaseOverride?: ServiceRoleClient): Pr
   const previousGatheringItems = (previousGatherings ?? []) as PreviousGathering[];
   const devotionalSlugsByTeachingId = await getPublishedDevotionalSlugsByTeachingId([teaching.id, ...previousGatheringItems.map((gathering) => gathering.id)]);
 
-  const { data: teachingChalkboards } = await supabase
+  const { data: teachingWhiteboards } = await supabase
     .from("teaching_chalkboard_assignments")
     .select("chalkboard_asset_id, display_order")
     .eq("teaching_id", teaching.id)
     .order("display_order", { ascending: true })
     .limit(1);
-  const chalkboard = await getSignedChalkboard(teachingChalkboards?.[0]?.chalkboard_asset_id ?? selectedTeaching.chalkboard_asset_id);
+  const whiteboard = await getSignedWhiteboard(teachingWhiteboards?.[0]?.chalkboard_asset_id ?? selectedTeaching.chalkboard_asset_id);
 
   return {
     teaching: { ...selectedTeaching, hasPublishedDevotional: devotionalSlugsByTeachingId.has(teaching.id), devotionalSlug: devotionalSlugsByTeachingId.get(teaching.id) ?? null } as FeaturedHomepageData["teaching"],
     teasers: buildHomepageTeasers(selectedTeaching),
-    chalkboard,
+    whiteboard,
     previousGatherings: previousGatheringItems.map((gathering) => ({ ...gathering, hasPublishedDevotional: devotionalSlugsByTeachingId.has(gathering.id), devotionalSlug: devotionalSlugsByTeachingId.get(gathering.id) ?? null })),
   };
 }
@@ -330,17 +330,17 @@ function FeaturedHomepage({ data, weeklyUpdate }: { data: FeaturedHomepageData; 
   const teachingPath = `/teachings/${data.teaching.slug}`;
   const date = data.teaching.gathering_date ? new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${data.teaching.gathering_date}T00:00:00Z`)) : "Latest gathering";
   const description = data.teaching.central_theme || data.teaching.introduction || "";
-  const heroChalkboard = weeklyUpdate?.chalkboard ?? data.chalkboard ?? fallbackHomepageChalkboard;
-  const heroChalkboardTitle = weeklyUpdate?.chalkboard
+  const heroWhiteboard = weeklyUpdate?.whiteboard ?? data.whiteboard ?? fallbackHomepageWhiteboard;
+  const heroWhiteboardTitle = weeklyUpdate?.whiteboard
     ? weeklyUpdate.title
-    : data.chalkboard
+    : data.whiteboard
       ? data.teaching.title
       : "Aliyah · Israel · The Harvest · Prayer";
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
       <PublicHeader maxWidthClassName="max-w-6xl" nav={homepageNav} />
-      <section className="relative"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" /><div className="relative mx-auto grid max-w-6xl gap-9 px-5 pb-14 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-20"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]"><Sparkles aria-hidden="true" size={15} />Welcome to our gathering place</p><h1 className="mt-6 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.045em] text-[#20382e] sm:text-6xl lg:text-7xl">Prayer changes things. <span className="text-[#a85e32]">The Word changes us.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.</p><WeeklyUpdateHeroButton weeklyUpdate={weeklyUpdate} /></div><div className="relative mx-auto w-full max-w-[510px]">{heroChalkboard ? <><div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" /><div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4"><a href={heroChalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger"><img src={heroChalkboard.url} alt={heroChalkboard.altText} className="h-auto w-full rounded-2xl object-contain" /></a>{heroChalkboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{heroChalkboard.caption}</p> : null}<div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p><p className="mt-1 font-extrabold text-[#263f33]">{heroChalkboardTitle}</p></div></div></> : <div className="rounded-[1.75rem] border border-[#284a3b]/10 bg-[#fffdf8] p-8 text-center shadow-xl"><p className="text-sm font-bold text-[#607066]">Chalkboard coming soon</p></div>}</div></div></section>
+      <section className="relative"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_12%,rgba(209,159,83,0.22),transparent_28%),radial-gradient(circle_at_8%_75%,rgba(58,103,79,0.15),transparent_30%)]" /><div className="relative mx-auto grid max-w-6xl gap-9 px-5 pb-14 pt-12 sm:px-8 sm:pt-16 lg:grid-cols-[1.02fr_0.98fr] lg:items-center lg:py-20"><div><p className="inline-flex items-center gap-2 rounded-full border border-[#b98243]/25 bg-[#fffaf0] px-4 py-2 text-xs font-extrabold uppercase tracking-[0.16em] text-[#875624]"><Sparkles aria-hidden="true" size={15} />Welcome to our gathering place</p><h1 className="mt-6 max-w-2xl text-5xl font-extrabold leading-[0.98] tracking-[-0.045em] text-[#20382e] sm:text-6xl lg:text-7xl">Prayer changes things. <span className="text-[#a85e32]">The Word changes us.</span></h1><p className="mt-6 max-w-xl text-lg leading-8 text-[#52645a]">A place to revisit our teachings, stand together in prayer, and celebrate what God is doing among us.</p><WeeklyUpdateHeroButton weeklyUpdate={weeklyUpdate} /></div><div className="relative mx-auto w-full max-w-[510px]">{heroWhiteboard ? <><div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" /><div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4"><a href={heroWhiteboard.url} target="_blank" rel="noreferrer" aria-label="View featured whiteboard larger"><img src={heroWhiteboard.url} alt={heroWhiteboard.altText} className="h-auto w-full rounded-2xl object-contain" /></a>{heroWhiteboard.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{heroWhiteboard.caption}</p> : null}<div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10"><p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p><p className="mt-1 font-extrabold text-[#263f33]">{heroWhiteboardTitle}</p></div></div></> : <div className="rounded-[1.75rem] border border-[#284a3b]/10 bg-[#fffdf8] p-8 text-center shadow-xl"><p className="text-sm font-bold text-[#607066]">Whiteboard coming soon</p></div>}</div></div></section>
       <section id="latest" className="bg-[#244a3a] px-5 py-14 text-white sm:px-8 sm:py-20"><div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start"><div><p className="text-xs font-extrabold uppercase tracking-[0.2em] text-[#f0cb83]">{date}</p><h2 className="mt-4 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">{data.teaching.title}</h2><p className="mt-5 text-base leading-7 text-[#dce8e1]">{formatInlineText(description)}</p><HomepageTeachingActions slug={data.teaching.slug} hasPublishedDevotional={data.teaching.hasPublishedDevotional} devotionalSlug={data.teaching.devotionalSlug} variant="dark" className="mt-7" /></div>{data.teasers.length ? <div className="grid gap-4 sm:grid-cols-2">{data.teasers.map((teaser, index) => <HomepageTeaserCard key={teaser.id} teaser={teaser} href={teachingPath} index={index} />)}</div> : null}</div></section>
       <StaticHomepageLowerSections previousGatherings={data.previousGatherings} />
       <EmailUpdatesCta copy="Stay connected with The Prayer Whiteboard. Subscribe to the Weekly Updates, teachings, and devotionals you choose." />
@@ -475,7 +475,7 @@ function HomepageTeachingAction({ href, label, variant }: { href: string; label:
 }
 
 function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGatherings: PreviousGathering[]; weeklyUpdate: CurrentWeeklyUpdate }) {
-  const weeklyUpdateChalkboard = weeklyUpdate?.chalkboard ?? null;
+  const weeklyUpdateWhiteboard = weeklyUpdate?.whiteboard ?? null;
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f2e8] text-[#243126]">
       <PublicHeader maxWidthClassName="max-w-6xl" nav={homepageNav} />
@@ -500,24 +500,24 @@ function HardCodedHomepage({ previousGatherings, weeklyUpdate }: { previousGathe
           <div className="relative mx-auto w-full max-w-[510px]">
             <div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" />
             <div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4">
-              {weeklyUpdateChalkboard ? (
-                <a href={weeklyUpdateChalkboard.url} target="_blank" rel="noreferrer" aria-label="View featured chalkboard larger">
-                  <img src={weeklyUpdateChalkboard.url} alt={weeklyUpdateChalkboard.altText} className="h-auto w-full rounded-2xl object-contain" />
+              {weeklyUpdateWhiteboard ? (
+                <a href={weeklyUpdateWhiteboard.url} target="_blank" rel="noreferrer" aria-label="View featured whiteboard larger">
+                  <img src={weeklyUpdateWhiteboard.url} alt={weeklyUpdateWhiteboard.altText} className="h-auto w-full rounded-2xl object-contain" />
                 </a>
               ) : (
                 <Image
-                  src="/prayergroup/aliyah-chalkboard.jpg"
-                  alt="Chalkboard teaching about Aliyah, Israel, the harvest, and prayer"
+                  src="/prayergroup/aliyah-whiteboard.jpg"
+                  alt="Whiteboard teaching about Aliyah, Israel, the harvest, and prayer"
                   width={588}
                   height={734}
                   priority
                   className="h-auto w-full rounded-2xl"
                 />
               )}
-              {weeklyUpdateChalkboard?.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{weeklyUpdateChalkboard.caption}</p> : null}
+              {weeklyUpdateWhiteboard?.caption ? <p className="mt-3 text-center text-sm text-[#607066]">{weeklyUpdateWhiteboard.caption}</p> : null}
               <div className="absolute -bottom-4 left-5 right-5 rounded-2xl bg-[#fffdf8] px-4 py-3 text-center shadow-lg ring-1 ring-[#284a3b]/10">
                 <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#9a642e]">This week&apos;s whiteboard</p>
-                <p className="mt-1 font-extrabold text-[#263f33]">{weeklyUpdateChalkboard && weeklyUpdate ? weeklyUpdate.title : <>Aliyah &middot; Israel &middot; The Harvest &middot; Prayer</>}</p>
+                <p className="mt-1 font-extrabold text-[#263f33]">{weeklyUpdateWhiteboard && weeklyUpdate ? weeklyUpdate.title : <>Aliyah &middot; Israel &middot; The Harvest &middot; Prayer</>}</p>
               </div>
             </div>
           </div>

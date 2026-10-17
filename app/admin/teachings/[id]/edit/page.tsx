@@ -71,7 +71,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
     .eq("status", teaching.status)
     .order("sort_order", { ascending: true });
 
-  const [{ data: chalkboards }, { data: assignedChalkboards }, { data: footers }, { data: footerAssignment }] = await Promise.all([
+  const [{ data: whiteboards }, { data: assignedWhiteboards }, { data: footers }, { data: footerAssignment }] = await Promise.all([
     supabase
       .from("chalkboard_assets")
       .select("id, title, canonical_name, language, chalkboard_date")
@@ -83,11 +83,11 @@ export default async function EditTeachingPage({ params, searchParams }: { param
     supabase.from("content_footers").select("id, internal_title, language").eq("status", "active").order("internal_title", { ascending: true }),
     supabase.from("teaching_footer_assignments").select("footer_id").eq("teaching_id", id).maybeSingle(),
   ]);
-  const assignedChalkboardIds = (assignedChalkboards ?? []).map((assignment) => assignment.chalkboard_asset_id as string);
-  const chalkboardOptions = (chalkboards ?? []).map((chalkboard) => ({
-    id: chalkboard.id,
-    label: chalkboard.canonical_name ?? chalkboard.title,
-    language: (chalkboard.language === "es" ? "es" : "en") as "en" | "es",
+  const assignedWhiteboardIds = (assignedWhiteboards ?? []).map((assignment) => assignment.chalkboard_asset_id as string);
+  const whiteboardOptions = (whiteboards ?? []).map((whiteboard) => ({
+    id: whiteboard.id,
+    label: whiteboard.canonical_name ?? whiteboard.title,
+    language: (whiteboard.language === "es" ? "es" : "en") as "en" | "es",
   }));
   // The devotional attached to this teaching, if any, shown in the Devotional section below.
   const { data: devotionalAssignment } = await supabase.from("teaching_devotional_assignments").select("devotional_id").eq("teaching_id", id).maybeSingle();
@@ -220,11 +220,11 @@ export default async function EditTeachingPage({ params, searchParams }: { param
             teaser1Text: teaching.teaser_1_text ?? "",
             teaser2Heading: teaching.teaser_2_heading ?? "",
             teaser2Text: teaching.teaser_2_text ?? "",
-            chalkboardAssetIds: assignedChalkboardIds.length ? assignedChalkboardIds : (teaching.chalkboard_asset_id ? [teaching.chalkboard_asset_id] : []),
+            whiteboardAssetIds: assignedWhiteboardIds.length ? assignedWhiteboardIds : (teaching.chalkboard_asset_id ? [teaching.chalkboard_asset_id] : []),
             includeFooter: Boolean(footerAssignment?.footer_id),
             footerId: footerAssignment?.footer_id ?? "",
           }}
-          chalkboards={chalkboardOptions}
+          whiteboards={whiteboardOptions}
           footers={footerOptions}
         />
         <TranslationPicker kind="teachings" id={id} language={teaching.language === "es" ? "es" : "en"} currentId={translation.currentId} options={translation.options} revalidate={`/admin/teachings/${id}/edit`} noun="teaching" />

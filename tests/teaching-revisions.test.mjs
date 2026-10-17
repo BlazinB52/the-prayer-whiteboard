@@ -101,7 +101,7 @@ test("the editable fields cover the teaching, categories and each section format
 
 test("Administrator-only things are never offered to a co-editor", () => {
   const keys = buildEditableFields(teaching, categories, sections).map((field) => field.fieldKey);
-  for (const adminOnly of ["translation", "slug", "status", "gathering_date", "teaching_type", "language", "format", "callout", "showTitle", "sort_order", "chalkboard"]) {
+  for (const adminOnly of ["translation", "slug", "status", "gathering_date", "teaching_type", "language", "format", "callout", "showTitle", "sort_order", "whiteboard"]) {
     assert.equal(keys.includes(adminOnly), false, `${adminOnly} must stay Administrator-only`);
   }
 });

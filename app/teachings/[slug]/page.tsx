@@ -43,7 +43,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const language = toLanguage(data.language);
   const description = truncateDescription(data.summary || data.central_theme || data.introduction);
   const canonical = `/teachings/${slug}`;
-  const images = [{ url: teachingOgImagePath(slug), alt: `${data.title} ${ui(language).chalkboardSuffix}` }];
+  const images = [{ url: teachingOgImagePath(slug), alt: `${data.title} ${ui(language).whiteboardSuffix}` }];
   const pair = await getTeachingPair(slug, language);
   return buildPageMetadata({ title: data.title, description, path: canonical, language, pair, type: "article", images, publishedTime: data.published_at, modifiedTime: data.updated_at });
 }
@@ -71,13 +71,13 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
   if (categoriesError || sectionsError) notFound();
   const validCategories = (categories ?? []).filter((category) => category.teaching_id === teaching.id);
   const validSections = (sections ?? []).filter((section) => section.teaching_id === teaching.id && validCategories.some((category) => category.id === section.category_id));
-  const assignedChalkboardIds = (assignments ?? []).map((assignment) => assignment.chalkboard_asset_id as string).filter(Boolean);
-  const chalkboardIds = assignedChalkboardIds.length ? assignedChalkboardIds : (teaching.chalkboard_asset_id ? [teaching.chalkboard_asset_id] : []);
-  const { data: assets } = signer && chalkboardIds.length
-    ? await signer.from("chalkboard_assets").select("id, alt_text, caption, website_storage_path, storage_path, download_storage_path, allow_download, is_current_version, status").in("id", chalkboardIds).eq("is_current_version", true).eq("status", "active")
+  const assignedWhiteboardIds = (assignments ?? []).map((assignment) => assignment.chalkboard_asset_id as string).filter(Boolean);
+  const whiteboardIds = assignedWhiteboardIds.length ? assignedWhiteboardIds : (teaching.chalkboard_asset_id ? [teaching.chalkboard_asset_id] : []);
+  const { data: assets } = signer && whiteboardIds.length
+    ? await signer.from("chalkboard_assets").select("id, alt_text, caption, website_storage_path, storage_path, download_storage_path, allow_download, is_current_version, status").in("id", whiteboardIds).eq("is_current_version", true).eq("status", "active")
     : { data: [] };
   const assetById = new Map((assets ?? []).map((asset) => [asset.id, asset as Asset]));
-  const validAssets = chalkboardIds.flatMap((id) => assetById.get(id) ? [assetById.get(id)!] : []);
+  const validAssets = whiteboardIds.flatMap((id) => assetById.get(id) ? [assetById.get(id)!] : []);
   const assetsWithUrls = await Promise.all(validAssets.map(async (asset) => ({ asset, url: await getWebsiteUrl(signer, asset) })));
   const { data: footer } = footerAssignment?.footer_id
     ? await supabase.from("content_footers").select("content, status").eq("id", footerAssignment.footer_id).eq("status", "active").maybeSingle()
@@ -109,7 +109,7 @@ export default async function StructuredTeachingPage({ params }: { params: Promi
       <article className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-16">
         {twinHref ? <p className="teaching-print-toolbar mb-6"><TranslationLink href={twinHref} target={language === "es" ? "en" : "es"} /></p> : null}
         <header className={`public-teaching-header border-b pb-8 ${teachingType === "deep_dive" ? "border-[#20382e]/20" : "border-[#284a3b]/15"}`}><p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">{teachingType === "deep_dive" ? t.deepDive : t.brandEyebrow}</p>{teachingType === "deep_dive" ? <Link href={t.deepDivesPath} className="mt-3 inline-flex rounded-full bg-[#20382e] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#f0cb83]">{t.deepDivesCollection}</Link> : null}<h1 className="mt-3 text-4xl font-extrabold leading-tight tracking-tight text-[#243d31] sm:text-6xl">{teaching.title}</h1>{teaching.gathering_date ? <p className="mt-4 text-sm font-bold text-[#607066]">{formatLongDate(teaching.gathering_date, language)}</p> : null}{teaching.central_theme ? <p className="mt-5 text-lg font-bold text-[#385245]">{formatInlineText(teaching.central_theme, { links: true })}</p> : null}{teaching.introduction ? <TextParagraphs text={teaching.introduction} className="mt-5 text-[#52645a]" /> : null}</header>
-        <div className="mt-8 space-y-8">{assetsWithUrls.map(({ asset, url }) => <PublicChalkboard key={asset.id} asset={asset} url={url} slug={slug} language={language} />)}</div>
+        <div className="mt-8 space-y-8">{assetsWithUrls.map(({ asset, url }) => <PublicWhiteboard key={asset.id} asset={asset} url={url} slug={slug} language={language} />)}</div>
         <div className="mt-10 space-y-10">{validCategories.map((category) => <section key={category.id} className="space-y-6"><h2 className="border-b border-[#284a3b]/15 pb-2 text-2xl font-extrabold text-[#243d31]">{category.title}</h2><div className="space-y-7">{validSections.filter((section) => section.category_id === category.id).map((section) => <div key={section.id}><PublicSection sectionId={section.id} title={section.title} content={section.content} highlightHorizontalAlignment={section.highlight_horizontal_alignment} /></div>)}</div></section>)}</div>
         {footer?.status === "active" ? <ContentFooter content={footer.content} /> : null}
         {language === "es"
@@ -133,10 +133,10 @@ async function getWebsiteUrl(signer: ReturnType<typeof createServiceRoleClient>,
   return null;
 }
 
-function PublicChalkboard({ asset, url, slug, language }: { asset: Asset; url: string | null; slug: string; language: Language }) {
+function PublicWhiteboard({ asset, url, slug, language }: { asset: Asset; url: string | null; slug: string; language: Language }) {
   if (!url) return null;
   const t = ui(language);
-  return <figure className="public-chalkboard my-8"><a href={url} target="_blank" rel="noreferrer" aria-label={t.viewChalkboardLarger}><img src={url} alt={asset.alt_text} className="mx-auto block h-auto w-full max-w-[680px] object-contain" /></a>{asset.caption?.trim() ? <figcaption className="mt-3 text-center text-sm text-[#607066]">{asset.caption.trim()}</figcaption> : null}{asset.allow_download && asset.download_storage_path ? <a href={`/api/teachings/${encodeURIComponent(slug)}/chalkboards/${asset.id}/download`} className="chalkboard-download-link mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-[#9d5a2f] underline-offset-4 hover:text-[#a85e32] hover:underline">{t.downloadChalkboard} &rarr;</a> : null}</figure>;
+  return <figure className="public-whiteboard my-8"><a href={url} target="_blank" rel="noreferrer" aria-label={t.viewWhiteboardLarger}><img src={url} alt={asset.alt_text} className="mx-auto block h-auto w-full max-w-[680px] object-contain" /></a>{asset.caption?.trim() ? <figcaption className="mt-3 text-center text-sm text-[#607066]">{asset.caption.trim()}</figcaption> : null}{asset.allow_download && asset.download_storage_path ? <a href={`/api/teachings/${encodeURIComponent(slug)}/whiteboards/${asset.id}/download`} className="whiteboard-download-link mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-[#9d5a2f] underline-offset-4 hover:text-[#a85e32] hover:underline">{t.downloadWhiteboard} &rarr;</a> : null}</figure>;
 }
 
 function PublicSection({ sectionId, title, content, highlightHorizontalAlignment }: { sectionId: string; title: string; content: unknown; highlightHorizontalAlignment?: unknown }) {

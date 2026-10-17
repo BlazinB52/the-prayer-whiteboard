@@ -304,15 +304,15 @@ test("teaching and Storehouse queries remain out of the PDF feature", async () =
   assert.doesNotMatch(files.join("\n"), /from\("teachings"\)|teaching_id|Storehouse/);
 });
 
-test("chalkboard and printable-pdf uuid validation share one pattern", async () => {
+test("whiteboard and printable-pdf uuid validation share one pattern", async () => {
   const uuidLib = await import("../lib/uuid.ts");
-  const chalkboardPaths = await import("../lib/chalkboard-upload-paths.ts");
-  assert.equal(chalkboardPaths.validChalkboardAssetGroupId("0a1b2c3d-4e5f-4a1b-8c2d-0123456789ab"), true);
+  const whiteboardPaths = await import("../lib/whiteboard-upload-paths.ts");
+  assert.equal(whiteboardPaths.validWhiteboardAssetGroupId("0a1b2c3d-4e5f-4a1b-8c2d-0123456789ab"), true);
   assert.equal(uuidLib.isValidUuid("0a1b2c3d-4e5f-4a1b-8c2d-0123456789ab"), true);
   assert.equal(uuidLib.isValidUuid("not-a-uuid"), false);
-  const chalkboardSource = await readFile("lib/chalkboard-upload-paths.ts", "utf8");
-  assert.match(chalkboardSource, /from "\.\/uuid\.ts"/);
-  assert.doesNotMatch(chalkboardSource, /\/\^\[0-9a-f\]\{8\}/);
+  const whiteboardSource = await readFile("lib/whiteboard-upload-paths.ts", "utf8");
+  assert.match(whiteboardSource, /from "\.\/uuid\.ts"/);
+  assert.doesNotMatch(whiteboardSource, /\/\^\[0-9a-f\]\{8\}/);
 });
 
 test("printables are split by language: English on /pdf, Español on its own page", async () => {

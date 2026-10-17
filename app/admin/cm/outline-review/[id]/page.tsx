@@ -105,6 +105,7 @@ export default async function OutlineReviewEditPage({
         <Link href="/admin/cm/outline-review" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to Teaching Outline - Review</Link>
         <p className="mt-4 text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Review mode</p>
         <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31] sm:text-4xl">{outline.title}</h1>
+        <p className="mt-3"><Link href={`/admin/cm/outline-review/${id}/print`} target="_blank" className="admin-secondary-button inline-flex items-center justify-center"><span>Print preview</span></Link></p>
         <p className="mt-3 rounded-xl border border-[#a85e32]/20 bg-[#fff8f1] px-4 py-3 text-sm font-bold leading-6 text-[#6b4a2a]">
           Changes made here are proposals only. The approved outline will not change until an Administrator accepts them.
         </p>

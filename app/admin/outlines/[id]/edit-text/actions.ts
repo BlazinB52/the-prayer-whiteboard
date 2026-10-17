@@ -58,3 +58,18 @@ export async function changeOutlineStructure(outlineId: string, kind: "insert" |
   revalidatePath(`/admin/outlines/${outlineId}/edit-text`);
   return {};
 }
+
+// Starts a new bullet list after a paragraph, heading or list. Same rules as above.
+export async function addOutlineBulletList(outlineId: string, fieldKey: string): Promise<{ error?: string }> {
+  if (!UUID_PATTERN.test(outlineId)) return { error: "This outline could not be found." };
+  if (!/^block_[0-9]+(_item_[0-9]+)?$/.test(fieldKey)) return { error: "A bullet list cannot be added there." };
+  const { supabase } = await requireAdmin();
+
+  const { error } = await supabase.rpc("admin_outline_structure", { p_outline_id: outlineId, p_action: "insert_list", p_field: fieldKey });
+  if (error) return { error: friendlyRevisionError(error.message) };
+
+  revalidatePath("/admin/outlines");
+  revalidatePath(`/admin/outlines/${outlineId}`);
+  revalidatePath(`/admin/outlines/${outlineId}/edit-text`);
+  return {};
+}

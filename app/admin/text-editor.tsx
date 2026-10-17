@@ -26,9 +26,11 @@ type Action = (state: EditTextState, formData: FormData) => Promise<EditTextStat
 // the shape of the document, so they act on what is saved and are turned off while there are unsaved edits.
 // It must be a server action: a page cannot hand a client component any other kind of function.
 export type StructureAction = (kind: "insert" | "delete", fieldKey: string) => Promise<{ error?: string }>;
+// listAction (optional, outlines only) adds an "Add bullet list below" button that starts a new bullet list after the block.
+export type ListAction = (fieldKey: string) => Promise<{ error?: string }>;
 const STRUCTURE_FIELD = /^block_[0-9]+(_item_[0-9]+)?$/;
 
-export function AdminTextEditor({ action, fields, unit = "paragraph", structureAction }: { action: Action; fields: TextEditorField[]; unit?: string; structureAction?: StructureAction }) {
+export function AdminTextEditor({ action, fields, unit = "paragraph", structureAction, listAction }: { action: Action; fields: TextEditorField[]; unit?: string; structureAction?: StructureAction; listAction?: ListAction }) {
   const router = useRouter();
   const [structurePending, startStructure] = useTransition();
   const [structureError, setStructureError] = useState<string | null>(null);
@@ -50,6 +52,16 @@ export function AdminTextEditor({ action, fields, unit = "paragraph", structureA
     setStructureError(null);
     startStructure(async () => {
       const result = await structureAction(kind, fieldKey);
+      if (result.error) setStructureError(result.error);
+      else router.refresh();
+    });
+  };
+
+  const addList = (fieldKey: string) => {
+    if (!listAction) return;
+    setStructureError(null);
+    startStructure(async () => {
+      const result = await listAction(fieldKey);
       if (result.error) setStructureError(result.error);
       else router.refresh();
     });
@@ -88,6 +100,7 @@ export function AdminTextEditor({ action, fields, unit = "paragraph", structureA
             {structureAction && STRUCTURE_FIELD.test(field.key) ? (
               <div className="mt-3 flex flex-wrap items-center gap-4 text-sm font-extrabold">
                 <button type="button" disabled={changedCount > 0 || structurePending || pending} onClick={() => changeStructure("insert", field.key)} className="text-[#946332] hover:text-[#a85e32] disabled:cursor-not-allowed disabled:opacity-40">Add below</button>
+                {listAction ? <button type="button" disabled={changedCount > 0 || structurePending || pending} onClick={() => addList(field.key)} className="text-[#946332] hover:text-[#a85e32] disabled:cursor-not-allowed disabled:opacity-40">Add bullet list below</button> : null}
                 <button type="button" disabled={changedCount > 0 || structurePending || pending} onClick={() => changeStructure("delete", field.key)} className="text-[#a2472c] hover:underline disabled:cursor-not-allowed disabled:opacity-40">Delete</button>
               </div>
             ) : null}

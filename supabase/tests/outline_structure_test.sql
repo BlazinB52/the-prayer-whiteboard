@@ -49,6 +49,20 @@ select is((select jsonb_array_length(content) from public.teaching_outlines wher
 select lives_ok($$ select public.admin_outline_structure('00000000-0000-4000-9910-0000000000a1', 'delete', 'block_2') $$, 'a paragraph can be deleted');
 select is((select content -> 1 -> 'inlines' -> 0 ->> 'text' from public.teaching_outlines where id = '00000000-0000-4000-9910-0000000000a1'), 'Two', 'and the next one takes its place');
 
+-- A new bullet list can be started after a paragraph or after a list (20261017010000_outline_add_bullet_list.sql).
+select lives_ok($$ select public.admin_outline_structure('00000000-0000-4000-9910-0000000000a1', 'insert_list', 'block_2') $$, 'a bullet list is started after block 2');
+select is((select jsonb_array_length(content) from public.teaching_outlines where id = '00000000-0000-4000-9910-0000000000a1'), 5, 'there is one more block');
+select is((select content -> 2 from public.teaching_outlines where id = '00000000-0000-4000-9910-0000000000a1'), '{"type":"list","items":[{"level":0,"ordered":false,"inlines":[{"text":"New item"}]}]}'::jsonb, 'a one-item bullet list sits right after block 2');
+select is((select content -> 3 ->> 'type' from public.teaching_outlines where id = '00000000-0000-4000-9910-0000000000a1'), 'list', 'and the existing list moved down');
+select lives_ok($$ select public.admin_outline_structure('00000000-0000-4000-9910-0000000000a1', 'insert_list', 'block_4_item_2') $$, 'a bullet list can also be started after a list item, which puts it after that whole list');
+select is((select content -> 4 ->> 'type' from public.teaching_outlines where id = '00000000-0000-4000-9910-0000000000a1'), 'list', 'it follows the existing list');
+select is((select content -> 3 -> 'items' -> 1 -> 'inlines' -> 0 ->> 'text' from public.teaching_outlines where id = '00000000-0000-4000-9910-0000000000a1'), 'B', 'and the existing list is unchanged');
+select throws_ok($$ select public.admin_outline_structure('00000000-0000-4000-9910-0000000000a1', 'insert_list', 'block_6') $$, '22023', null, 'a list cannot be started after a table');
+select throws_ok($$ select public.admin_outline_structure('00000000-0000-4000-9910-0000000000a1', 'insert_list', 'block_2_item_1') $$, '22023', null, 'an item that is not in a list is refused');
+select lives_ok($$ select public.admin_outline_structure('00000000-0000-4000-9910-0000000000a1', 'delete', 'block_5_item_1') $$, 'the second new list goes when its only item is deleted');
+select lives_ok($$ select public.admin_outline_structure('00000000-0000-4000-9910-0000000000a1', 'delete', 'block_3_item_1') $$, 'and so does the first');
+select is((select jsonb_array_length(content) from public.teaching_outlines where id = '00000000-0000-4000-9910-0000000000a1'), 4, 'back to where it was');
+
 -- Lists: items keep their level and kind, and the list goes with its last item.
 select lives_ok($$ select public.admin_outline_structure('00000000-0000-4000-9910-0000000000a1', 'insert', 'block_3_item_1') $$, 'a list item is added after item 1');
 select is((select content -> 2 -> 'items' -> 1 from public.teaching_outlines where id = '00000000-0000-4000-9910-0000000000a1'), '{"level":1,"ordered":true,"inlines":[{"text":"New item"}]}'::jsonb, 'with the same level and numbering');

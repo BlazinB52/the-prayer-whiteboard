@@ -288,7 +288,7 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
   if (title.error) return { error: title.error };
   if (!title.value) return { error: "Please check the weekly update details and try again." };
   // An existing update keeps the language it was created with; the form cannot change it.
-  const { data: existing } = await supabase.from("weekly_updates").select("language").eq("id", id.value).maybeSingle();
+  const { data: existing } = await supabase.from("weekly_updates").select("language, status").eq("id", id.value).maybeSingle();
   if (!existing) return { error: "The weekly update could not be found." };
   const language: WeeklyUpdateLanguage = existing.language === "es" ? "es" : "en";
   const chalkboard = await readChalkboardAssetIds(supabase, formData, language);
@@ -302,6 +302,8 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
 
   const docx = await readDocx(formData, false);
   if (docx.error) return { error: docx.error };
+  // An archived update is a record of what went out: its details can be put right, but its text is not replaced.
+  if (existing.status === "archived" && docx.value) return { error: "An archived weekly update's document cannot be replaced. Its title, date, teaching, whiteboards and footer can be corrected." };
 
   const update: Record<string, unknown> = { title: title.value, chalkboard_asset_id: chalkboard.value?.[0] ?? null, teaching_id: teaching.value };
   // An existing letter with no date can be saved without one; a date that is entered is kept.
@@ -324,7 +326,7 @@ export async function updateWeeklyUpdate(_: FormState, formData: FormData): Prom
     .from("weekly_updates")
     .update(update)
     .eq("id", id.value)
-    .in("status", ["draft", "published"])
+    .in("status", ["draft", "published", "archived"])
     .select("id")
     .maybeSingle();
   if (error || !data) {

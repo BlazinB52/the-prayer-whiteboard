@@ -187,7 +187,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                     <div>
                       <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">{update.is_current ? "Current" : update.status} · {update.language === "es" ? "Español" : "English"}{update.status === "draft" && update.ready_to_publish_at ? <span className="ml-2 rounded-full bg-[#e8f0fe] px-3 py-1 text-[10px] font-black tracking-wider text-[#1a4fb4]">Ready to publish</span> : null}{update.status === "draft" && update.sent_to_proofing_at ? <span className="ml-2 rounded-full bg-[#fbf1e1] px-3 py-1 text-[10px] font-black tracking-wider text-[#7a4a1d]">Proofs {proofs.filter((proof) => proof.submitted_at).length} of {proofs.length} in</span> : null}</p>
                       <h3 className="mt-2 text-2xl font-extrabold text-[#243d31]">{update.title}</h3>
-                      <div className="mt-2">{update.gathering_date ? <TeachingDateLabel date={update.gathering_date} /> : <span className="text-xs font-bold text-[#a2472c]">Needs a gathering date. Open Edit title or replace document to add one.</span>}</div>
+                      <div className="mt-2">{update.gathering_date ? <TeachingDateLabel date={update.gathering_date} /> : <span className="text-xs font-bold text-[#a2472c]">Needs a gathering date. Open Edit details below to add one.</span>}</div>
                       {update.recorded_sent_on ? <p className="mt-2 text-sm font-bold text-[#385245]">Recorded as already sent on {formatDate(update.recorded_sent_on)}. Nothing was emailed.</p> : null}
                       <p className="mt-2 text-sm text-[#607066]">Published: {formatDate(update.published_at)}{update.archived_at ? ` · Archived: ${formatDate(update.archived_at)}` : ""}</p>
                       <p className="mt-1 text-sm text-[#607066]">Source document: <span className="font-bold text-[#385245]">{update.source_document_file_name ?? "Not retained"}</span></p>
@@ -285,12 +285,12 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <span className="text-sm text-[#607066]">Fix or reword paragraphs directly, and see what changed since the upload.</span>
                     </div>
                   ) : null}
-                  {update.status !== "archived" ? (
+                  {(
                     <details className="mt-5">
-                      <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Edit title or replace document</summary>
-                      <div className="mt-4"><WeeklyUpdateEditor action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialLanguage={update.language === "es" ? "es" : "en"} languageLocked initialTitle={update.title} initialChalkboardAssetIds={chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} teachings={teachingChoices} initialTeachingId={update.teaching_id} initialGatheringDate={update.gathering_date} chalkboards={chalkboardOptions} footers={footerOptions} /></div>
+                      <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">{update.status === "archived" ? "Edit details (title, date, teaching, whiteboards, footer)" : "Edit title or replace document"}</summary>
+                      <div className="mt-4"><WeeklyUpdateEditor hideDocument={update.status === "archived"} action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialLanguage={update.language === "es" ? "es" : "en"} languageLocked initialTitle={update.title} initialChalkboardAssetIds={chalkboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} teachings={teachingChoices} initialTeachingId={update.teaching_id} initialGatheringDate={update.gathering_date} chalkboards={chalkboardOptions} footers={footerOptions} /></div>
                     </details>
-                  ) : null}
+                  )}
                   {update.is_current && update.status === "published" ? (
                     <details className="mt-5">
                       <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Send to one subscriber who missed it</summary>

@@ -19,7 +19,7 @@ export type EnglishOriginalOption = { id: string; label: string; disabled?: bool
 
 const LANGUAGE_LABELS: Record<Language, string> = { en: "English", es: "Español (El Salvador)" };
 
-export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", initialLanguage = "en", languageLocked = false, initialChalkboardAssetIds = [], initialFooterId = "", chalkboards = [], footers = [], teachings = [], initialTeachingId = "", initialGatheringDate = "", englishOriginals = [], submitLabel = "Save Weekly Update", sourceRequired = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; initialLanguage?: Language; languageLocked?: boolean; initialChalkboardAssetIds?: string[]; initialFooterId?: string | null; chalkboards?: WeeklyUpdateChalkboardOption[]; footers?: WeeklyUpdateFooterOption[]; teachings?: TeachingChoice[]; initialTeachingId?: string | null; initialGatheringDate?: string | null; englishOriginals?: EnglishOriginalOption[]; submitLabel?: string; sourceRequired?: boolean }) {
+export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", initialLanguage = "en", languageLocked = false, initialChalkboardAssetIds = [], initialFooterId = "", chalkboards = [], footers = [], teachings = [], initialTeachingId = "", initialGatheringDate = "", englishOriginals = [], submitLabel = "Save Weekly Update", sourceRequired = false, hideDocument = false }: { action: Action; weeklyUpdateId?: string; initialTitle?: string; initialLanguage?: Language; languageLocked?: boolean; initialChalkboardAssetIds?: string[]; initialFooterId?: string | null; chalkboards?: WeeklyUpdateChalkboardOption[]; footers?: WeeklyUpdateFooterOption[]; teachings?: TeachingChoice[]; initialTeachingId?: string | null; initialGatheringDate?: string | null; englishOriginals?: EnglishOriginalOption[]; submitLabel?: string; sourceRequired?: boolean; hideDocument?: boolean }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
   const [language, setLanguage] = useState<Language>(initialLanguage);
@@ -133,12 +133,12 @@ export function WeeklyUpdateEditor({ action, weeklyUpdateId, initialTitle = "", 
           </select>
         </label>
       </fieldset>
-      <label className="block text-sm font-bold text-[#385245]">
+      {hideDocument ? null : <label className="block text-sm font-bold text-[#385245]">
         Weekly update document
         <input name="sourceDocument" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required={sourceRequired} onChange={handleFileChange} className="admin-input py-2" />
         {fileHint ? <span className="mt-1 block text-xs font-bold text-[#326048]">{fileHint}</span> : null}
         <span className="mt-1 block text-xs font-normal text-[#607066]">{sourceRequired ? "Upload the .docx source document. Conversion runs on the server." : "Upload a replacement .docx only when you want to reconvert the content."}</span>
-      </label>
+      </label>}
       {state.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
       {state.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Weekly update saved.</p> : null}
       <button type="submit" disabled={pending} className="admin-primary-button"><span>{pending ? "Saving..." : submitLabel}</span></button>

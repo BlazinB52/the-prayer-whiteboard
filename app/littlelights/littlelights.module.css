@@ -113,7 +113,7 @@
   box-shadow: inset 0 0 0 6px #fff;
 }
 
-.featuredAdventure { position: relative; width: 100%; }
+.featuredAdventure { position: relative; z-index: 1; width: 100%; }
 .featuredArtwork { display: block; width: 100%; height: auto; }
 
 .featuredLink { position: absolute; border-radius: 999px; }
@@ -163,7 +163,14 @@
   font-weight: 700;
 }
 
-.discoveryPrintables { position: relative; width: 100%; }
+.discoveryPrintables {
+  position: relative;
+  width: 100%;
+  /* Compensate for 250px of combined blank image space at the original
+     1920px width, keeping roughly 16px between the visible illustrations.
+     The featured section paints above this image's blank top margin. */
+  margin-top: calc(16px - 13.0208333333%);
+}
 .printablesArtwork { display: block; width: 100%; height: auto; }
 
 /* Right-hand text and circular arrow in the supplied 1920 × 819 image.

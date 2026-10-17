@@ -22,7 +22,7 @@ export type ReviewFormField = {
   changedSince: string | null;
 };
 
-// "Proofed" ticks are a private reminder for the editor, kept in this browser only. They are never sent
+// "My Place" ticks are a private reminder for the editor, kept in this browser only. They are never sent
 // to the server and have no effect on what is saved or submitted.
 const PROOFED_EVENT = "review-proofed-change";
 
@@ -102,10 +102,10 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching", 
     seen[group.context] = (seen[group.context] ?? 0) + 1;
     return `${group.context}#${seen[group.context]}`;
   });
-  const proofedCount = cardKeys.filter((key) => proofed.has(key)).length;
-  const jumpToNextUnproofed = () => {
-    const index = cardKeys.findIndex((key) => !proofed.has(key));
-    if (index >= 0) document.getElementById(`proof-card-${index}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  // "My Place": the last card marked, in reading order, is where to pick up next time.
+  const placeIndex = cardKeys.reduce((last, key, index) => (proofed.has(key) ? index : last), -1);
+  const jumpToMyPlace = () => {
+    if (placeIndex >= 0) document.getElementById(`proof-card-${placeIndex}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const changedCount = fields.filter((field) => values[field.id].trim() !== field.base.trim()).length;
@@ -158,15 +158,18 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching", 
               </div>
             ))}
           </div>
-          <label className={`mt-5 flex w-fit cursor-pointer items-center gap-3 rounded-xl border px-4 py-2 text-sm font-extrabold ${proofed.has(cardKeys[groupIndex]) ? "border-[#326048]/30 bg-[#e7efe9] text-[#326048]" : "border-[#284a3b]/15 bg-white text-[#385245]"}`}>
-            <input
-              type="checkbox"
-              checked={proofed.has(cardKeys[groupIndex])}
-              onChange={(event) => setProofed(cardKeys[groupIndex], event.target.checked)}
-              className="size-5 accent-[#326048]"
-            />
-            I have proofed this card
-          </label>
+          <div className="mt-5">
+            <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#946332]">🔖 My Place</p>
+            <label className={`mt-1 flex w-fit cursor-pointer items-center gap-3 rounded-xl border px-4 py-2 text-sm font-extrabold ${proofed.has(cardKeys[groupIndex]) ? "border-[#326048]/30 bg-[#e7efe9] text-[#326048]" : "border-[#284a3b]/15 bg-white text-[#385245]"}`}>
+              <input
+                type="checkbox"
+                checked={proofed.has(cardKeys[groupIndex])}
+                onChange={(event) => setProofed(cardKeys[groupIndex], event.target.checked)}
+                className="size-5 accent-[#326048]"
+              />
+              Pick up here next time
+            </label>
+          </div>
         </section>
       ))}
 
@@ -193,11 +196,13 @@ export function ReviewEditForm({ action, fields, canEdit, subject = "teaching", 
 
       <div className="sticky bottom-0 -mx-1 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-4 shadow-xl shadow-[#4d5f52]/10">
         <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-[#385245]">
-          <span>Proofed {proofedCount} of {groups.length} cards</span>
-          {proofedCount < groups.length ? (
-            <button type="button" onClick={jumpToNextUnproofed} className="font-extrabold text-[#946332] underline hover:text-[#a85e32]">Jump to next unproofed card</button>
+          {placeIndex >= 0 ? (
+            <>
+              <span>🔖 Your place is on card {placeIndex + 1} of {groups.length}</span>
+              <button type="button" onClick={jumpToMyPlace} className="font-extrabold text-[#946332] underline hover:text-[#a85e32]">Jump to my place</button>
+            </>
           ) : (
-            <span className="text-[#326048]">All cards proofed</span>
+            <span>🔖 No place marked yet</span>
           )}
           <span className="font-normal text-[#607066]">(a private reminder, saved in this browser only)</span>
         </p>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
+import { useProofed } from "@/app/admin/use-my-place";
 import { TrackedText } from "@/lib/tracked-text";
 import type { TeachingReviewState } from "../actions";
 
@@ -21,51 +22,6 @@ export type ReviewFormField = {
   /** Set when the approved wording changed after the editor saved a proposal for this field. */
   changedSince: string | null;
 };
-
-// "My Place" ticks are a private reminder for the editor, kept in this browser only. They are never sent
-// to the server and have no effect on what is saved or submitted.
-const PROOFED_EVENT = "review-proofed-change";
-
-function useProofed(storageKey: string) {
-  const raw = useSyncExternalStore(
-    (notify) => {
-      window.addEventListener(PROOFED_EVENT, notify);
-      window.addEventListener("storage", notify);
-      return () => {
-        window.removeEventListener(PROOFED_EVENT, notify);
-        window.removeEventListener("storage", notify);
-      };
-    },
-    () => {
-      try {
-        return window.localStorage.getItem(storageKey) ?? "";
-      } catch {
-        return "";
-      }
-    },
-    () => "",
-  );
-  const proofed = useMemo(() => {
-    try {
-      const parsed: unknown = raw ? JSON.parse(raw) : [];
-      return new Set<string>(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []);
-    } catch {
-      return new Set<string>();
-    }
-  }, [raw]);
-  const toggle = (key: string, checked: boolean) => {
-    const next = new Set(proofed);
-    if (checked) next.add(key);
-    else next.delete(key);
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify([...next]));
-    } catch {
-      // Storage can be unavailable (private window); the reminder simply will not stick.
-    }
-    window.dispatchEvent(new Event(PROOFED_EVENT));
-  };
-  return { proofed, toggle };
-}
 
 type Action = (state: TeachingReviewState, formData: FormData) => Promise<TeachingReviewState>;
 

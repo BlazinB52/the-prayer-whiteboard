@@ -1,8 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
+import { useProofed } from "@/app/admin/use-my-place";
 
 export type TextEditorField = {
   key: string;
@@ -32,6 +33,8 @@ const STRUCTURE_FIELD = /^block_[0-9]+(_item_[0-9]+)?$/;
 
 export function AdminTextEditor({ action, fields, unit = "paragraph", structureAction, listAction }: { action: Action; fields: TextEditorField[]; unit?: string; structureAction?: StructureAction; listAction?: ListAction }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const { proofed, toggle: setProofed } = useProofed(`admin-place:${pathname}`);
   const [structurePending, startStructure] = useTransition();
   const [structureError, setStructureError] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState(action, {});
@@ -45,6 +48,12 @@ export function AdminTextEditor({ action, fields, unit = "paragraph", structureA
     if (state.savedCount !== undefined) setBases(values);
   }
   const changedCount = fields.filter((field) => values[field.key] !== bases[field.key]).length;
+
+  // "My Place": the last field marked, in reading order, is where to pick up next time.
+  const placeIndex = fields.reduce((last, field, index) => (proofed.has(field.key) ? index : last), -1);
+  const jumpToMyPlace = () => {
+    if (placeIndex >= 0) document.getElementById(`field-${fields[placeIndex].key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const changeStructure = (kind: "insert" | "delete", fieldKey: string) => {
     if (!structureAction) return;
@@ -97,6 +106,13 @@ export function AdminTextEditor({ action, fields, unit = "paragraph", structureA
               </label>
             )}
             {changed ? <p className="mt-2 text-xs font-extrabold uppercase tracking-wider text-[#1a4fb4]">Edited, not saved yet</p> : null}
+            <div className="mt-3">
+              <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#946332]">🔖 My Place</p>
+              <label className={`mt-1 flex w-fit cursor-pointer items-center gap-3 rounded-xl border px-4 py-2 text-sm font-extrabold ${proofed.has(field.key) ? "border-[#326048]/30 bg-[#e7efe9] text-[#326048]" : "border-[#284a3b]/15 bg-white text-[#385245]"}`}>
+                <input type="checkbox" checked={proofed.has(field.key)} onChange={(event) => setProofed(field.key, event.target.checked)} className="size-5 accent-[#326048]" />
+                Pick up here next time
+              </label>
+            </div>
             {structureAction && STRUCTURE_FIELD.test(field.key) ? (
               <div className="mt-3 flex flex-wrap items-center gap-4 text-sm font-extrabold">
                 <button type="button" disabled={changedCount > 0 || structurePending || pending} onClick={() => changeStructure("insert", field.key)} className="text-[#946332] hover:text-[#a85e32] disabled:cursor-not-allowed disabled:opacity-40">Add below</button>
@@ -109,6 +125,17 @@ export function AdminTextEditor({ action, fields, unit = "paragraph", structureA
       })}
 
       <div className="sticky bottom-0 -mx-1 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-4 shadow-xl shadow-[#4d5f52]/10">
+        <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-[#385245]">
+          {placeIndex >= 0 ? (
+            <>
+              <span>🔖 Your place is on {unit} {placeIndex + 1} of {fields.length}</span>
+              <button type="button" onClick={jumpToMyPlace} className="font-extrabold text-[#946332] underline hover:text-[#a85e32]">Jump to my place</button>
+            </>
+          ) : (
+            <span>🔖 No place marked yet</span>
+          )}
+          <span className="font-normal text-[#607066]">(a private reminder, saved in this browser only)</span>
+        </p>
         {state.error ? <p role="alert" className="mb-3 text-sm font-bold text-[#a2472c]">{state.error}</p> : null}
         {structureError ? <p role="alert" className="mb-3 text-sm font-bold text-[#a2472c]">{structureError}</p> : null}
         {structureAction && changedCount > 0 ? <p className="mb-3 text-sm text-[#607066]">Save your edits before adding or deleting a paragraph.</p> : null}

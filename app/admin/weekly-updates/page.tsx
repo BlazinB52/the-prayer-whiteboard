@@ -196,7 +196,8 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <p className="mt-1 text-sm text-[#607066]">Footer:<span className="font-bold text-[#385245]">{footerLabels.get(footerIdByUpdate.get(update.id) ?? "") ?? "None selected"}</span></p>
                     </div>
                     <div className="flex flex-wrap gap-3">
-                      {update.status !== "archived" ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate} weeklyUpdateId={update.id} intent="publish" label="Publish current" confirmMessage={update.status === "draft" && (!update.ready_to_publish_at || proofsOutstanding) ? `${[!update.ready_to_publish_at ? "This draft has not been marked ready to publish." : "", proofsOutstanding ? `${proofs.filter((proof) => !proof.submitted_at).length} of ${proofs.length} Content Managers have not submitted their proof yet. Publishing ends their review.` : ""].filter(Boolean).join("\n")}\n\n${publishNotice.confirm}` : publishNotice.confirm} /> : null}
+                      {update.status === "draft" || (update.status === "published" && !update.is_current) ? <WeeklyUpdateStatusButton action={publishWeeklyUpdate} weeklyUpdateId={update.id} intent="publish" label="Publish current" confirmMessage={update.status === "draft" && (!update.ready_to_publish_at || proofsOutstanding) ? `${[!update.ready_to_publish_at ? "This draft has not been marked ready to publish." : "", proofsOutstanding ? `${proofs.filter((proof) => !proof.submitted_at).length} of ${proofs.length} Content Managers have not submitted their proof yet. Publishing ends their review.` : ""].filter(Boolean).join("\n")}\n\n${publishNotice.confirm}` : publishNotice.confirm} /> : null}
+                      {update.is_current && update.status === "published" ? <span className="inline-flex items-center rounded-full bg-[#e7efe9] px-4 py-2 text-xs font-black uppercase tracking-wider text-[#326048]">Live on the website</span> : null}
                       {update.status !== "archived" ? <WeeklyUpdateStatusButton action={archiveWeeklyUpdate} weeklyUpdateId={update.id} intent="archive" label="Archive" variant="danger" /> : null}
                       {!update.is_current ? <WeeklyUpdateDeleteButton action={deleteWeeklyUpdate} weeklyUpdateId={update.id} title={update.title} /> : null}
                     </div>
@@ -207,7 +208,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <Link href="/admin/teaching-revisions" className="underline underline-offset-2">Review {waitingByUpdate.get(update.id) === 1 ? "it" : "them"} first</Link>.
                     </p>
                   ) : null}
-                  {update.status !== "archived" ? (
+                  {update.status === "draft" || (update.status === "published" && !update.is_current) ? (
                     <p role="note" className={`mt-4 rounded-xl border px-4 py-3 text-sm font-bold ${publishNotice.kind === "email" ? "border-[#946332]/30 bg-[#fbf1e1] text-[#7a4a1d]" : "border-[#284a3b]/15 bg-[#f4f6f1] text-[#385245]"}`}>{publishNotice.text}</p>
                   ) : null}
                   {update.is_current && update.status === "published" && unfinishedByUpdate.has(update.id) ? (

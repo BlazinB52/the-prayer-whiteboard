@@ -141,16 +141,15 @@
 }
 
 .comingSoonPage {
-  padding: 3rem 1.25rem;
+  padding-bottom: 1.5rem;
   text-align: center;
   line-height: 1.7;
 }
 
-.comingSoonPage h1 {
-  margin-block: .75rem 1rem;
-  font-size: clamp(1.75rem, 6vw, 2.25rem);
-  font-weight: 800;
-  line-height: 1.2;
+.underConstructionArtwork {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .backToLittleLights {

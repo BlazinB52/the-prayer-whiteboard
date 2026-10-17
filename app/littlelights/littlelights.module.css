@@ -165,18 +165,27 @@
 
 .discoveryPrintables {
   position: relative;
+  z-index: 2;
+  pointer-events: none;
   width: 100%;
   /* Compensate for 250px of combined blank image space at the original
-     1920px width, keeping roughly 16px between the visible illustrations.
-     The featured section paints above this image's blank top margin. */
-  margin-top: calc(16px - 13.0208333333%);
+     1920px width, leaving roughly 2–5px above Zack's hair. */
+  margin-top: calc(6px - 13.0208333333%);
 }
-.printablesArtwork { display: block; width: 100%; height: auto; }
+.printablesArtwork {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Only the embedded blank top margin is transparent. All illustrated
+     pixels begin below 24%, so neither illustration obscures the other. */
+  mask-image: linear-gradient(to bottom, transparent 24%, #000 24%);
+}
 
 /* Right-hand text and circular arrow in the supplied 1920 × 819 image.
    Zack and his speech bubble remain outside the link. */
 .printablesLink {
   position: absolute;
+  pointer-events: auto;
   left: 61.5%;
   top: 29%;
   width: 36.5%;

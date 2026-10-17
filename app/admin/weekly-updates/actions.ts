@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { convertDocxToWeeklyUpdate } from "@/lib/weekly-update-docx";
+import { cleanReviewNote } from "@/lib/review-ready-email";
+import { listActiveContentManagers, readRecipientIds } from "@/lib/review-recipients";
 import { notifyContentManagers } from "@/lib/review-ready-send";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -362,25 +364,33 @@ export async function setWeeklyUpdateReady(id: string, ready: boolean) {
   redirect(`/admin/weekly-updates?ready=${ready ? "marked" : "cleared"}`);
 }
 
-// Step 1 of the workflow: the Administrator has reviewed the draft and sends it to every registered Content
-// Manager to proofread. Each one gets their own pass. Running it again only reaches Content Managers who were
-// added since, and never gives anyone a second pass. Nothing is published or emailed.
-export async function sendWeeklyUpdateToProofing(id: string) {
+// Step 1 of the workflow: the Administrator has reviewed the draft and sends it to the Content Managers they ticked to
+// proofread. Each one gets their own pass. Sending again reaches only people who do not have it yet, and nobody gets a second
+// pass or a second email. Nothing is published or emailed to subscribers.
+export async function sendWeeklyUpdateToProofing(id: string, formData?: FormData) {
   const { supabase, user } = await requireAdmin();
   if (!UUID_PATTERN.test(id)) redirect("/admin/weekly-updates");
 
-  // Content Managers are emailed the first time it is sent. Running it again only reaches people added since,
-  // and does not email everyone a second time.
-  const { data: before } = await supabase.from("weekly_updates").select("title, sent_to_proofing_at").eq("id", id).maybeSingle();
+  const managers = await listActiveContentManagers();
+  const allowed = new Set(managers.map((person) => person.userId));
+  const chosen = readRecipientIds(formData).filter((userId) => allowed.has(userId));
+  if (chosen.length === 0) redirect("/admin/weekly-updates?proofing=nopick");
 
-  const { error } = await supabase.rpc("send_weekly_update_for_proofing", { p_weekly_update_id: id, p_restart: false });
+  const { data: before } = await supabase.from("weekly_updates").select("title").eq("id", id).maybeSingle();
+  const { data: hadRows } = await supabase.from("weekly_update_proofings").select("user_id").eq("weekly_update_id", id);
+  const had = new Set((hadRows ?? []).map((row) => String(row.user_id)));
+
+  const { error } = await supabase.rpc("send_weekly_update_for_proofing", { p_weekly_update_id: id, p_restart: false, p_user_ids: chosen });
   if (error) redirect(`/admin/weekly-updates?proofing=${/no Content Managers/i.test(error.message) ? "nocm" : "error"}`);
 
   revalidatePath("/admin/weekly-updates");
   revalidatePath("/admin/cm/weekly-update-review");
-  if (before && !before.sent_to_proofing_at) {
+
+  // Only the people who did not already have it are emailed.
+  const additions = chosen.filter((userId) => !had.has(userId));
+  if (before && additions.length) {
     const { data: me } = await supabase.from("admin_authorizations").select("display_name").eq("user_id", user.id).maybeSingle();
-    const notified = await notifyContentManagers({ kind: "weekly_update", id, title: String(before.title ?? ""), senderName: me?.display_name ?? null });
+    const notified = await notifyContentManagers({ kind: "weekly_update", id, title: String(before.title ?? ""), senderName: me?.display_name ?? null, note: cleanReviewNote(formData?.get("note")), onlyUserIds: additions });
     redirect(`/admin/weekly-updates?proofing=sent&mailed=${notified.sent}&of=${notified.recipients}`);
   }
   redirect("/admin/weekly-updates?proofing=sent");

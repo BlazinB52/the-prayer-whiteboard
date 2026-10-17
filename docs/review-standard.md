@@ -8,8 +8,11 @@ through it.
 
 1. **The Administrator creates a draft.** Content Managers cannot see it.
 2. **The gate.** The Administrator presses **Send to Content Managers for review** on the item's page.
-   Every active Content Manager is emailed a link. The Administrator can **Take back from review** at any
-   time. (Weekly updates are the one exception: they are sent to chosen people, from the Weekly Updates
+   The Administrator ticks which Content Managers to send it to (all are ticked to start), can add a short
+   note that appears in the email, and each person ticked is emailed a link. The same box can send it to the
+   others later; only people who did not have it yet are emailed. Who has it is stored in
+   `content_review_recipients`, and the database shows a Content Manager the item only if it was sent to them.
+   The Administrator can **Take back from review** at any time, which takes it back from everybody. (Weekly updates are the one exception: they are sent to chosen people, from the Weekly Updates
    page, and a Content Manager's single submit is also their OK to publish.)
 3. **Proposals.** A Content Manager opens the item under `/admin/cm/<kind>-review`, edits the wording, and
    presses **Save Draft** and then **Submit for Admin Review**. Nothing they do touches the item itself.

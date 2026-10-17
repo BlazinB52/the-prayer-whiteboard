@@ -88,7 +88,7 @@ test("sending for proofing and taking back are admin-only, draft-only and publis
     assert.match(body, /await requireAdmin\(\)/);
     assert.doesNotMatch(body, /publish_weekly_update|broadcast/);
   }
-  assert.match(adminActions, /rpc\("send_weekly_update_for_proofing", \{ p_weekly_update_id: id, p_restart: false \}\)/);
+  assert.match(adminActions, /rpc\("send_weekly_update_for_proofing", \{ p_weekly_update_id: id, p_restart: false, p_user_ids: chosen \}\)/);
   assert.match(adminActions, /rpc\("take_back_weekly_update_from_proofing"/);
   for (const fn of ["send_weekly_update_for_proofing", "take_back_weekly_update_from_proofing", "restart_weekly_update_proofing"]) {
     assert.match(migration, new RegExp(`function public\\.${fn}[\\s\\S]*?is_authenticated_admin\\(\\)`));

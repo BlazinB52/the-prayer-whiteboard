@@ -146,7 +146,7 @@ export default async function AdminHandoutPage({
               kind="handout"
               subjectId={idResult.value}
               sentAt={handout.sent_for_review_at ?? null}
-              sendAction={sendForReview.bind(null, "handout", idResult.value)}
+              sendAction={sendForReview.bind(null, "handout", idResult.value, undefined)}
               takeBackAction={takeBackFromReview.bind(null, "handout", idResult.value)}
             />
           )

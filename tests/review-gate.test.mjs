@@ -45,9 +45,9 @@ test("sending for review is Administrator-only, only for drafts, once, and email
   assert.match(send, /\.is\("revoked_at", null\)/);
 });
 
-test("the weekly update send emails once, on the first send only", async () => {
+test("the weekly update send emails only the people who did not already have it", async () => {
   const actions = await readFile("app/admin/weekly-updates/actions.ts", "utf8");
-  assert.match(actions, /if \(before && !before\.sent_to_proofing_at\)/);
+  assert.match(actions, /if \(before && additions\.length\)/);
   assert.match(actions, /notifyContentManagers\(\{ kind: "weekly_update"/);
 });
 
@@ -79,4 +79,32 @@ test("the migration hides unsent drafts from Content Managers in the database, a
   assert.match(sql, /review_is_open\('weekly_update', null, null, p_weekly_update_id\)/);
   assert.match(sql, /sent_for_review_at is null or status = 'draft'/);
   assert.match(sql, /where r\.subject_type = 'teaching'[\s\S]*?status in \('draft', 'submitted'\)/, "work already under way stays visible");
+});
+
+test("an optional note appears in the review email, escaped, and is left out when empty", () => {
+  const base = { kind: "teaching", title: "T", reviewUrl: "https://x", senderName: "Pat" };
+  const withNote = buildReviewReadyEmail({ ...base, note: "Look at <point> 2.\nThanks" });
+  assert.match(withNote.html, /A note from Pat/);
+  assert.match(withNote.html, /Look at &lt;point&gt; 2\.<br>Thanks/);
+  assert.match(withNote.text, /A note from Pat:\nLook at <point> 2\.\nThanks/);
+  assert.doesNotMatch(buildReviewReadyEmail({ ...base, note: "   " }).html, /A note from/);
+  assert.equal(buildReviewReadyEmail(base).html, buildReviewReadyEmail({ ...base, note: "" }).html);
+});
+
+test("sending for review goes to the chosen Content Managers, records them before the gate opens, and emails only new people", async () => {
+  const actions = await readFile("app/admin/review-gate-actions.ts", "utf8");
+  assert.match(actions, /readRecipientIds\(formData\)/);
+  assert.match(actions, /review=nopick/, "sending to nobody is refused");
+  assert.ok(actions.indexOf('from("content_review_recipients")\n    .insert') < actions.indexOf('.is("sent_for_review_at", null)'), "the people are recorded before the gate opens");
+  assert.match(actions, /onlyUserIds: additions/, "only people who did not have it are emailed");
+  const section = await readFile("app/admin/review-gate-section.tsx", "utf8");
+  assert.match(section, /name="to"/);
+  assert.match(section, /Not sent to yet/);
+});
+
+test("the weekly update send takes chosen people and emails only the ones who did not have it", async () => {
+  const actions = await readFile("app/admin/weekly-updates/actions.ts", "utf8");
+  assert.match(actions, /p_user_ids: chosen/);
+  assert.match(actions, /onlyUserIds: additions/);
+  assert.match(actions, /proofing=nopick/);
 });

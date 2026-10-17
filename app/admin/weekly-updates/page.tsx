@@ -9,6 +9,8 @@ import { FinishSendingButton } from "./finish-sending-button";
 import { RecordSentForm } from "./record-sent-form";
 import { TranslateWeeklyUpdateButton } from "./translate-button";
 import { TeachingDateLabel } from "@/app/teaching-date-label";
+import { ReviewNoteField, ReviewRecipientPicker } from "@/app/admin/review-gate-section";
+import { listActiveContentManagers } from "@/lib/review-recipients";
 import { SendToSubscriberForm } from "./send-to-subscriber-form";
 import { WeeklyUpdateContent } from "@/app/weekly-update/weekly-update-content";
 import { ContentFooter } from "@/app/content-footer";
@@ -102,6 +104,8 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
   for (const row of proofingRows ?? []) proofsByUpdate.set(row.weekly_update_id, [...(proofsByUpdate.get(row.weekly_update_id) ?? []), row]);
   const proofRevisionByKey = new Map((proofRevisions ?? []).map((row) => [`${row.weekly_update_id}:${row.submitted_by}`, row]));
 
+  const contentManagers = await listActiveContentManagers();
+
   const { data: unfinishedSends } = await supabase
     .from("email_broadcast_events")
     .select("weekly_update_id, status, recipient_count")
@@ -134,6 +138,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
         {params.deleted === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Weekly update deleted.</p> : null}
 
         {params.proofing === "sent" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Sent to the Content Managers for proofing.{params.mailed !== undefined ? ` ${params.mailed} of ${params.of} Content Manager ${params.of === "1" ? "was" : "were"} emailed${params.mailed !== params.of ? "; please tell the others directly" : ""}.` : ""} Nothing was published or emailed to subscribers.</p> : null}
+        {params.proofing === "nopick" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">Nothing was sent. Tick at least one Content Manager to send it to.</p> : null}
         {params.proofing === "takenback" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Taken back from proofing.</p> : null}
         {params.proofing === "error" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">That could not be changed. Only drafts can be sent for proofing.</p> : null}
         {params.proofing === "nocm" ? <p role="alert" className="mt-6 rounded-xl border border-[#a2472c]/30 bg-[#f7e6e1] px-4 py-3 text-sm font-bold text-[#a2472c]">There are no active Content Managers to send it to. Add one under Content Managers first.</p> : null}
@@ -227,8 +232,10 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Proofing</p>
                       {!update.sent_to_proofing_at ? (
                         <>
-                          <p className="mt-2 text-sm leading-6 text-[#385245]">When you have reviewed this draft, send it to the Content Managers to proofread. Every registered Content Manager gets their own copy and one pass at it, and submitting it back is their OK to publish. Nothing is emailed to subscribers.</p>
-                          <form action={sendWeeklyUpdateToProofing.bind(null, update.id)} className="mt-3">
+                          <p className="mt-2 text-sm leading-6 text-[#385245]">When you have reviewed this draft, send it to the Content Managers to proofread. Each Content Manager you choose gets their own copy and one pass at it, and you can send it to others later, and submitting it back is their OK to publish. Nothing is emailed to subscribers.</p>
+                          <form action={sendWeeklyUpdateToProofing.bind(null, update.id)} className="mt-3 space-y-3">
+                            <ReviewRecipientPicker people={contentManagers} legend="Send it to:" />
+                            <ReviewNoteField />
                             <button type="submit" className="admin-secondary-button">Send to Content Managers for proofing</button>
                           </form>
                         </>
@@ -251,10 +258,14 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                               );
                             })}
                           </ul>
-                          <div className="mt-3 flex flex-wrap gap-3">
-                            <form action={sendWeeklyUpdateToProofing.bind(null, update.id)}>
-                              <button type="submit" className="admin-secondary-button">Send to any Content Managers added since</button>
+                          {contentManagers.some((person) => !proofs.some((proof) => proof.user_id === person.userId)) ? (
+                            <form action={sendWeeklyUpdateToProofing.bind(null, update.id)} className="mt-3 space-y-3 rounded-lg bg-white/70 p-3">
+                              <ReviewRecipientPicker people={contentManagers.filter((person) => !proofs.some((proof) => proof.user_id === person.userId))} legend="Not sent to yet. Send it to more Content Managers:" />
+                              <ReviewNoteField />
+                              <button type="submit" className="admin-secondary-button">Send to the selected Content Managers</button>
                             </form>
+                          ) : null}
+                          <div className="mt-3 flex flex-wrap gap-3">
                             <form action={takeWeeklyUpdateBackFromProofing.bind(null, update.id)}>
                               <button type="submit" className="admin-secondary-button">Take back from proofing</button>
                             </form>

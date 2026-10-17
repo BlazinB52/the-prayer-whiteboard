@@ -8,20 +8,24 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 export type ReviewNotifyResult = { recipients: number; sent: number; failed: number };
 
 /**
- * Emails every active Content Manager that something is ready for their review. One email each, sent one at
+ * Emails the chosen active Content Managers (all of them when none are named) that something is ready for their review. One email each, sent one at
  * a time. A failure for one person never stops the others, and the result says how many it reached so the
  * Administrator can tell them directly if an email did not go.
  */
-export async function notifyContentManagers(input: { kind: ReviewKind; id: string; title: string; senderName?: string | null }): Promise<ReviewNotifyResult> {
+export async function notifyContentManagers(input: { kind: ReviewKind; id: string; title: string; senderName?: string | null; note?: string | null; onlyUserIds?: string[] }): Promise<ReviewNotifyResult> {
   const supabase = createServiceRoleClient();
   if (!supabase) return { recipients: 0, sent: 0, failed: 0 };
+  // When the Administrator chose people, only those are emailed; an empty choice emails nobody.
+  if (input.onlyUserIds && input.onlyUserIds.length === 0) return { recipients: 0, sent: 0, failed: 0 };
 
-  const { data: managers } = await supabase
+  let query = supabase
     .from("admin_authorizations")
     .select("user_id, email, display_name")
     .eq("role", "content_manager")
     .eq("is_active", true)
     .is("revoked_at", null);
+  if (input.onlyUserIds) query = query.in("user_id", input.onlyUserIds);
+  const { data: managers } = await query;
 
   const reviewUrl = `${siteUrl()}${reviewPath(input.kind, input.id)}`;
   let sent = 0;
@@ -37,7 +41,7 @@ export async function notifyContentManagers(input: { kind: ReviewKind; id: strin
     if (!email) continue;
     recipients += 1;
 
-    const content = buildReviewReadyEmail({ kind: input.kind, title: input.title, reviewUrl, recipientName: manager.display_name, senderName: input.senderName });
+    const content = buildReviewReadyEmail({ kind: input.kind, title: input.title, reviewUrl, recipientName: manager.display_name, senderName: input.senderName, note: input.note });
     const result = await sendSenderTransactionalEmail({ toEmail: email, toName: manager.display_name ?? undefined, subject: content.subject, html: content.html, text: content.text });
     if (result.ok) sent += 1;
     else failed += 1;

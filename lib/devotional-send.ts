@@ -2,7 +2,8 @@ import "server-only";
 
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { assertRecipientsChoseLanguage, loadConfirmedRecipients } from "@/lib/broadcast-recipients";
-import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
+import { buildDevotionalDayEmail } from "@/lib/devotional-email-content";
+import { loadPublishedTeachingForDevotional, teachingUrl } from "@/lib/devotional-teaching";
 import { COMMUNION_DAY_NUMBER, COMMUNION_HEADS_UP_DAY_NUMBER, hasCommunionDay } from "@/lib/devotionals";
 import { devotionalDayForWeekday, devotionalTimeZone, isBeforeDevotionalQueueStart, pickNextQueuedSeries } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
@@ -44,34 +45,12 @@ async function claimDay(devotionalId: string, dayNumber: number, teachingId: str
   return data.id as string;
 }
 
-// Nothing in the send depends on a teaching any more. The ledger is keyed on
-// the series, the day URL is built from the series slug, and since
-// 20260923020000 a published series is publicly readable on its own. This
-// lookup only supplies the teaching recorded alongside the ledger row as
-// historical context, and returns null for a standalone series.
+// The ledger is keyed on the series and a published series is publicly readable on its own, so
+// the send never depends on a teaching. The lookup only supplies the teaching recorded on the
+// ledger row and the email's "Read the Full Teaching" link, and returns null for a series with no
+// published teaching. The public day page's "Return to full teaching" link uses the same rule.
 async function resolveAssignedTeaching(devotionalId: string) {
-  const supabase = getClient();
-  const { data: assignments } = await supabase
-    .from("teaching_devotional_assignments")
-    .select("teaching_id")
-    .eq("devotional_id", devotionalId)
-    .order("created_at", { ascending: true });
-
-  const teachingIds = (assignments ?? []).map((assignment) => assignment.teaching_id);
-  if (!teachingIds.length) return null;
-
-  const { data: teachings } = await supabase
-    .from("teachings")
-    .select("id, slug, status")
-    .eq("status", "published")
-    .in("id", teachingIds);
-
-  // Keep assignment order so a shared series always mails the same teaching.
-  for (const teachingId of teachingIds) {
-    const teaching = (teachings ?? []).find((item) => item.id === teachingId);
-    if (teaching) return teaching;
-  }
-  return null;
+  return loadPublishedTeachingForDevotional(getClient(), devotionalId);
 }
 
 const DAY_COLUMNS = "day_number, title, anchor_scriptures, devotional_reading, confession, journal_prompt, prayer_activation, bread_reflection, cup_reflection, self_examination, series_closing_prayer";
@@ -226,10 +205,8 @@ async function deliverDay(input: {
   assertRecipientsChoseLanguage(recipients, "en");
 
   const base = siteUrl();
-  // The email reads through to the assigned teaching when there is one, since
-  // that is the fuller page for this devotional's content; a standalone series
-  // has no teaching page, so it falls back to the devotional's own day URL.
-  const readUrl = teaching ? `${base}/teachings/${teaching.slug}` : devotionalDayUrl(base, devotional.slug, dayNumber);
+  // The button reads through to the published teaching; with none, the email has no button.
+  const readUrl = teaching ? teachingUrl(base, teaching.slug) : null;
   const preferencesUrl = `${base}/email-preferences`;
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
   const communionTomorrow = await communionIsTomorrow(devotional.id, dayNumber);

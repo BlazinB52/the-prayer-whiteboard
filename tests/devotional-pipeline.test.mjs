@@ -126,10 +126,12 @@ test("a Saturday starts the oldest queued series and the other days continue it"
   assert.match(source, /dayNumber === 1\s*\? await nextQueuedDevotional\(spanishIds\)\s*: await activeCycleDevotional\(dayNumber, now, spanishIds\)/);
   assert.match(source, /isBeforeDevotionalQueueStart\(now, timeZone\)/);
 
-  // The teaching is resolved from the assignment table afterwards, and only
-  // because the ledger key and the public day URL still need one.
+  // The teaching is resolved from the assignment table afterwards (shared with the test send
+  // and the public day page's rule), for the ledger row and the email's teaching link.
+  const teachingLookup = await readFile("lib/devotional-teaching.ts", "utf8");
   assert.match(source, /resolveAssignedTeaching\(devotional\.id\)/);
-  assert.match(source, /\.from\("teaching_devotional_assignments"\)[\s\S]*?\.eq\("devotional_id", devotionalId\)/);
+  assert.match(source, /loadPublishedTeachingForDevotional\(getClient\(\), devotionalId\)/);
+  assert.match(teachingLookup, /\.from\("teaching_devotional_assignments"\)[\s\S]*?\.eq\("devotional_id", devotionalId\)/);
   assert.ok(
     source.indexOf('.from("teaching_devotionals")') < source.indexOf("resolveAssignedTeaching(devotional.id)"),
     "the series must be chosen before any teaching is looked up",
@@ -171,18 +173,21 @@ test("the ledger enforces one blast per devotional day, not per teaching day", a
   assert.match(send, /insert\(\{ devotional_id: devotionalId, teaching_id: teachingId, day_number: dayNumber/);
 });
 
-test("the email reads through to the assigned teaching, falling back to the devotional's own day URL", async () => {
-  const [emailContent, send] = await Promise.all([
-    readFile("lib/devotional-email-content.ts", "utf8"),
+test("the email button reads through to the published teaching on both send paths, and is left out without one", async () => {
+  const [send, testSend, publicSeries] = await Promise.all([
     readFile("lib/devotional-send.ts", "utf8"),
+    readFile("app/api/admin/devotional/test-send/route.ts", "utf8"),
+    readFile("lib/public-devotionals.ts", "utf8"),
   ]);
 
-  // devotionalDayUrl still exists: the public day page still routes off the
-  // devotional's own slug, and a standalone series (no assigned teaching) has
-  // no teaching page for the email to fall back on.
-  assert.match(emailContent, /export function devotionalDayUrl\(/);
-  assert.match(emailContent, /\/devotionals\/\$\{encodeURIComponent\(devotionalSlug\)\}\/day\/\$\{dayNumber\}/);
-  assert.match(send, /teaching \? `\$\{base\}\/teachings\/\$\{teaching\.slug\}` : devotionalDayUrl\(base, devotional\.slug, dayNumber\)/);
+  assert.match(send, /const readUrl = teaching \? teachingUrl\(base, teaching\.slug\) : null;/);
+  assert.match(testSend, /loadPublishedTeachingForDevotional\(supabase, devotional\.id\)/);
+  assert.match(testSend, /readUrl: teaching \? teachingUrl\(base, teaching\.slug\) : null/);
+  // Neither path may send the button to the devotional's own day page.
+  assert.equal(/devotionalDayUrl/.test(send), false);
+  assert.equal(/devotionalDayUrl/.test(testSend), false);
+  // The public day page's teaching link and the email share one picking rule.
+  assert.match(publicSeries, /pickPublishedTeaching\(/);
 });
 
 test("the devotional day link has a public route to land on", async () => {

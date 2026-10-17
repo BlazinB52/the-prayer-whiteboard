@@ -3,6 +3,7 @@ import { truncateDescription } from "./seo";
 import { splitParagraphs, type TeachingDevotional } from "./devotionals";
 import { createClient } from "./supabase/server";
 import { getSpanishDevotionalIds, isSpanishDevotional } from "./spanish-devotionals";
+import { pickPublishedTeaching } from "./devotional-teaching";
 
 // Every row reached through this module is already published, and
 // teaching_devotionals_published_slug_check guarantees a published row has a
@@ -200,7 +201,7 @@ export async function getPublishedDevotionalSeriesBySlug(slug: string): Promise<
 
   if (teachingError) return null;
 
-  const teaching = (teachings ?? []).find((item) => item.id === devotional.teaching_id) ?? (teachings ?? [])[0] ?? null;
+  const teaching = pickPublishedTeaching({ legacyTeachingId: devotional.teaching_id ?? null, assignedTeachingIds: teachingIds, publishedTeachings: teachings ?? [] });
   const language = (await isSpanishDevotional(supabase, devotional.id)) ? "es" : "en";
 
   return {

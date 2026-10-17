@@ -5,11 +5,9 @@ import { groupScriptureEntries, stripWrappingQuotes, type ScriptureEntry } from 
 import { COMMUNION_HEADS_UP_DAY_NUMBER, devotionalDaySections, type DevotionalDay } from "./devotionals.ts";
 import { ui } from "./i18n.ts";
 
-// The day link is resolved from the devotional's own slug rather than from a
-// parent teaching's, so a series that is shared between teachings, or that has
-// no teaching at all, still produces one stable URL. Used as the devotional's
-// own public address, and as the email's read-more link when no teaching is
-// assigned to link to instead.
+// The devotional's own public address for a day, built from its own slug so a series that is
+// shared between teachings, or has no teaching at all, still has one stable URL. The email does
+// not link here: its button reads through to the teaching.
 export function devotionalDayUrl(baseUrl: string, devotionalSlug: string, dayNumber: number) {
   return `${baseUrl.replace(/\/+$/, "")}/devotionals/${encodeURIComponent(devotionalSlug)}/day/${dayNumber}`;
 }
@@ -64,7 +62,8 @@ export function buildDevotionalDayEmail(input: {
   seriesClosingPrayer?: string | null;
   // True on Day 6 when Day 7 is a Communion day, so the email reminds the reader to have bread and juice ready.
   communionTomorrow?: boolean;
-  readUrl: string;
+  // The published teaching's address. Absent when the devotional has no published teaching, and the button is left out.
+  readUrl?: string | null;
   preferencesUrl: string;
   copyrightDisclaimer?: EmailCopyrightDisclaimer;
 }) {
@@ -115,7 +114,7 @@ export function buildDevotionalDayEmail(input: {
                 ${scripturesFieldHtml(scriptures)}
                 ${sections.map((section) => textFieldHtml(section.label, section.text)).join("")}
                 ${communionHeadsUpHtml}
-                <p style="margin:22px 0 20px;text-align:center;">${button("Read the Full Teaching", input.readUrl)}</p>
+                ${input.readUrl ? `<p style="margin:22px 0 20px;text-align:center;">${button("Read the Full Teaching", input.readUrl)}</p>` : `<div style="height:22px;"></div>`}
                 ${hasMoreDays ? `<p style="margin:0 0 20px;text-align:center;color:#8a9a90;font-size:13px;">Tomorrow: Day ${input.dayNumber + 1} of ${escapeHtml(input.seriesTitle)}</p>` : ""}
                 <hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:0 0 16px;" />
                 <p style="margin:0 0 6px;text-align:center;color:#243d31;font-size:13px;font-weight:800;">The Prayer Whiteboard</p>
@@ -141,9 +140,9 @@ export function buildDevotionalDayEmail(input: {
     scripturesText(scriptures),
     ...sections.map((section) => textFieldText(section.label, section.text)),
     showCommunionHeadsUp ? `\n${copy.communionTomorrowTitle} ${copy.communionTomorrow}` : "",
-    "",
-    "Read the Full Teaching:",
-    input.readUrl,
+    input.readUrl ? `
+Read the Full Teaching:
+${input.readUrl}` : "",
     hasMoreDays ? `\nTomorrow: Day ${input.dayNumber + 1} of ${input.seriesTitle}` : "",
     "",
     "---",

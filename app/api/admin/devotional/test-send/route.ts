@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
-import { buildDevotionalDayEmail, devotionalDayUrl } from "@/lib/devotional-email-content";
+import { buildDevotionalDayEmail } from "@/lib/devotional-email-content";
+import { loadPublishedTeachingForDevotional, teachingUrl } from "@/lib/devotional-teaching";
 import { COMMUNION_DAY_NUMBER, COMMUNION_HEADS_UP_DAY_NUMBER, hasCommunionDay } from "@/lib/devotionals";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
@@ -86,6 +87,8 @@ export async function POST(request: Request) {
     : { data: null };
 
   const base = siteUrl();
+  // The same teaching the real send links to; none means the test email has no button either.
+  const teaching = await loadPublishedTeachingForDevotional(supabase, devotional.id);
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
   const email = buildDevotionalDayEmail({
     dayNumber: day.day_number,
@@ -102,7 +105,7 @@ export async function POST(request: Request) {
     selfExamination: day.self_examination,
     seriesClosingPrayer: day.series_closing_prayer,
     communionTomorrow: hasCommunionDay(day7),
-    readUrl: devotionalDayUrl(base, devotional.slug, dayNumber),
+    readUrl: teaching ? teachingUrl(base, teaching.slug) : null,
     preferencesUrl: `${base}/email-preferences`,
     copyrightDisclaimer,
   });

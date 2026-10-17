@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildDevotionalDayEmail } from "../lib/devotional-email-content.ts";
+import { pickPublishedTeaching, teachingUrl } from "../lib/devotional-teaching.ts";
 
 const baseInput = {
   dayNumber: 3,
@@ -137,4 +138,26 @@ test("missing optional fields degrade without empty sections", () => {
   assert.equal(email.html.includes("5-Minute Journal Prompt"), false);
   assert.equal(email.html.includes("Prayer Activation Exercise"), false);
   assert.match(email.html, /Read the Full Teaching/);
+});
+
+test("with no published teaching the email has no Read the Full Teaching button and no link to a day page", () => {
+  for (const readUrl of [null, undefined]) {
+    const email = buildDevotionalDayEmail({ ...baseInput, readUrl });
+    assert.equal(/Read the Full Teaching/i.test(email.html), false);
+    assert.equal(/Read the Full Teaching/i.test(email.text), false);
+    assert.equal(email.html.includes("/devotionals/"), false);
+    assert.equal(email.text.includes("/devotionals/"), false);
+    assert.match(email.html, /Manage your email preferences or unsubscribe/);
+  }
+});
+
+test("the teaching a devotional reads through to is a published one, preferring its original teaching", () => {
+  const teachings = [{ id: "t2", slug: "second" }, { id: "t1", slug: "first" }];
+  assert.equal(pickPublishedTeaching({ legacyTeachingId: "t1", assignedTeachingIds: ["t2", "t1"], publishedTeachings: teachings })?.slug, "first");
+  assert.equal(pickPublishedTeaching({ legacyTeachingId: null, assignedTeachingIds: ["t2", "t1"], publishedTeachings: teachings })?.slug, "second");
+  // An assigned draft teaching is not in the published list, so it is skipped.
+  assert.equal(pickPublishedTeaching({ legacyTeachingId: "t3", assignedTeachingIds: ["t3", "t1"], publishedTeachings: [teachings[1]] })?.slug, "first");
+  assert.equal(pickPublishedTeaching({ legacyTeachingId: "t3", assignedTeachingIds: ["t3"], publishedTeachings: [] }), null);
+  assert.equal(pickPublishedTeaching({ legacyTeachingId: null, assignedTeachingIds: [], publishedTeachings: teachings }), null);
+  assert.equal(teachingUrl("https://theprayerwhiteboard.com/", "beyond the garden"), "https://theprayerwhiteboard.com/teachings/beyond%20the%20garden");
 });

@@ -5,6 +5,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { OutlineContent } from "@/app/teaching-outlines/outline-content";
 import { TeachingChoiceOptions, type TeachingChoice } from "../teaching-choice";
+import { OutlineDocxTools } from "./outline-docx-tools";
 import {
   createOutlineCategory,
   deleteOutline,
@@ -327,6 +328,7 @@ function OutlineList({ categories, outlines, teachings }: { categories: ManagerC
                       <Link href={`/admin/outlines/${outline.id}`} className="text-[#946332] hover:text-[#a85e32]">View</Link>
                       <a href={outline.downloadHref} className="text-[#946332] hover:text-[#a85e32]">Download .docx</a>
                       {outline.status === "draft" ? <Link href={`/admin/outlines/${outline.id}/edit-text`} className="text-[#946332] hover:text-[#a85e32]">Edit text</Link> : null}
+                      <OutlineDocxTools outlineId={outline.id} isDraft={outline.status === "draft"} />
                       <button
                         type="button"
                         disabled={pending}

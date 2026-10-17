@@ -100,7 +100,7 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
   const params = await searchParams;
   const { supabase } = await requireAdmin();
 
-  const [teachingsResult, devotionalsResult, outlinesResult, handoutsResult, updatesResult, whiteboardsResult, teachingBoardsResult, updateBoardsResult] = await Promise.all([
+  const [teachingsResult, devotionalsResult, outlinesResult, handoutsResult, updatesResult, whiteboardsResult, teachingBoardsResult, updateBoardsResult, devotionalAssignmentsResult] = await Promise.all([
     supabase.from("teachings").select("id, title, language, status, gathering_date, translation_of, chalkboard_asset_id"),
     supabase.from("teaching_devotionals").select("id, title, language, status, teaching_id, translation_of"),
     supabase.from("teaching_outlines").select("id, title, language, status, teaching_id"),
@@ -109,9 +109,18 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
     supabase.from("chalkboard_assets").select("id, title, canonical_name, language, teaching_id").eq("status", "active").eq("is_current_version", true),
     supabase.from("teaching_chalkboard_assignments").select("teaching_id, chalkboard_asset_id"),
     supabase.from("weekly_update_chalkboard_assignments").select("chalkboard_asset_id"),
+    supabase.from("teaching_devotional_assignments").select("devotional_id, teaching_id"),
   ]);
 
-  const failed = [teachingsResult, devotionalsResult, outlinesResult, handoutsResult, updatesResult, whiteboardsResult, teachingBoardsResult].some((result) => result.error);
+  const failed = [teachingsResult, devotionalsResult, outlinesResult, handoutsResult, updatesResult, whiteboardsResult, teachingBoardsResult, devotionalAssignmentsResult].some((result) => result.error);
+
+  // The authoritative devotional-to-teaching link; teaching_devotionals.teaching_id is only a legacy backup.
+  const teachingIdsByDevotional = new Map<string, string[]>();
+  for (const assignment of (devotionalAssignmentsResult.data as { devotional_id: string; teaching_id: string }[] | null) ?? []) {
+    const list = teachingIdsByDevotional.get(assignment.devotional_id) ?? [];
+    list.push(assignment.teaching_id);
+    teachingIdsByDevotional.set(assignment.devotional_id, list);
+  }
   // The teaching link on handouts and weekly updates arrives with a database update; say so rather than showing wrong numbers.
   const teachingRows = (teachingsResult.data as (TeachingInput & { chalkboard_asset_id: string | null })[] | null) ?? [];
 
@@ -142,7 +151,7 @@ export default async function TitleCollectionsPage({ searchParams }: { searchPar
       id: row.id, title: row.title, language: language(row.language), teachingIds: link(row.teaching_id), parentId: row.translation_of, state: row.status === "published" ? "published" as const : "draft" as const, href: `/admin/handouts/${row.id}`,
     })),
     devotional: ((devotionalsResult.data as { id: string; title: string; language: string | null; status: string; teaching_id: string | null; translation_of: string | null }[] | null) ?? []).map((row) => ({
-      id: row.id, title: row.title || "Devotional", language: language(row.language), teachingIds: link(row.teaching_id), parentId: row.translation_of, state: row.status === "published" ? "published" as const : "draft" as const, href: `/admin/devotionals/${row.id}`,
+      id: row.id, title: row.title || "Devotional", language: language(row.language), teachingIds: [...(teachingIdsByDevotional.get(row.id) ?? []), ...link(row.teaching_id)], parentId: row.translation_of, state: row.status === "published" ? "published" as const : "draft" as const, href: `/admin/devotionals/${row.id}`,
     })),
     outline: ((outlinesResult.data as { id: string; title: string; language: string | null; status: string; teaching_id: string | null }[] | null) ?? []).map((row) => ({
       id: row.id, title: row.title, language: language(row.language), teachingIds: link(row.teaching_id), state: row.status === "published" ? "published" as const : "draft" as const, href: `/admin/outlines/${row.id}`,

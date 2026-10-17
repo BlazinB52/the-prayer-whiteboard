@@ -73,6 +73,7 @@ export default async function EditOutlineTextPage({ params }: { params: Promise<
         <header className="mt-4 border-b border-[#284a3b]/10 pb-6">
           <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#946332]">Edit text</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-[#243d31] sm:text-4xl">{outline.title}</h1>
+          <p className="mt-3"><Link href={`/admin/outlines/${id}/print`} target="_blank" className="admin-secondary-button inline-flex items-center justify-center"><span>Print preview</span></Link></p>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
             Edit the wording of this draft directly, for example to put right something that came in with an accepted change. Use **bold**, *italic* and [link text](https://address) the same way as in the review editors. Use Add below to insert a new paragraph (or list item) after one, Add bullet list below to start a new bullet list after one, and Delete to remove one; both work on what is saved. They are not available while a Content Manager proposal on this outline is still open. Nothing is published from here.
           </p>

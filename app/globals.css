@@ -295,6 +295,28 @@ a {
     widows: 3;
   }
 
+  /* A printed devotional: every day after the first starts on a new sheet, and a field's heading stays with its text. */
+  .print-day {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .print-day + .print-day {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .print-day-header,
+  .print-field-heading {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  .print-field {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .print-callout-small {
     break-inside: avoid;
     page-break-inside: avoid;

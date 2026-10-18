@@ -24,7 +24,8 @@ test("a teaching's devotional page only offers the export once a devotional exis
 test("each page has the 'Export for translation' link at the top, like the teachings page", () => {
   const link = /<a href="#export-for-translation"[^>]*>Export for translation<\/a>/;
   assert.match(standalone, link);
-  assert.match(teachingPage, /\{devotional \? <a href="#export-for-translation"[^>]*>Export for translation<\/a> : null\}/);
+  // On a teaching's page the links only appear once a devotional exists.
+  assert.match(teachingPage, /\{devotional \? \(\s*<div[^>]*>\s*<a href="#print-preview"[^>]*>Print preview<\/a>\s*<a href="#export-for-translation"[^>]*>Export for translation<\/a>\s*<\/div>\s*\) : null\}/);
   const teachings = readFile("app/admin/teachings/[id]/edit/page.tsx", "utf8");
   return teachings.then((source) => assert.match(source, link, "the teachings page uses the same link"));
 });

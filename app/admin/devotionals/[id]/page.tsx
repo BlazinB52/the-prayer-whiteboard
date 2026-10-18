@@ -8,6 +8,7 @@ import { DevotionalTestSendForm } from "@/app/admin/teachings/[id]/devotional/de
 import { importStandaloneDevotionalText, publishStandaloneDevotional, unpublishStandaloneDevotional, updateStandaloneDevotionalDay, updateStandaloneDevotionalSeries } from "@/app/admin/teachings/devotional-actions";
 import { PublishDevotionalButton, UnpublishDevotionalButton } from "@/app/admin/teachings/devotional-buttons";
 import { DevotionalExportForTranslationSection } from "@/app/admin/devotionals/export-for-translation-section";
+import { DevotionalPrintPreviewSection } from "@/app/admin/devotionals/print-preview-section";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { TeachingDateLabel } from "@/app/teaching-date-label";
 import { devotionalDate } from "@/lib/devotional-date";
@@ -70,7 +71,10 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
       <div className="mx-auto max-w-4xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/admin/devotionals" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to devotionals</Link>
-          <a href="#export-for-translation" className="text-sm font-extrabold text-[#9d5a2f] hover:underline">Export for translation</a>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <a href="#print-preview" className="text-sm font-extrabold text-[#9d5a2f] hover:underline">Print preview</a>
+            <a href="#export-for-translation" className="text-sm font-extrabold text-[#9d5a2f] hover:underline">Export for translation</a>
+          </div>
         </div>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -82,6 +86,8 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
             <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{devotional.status}</span>
           </div>
         </header>
+
+        <DevotionalPrintPreviewSection devotionalId={devotional.id} />
 
         <DevotionalExportForTranslationSection devotionalId={devotional.id} />
 

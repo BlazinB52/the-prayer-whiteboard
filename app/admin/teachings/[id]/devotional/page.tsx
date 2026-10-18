@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DevotionalExportForTranslationSection } from "@/app/admin/devotionals/export-for-translation-section";
+import { DevotionalPrintPreviewSection } from "@/app/admin/devotionals/print-preview-section";
 import { devotionalChoices } from "@/lib/devotional-choices";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { sendForReview, takeBackFromReview } from "@/app/admin/review-gate-actions";
@@ -70,7 +71,12 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
       <div className="mx-auto max-w-4xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/admin" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to dashboard</Link>
-          {devotional ? <a href="#export-for-translation" className="text-sm font-extrabold text-[#9d5a2f] hover:underline">Export for translation</a> : null}
+          {devotional ? (
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              <a href="#print-preview" className="text-sm font-extrabold text-[#9d5a2f] hover:underline">Print preview</a>
+              <a href="#export-for-translation" className="text-sm font-extrabold text-[#9d5a2f] hover:underline">Export for translation</a>
+            </div>
+          ) : null}
         </div>
         <header className="mt-4 border-b border-[#284a3b]/10 pb-8">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -82,6 +88,8 @@ export default async function AdminDevotionalPage({ params, searchParams }: { pa
           </div>
           <p className="mt-3 text-sm leading-6 text-[#607066]">Devotional publishing is independent from teaching publishing. Once published, the devotional is readable at its own web address even if this teaching is still a draft.</p>
         </header>
+
+        {devotional ? <DevotionalPrintPreviewSection devotionalId={devotional.id} /> : null}
 
         {devotional ? <DevotionalExportForTranslationSection devotionalId={devotional.id} /> : null}
 

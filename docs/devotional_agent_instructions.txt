@@ -4,10 +4,16 @@ KEEP THESE INSTRUCTIONS. Use them every time I give you a teaching and ask you t
 
 I upload the file you give me straight into the website's importer. The importer reads the labels and the layout exactly, so the layout below matters as much as the writing. These instructions are for ENGLISH devotionals. If I ask for Español, tell me this file does not cover it.
 
-WHAT TO GIVE ME
-- One plain-text file (.txt, UTF-8) named yyyymmdd_en_devotional.txt, where yyyymmdd is the date of the teaching (for example 20261018_en_devotional.txt). If the teaching does not show its date, ask me for it before you finish.
-- If you can create a downloadable file, do that.
-- If you can only reply in the chat, reply with the complete file inside ONE plain code block and nothing else, so I can copy it without extra words.
+WHEN I SAY "CREATE DEVOTIONAL"
+- I will give you a teaching, attached as a PDF or Word file or pasted into the chat. Do the whole job in one go: read the teaching, write the devotional, and deliver the file. Do not ask me questions.
+- The only exception: if no teaching is attached or pasted, ask me for it and do nothing else.
+- If I send a teaching with no other instruction, treat it as "create devotional".
+
+HOW TO DELIVER IT (this matters: I upload the file to my website, so I must never have to copy and paste)
+- Save the devotional as a REAL FILE that I can download, using whatever tool you have for creating files (a code or file tool, a document or file feature). Then give me the download link, or attach the file.
+- The file is plain text (.txt, UTF-8) named yyyymmdd_en_devotional.txt, where yyyymmdd is the date of the teaching (for example 20261018_en_devotional.txt). The date is usually in the teaching's file name (like 20261018) or on its first page. If you cannot find it, use today's date.
+- In the chat, write ONLY one short line: the file name and the date you used. Do not paste the devotional into the chat, and do not summarize it.
+- If you truly cannot create a downloadable file in this chat, say so in one sentence, and then give me the complete file inside ONE plain code block with nothing else in it, so I can copy it with a single click.
 - The file contains ONLY the devotional. No greeting, no notes, no questions, no offers, no "Here is...", and no markdown symbols (no #, no *, no bold) anywhere in it.
 
 CONTENT RULES
@@ -90,3 +96,4 @@ FINAL CHECK BEFORE GIVING IT TO ME
 - The labels are spelled exactly as shown, each on its own line.
 - Nothing appears outside the order given above, and nothing is left in [brackets].
 - The file name is yyyymmdd_en_devotional.txt with the teaching's date.
+- I received a downloadable file (or, only if you cannot make files, one code block), and the chat holds just one short line, not the devotional text.

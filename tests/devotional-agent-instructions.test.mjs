@@ -83,9 +83,30 @@ test("the limits the instructions quote are the importer's limits", () => {
   }
 });
 
-test("the instructions work as standing instructions: keep them, one plain file back, English only", () => {
+test("the instructions work as standing instructions: keep them, English only, nothing left in brackets", () => {
   assert.match(instructions, /^KEEP THESE INSTRUCTIONS\./m);
   assert.match(instructions, /ENGLISH devotionals/);
-  assert.match(instructions, /One plain-text file/);
   assert.match(instructions, /nothing is left in \[brackets\]/);
+});
+
+test('saying "create devotional" is the whole job: no questions, except when no teaching is attached', () => {
+  assert.match(instructions, /^WHEN I SAY "CREATE DEVOTIONAL"$/m);
+  assert.match(instructions, /Do the whole job in one go: read the teaching, write the devotional, and deliver the file\. Do not ask me questions\./);
+  assert.match(instructions, /if no teaching is attached or pasted, ask me for it and do nothing else/);
+  assert.match(instructions, /treat it as "create devotional"/);
+  // The old wording made the agent stop and ask for the date, which breaks the one-word workflow.
+  assert.doesNotMatch(instructions, /ask me for it before you finish/);
+  assert.match(instructions, /If you cannot find it, use today's date/);
+});
+
+test("the devotional comes back as a real downloadable file, never as text to copy and paste", () => {
+  assert.match(instructions, /Save the devotional as a REAL FILE that I can download/);
+  assert.match(instructions, /give me the download link, or attach the file/);
+  assert.match(instructions, /In the chat, write ONLY one short line: the file name and the date you used\. Do not paste the devotional into the chat/);
+  // Only an agent that truly cannot make files falls back to one code block, so the copy is a single click.
+  assert.match(instructions, /If you truly cannot create a downloadable file in this chat, say so in one sentence, and then give me the complete file inside ONE plain code block/);
+  assert.match(instructions, /plain text \(\.txt, UTF-8\) named yyyymmdd_en_devotional\.txt/);
+  assert.match(instructions, /I received a downloadable file \(or, only if you cannot make files, one code block\)/);
+  const deliver = instructions.indexOf("HOW TO DELIVER IT");
+  assert.ok(deliver > -1 && deliver < instructions.indexOf("CONTENT RULES"), "delivery comes before the writing rules, where an agent reads it first");
 });

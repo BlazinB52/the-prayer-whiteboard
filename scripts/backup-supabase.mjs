@@ -38,7 +38,7 @@
 import { execSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 import { existsSync } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -125,6 +125,52 @@ async function dumpDatabase(backupDir) {
   return { authDumped };
 }
 
+// The rules that let a signed-in admin upload, replace and delete files live on storage.objects, in the storage
+// schema, so the public-schema dump above never sees them. Without them a restored site shows its files but every
+// admin upload or delete is refused. They are read from the catalog and written back as plain CREATE POLICY lines.
+// Like the login accounts, a failure here is reported but does not throw away the rest of the backup.
+function quoteIdentifier(name) {
+  return `"${String(name).replaceAll('"', '""')}"`;
+}
+
+async function dumpStorageRules(backupDir) {
+  const queryPath = path.join(backupDir, ".storage-rules-query.sql");
+  const outputPath = path.join(backupDir, "storage-policies.sql");
+  console.log(`Saving storage access rules to ${outputPath} ...`);
+  try {
+    await writeFile(queryPath, "select policyname, permissive, roles, cmd, qual, with_check from pg_policies where schemaname = 'storage' and tablename = 'objects' order by policyname");
+    assertSafePathArgument(queryPath, "query path");
+    const raw = execSync(`npx supabase db query --linked -f "${queryPath}" -o json`, { encoding: "utf8", maxBuffer: 20 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
+    // The CLI can print a notice after the JSON, so take the first complete object.
+    const start = raw.indexOf("{");
+    let depth = 0;
+    let end = -1;
+    for (let index = start; index < raw.length && start >= 0; index += 1) {
+      if (raw[index] === "{") depth += 1;
+      else if (raw[index] === "}" && (depth -= 1) === 0) { end = index; break; }
+    }
+    if (end < 0) throw new Error("the CLI did not return JSON");
+    const rules = JSON.parse(raw.slice(start, end + 1)).rows ?? [];
+    if (!rules.length) throw new Error("no storage rules were found, which is not expected");
+
+    const statements = rules.map((rule) => {
+      const roles = (Array.isArray(rule.roles) ? rule.roles : String(rule.roles).replace(/[{}]/g, "").split(",")).map((role) => (role === "public" ? "public" : quoteIdentifier(role))).join(", ");
+      const using = rule.qual ? ` using (${rule.qual})` : "";
+      const check = rule.with_check ? ` with check (${rule.with_check})` : "";
+      return `drop policy if exists ${quoteIdentifier(rule.policyname)} on storage.objects;\ncreate policy ${quoteIdentifier(rule.policyname)} on storage.objects as ${String(rule.permissive).toLowerCase()} for ${String(rule.cmd).toLowerCase()} to ${roles}${using}${check};`;
+    });
+    await writeFile(outputPath, `-- Access rules on storage.objects, saved ${new Date().toISOString()}.\n-- They call functions in the public schema, so load this after schema.sql.\nset search_path = public, pg_catalog;\n\n${statements.join("\n\n")}\n`);
+    console.log(`  ${rules.length} storage rule(s) saved.`);
+    return true;
+  } catch (error) {
+    console.error(`  WARNING: storage rules were not saved (the rest of the backup is fine): ${error.message}`);
+    process.exitCode = 1;
+    return false;
+  } finally {
+    await rm(queryPath, { force: true });
+  }
+}
+
 function restoreInstructions(backupDir, authDumped) {
   return `# Restoring this backup
 
@@ -148,8 +194,8 @@ From the PrayerWhiteboard folder (PowerShell):
     $env:RESTORE_AUTH = "1"   # optional: also restore login accounts
     node scripts/restore-supabase.mjs "${backupDir}"
 
-That loads schema.sql, then (with RESTORE_AUTH=1) auth-data.sql, then
-data.sql, then recreates the buckets and uploads the files.
+That loads schema.sql, then storage-policies.sql, then (with RESTORE_AUTH=1)
+auth-data.sql, then data.sql, then recreates the buckets and uploads the files.
 
 ## Circular foreign keys
 
@@ -157,11 +203,27 @@ teachings, teaching_devotionals and chalkboard_assets reference each other,
 so no row order satisfies every foreign key while loading. pg_dump warns
 about this on every backup. That's expected and the backup is complete.
 
-restore-supabase.mjs handles it by running
-\`SET session_replication_role = replica;\` before loading the data files
-(this turns off foreign-key and trigger checks for that connection) and
-\`SET session_replication_role = origin;\` afterward. If you ever load data.sql
-by hand (psql, SQL editor), do the same around it.
+data.sql and auth-data.sql each begin with
+\`SET session_replication_role = replica;\` (this turns off foreign-key and
+trigger checks for that connection), and restore-supabase.mjs loads them in one
+connection and sets \`session_replication_role = origin;\` afterward. If you ever
+load these files by hand (psql, SQL editor), do the same around them.
+
+## Who can touch which table
+
+A fresh Supabase project gives every new table wide default access for the
+anon, authenticated and service_role roles, and a dump records only the GRANTs,
+never the REVOKEs that made the live site tighter. restore-supabase.mjs sets the
+default access to what schema.sql says before it creates any table, so the
+restored tables match the live site. If you ever load schema.sql by hand, run
+the \`ALTER DEFAULT PRIVILEGES\` lines at the bottom of it first.
+
+## Storage access rules
+
+storage-policies.sql holds the rules on storage.objects that let a signed-in admin
+upload, replace and delete files. They live outside the public schema, so schema.sql
+does not contain them. Without them a restored site shows its files, but admin
+uploads and deletes are refused. restore-supabase.mjs loads the file after the schema.
 
 ## Login accounts
 
@@ -266,6 +328,7 @@ async function main() {
 
   const startedAt = new Date();
   const { authDumped } = await dumpDatabase(backupDir);
+  const storageRulesSaved = await dumpStorageRules(backupDir);
   const storageSummary = await backupStorage(backupDir);
   const finishedAt = new Date();
 
@@ -276,6 +339,7 @@ async function main() {
     databaseSchema: "schema.sql",
     databaseData: "data.sql",
     authData: authDumped ? "auth-data.sql" : null,
+    storageRules: storageRulesSaved ? "storage-policies.sql" : null,
     restoreInstructions: "RESTORE.md",
     bucketConfigs: "buckets.json",
     storageContentTypes: "storage-content-types.json",

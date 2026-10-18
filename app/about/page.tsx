@@ -31,7 +31,7 @@ export default function AboutPage() {
 
         <div className="mx-auto w-full max-w-[720px]">
           <Image
-            src="/Images/prayer-whiteboard-mission-web-1080x1440.webp"
+            src="/images/prayer-whiteboard-mission-web-1080x1440.webp"
             alt="The Prayer Whiteboard mission and Matthew 18:19"
             width={1080}
             height={1440}

@@ -119,11 +119,35 @@ to the database.
    and run the restore as above.
 4. Compare with the live site, then `npx supabase stop` and `git checkout supabase/config.toml`.
 
-## Automating it (optional)
+## The automatic backup
 
-This can be added as a Windows Task Scheduler task to run automatically
-(e.g. daily), the same way your existing local backup routine works. Ask
-Claude to set this up if you want it — it wasn't done automatically since
-you may want to control exactly when/how often it runs. Backups on D: protect
-against Supabase failing, not against losing the computer: copy a recent one
-somewhere else too, and encrypt it first because `auth-data.sql` holds password hashes.
+A Windows Task Scheduler task named `PrayerWhiteboardBackup` runs
+`scripts/scheduled-backup.mjs` every day at 12:30 PM. If the computer was off then, it
+runs as soon as you are back on and signed in (it needs your Windows sign-in, because
+the Supabase login belongs to your account). Each run:
+
+1. Makes a full backup (the same thing as running `backup-supabase.mjs` by hand) into
+   `C:\Users\bwill\SupabaseBackups`. That works with no drive plugged in.
+2. If the flash drive is in as `D:`, copies the recent backups it does not have yet to
+   `D:\SupabaseBackups`. The drive is swapped often, so a newly inserted drive is caught
+   up on the next run, not only given the newest one. A copy is made under a temporary
+   name and renamed when whole, so pulling the drive out mid-copy leaves nothing that
+   looks finished.
+3. Removes the oldest backups: it keeps the newest 14 on the computer and 10 on the drive.
+
+Each run adds a line to `C:\Users\bwill\SupabaseBackups\backup-log.txt` saying what it did:
+finished, finished with a warning (and which part), failed, or "flash drive not plugged in".
+Open that file to see whether it is working. A failed run also shows as a failed result in
+Task Scheduler.
+
+The backups are deliberately not put in OneDrive or any synced folder: `auth-data.sql`
+holds password hashes. A flash drive that lives in a drawer protects against losing the
+computer; keep a swapped-out drive somewhere other than next to the computer.
+
+To change the time, run `powershell -ExecutionPolicy Bypass -File scripts\install-backup-task.ps1 -At "6:00PM"`
+from the PrayerWhiteboard folder (it replaces the task). To turn it off:
+`Unregister-ScheduledTask -TaskName PrayerWhiteboardBackup -Confirm:$false`. To run it now:
+`Start-ScheduledTask -TaskName PrayerWhiteboardBackup`.
+
+If the Supabase CLI login ever expires, the backup log will say the backup failed. Sign in
+again (`npx supabase login` in the PrayerWhiteboard folder) and the next run works.

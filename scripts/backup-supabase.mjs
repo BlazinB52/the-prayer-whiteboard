@@ -40,6 +40,7 @@ import { createClient } from "@supabase/supabase-js";
 import { existsSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { parseQueryRows } from "./lib/query-output.mjs";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SECRET_KEY;
@@ -141,16 +142,7 @@ async function dumpStorageRules(backupDir) {
     await writeFile(queryPath, "select policyname, permissive, roles, cmd, qual, with_check from pg_policies where schemaname = 'storage' and tablename = 'objects' order by policyname");
     assertSafePathArgument(queryPath, "query path");
     const raw = execSync(`npx supabase db query --linked -f "${queryPath}" -o json`, { encoding: "utf8", maxBuffer: 20 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] });
-    // The CLI can print a notice after the JSON, so take the first complete object.
-    const start = raw.indexOf("{");
-    let depth = 0;
-    let end = -1;
-    for (let index = start; index < raw.length && start >= 0; index += 1) {
-      if (raw[index] === "{") depth += 1;
-      else if (raw[index] === "}" && (depth -= 1) === 0) { end = index; break; }
-    }
-    if (end < 0) throw new Error("the CLI did not return JSON");
-    const rules = JSON.parse(raw.slice(start, end + 1)).rows ?? [];
+    const rules = parseQueryRows(raw);
     if (!rules.length) throw new Error("no storage rules were found, which is not expected");
 
     const statements = rules.map((rule) => {

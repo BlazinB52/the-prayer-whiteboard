@@ -1,0 +1,17 @@
+# Every text file is stored AND checked out with Unix (LF) line endings, on Windows too.
+# Without this, git on Windows rewrites each file it touches with Windows (CRLF) endings, so the folder ends up a
+# mix, and tests that read source files and match across line breaks pass or fail depending on which files git
+# last rewrote. tests/line-endings.test.mjs fails with a plain explanation if that ever happens again.
+* text=auto eol=lf
+
+# Pictures, Word files and fonts are never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.docx binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

@@ -4,6 +4,7 @@ import { REVIEW_SUBJECTS, REVIEW_SUBJECT_KINDS, reviewSubjectKind } from "@/lib/
 import { requireAdmin } from "@/lib/supabase/admin";
 import { clearRevisionHistory } from "./actions";
 import { ConfirmButton } from "./confirm-button";
+import { OutForReviewSection } from "./out-for-review-section";
 
 export const metadata: Metadata = {
   title: "Revisions",
@@ -70,7 +71,9 @@ export default async function TeachingRevisionsPage({ searchParams }: { searchPa
         {flags.closed === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">The revision was closed.</p> : null}
         {flags.cleared !== undefined ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Cleared {flags.cleared} old {flags.cleared === "1" ? "record" : "records"}.</p> : null}
 
-        <section className="mt-8">
+        <OutForReviewSection supabase={supabase} />
+
+        <section className="mt-10">
           <h2 className="border-b border-[#284a3b]/10 pb-3 text-2xl font-extrabold text-[#243d31]">
             Awaiting review <span className="text-sm font-bold text-[#607066]">({awaiting.length})</span>
           </h2>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import type { DevotionalPublishState } from "./devotional-actions";
+import type { DevotionalPublishState } from "./actions";
 
 type Action = (state: DevotionalPublishState) => Promise<DevotionalPublishState>;
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const actions = await readFile("app/admin/teachings/devotional-actions.ts", "utf8");
+const actions = await readFile("app/admin/devotionals/actions.ts", "utf8");
 const page = await readFile("app/admin/devotionals/new/page.tsx", "utf8");
 const form = await readFile("app/admin/devotionals/new/create-standalone-devotional-form.tsx", "utf8");
 

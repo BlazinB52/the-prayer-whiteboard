@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const source = await readFile("app/admin/teachings/[id]/devotional/devotional-editor.tsx", "utf8");
+const source = await readFile("app/admin/devotionals/devotional-editor.tsx", "utf8");
 
 // The behavior itself (badge flips on typing, clears on a confirmed save, survives a failed save) was
 // checked by hand in a browser against the real forms. These tests keep the wiring from being undone.

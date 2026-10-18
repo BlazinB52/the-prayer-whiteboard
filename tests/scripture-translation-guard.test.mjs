@@ -98,7 +98,6 @@ test("devotional anchor-scripture lines render through the link-aware formatter,
     "app/devotionals/[slug]/day/[dayNumber]/page.tsx",
     "app/teachings/[slug]/devotional/day/[dayNumber]/page.tsx",
     "app/admin/devotionals/[id]/preview/page.tsx",
-    "app/admin/teachings/[id]/devotional/preview/page.tsx",
   ];
 
   for (const site of sites) {

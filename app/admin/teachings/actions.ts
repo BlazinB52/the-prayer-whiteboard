@@ -302,8 +302,6 @@ export async function updateTeaching(
   if (footerResult.error) return { error: footerResult.error };
 
   revalidatePath(`/admin/teachings/${id}/edit`);
-  revalidatePath(`/admin/teachings/${id}/devotional`);
-  revalidatePath(`/admin/teachings/${id}/devotional/preview`);
   revalidatePath("/admin/teachings");
   revalidatePath("/deep-dives");
   revalidatePath(`/teachings/${data.slug}`);
@@ -422,8 +420,6 @@ export async function deleteTeaching(
   revalidatePath("/deep-dives");
   revalidatePath("/admin/teachings");
   revalidatePath(`/admin/teachings/${id}/edit`);
-  revalidatePath(`/admin/teachings/${id}/devotional`);
-  revalidatePath(`/admin/teachings/${id}/devotional/preview`);
   revalidatePath(`/teachings/${teaching.slug}`);
   revalidateTeachingDevotionalPaths(teaching.slug);
   revalidatePath("/admin/whiteboards");

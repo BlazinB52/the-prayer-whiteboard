@@ -3,7 +3,6 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const standalone = await readFile("app/admin/devotionals/[id]/page.tsx", "utf8");
-const teachingPage = await readFile("app/admin/teachings/[id]/devotional/page.tsx", "utf8");
 const section = await readFile("app/admin/devotionals/print-preview-section.tsx", "utf8");
 const printPage = await readFile("app/admin/devotionals/[id]/print/page.tsx", "utf8");
 const printable = await readFile("app/admin/devotionals/printable-devotional.tsx", "utf8");
@@ -12,16 +11,14 @@ const css = await readFile("app/globals.css", "utf8");
 // The way it looks on paper was checked by eye in a browser with a sample devotional (Day 7 in the Communion layout,
 // the gold-line Scripture style, the date, the introduction). These tests keep the wiring and the print rules in place.
 
-test("both devotional admin pages offer the same Print preview box, and a link to it at the top", () => {
+test("the devotional admin page offers the Print preview box, and a link to it at the top", () => {
   assert.match(section, /export function DevotionalPrintPreviewSection\(\{ devotionalId \}/);
   assert.match(section, /DEVOTIONAL_PRINT_SECTION_ID = "print-preview"/);
   assert.match(section, /<section id=\{DEVOTIONAL_PRINT_SECTION_ID\}/);
   assert.match(section, /href=\{`\/admin\/devotionals\/\$\{devotionalId\}\/print`\} target="_blank"/, "opens the printable page in a new tab, like the teachings");
   assert.match(section, /Preview Printable Devotional/);
   assert.match(standalone, /<DevotionalPrintPreviewSection devotionalId=\{devotional\.id\} \/>/);
-  assert.match(teachingPage, /\{devotional \? <DevotionalPrintPreviewSection devotionalId=\{devotional\.id\} \/> : null\}/);
-  for (const page of [standalone, teachingPage]) assert.match(page, /<a href="#print-preview"[^>]*>Print preview<\/a>/);
-  assert.doesNotMatch(standalone + teachingPage, /<section id="print-preview"/, "neither page keeps its own copy of the box");
+  assert.match(standalone, /<a href="#print-preview"[^>]*>Print preview<\/a>/);
 });
 
 test("the printable page is admin only, read only, and shows the saved text of a draft or a published devotional", () => {

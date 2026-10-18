@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createStandaloneDevotional, createStandaloneDevotionalFromFile } from "@/app/admin/teachings/devotional-actions";
+import { createStandaloneDevotional, createStandaloneDevotionalFromFile } from "@/app/admin/devotionals/actions";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { CreateDevotionalFromFileForm, CreateStandaloneDevotionalForm } from "./create-standalone-devotional-form";
 
@@ -37,8 +37,8 @@ export default async function NewDevotionalPage() {
         </details>
 
         <p className="mt-6 text-sm leading-6 text-[#607066]">
-          A devotional becomes public only once it is assigned to a teaching and both are published. Assign it from that
-          teaching&apos;s devotional page under <Link href="/admin/teachings" className="font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Teachings</Link>.
+          A devotional is public once it is published, whether or not a teaching is attached. To attach it to a teaching, open
+          that teaching under <Link href="/admin/teachings" className="font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Teachings</Link> and choose it in the 7-Day Devotional box.
         </p>
       </div>
     </main>

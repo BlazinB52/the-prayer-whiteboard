@@ -158,12 +158,9 @@ test("each edit screen has an export button that works on drafts and published i
   assert.match(teaching, /\/api\/admin\/teaching\/export\?teaching_id=/);
   const teachingRoute = await readFile("app/api/admin/teaching/export/route.ts", "utf8");
   assert.match(teachingRoute, /\.in\("status", \["draft", "published"\]\)/);
-  // Both devotional admin pages show the one shared export section.
   const devotional = await readFile("app/admin/devotionals/export-for-translation-section.tsx", "utf8");
   assert.match(devotional, /\/api\/admin\/devotional\/export\?devotional_id=/);
-  for (const page of ["app/admin/devotionals/[id]/page.tsx", "app/admin/teachings/[id]/devotional/page.tsx"]) {
-    assert.match(await readFile(page, "utf8"), /<DevotionalExportForTranslationSection devotionalId=\{devotional\.id\} \/>/, page);
-  }
+  assert.match(await readFile("app/admin/devotionals/[id]/page.tsx", "utf8"), /<DevotionalExportForTranslationSection devotionalId=\{devotional\.id\} \/>/);
   const weekly = await readFile("app/admin/weekly-updates/page.tsx", "utf8");
   assert.match(weekly, /\/api\/admin\/weekly-update\/export\?weekly_update_id=/);
 });
@@ -177,7 +174,7 @@ test("importing links the new draft to its source only when asked, only across l
   const create = await readFile("lib/teaching-create.ts", "utf8");
   assert.match(create, /translation_of: options\.translationOf/);
   assert.match(create, /teaser_1_heading: teaching\.teaser1Heading \|\| null/);
-  const devotional = await readFile("app/admin/teachings/devotional-actions.ts", "utf8");
+  const devotional = await readFile("app/admin/devotionals/actions.ts", "utf8");
   assert.match(devotional, /formData\.get\("linkSource"\) && imported\.sourceDevotionalId/);
   assert.match(devotional, /original\.language !== language && !original\.translation_of/);
   const form = await readFile("app/admin/teachings/import/import-form.tsx", "utf8");

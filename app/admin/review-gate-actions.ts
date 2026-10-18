@@ -18,18 +18,8 @@ function pagePath(kind: GateKind, id: string) {
   return REVIEW_SUBJECTS[kind].adminPath(id);
 }
 
-// Where the Administrator pressed the button, when that is not the item's own page. A devotional is managed from its
-// teaching's devotional page as well as from its own page, so the answer comes back to whichever one was used. Only that
-// one page shape is accepted, so the value can never send anyone somewhere else.
-const TEACHING_DEVOTIONAL_PAGE = /^\/admin\/teachings\/[0-9a-f-]{36}\/devotional$/i;
-
-function landingPath(kind: GateKind, id: string, returnTo?: string) {
-  return kind === "devotional" && returnTo && TEACHING_DEVOTIONAL_PAGE.test(returnTo) ? returnTo : pagePath(kind, id);
-}
-
-function refresh(kind: GateKind, id: string, returnTo?: string) {
+function refresh(kind: GateKind, id: string) {
   revalidatePath(pagePath(kind, id));
-  revalidatePath(landingPath(kind, id, returnTo));
   revalidatePath(`/admin/cm/${REVIEW_SUBJECTS[kind].reviewFolder}`);
   revalidatePath("/admin/cm");
 }
@@ -37,11 +27,11 @@ function refresh(kind: GateKind, id: string, returnTo?: string) {
 // The Administrator sends the draft to the Content Managers they ticked, with an optional note. The first send opens the gate;
 // sending again later reaches the Content Managers who were not ticked before. Only people who did not have it yet are
 // emailed, so pressing it twice never emails anyone twice. Taking it back closes it for everybody.
-export async function sendForReview(kind: GateKind, id: string, returnTo: string | undefined, formData?: FormData) {
+export async function sendForReview(kind: GateKind, id: string, formData?: FormData) {
   if (!UUID_PATTERN.test(id)) redirect("/admin");
   const { supabase, user } = await requireAdmin();
   const table = gateTableFor(kind);
-  const landing = landingPath(kind, id, returnTo);
+  const landing = pagePath(kind, id);
 
   const managers = await listActiveContentManagers();
   const allowed = new Map(managers.map((person) => [person.userId, person.name]));
@@ -95,14 +85,14 @@ export async function sendForReview(kind: GateKind, id: string, returnTo: string
   }
   const notified = await notifyContentManagers({ kind, id, title, senderName: me?.display_name ?? null, note: cleanReviewNote(formData?.get("note")), onlyUserIds: additions });
 
-  refresh(kind, id, returnTo);
+  refresh(kind, id);
   const outcome = notified.recipients === 0 ? "nocm" : notified.failed > 0 ? "partial" : "sent";
   redirect(`${landing}?review=${outcome}&mailed=${notified.sent}&of=${notified.recipients}`);
 }
 
 // Closes the gate again. Proposals already submitted stay for the Administrator to decide; a Content
 // Manager's unfinished draft is hidden from them until it is sent again.
-export async function takeBackFromReview(kind: GateKind, id: string, returnTo?: string) {
+export async function takeBackFromReview(kind: GateKind, id: string) {
   if (!UUID_PATTERN.test(id)) redirect("/admin");
   const { supabase } = await requireAdmin();
 
@@ -114,8 +104,8 @@ export async function takeBackFromReview(kind: GateKind, id: string, returnTo?: 
     .not("sent_for_review_at", "is", null)
     .select("id")
     .maybeSingle();
-  if (error || !data) redirect(`${landingPath(kind, id, returnTo)}?review=error`);
+  if (error || !data) redirect(`${pagePath(kind, id)}?review=error`);
 
-  refresh(kind, id, returnTo);
-  redirect(`${landingPath(kind, id, returnTo)}?review=takenback`);
+  refresh(kind, id);
+  redirect(`${pagePath(kind, id)}?review=takenback`);
 }

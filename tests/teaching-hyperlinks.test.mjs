@@ -78,7 +78,7 @@ test("teaching public, admin preview, and printable output opt into link renderi
 test("footer and devotional prose editors reuse the shared formatted textarea", async () => {
   const footerForm = await readFile("app/admin/footers/footer-form.tsx", "utf8");
   const teachingForm = await readFile("app/admin/teachings/teaching-form.tsx", "utf8");
-  const devotionalEditor = await readFile("app/admin/teachings/[id]/devotional/devotional-editor.tsx", "utf8");
+  const devotionalEditor = await readFile("app/admin/devotionals/devotional-editor.tsx", "utf8");
   assert.match(footerForm, /<FormattedTextarea label="Displayed content"/);
   assert.match(teachingForm, /<FormattedTextarea label="Introduction"/);
   assert.match(teachingForm, /<FormattedTextarea label="Short summary"/);

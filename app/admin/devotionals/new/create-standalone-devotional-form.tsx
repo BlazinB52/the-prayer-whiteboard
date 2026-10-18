@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
-import type { DevotionalFormState, DevotionalImportState } from "@/app/admin/teachings/devotional-actions";
+import type { DevotionalFormState, DevotionalImportState } from "@/app/admin/devotionals/actions";
 
 type Action = (state: DevotionalFormState, formData: FormData) => Promise<DevotionalFormState>;
 

@@ -5,7 +5,7 @@ import { useActionState, useEffect, useState } from "react";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 import { COMMUNION_DAY_NUMBER, DEVOTIONAL_DAY_NUMBERS, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines, scripturesToTextareaValue, usesLegacyDayLayout, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { ui } from "@/lib/i18n";
-import type { DevotionalFormState, DevotionalImportState } from "../../devotional-actions";
+import type { DevotionalFormState, DevotionalImportState } from "./actions";
 
 const anchorScriptureLimitLabel = formatAnchorScriptureLengthLimit();
 
@@ -112,7 +112,7 @@ export function DevotionalSeriesForm({ devotional, action }: { devotional: Teach
   );
 }
 
-export function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: number; day?: DevotionalDay; action: Action }) {
+function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: number; day?: DevotionalDay; action: Action }) {
   const [values, setValues] = useState(dayToValues(day));
   const [state, formAction, isPending] = useActionState(action, {});
   const [clientError, setClientError] = useState<string | null>(null);

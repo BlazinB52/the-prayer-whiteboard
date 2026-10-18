@@ -1,7 +1,6 @@
 import Link from "next/link";
 
-// The "Export for translation" box on both devotional admin pages (a teaching's devotional page and the
-// standalone devotional page), so the two can never drift apart. The page's top-right link points at its id.
+// The "Export for translation" box on the devotional admin page. The page's top-right link points at its id.
 export const DEVOTIONAL_EXPORT_SECTION_ID = "export-for-translation";
 
 export function DevotionalExportForTranslationSection({ devotionalId }: { devotionalId: string }) {

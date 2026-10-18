@@ -73,7 +73,7 @@ export default async function AdminOutlinePreviewPage({
             kind="outline"
             subjectId={idResult.value}
             sentAt={outline.sent_for_review_at ?? null}
-            sendAction={sendForReview.bind(null, "outline", idResult.value, undefined)}
+            sendAction={sendForReview.bind(null, "outline", idResult.value)}
             takeBackAction={takeBackFromReview.bind(null, "outline", idResult.value)}
           />
         ) : null}

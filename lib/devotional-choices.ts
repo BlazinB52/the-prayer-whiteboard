@@ -1,7 +1,7 @@
 import { devotionalDate } from "./devotional-date.ts";
 import { formatTeachingDateShort } from "./teaching-date.ts";
 
-// The list in "Use Existing Devotional". A devotional has its own gathering date; when it has none it carries the date of the
+// The dropdown in a teaching's 7-Day Devotional box. A devotional has its own gathering date; when it has none it carries the date of the
 // teaching it belongs to (the same rule the Devotionals list uses), so each choice shows that date, newest first, with
 // devotionals that have no date after the rest. Only devotionals in the teaching's own language are offered, and the one
 // already assigned always stays in the list.

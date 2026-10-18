@@ -13,7 +13,6 @@ type AssociatedTeaching = { id: string; title: string; gathering_date: string | 
 
 type DevotionalRow = {
   id: string;
-  teaching_id: string | null;
   title: string;
   status: string;
   ownDate: string | null;
@@ -35,20 +34,12 @@ function DevotionalGroup({ heading, id, devotionals, emptyText }: { heading: str
       {devotionals.length ? (
         <ul className="divide-y divide-[#284a3b]/10">
           {devotionals.map((devotional) => {
-            // Falls back to the legacy owner column, which is nullable since
-            // 20260923000000. With no teaching at either level the devotional
-            // is standalone and is managed through its own route rather than
-            // through a teaching that does not exist.
-            const managementTeachingId = devotional.associatedTeachings[0]?.id ?? devotional.teaching_id ?? null;
-            const manageHref = managementTeachingId
-              ? `/admin/teachings/${managementTeachingId}/devotional`
-              : `/admin/devotionals/${devotional.id}`;
             const usedBy = devotional.associatedTeachings.length
               ? devotional.associatedTeachings.map((teaching) => teaching.title).join(", ")
               : "No associated teaching";
             return (
               <li key={devotional.id}>
-                <Link href={manageHref} className="flex min-h-12 items-center gap-3 px-2 py-2 transition hover:bg-[#e7efe9]/60">
+                <Link href={`/admin/devotionals/${devotional.id}`} className="flex min-h-12 items-center gap-3 px-2 py-2 transition hover:bg-[#e7efe9]/60">
                   <span className="min-w-0 flex-1 truncate font-extrabold text-[#243d31]">{devotional.title}</span>
                   <span className="hidden max-w-[16rem] truncate text-sm text-[#607066] md:inline">{usedBy}</span>
                   <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{devotional.status}</span>
@@ -69,7 +60,7 @@ export default async function AdminDevotionalsPage() {
   const { supabase } = await requireAdmin();
   const { data: devotionals, error: devotionalsError } = await supabase
     .from("teaching_devotionals")
-    .select("id, teaching_id, slug, title, language, status, published_at, updated_at, gathering_date")
+    .select("id, slug, title, language, status, published_at, updated_at, gathering_date")
     .order("title", { ascending: true });
 
   if (devotionalsError) {
@@ -114,7 +105,6 @@ export default async function AdminDevotionalsPage() {
     language: devotional.language,
     row: {
       id: devotional.id,
-      teaching_id: devotional.teaching_id,
       title: devotional.title,
       status: devotional.status,
       ownDate: devotional.gathering_date ?? null,

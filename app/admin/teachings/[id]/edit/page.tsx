@@ -8,6 +8,7 @@ import { DeleteTeachingButton } from "../../delete-teaching-button";
 import { PublishFeatureButton } from "../../publish-feature-button";
 import { UnpublishButton } from "../../unpublish-button";
 import { TeachingTestSendForm } from "../../test-send-form";
+import { TeachingDevotionalCard } from "../../teaching-devotional-card";
 import { ConvertToSpanishButton } from "../../convert-to-spanish-button";
 import {
   createCategory,
@@ -39,7 +40,7 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
-export default async function EditTeachingPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ready?: string; review?: string; mailed?: string; of?: string }> }) {
+export default async function EditTeachingPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ready?: string; review?: string; mailed?: string; of?: string; devotional?: string }> }) {
   const [{ id }, flags] = await Promise.all([params, searchParams]);
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
     notFound();
@@ -89,11 +90,6 @@ export default async function EditTeachingPage({ params, searchParams }: { param
     label: whiteboard.canonical_name ?? whiteboard.title,
     language: (whiteboard.language === "es" ? "es" : "en") as "en" | "es",
   }));
-  // The devotional attached to this teaching, if any, shown in the Devotional section below.
-  const { data: devotionalAssignment } = await supabase.from("teaching_devotional_assignments").select("devotional_id").eq("teaching_id", id).maybeSingle();
-  const { data: assignedDevotional } = devotionalAssignment
-    ? await supabase.from("teaching_devotionals").select("id, title, status").eq("id", devotionalAssignment.devotional_id).maybeSingle()
-    : { data: null };
   // Co-editor proposals still waiting on a decision. Publishing closes them (and deletes their text),
   // so say so here instead of letting it come as a surprise.
   const { count: pendingRevisionCount } = teaching.status === "draft"
@@ -228,20 +224,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
           footers={footerOptions}
         />
         <TranslationPicker kind="teachings" id={id} language={teaching.language === "es" ? "es" : "en"} currentId={translation.currentId} options={translation.options} revalidate={`/admin/teachings/${id}/edit`} noun="teaching" />
-        <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
-          <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Devotional</p>
-          <h2 className="mt-2 text-2xl font-extrabold text-[#243d31]">7-Day Devotional</h2>
-          {assignedDevotional ? (
-            <p className="mt-3 text-sm text-[#607066]">
-              Attached devotional: <Link href={`/admin/devotionals/${assignedDevotional.id}`} className="font-extrabold text-[#243d31] underline underline-offset-2">{assignedDevotional.title}</Link>{" "}
-              <span className="ml-1 rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{assignedDevotional.status}</span>
-            </p>
-          ) : (
-            <p className="mt-3 text-sm text-[#607066]">No devotional is attached to this teaching.</p>
-          )}
-          <p className="mt-3 text-sm leading-6 text-[#607066]">Create, edit, preview, publish, or unpublish the devotional without changing this teaching&apos;s publication or homepage-feature status.</p>
-          <Link href={`/admin/teachings/${id}/devotional`} className="admin-secondary-button mt-4 inline-flex items-center justify-center">Manage 7-Day Devotional</Link>
-        </section>
+        <TeachingDevotionalCard teachingId={id} language={teaching.language === "es" ? "es" : "en"} notice={flags.devotional} />
         {pendingRevisionCount ? (
           <p role="status" className="mt-8 rounded-xl border border-[#1a4fb4]/20 bg-[#e8f0fe] px-4 py-3 text-sm font-bold leading-6 text-[#1a3f8a]">
             {pendingRevisionCount} co-editor {pendingRevisionCount === 1 ? "revision is" : "revisions are"} waiting for your review. Publishing this teaching closes {pendingRevisionCount === 1 ? "it" : "them"} and deletes the proposed wording.{" "}
@@ -249,7 +232,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
           </p>
         ) : null}
         <ReviewGateMessage review={flags.review} mailed={flags.mailed} of={flags.of} />
-        {teaching.status === "draft" ? <ReviewGateSection noun="teaching" kind="teaching" subjectId={id} sentAt={teaching.sent_for_review_at ?? null} sendAction={sendForReview.bind(null, "teaching", id, undefined)} takeBackAction={takeBackFromReview.bind(null, "teaching", id)} /> : null}
+        {teaching.status === "draft" ? <ReviewGateSection noun="teaching" kind="teaching" subjectId={id} sentAt={teaching.sent_for_review_at ?? null} sendAction={sendForReview.bind(null, "teaching", id)} takeBackAction={takeBackFromReview.bind(null, "teaching", id)} /> : null}
         {teaching.status === "draft" ? (
           <section className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Ready to publish</p>

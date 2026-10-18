@@ -2,22 +2,27 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("teaching devotional page supports assign, change, and remove without deleting content", async () => {
-  const [page, form, actions] = await Promise.all([
-    readFile("app/admin/teachings/[id]/devotional/page.tsx", "utf8"),
-    readFile("app/admin/teachings/[id]/devotional/devotional-assignment-form.tsx", "utf8"),
-    readFile("app/admin/teachings/devotional-actions.ts", "utf8"),
+test("a teaching's 7-Day Devotional box supports assign, change, and remove without deleting content", async () => {
+  const [card, form, actions, edit] = await Promise.all([
+    readFile("app/admin/teachings/teaching-devotional-card.tsx", "utf8"),
+    readFile("app/admin/teachings/devotional-assignment-form.tsx", "utf8"),
+    readFile("app/admin/devotionals/actions.ts", "utf8"),
+    readFile("app/admin/teachings/[id]/edit/page.tsx", "utf8"),
   ]);
 
-  assert.match(page, /Use Existing Devotional|DevotionalAssignmentForm/);
-  assert.match(page, /teaching_devotional_assignments/);
+  assert.match(edit, /<TeachingDevotionalCard teachingId=\{id\}/);
+  assert.match(card, /<DevotionalAssignmentForm/);
+  assert.match(card, /teaching_devotional_assignments/);
+  assert.match(card, /Attaching one is optional/);
   assert.match(form, /name="devotionalId"/);
-  assert.match(form, /Assign Devotional/);
-  assert.match(form, /Remove Association/);
+  assert.match(form, /\{assignPending \? "Assigning\.\.\." : "Assign"\}/);
+  assert.match(form, /Remove from this teaching/);
   assert.match(form, /\(\{devotional\.status\}\)/);
+  // After either action the Administrator lands back on the teaching's own page, at the box.
+  assert.match(actions, /\/admin\/teachings\/\$\{teachingId\}\/edit\?devotional=\$\{notice\}#devotional/);
   assert.match(actions, /upsert\(\{ teaching_id: teachingId, devotional_id: devotionalId \}, \{ onConflict: "teaching_id" \}\)/);
   assert.match(actions, /from\("teaching_devotional_assignments"\)[\s\S]*?\.delete\(\)[\s\S]*?\.eq\("teaching_id", teaching\.id\)/);
-  const removeAction = actions.match(/export async function removeDevotionalAssignment[\s\S]*?export async function updateDevotionalSeries/)?.[0] ?? "";
+  const removeAction = actions.match(/export async function removeDevotionalAssignment[\s\S]*?export async function createStandaloneDevotional\(/)?.[0] ?? "";
   assert.doesNotMatch(removeAction, /from\("teaching_devotionals"\)[\s\S]*?\.delete\(\)/);
 });
 
@@ -98,7 +103,7 @@ test("a published devotional is publicly readable without a teaching assignment"
 test("the standalone editor can publish and unpublish on its own", async () => {
   const [page, actions] = await Promise.all([
     readFile("app/admin/devotionals/[id]/page.tsx", "utf8"),
-    readFile("app/admin/teachings/devotional-actions.ts", "utf8"),
+    readFile("app/admin/devotionals/actions.ts", "utf8"),
   ]);
 
   assert.match(page, /PublishDevotionalButton action=\{publishStandaloneDevotional\.bind\(null, devotional\.id\)\}/);

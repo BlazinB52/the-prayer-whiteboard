@@ -170,16 +170,15 @@ test("Days 1-6 email exactly as before", () => {
 });
 
 test("a Day 7 import replaces an older Day 7 and never leaves journal or prayer text behind", async () => {
-  const actions = await readFile("app/admin/teachings/devotional-actions.ts", "utf8");
+  const actions = await readFile("app/admin/devotionals/actions.ts", "utf8");
   assert.match(actions, /journal_prompt: day\.journal_prompt \|\| null/);
   assert.match(actions, /bread_reflection: day\.bread_reflection \|\| null/);
-  // The definition plus the three ways in: import into a teaching's devotional, import into a standalone
-  // one, and create a new devotional from a file.
-  assert.equal((actions.match(/importedDayRow\(/g) ?? []).length, 4, "every import path uses the same row builder");
+  // The definition plus the two ways in: import into an existing devotional, and create a new devotional from a file.
+  assert.equal((actions.match(/importedDayRow\(/g) ?? []).length, 3, "every import path uses the same row builder");
 });
 
 test("saving a Day 7 never erases old journal or prayer text unless Communion text is being saved", async () => {
-  const actions = await readFile("app/admin/teachings/devotional-actions.ts", "utf8");
+  const actions = await readFile("app/admin/devotionals/actions.ts", "utf8");
   assert.match(actions, /savingCommunionText \? \{ \.\.\.values, journal_prompt: null, prayer_activation: null \} : values/);
 });
 
@@ -279,7 +278,7 @@ Cup.`;
 
 test("the Series Closing Prayer label is the same in Español and the section order matches the form", async () => {
   assert.equal(ui("es").seriesClosingPrayer, "Oración de cierre de la serie");
-  const form = await readFile("app/admin/teachings/[id]/devotional/devotional-editor.tsx", "utf8");
+  const form = await readFile("app/admin/devotionals/devotional-editor.tsx", "utf8");
   const order = ["labels.restReflection", "labels.confessionOfRest", "labels.tableOfRemembrance", "labels.selfExamination", "labels.breadReflection", "labels.cupReflection", "labels.seriesClosingPrayer"]
     .map((label) => form.indexOf(label));
   assert.ok(order.every((index) => index > -1));

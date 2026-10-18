@@ -45,9 +45,9 @@ test("only devotionals in the teaching's own language are offered, and the one a
 });
 
 test("the picker shows the date, then the title and status", async () => {
-  const form = await readFile("app/admin/teachings/[id]/devotional/devotional-assignment-form.tsx", "utf8");
+  const form = await readFile("app/admin/teachings/devotional-assignment-form.tsx", "utf8");
   assert.match(form, /\{devotional\.dateLabel\} · \{devotional\.title\} \(\{devotional\.status\}\)/);
-  const page = await readFile("app/admin/teachings/[id]/devotional/page.tsx", "utf8");
-  assert.match(page, /devotionalChoices\(\{/);
-  assert.match(page, /from\("teaching_devotional_assignments"\)\.select\("devotional_id, teaching_id"\)/);
+  const card = await readFile("app/admin/teachings/teaching-devotional-card.tsx", "utf8");
+  assert.match(card, /devotionalChoices\(\{/);
+  assert.match(card, /from\("teaching_devotional_assignments"\)\.select\("devotional_id, teaching_id"\)/);
 });

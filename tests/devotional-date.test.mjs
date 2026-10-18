@@ -40,20 +40,17 @@ test("a gathering date from a form is optional but must be a real date", () => {
   assert.ok(validateOptionalGatheringDate("2026-02-30").error);
 });
 
-test("both devotional pages let the date be entered under Series Information", async () => {
-  const form = await read("app/admin/teachings/[id]/devotional/devotional-editor.tsx");
+test("the devotional page lets the date be entered under Series Information", async () => {
+  const form = await read("app/admin/devotionals/devotional-editor.tsx");
   assert.match(form, /name="gatheringDate" type="date"/);
   assert.match(form, /gatheringDate: devotional\.gathering_date \?\? ""/);
-  const actions = await read("app/admin/teachings/devotional-actions.ts");
-  const series = actions.slice(actions.indexOf("export async function updateDevotionalSeries"), actions.indexOf("export async function updateDevotionalDay"));
-  assert.match(series, /gathering_date: date\.value \?\? null/);
+  const actions = await read("app/admin/devotionals/actions.ts");
   const standalone = actions.slice(actions.indexOf("export async function updateStandaloneDevotionalSeries"), actions.indexOf("export async function updateStandaloneDevotionalDay"));
   assert.match(standalone, /gathering_date: date\.value \?\? null/);
 });
 
-test("a devotional is given a date when it is created from a teaching or a file, and when it is assigned without one", async () => {
-  const actions = await read("app/admin/teachings/devotional-actions.ts");
-  assert.match(actions, /gathering_date: teaching\.gathering_date \?\? null, status: "draft"/);
+test("a devotional is given a date when it is created from a file, and when it is assigned without one", async () => {
+  const actions = await read("app/admin/devotionals/actions.ts");
   assert.match(actions, /gatheringDate: suggestHandoutFromFileName\(fileName\)\.date/);
   const assign = actions.slice(actions.indexOf("export async function assignExistingDevotional"), actions.indexOf("export async function removeDevotionalAssignment"));
   assert.match(assign, /if \(!devotional\.gathering_date && teaching\.gathering_date\)/, "a date already entered is kept");
@@ -88,16 +85,15 @@ test("the Devotionals list is sorted by gathering date, newest first, undated la
   assert.match(page, /devotionalDate\(devotional\.gathering_date/);
 });
 
-test("the teaching's devotional page carries the Content Manager review box and returns to itself", async () => {
-  const page = await read("app/admin/teachings/[id]/devotional/page.tsx");
+test("the devotional page carries the Content Manager review box, and the answer comes back to the item's own page", async () => {
+  const page = await read("app/admin/devotionals/[id]/page.tsx");
   assert.match(page, /ReviewGateSection/);
   assert.match(page, /ReviewGateMessage/);
   assert.match(page, /sent_for_review_at/);
   assert.match(page, /devotional\.status === "draft"/);
-  assert.match(page, /sendForReview\.bind\(null, "devotional", devotional\.id, `\/admin\/teachings\/\$\{teaching\.id\}\/devotional`\)/);
+  assert.match(page, /sendForReview\.bind\(null, "devotional", devotional\.id\)/);
   const actions = await read("app/admin/review-gate-actions.ts");
-  assert.ok(actions.includes("const TEACHING_DEVOTIONAL_PAGE = "));
-  assert.doesNotMatch(actions, /redirect\(`\$\{pagePath\(kind, id\)\}\?review/);
+  assert.doesNotMatch(actions, /returnTo|TEACHING_DEVOTIONAL_PAGE/, "no other page shape is accepted any more");
 });
 
 test("the Teachings list is ordered by gathering date, newest first, not by last edit", async () => {

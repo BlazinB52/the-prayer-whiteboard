@@ -75,8 +75,8 @@ test("admin dashboard exposes a direct devotionals card", async () => {
 });
 
 test("devotional admin page includes text import action", async () => {
-  const source = await readFile("app/admin/teachings/[id]/devotional/page.tsx", "utf8");
-  assert.match(source, /importDevotionalText/);
+  const source = await readFile("app/admin/devotionals/[id]/page.tsx", "utf8");
+  assert.match(source, /importStandaloneDevotionalText/);
   assert.match(source, /Import From Text File/);
 });
 

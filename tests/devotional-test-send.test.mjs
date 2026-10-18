@@ -80,16 +80,13 @@ test("the devotional preview is built by the production email builder, includes 
   assert.match(code, /copyrightDisclaimer,/);
 });
 
-test("both devotional admin pages expose the devotional test send form", async () => {
-  const [teachingOwnedPage, standalonePage, form] = await Promise.all([
-    readFile("app/admin/teachings/[id]/devotional/page.tsx", "utf8"),
+test("the devotional admin page exposes the devotional test send form", async () => {
+  const [standalonePage, form] = await Promise.all([
     readFile("app/admin/devotionals/[id]/page.tsx", "utf8"),
-    readFile("app/admin/teachings/[id]/devotional/devotional-test-send-form.tsx", "utf8"),
+    readFile("app/admin/devotionals/devotional-test-send-form.tsx", "utf8"),
   ]);
 
-  assert.match(teachingOwnedPage, /import \{ DevotionalTestSendForm \} from "\.\/devotional-test-send-form";/);
-  assert.match(teachingOwnedPage, /<DevotionalTestSendForm devotionalId=\{devotional\.id\} \/>/);
-  assert.match(standalonePage, /import \{ DevotionalTestSendForm \} from "@\/app\/admin\/teachings\/\[id\]\/devotional\/devotional-test-send-form";/);
+  assert.match(standalonePage, /import \{ DevotionalTestSendForm \} from "\.\.\/devotional-test-send-form";|import \{ DevotionalTestSendForm \} from "@\/app\/admin\/devotionals\/devotional-test-send-form";/);
   assert.match(standalonePage, /<DevotionalTestSendForm devotionalId=\{devotional\.id\} \/>/);
 
   assert.match(form, /^"use client";/);

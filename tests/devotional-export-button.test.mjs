@@ -3,29 +3,20 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const standalone = await readFile("app/admin/devotionals/[id]/page.tsx", "utf8");
-const teachingPage = await readFile("app/admin/teachings/[id]/devotional/page.tsx", "utf8");
 const section = await readFile("app/admin/devotionals/export-for-translation-section.tsx", "utf8");
 
-test("both devotional admin pages show the same Export for translation section", () => {
+test("the devotional admin page shows the Export for translation section", () => {
   assert.match(section, /export function DevotionalExportForTranslationSection\(\{ devotionalId \}/);
   assert.match(section, /\/api\/admin\/devotional\/export\?devotional_id=\$\{devotionalId\}/);
   assert.match(section, /Export for translation \(text file\)/);
   assert.match(standalone, /<DevotionalExportForTranslationSection devotionalId=\{devotional\.id\} \/>/);
-  assert.match(teachingPage, /<DevotionalExportForTranslationSection devotionalId=\{devotional\.id\} \/>/);
-  // Neither page keeps its own copy of the section, so they cannot drift apart.
+  // The page keeps no copy of the section.
   assert.doesNotMatch(standalone, /<section id="export-for-translation"/);
-  assert.doesNotMatch(teachingPage, /<section id="export-for-translation"/);
 });
 
-test("a teaching's devotional page only offers the export once a devotional exists", () => {
-  assert.match(teachingPage, /\{devotional \? <DevotionalExportForTranslationSection/);
-});
-
-test("each page has the 'Export for translation' link at the top, like the teachings page", () => {
+test("the page has the 'Export for translation' link at the top, like the teachings page", () => {
   const link = /<a href="#export-for-translation"[^>]*>Export for translation<\/a>/;
   assert.match(standalone, link);
-  // On a teaching's page the links only appear once a devotional exists.
-  assert.match(teachingPage, /\{devotional \? \(\s*<div[^>]*>\s*<a href="#print-preview"[^>]*>Print preview<\/a>\s*<a href="#export-for-translation"[^>]*>Export for translation<\/a>\s*<\/div>\s*\) : null\}/);
   const teachings = readFile("app/admin/teachings/[id]/edit/page.tsx", "utf8");
   return teachings.then((source) => assert.match(source, link, "the teachings page uses the same link"));
 });

@@ -3,10 +3,10 @@ import { ReviewGateMessage, ReviewGateSection } from "@/app/admin/review-gate-se
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { DevotionalDayForms, DevotionalImportForm, DevotionalPreviewLink, DevotionalSeriesForm } from "@/app/admin/teachings/[id]/devotional/devotional-editor";
-import { DevotionalTestSendForm } from "@/app/admin/teachings/[id]/devotional/devotional-test-send-form";
-import { importStandaloneDevotionalText, publishStandaloneDevotional, unpublishStandaloneDevotional, updateStandaloneDevotionalDay, updateStandaloneDevotionalSeries } from "@/app/admin/teachings/devotional-actions";
-import { PublishDevotionalButton, UnpublishDevotionalButton } from "@/app/admin/teachings/devotional-buttons";
+import { DevotionalDayForms, DevotionalImportForm, DevotionalPreviewLink, DevotionalSeriesForm } from "@/app/admin/devotionals/devotional-editor";
+import { DevotionalTestSendForm } from "@/app/admin/devotionals/devotional-test-send-form";
+import { importStandaloneDevotionalText, publishStandaloneDevotional, unpublishStandaloneDevotional, updateStandaloneDevotionalDay, updateStandaloneDevotionalSeries } from "@/app/admin/devotionals/actions";
+import { PublishDevotionalButton, UnpublishDevotionalButton } from "@/app/admin/devotionals/devotional-buttons";
 import { DevotionalExportForTranslationSection } from "@/app/admin/devotionals/export-for-translation-section";
 import { DevotionalPrintPreviewSection } from "@/app/admin/devotionals/print-preview-section";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
@@ -99,7 +99,7 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
         ) : null}
 
         <ReviewGateMessage review={messages.review} mailed={messages.mailed} of={messages.of} />
-        {devotional.status === "draft" ? <ReviewGateSection noun="devotional" kind="devotional" subjectId={devotional.id} sentAt={devotional.sent_for_review_at ?? null} sendAction={sendForReview.bind(null, "devotional", devotional.id, undefined)} takeBackAction={takeBackFromReview.bind(null, "devotional", devotional.id)} /> : null}
+        {devotional.status === "draft" ? <ReviewGateSection noun="devotional" kind="devotional" subjectId={devotional.id} sentAt={devotional.sent_for_review_at ?? null} sendAction={sendForReview.bind(null, "devotional", devotional.id)} takeBackAction={takeBackFromReview.bind(null, "devotional", devotional.id)} /> : null}
 
         {messages.created === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional created as a draft. Write the seven days below, or import them from a text file.</p> : null}
         {messages.imported === "1" ? <p role="status" className="mt-6 rounded-xl border border-[#326048]/20 bg-[#e7efe9] px-4 py-3 text-sm font-bold text-[#326048]">Devotional text imported as a draft.</p> : null}
@@ -112,11 +112,11 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
           <h2 className="text-2xl font-extrabold text-[#243d31]">Teaching Association</h2>
           {assignedTeachings.length ? (
             <>
-              <p className="mt-3 text-sm leading-6 text-[#607066]">This devotional is used by the teachings below. Publishing is handled from a teaching&apos;s devotional page.</p>
+              <p className="mt-3 text-sm leading-6 text-[#607066]">This devotional is attached to the teachings below. Publish or unpublish it from this page.</p>
               <ul className="mt-4 grid gap-2">
                 {assignedTeachings.map((teaching) => (
                   <li key={teaching.id}>
-                    <Link href={`/admin/teachings/${teaching.id}/devotional`} className="font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">{teaching.title}</Link>
+                    <Link href={`/admin/teachings/${teaching.id}/edit#devotional`} className="font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">{teaching.title}</Link>
                   </li>
                 ))}
               </ul>
@@ -124,8 +124,8 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
           ) : (
             <p className="mt-3 text-sm leading-6 text-[#607066]">
               This devotional is not attached to any teaching. It can still be published and read on its own. To tie it to
-              a teaching, open one under <Link href="/admin/teachings" className="font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Teachings</Link>, go to
-              its devotional page, and choose this devotional under &quot;Use Existing Devotional&quot;.
+              a teaching, open one under <Link href="/admin/teachings" className="font-extrabold text-[#9d5a2f] hover:text-[#a85e32]">Teachings</Link> and
+              choose this devotional in its 7-Day Devotional box.
             </p>
           )}
         </section>

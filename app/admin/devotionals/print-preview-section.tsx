@@ -1,7 +1,6 @@
 import Link from "next/link";
 
-// The "Print preview" box on both devotional admin pages (a teaching's devotional page and the standalone devotional
-// page), so the two cannot drift apart. The page's top-right link jumps to it by id.
+// The "Print preview" box on the devotional admin page. The page's top-right link jumps to it by id.
 export const DEVOTIONAL_PRINT_SECTION_ID = "print-preview";
 
 export function DevotionalPrintPreviewSection({ devotionalId }: { devotionalId: string }) {

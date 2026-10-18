@@ -31,8 +31,7 @@ function readText(formData: FormData, name: string, maxLength: number, required 
   return { value };
 }
 
-// Shared day-field validation, used by both the teaching-scoped and the
-// standalone day editors.
+// Day-field validation shared by the day editor and the import.
 function readLanguage(formData: FormData) {
   return formData.get("language") === "es" ? "es" : "en";
 }
@@ -153,20 +152,16 @@ async function getTeaching(supabase: Awaited<ReturnType<typeof requireAdmin>>["s
   return data;
 }
 
-async function getAssignedDevotional(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], teachingId: string) {
-  const { data: assignment, error: assignmentError } = await supabase
+// The web address of the devotional now attached to a teaching, read before it is removed so its pages can be refreshed.
+async function attachedDevotional(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], teachingId: string) {
+  const { data: assignment } = await supabase
     .from("teaching_devotional_assignments")
     .select("devotional_id")
     .eq("teaching_id", teachingId)
     .maybeSingle();
-  if (assignmentError || !assignment) return { devotional: null, error: assignmentError };
-
-  const { data: devotional, error } = await supabase
-    .from("teaching_devotionals")
-    .select("id, teaching_id, slug, title, introduction, status, published_at")
-    .eq("id", assignment.devotional_id)
-    .maybeSingle();
-  return { devotional, error };
+  if (!assignment) return null;
+  const { data } = await supabase.from("teaching_devotionals").select("id, slug").eq("id", assignment.devotional_id).maybeSingle();
+  return data;
 }
 
 async function saveAssignment(supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"], teachingId: string, devotionalId: string) {
@@ -175,7 +170,9 @@ async function saveAssignment(supabase: Awaited<ReturnType<typeof requireAdmin>>
     .upsert({ teaching_id: teachingId, devotional_id: devotionalId }, { onConflict: "teaching_id" });
 }
 
-function revalidateDevotionalPaths(teachingId: string, teachingSlug: string, devotionalSlug = teachingSlug) {
+// Attaching or removing a devotional changes the teaching's own pages and the devotional's, so both are refreshed.
+function revalidateAssignmentPaths(teachingId: string, teachingSlug: string, devotional: { id: string; slug: string | null } | null) {
+  const devotionalSlug = devotional?.slug || teachingSlug;
   revalidatePath("/");
   revalidatePath("/devotionals");
   revalidatePath("/devotionals/start");
@@ -183,9 +180,8 @@ function revalidateDevotionalPaths(teachingId: string, teachingSlug: string, dev
   revalidatePath(`/devotionals/${devotionalSlug}/start`);
   revalidatePath("/admin/teachings");
   revalidatePath("/admin/devotionals");
+  if (devotional) revalidatePath(`/admin/devotionals/${devotional.id}`);
   revalidatePath(`/admin/teachings/${teachingId}/edit`);
-  revalidatePath(`/admin/teachings/${teachingId}/devotional`);
-  revalidatePath(`/admin/teachings/${teachingId}/devotional/preview`);
   revalidatePath(`/teachings/${teachingSlug}`);
   revalidatePath(`/teachings/${teachingSlug}/devotional`);
   for (let dayNumber = 1; dayNumber <= 7; dayNumber += 1) {
@@ -193,48 +189,9 @@ function revalidateDevotionalPaths(teachingId: string, teachingSlug: string, dev
   }
 }
 
-export async function createDevotional(teachingId: string, previousState: DevotionalFormState): Promise<DevotionalFormState> {
-  void previousState;
-  const { supabase } = await requireAdmin();
-  const teaching = await getTeaching(supabase, teachingId);
-  if (!teaching) return { error: "This teaching could not be found." };
-
-  const { devotional: assigned } = await getAssignedDevotional(supabase, teaching.id);
-  if (assigned) {
-    redirect(`/admin/teachings/${teaching.id}/devotional`);
-  }
-
-  // `unique (teaching_id)` is gone, so this lookup can legitimately match more
-  // than one row and maybeSingle() would error instead of returning one.
-  const { data: ownedRows } = await supabase
-    .from("teaching_devotionals")
-    .select("id")
-    .eq("teaching_id", teaching.id)
-    .order("created_at", { ascending: true })
-    .limit(1);
-  const existing = ownedRows?.[0] ?? null;
-
-  if (existing) {
-    const { error } = await saveAssignment(supabase, teaching.id, existing.id);
-    if (error) return { error: "This devotional could not be assigned." };
-    revalidateDevotionalPaths(teaching.id, teaching.slug);
-    redirect(`/admin/teachings/${teaching.id}/devotional?assigned=1`);
-  }
-
-  const { data: created, error } = await supabase
-    .from("teaching_devotionals")
-    .insert({ teaching_id: teaching.id, slug: teaching.slug, title: `${teaching.title} 7-Day Devotional`, language: teaching.language === "es" ? "es" : "en", gathering_date: teaching.gathering_date ?? null, status: "draft", published_at: null })
-    .select("id")
-    .single();
-
-  if (error || !created) return { error: "This devotional could not be created." };
-  const { error: assignmentError } = await saveAssignment(supabase, teaching.id, created.id);
-  if (assignmentError) {
-    await supabase.from("teaching_devotionals").delete().eq("id", created.id);
-    return { error: "This devotional could not be assigned." };
-  }
-  revalidateDevotionalPaths(teaching.id, teaching.slug);
-  redirect(`/admin/teachings/${teaching.id}/devotional?created=1`);
+// After attaching or removing, the Administrator lands back on the teaching's own page, at its Devotional box.
+function backToTeaching(teachingId: string, notice: "attached" | "removed") {
+  return `/admin/teachings/${teachingId}/edit?devotional=${notice}#devotional`;
 }
 
 export async function assignExistingDevotional(teachingId: string, previousState: DevotionalAssignmentState, formData: FormData): Promise<DevotionalAssignmentState> {
@@ -258,8 +215,8 @@ export async function assignExistingDevotional(teachingId: string, previousState
   if (!devotional.gathering_date && teaching.gathering_date) {
     await supabase.from("teaching_devotionals").update({ gathering_date: teaching.gathering_date }).eq("id", devotional.id);
   }
-  revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
-  redirect(`/admin/teachings/${teaching.id}/devotional?assigned=1`);
+  revalidateAssignmentPaths(teaching.id, teaching.slug, devotional);
+  redirect(backToTeaching(teaching.id, "attached"));
 }
 
 export async function removeDevotionalAssignment(teachingId: string, previousState: DevotionalAssignmentState): Promise<DevotionalAssignmentState> {
@@ -267,212 +224,24 @@ export async function removeDevotionalAssignment(teachingId: string, previousSta
   const { supabase } = await requireAdmin();
   const teaching = await getTeaching(supabase, teachingId);
   if (!teaching) return { error: "This teaching could not be found." };
-  const { devotional } = await getAssignedDevotional(supabase, teaching.id);
+  const devotional = await attachedDevotional(supabase, teaching.id);
 
   const { error } = await supabase
     .from("teaching_devotional_assignments")
     .delete()
     .eq("teaching_id", teaching.id);
-  if (error) return { error: "This devotional assignment could not be removed." };
-  revalidateDevotionalPaths(teaching.id, teaching.slug, devotional?.slug || teaching.slug);
-  redirect(`/admin/teachings/${teaching.id}/devotional?removed=1`);
-}
-
-export async function updateDevotionalSeries(teachingId: string, previousState: DevotionalFormState, formData: FormData): Promise<DevotionalFormState> {
-  void previousState;
-  const { supabase } = await requireAdmin();
-  const teaching = await getTeaching(supabase, teachingId);
-  if (!teaching) return { error: "This teaching could not be found." };
-
-  const title = readText(formData, "title", MAX_LENGTHS.title, true);
-  const introduction = readText(formData, "introduction", MAX_LENGTHS.introduction);
-  if (title.error) return title;
-  if (introduction.error) return introduction;
-  const date = validateOptionalGatheringDate(formData.get("gatheringDate"));
-  if (date.error) return { error: date.error };
-
-  const { devotional } = await getAssignedDevotional(supabase, teaching.id);
-
-  if (!devotional) return { error: "Create the devotional before saving series information." };
-
-  const { error } = await supabase
-    .from("teaching_devotionals")
-    .update({ title: title.value, introduction: introduction.value || null, language: readLanguage(formData), gathering_date: date.value ?? null })
-    .eq("id", devotional.id);
-
-  if (error) return { error: "The devotional series information could not be saved." };
-  revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
-  return { saved: true };
-}
-
-export async function updateDevotionalDay(teachingId: string, dayNumber: number, previousState: DevotionalFormState, formData: FormData): Promise<DevotionalFormState> {
-  void previousState;
-  const { supabase } = await requireAdmin();
-  const teaching = await getTeaching(supabase, teachingId);
-  if (!teaching) return { error: "This teaching could not be found." };
-  if (!Number.isInteger(dayNumber) || dayNumber < 1 || dayNumber > 7) return { error: "Day number must be between 1 and 7." };
-
-  const day = readDayFields(formData, dayNumber);
-  if (day.error) return { error: day.error };
-
-  const { devotional } = await getAssignedDevotional(supabase, teaching.id);
-
-  if (!devotional) return { error: "Create the devotional before saving day content." };
-
-  const { error } = await supabase
-    .from("teaching_devotional_days")
-    .upsert({
-      devotional_id: devotional.id,
-      day_number: dayNumber,
-      ...day.values,
-    }, { onConflict: "devotional_id,day_number" });
-
-  if (error) return { error: `Day ${dayNumber} could not be saved.` };
-  revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
-  return { saved: true };
-}
-
-export async function importDevotionalText(teachingId: string, previousState: DevotionalImportState, formData: FormData): Promise<DevotionalImportState> {
-  void previousState;
-  const { supabase } = await requireAdmin();
-  const teaching = await getTeaching(supabase, teachingId);
-  if (!teaching) return { error: "This teaching could not be found." };
-
-  const file = await readImportedDevotionalFile(formData);
-  if (file.error || !file.imported) return { error: file.error ?? "The devotional text file could not be parsed." };
-  const imported = file.imported;
-
-  const assignedResult = await getAssignedDevotional(supabase, teaching.id);
-  if (assignedResult.error) return { error: "This devotional could not be checked before import." };
-  let existing = assignedResult.devotional;
-
-  if (!existing) {
-    // Same as createDevotional: teaching_id is no longer unique, so take the
-    // oldest owned row rather than asking maybeSingle() for at most one.
-    const { data: ownedRows, error: ownedError } = await supabase
-      .from("teaching_devotionals")
-      .select("id, teaching_id, slug, title, introduction, status, published_at")
-      .eq("teaching_id", teaching.id)
-      .order("created_at", { ascending: true })
-      .limit(1);
-    if (ownedError) return { error: "This devotional could not be checked before import." };
-    existing = ownedRows?.[0] ?? null;
-    if (existing) {
-      const { error } = await saveAssignment(supabase, teaching.id, existing.id);
-      if (error) return { error: "This devotional could not be assigned before import." };
-    }
-  }
-
-  if (existing?.status === "published") {
-    return { error: "Unpublish this devotional before replacing it with an import." };
-  }
-
-  let devotionalId = existing?.id as string | undefined;
-  if (devotionalId) {
-    const { error } = await supabase
-      .from("teaching_devotionals")
-      .update({
-        title: imported.title,
-        introduction: imported.introduction || null,
-        ...(imported.language === "es" ? { language: "es" } : {}),
-        slug: existing?.slug || teaching.slug,
-        status: "draft",
-        published_at: null,
-      })
-      .eq("id", devotionalId);
-    if (error) return { error: "The devotional series information could not be imported." };
-  } else {
-    const { data, error } = await supabase
-      .from("teaching_devotionals")
-      .insert({
-        teaching_id: teaching.id,
-        slug: teaching.slug,
-        language: teaching.language === "es" || imported.language === "es" ? "es" : "en",
-        title: imported.title,
-        introduction: imported.introduction || null,
-        status: "draft",
-        published_at: null,
-      })
-      .select("id")
-      .single();
-    if (error || !data) return { error: "The devotional could not be created from the import." };
-    devotionalId = data.id as string;
-    const { error: assignmentError } = await saveAssignment(supabase, teaching.id, devotionalId);
-    if (assignmentError) {
-      await supabase.from("teaching_devotionals").delete().eq("id", devotionalId);
-      return { error: "The imported devotional could not be assigned." };
-    }
-  }
-
-  const { error: daysError } = await supabase
-    .from("teaching_devotional_days")
-    .upsert(
-      imported.days.map((day) => importedDayRow(devotionalId, day)),
-      { onConflict: "devotional_id,day_number" },
-    );
-
-  if (daysError) return { error: "The devotional days could not be imported." };
-  revalidateDevotionalPaths(teaching.id, teaching.slug, existing?.slug || teaching.slug);
-  redirect(`/admin/teachings/${teaching.id}/devotional?imported=1`);
-}
-
-export async function publishDevotional(teachingId: string, previousState: DevotionalPublishState): Promise<DevotionalPublishState> {
-  void previousState;
-  const { supabase } = await requireAdmin();
-  const teaching = await getTeaching(supabase, teachingId);
-  if (!teaching) return { error: "This teaching could not be found." };
-
-  const { devotional } = await getAssignedDevotional(supabase, teaching.id);
-
-  if (!devotional) return { error: "Create the devotional before publishing." };
-
-  const { data: days, error: daysError } = await supabase
-    .from("teaching_devotional_days")
-    .select(DEVOTIONAL_DAY_COLUMNS)
-    .eq("devotional_id", devotional.id)
-    .order("day_number", { ascending: true });
-
-  if (daysError) return { error: "Devotional days could not be checked." };
-  const blocker = findDevotionalPublishBlocker(devotional, days ?? []);
-  if (blocker) return { error: blocker };
-
-  const { error } = await supabase
-    .from("teaching_devotionals")
-    .update({ slug: devotional.slug || teaching.slug, status: "published", published_at: new Date().toISOString() })
-    .eq("id", devotional.id);
-
-  if (error) return { error: "This devotional could not be published." };
-  revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
-  redirect(`/admin/teachings/${teaching.id}/devotional?published=1`);
-}
-
-export async function unpublishDevotional(teachingId: string, previousState: DevotionalPublishState): Promise<DevotionalPublishState> {
-  void previousState;
-  const { supabase } = await requireAdmin();
-  const teaching = await getTeaching(supabase, teachingId);
-  if (!teaching) return { error: "This teaching could not be found." };
-
-  const { devotional } = await getAssignedDevotional(supabase, teaching.id);
-
-  if (!devotional) return { error: "This devotional could not be found." };
-
-  const { error } = await supabase
-    .from("teaching_devotionals")
-    .update({ status: "draft", published_at: null })
-    .eq("id", devotional.id);
-
-  if (error) return { error: "This devotional could not be unpublished." };
-  revalidateDevotionalPaths(teaching.id, teaching.slug, devotional.slug || teaching.slug);
-  redirect(`/admin/teachings/${teaching.id}/devotional?unpublished=1`);
+  if (error) return { error: "This devotional could not be removed from the teaching." };
+  revalidateAssignmentPaths(teaching.id, teaching.slug, devotional);
+  redirect(backToTeaching(teaching.id, "removed"));
 }
 
 // ---------------------------------------------------------------------------
-// Standalone devotionals
+// Devotionals by id
 //
-// These act on a devotional id directly instead of a teaching id, so they work
-// for a devotional that has no teaching context at all. A standalone devotional
-// stores teaching_id as null and is invisible to the public until it is
-// assigned to a published teaching through teaching_devotional_assignments.
+// A devotional is created, edited, imported, previewed and published on its own page,
+// by its id. Attaching it to a teaching is optional and is done from that teaching's
+// edit page (assignExistingDevotional above). A published devotional is public at its
+// own address whether or not a teaching is attached.
 // ---------------------------------------------------------------------------
 
 const PROVISIONAL_SLUG_ATTEMPTS = 100;

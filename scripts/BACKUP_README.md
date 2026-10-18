@@ -126,14 +126,24 @@ A Windows Task Scheduler task named `PrayerWhiteboardBackup` runs
 runs as soon as you are back on and signed in (it needs your Windows sign-in, because
 the Supabase login belongs to your account). Each run:
 
-1. Makes a full backup (the same thing as running `backup-supabase.mjs` by hand) into
-   `C:\Users\bwill\SupabaseBackups`. That works with no drive plugged in.
+1. Makes three backups on the computer's own disk, so it works with no drive plugged in:
+   - a full Supabase backup (the same thing as running `backup-supabase.mjs` by hand) in
+     `C:\Users\bwill\SupabaseBackups`;
+   - a copy of this project folder, and a copy of the Prayer Group files, both made by
+     `C:\Users\bwill\Projects\PrayerWhiteboard_Backup_Timestamped.bat` into
+     `C:\Users\bwill\FileBackups` (named `whiteboard_<date>_<time>_<commit>` and
+     `Prayer_Group_Backup_<date>_<time>`; the project copy leaves out `.next` and
+     `node_modules`). Double-clicking that .bat still works by hand and backs up to the same folder.
 2. If the flash drive is in as `D:`, copies the recent backups it does not have yet to
-   `D:\SupabaseBackups`. The drive is swapped often, so a newly inserted drive is caught
-   up on the next run, not only given the newest one. A copy is made under a temporary
-   name and renamed when whole, so pulling the drive out mid-copy leaves nothing that
-   looks finished.
-3. Removes the oldest backups: it keeps the newest 14 on the computer and 10 on the drive.
+   `D:\SupabaseBackups` and `D:\FileBackups`. The drive is swapped often, so a newly
+   inserted drive is caught up on the next run, not only given the newest ones. A copy is
+   made under a temporary name and renamed when whole, so pulling the drive out mid-copy
+   leaves nothing that looks finished.
+3. Removes the oldest backups of each kind: it keeps the newest 14 on the computer and 10 on the drive.
+
+A run's three backups are independent: if one fails, the log says which and the others still happen.
+The old file backups at the top level of `D:` (`whiteboard_...`, `Prayer_Group_Backup_...`) are not
+touched or counted; remove them yourself when you no longer want them.
 
 Each run adds a line to `C:\Users\bwill\SupabaseBackups\backup-log.txt` saying what it did:
 finished, finished with a warning (and which part), failed, or "flash drive not plugged in".

@@ -29,13 +29,13 @@ test("a drive is caught up with the newest backups, and a different backup never
 
 test("the scheduled backup works without the drive, copies whole backups only, and never uses a synced folder", async () => {
   const script = await readFile("scripts/scheduled-backup.mjs", "utf8");
-  assert.ok(script.includes('existsSync("D:\\\\")'), "it checks that the flash drive is there");
+  assert.ok(script.includes("existsSync(FLASH_DRIVE)"), "it checks that the flash drive is there");
   assert.ok(script.includes("Skipped the copy"), "and carries on without it");
   assert.ok(script.includes(".partial"), "a copy is renamed into place only when whole");
-  assert.ok(script.includes("manifestOf("), "the same backup is recognised by its manifest, not just its name");
+  assert.ok(script.includes("identityOf("), "the same Supabase backup is recognised by its manifest, not just its name");
   assert.ok(script.includes('"manifest.json"'), "a backup counts as finished only once its manifest is written");
   assert.doesNotMatch(script, /OneDrive|Documents/i, "the backups hold password hashes, so no synced folder");
-  assert.match(script, /process\.exit\(1\)/, "a failed backup ends with a failing exit code so Task Scheduler shows it");
+  assert.match(script, /process\.exitCode = 1/, "a failed backup ends with a failing exit code so Task Scheduler shows it");
 });
 
 test("the storage rules are read whichever way the Supabase CLI answers, so a backup made by hand or by Task Scheduler keeps them", async () => {
@@ -51,4 +51,34 @@ test("the storage rules are read whichever way the Supabase CLI answers, so a ba
   assert.throws(() => parseQueryRows("no json here"));
   const backup = await readFile("scripts/backup-supabase.mjs", "utf8");
   assert.ok(backup.includes("parseQueryRows(raw)"), "the backup script uses it");
+});
+
+test("the two kinds of file backup are told apart by name and kept to the newest few, in time order", async () => {
+  const { timestampedBackups } = await import("../scripts/lib/backup-retention.mjs");
+  const project = timestampedBackups("whiteboard_");
+  const group = timestampedBackups("Prayer_Group_Backup_");
+  const names = [
+    "whiteboard_2026-10-18_14-05-00_abc1234",
+    "whiteboard_2026-10-02_18-45-12",
+    "whiteboard_2026-10-10_08-00-00_def5678",
+    "whiteboard_2026-10-18_14-06-00.partial",
+    "Prayer_Group_Backup_2026-10-18_14-05-00",
+    "Prayer_Group_Backup_2026-10-02_18-45-12",
+    "SupabaseBackups",
+    "whiteboard_notes",
+  ];
+  assert.deepEqual(project.sort(names), ["whiteboard_2026-10-02_18-45-12", "whiteboard_2026-10-10_08-00-00_def5678", "whiteboard_2026-10-18_14-05-00_abc1234"]);
+  assert.deepEqual(group.sort(names), ["Prayer_Group_Backup_2026-10-02_18-45-12", "Prayer_Group_Backup_2026-10-18_14-05-00"]);
+  assert.deepEqual(foldersToPrune(names, 2, project), ["whiteboard_2026-10-02_18-45-12"]);
+  assert.deepEqual(foldersToPrune(names, 1, group), ["Prayer_Group_Backup_2026-10-02_18-45-12"]);
+  assert.deepEqual(newestFolders(names, 1, project), ["whiteboard_2026-10-18_14-05-00_abc1234"]);
+});
+
+test("the .bat takes a destination and a quiet flag, marks each finished copy, and the scheduled backup runs it", async () => {
+  const script = await readFile("scripts/scheduled-backup.mjs", "utf8");
+  assert.ok(script.includes("PrayerWhiteboard_Backup_Timestamped.bat"));
+  assert.ok(script.includes('FILES_LOCAL, "quiet"'), "runs it with its own folder and without the pause");
+  assert.ok(script.includes('"FileBackups"'), "file backups get their own folder on the computer and on the drive");
+  assert.ok(script.includes("const KEEP_LOCAL = 14;") && script.includes("const KEEP_FLASH = 10;"), "the same number kept as the Supabase backups");
+  assert.ok(script.includes("[SUPABASE, PROJECT_FILES, PRAYER_GROUP_FILES]"), "all three kinds are copied to the drive and pruned");
 });

@@ -27,3 +27,12 @@ test("the Administrator's My Place ticks are stored separately from the Content 
   assert.match(adminEditor, /admin-place:/);
   assert.match(reviewForm, /review-proofed:/);
 });
+
+test("the Administrator's devotional editor has a My Place tick on each day and a Jump to my place link", async () => {
+  const editor = await readFile("app/admin/devotionals/devotional-editor.tsx", "utf8");
+  assert.match(editor, /from "@\/app\/admin\/use-my-place"/);
+  assert.match(editor, /admin-place:/);
+  assert.match(editor, /Pick up here next time/);
+  assert.match(editor, /Jump to my place/);
+  assert.match(editor, /id=\{`devotional-day-\$\{dayNumber\}`\}/);
+});

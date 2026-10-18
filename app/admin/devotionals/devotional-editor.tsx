@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
+import { useProofed } from "@/app/admin/use-my-place";
 import { COMMUNION_DAY_NUMBER, DEVOTIONAL_DAY_NUMBERS, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines, scripturesToTextareaValue, usesLegacyDayLayout, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { ui } from "@/lib/i18n";
 import type { DevotionalFormState, DevotionalImportState } from "./actions";
@@ -112,7 +114,7 @@ export function DevotionalSeriesForm({ devotional, action }: { devotional: Teach
   );
 }
 
-function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: number; day?: DevotionalDay; action: Action }) {
+function DevotionalDayForm({ dayNumber, day, action, hasMyPlace, onMyPlaceChange }: { dayNumber: number; day?: DevotionalDay; action: Action; hasMyPlace: boolean; onMyPlaceChange: (checked: boolean) => void }) {
   const [values, setValues] = useState(dayToValues(day));
   const [state, formAction, isPending] = useActionState(action, {});
   const [clientError, setClientError] = useState<string | null>(null);
@@ -129,12 +131,19 @@ function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: number; day?
   };
 
   return (
-    <section className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-sm shadow-[#4d5f52]/5">
+    <section id={`devotional-day-${dayNumber}`} className="scroll-mt-6 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5 shadow-sm shadow-[#4d5f52]/5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-xl font-extrabold text-[#243d31]">Day {dayNumber}</h3>
         {hasUnsavedChanges
           ? <span className="rounded-full bg-[#fff3ed] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#a2472c]">Unsaved changes</span>
           : <span className="rounded-full bg-[#e7efe9] px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#326048]">{isSaved ? "Saved" : "Not saved"}</span>}
+      </div>
+      <div className="mt-3">
+        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[#946332]">🔖 My Place</p>
+        <label className={`mt-1 flex w-fit cursor-pointer items-center gap-3 rounded-xl border px-4 py-2 text-sm font-extrabold ${hasMyPlace ? "border-[#326048]/30 bg-[#e7efe9] text-[#326048]" : "border-[#284a3b]/15 bg-white text-[#385245]"}`}>
+          <input type="checkbox" checked={hasMyPlace} onChange={(event) => onMyPlaceChange(event.target.checked)} className="size-5 accent-[#326048]" />
+          Pick up here next time
+        </label>
       </div>
       <form
         action={formAction}
@@ -204,11 +213,36 @@ function DevotionalDayForm({ dayNumber, day, action }: { dayNumber: number; day?
 }
 
 export function DevotionalDayForms({ days, actions }: { days: DevotionalDay[]; actions: Record<number, Action> }) {
+  // "My Place": the last day marked is where to pick up next time. A private reminder kept in this browser only.
+  const pathname = usePathname();
+  const { proofed, toggle } = useProofed(`admin-place:${pathname}`);
+  const placeDay = DEVOTIONAL_DAY_NUMBERS.reduce((last, dayNumber) => (proofed.has(`day-${dayNumber}`) ? dayNumber : last), 0);
+
   return (
     <div className="mt-6 space-y-5">
       {DEVOTIONAL_DAY_NUMBERS.map((dayNumber) => (
-        <DevotionalDayForm key={dayNumber} dayNumber={dayNumber} day={days.find((day) => day.day_number === dayNumber)} action={actions[dayNumber]} />
+        <DevotionalDayForm
+          key={dayNumber}
+          dayNumber={dayNumber}
+          day={days.find((day) => day.day_number === dayNumber)}
+          action={actions[dayNumber]}
+          hasMyPlace={proofed.has(`day-${dayNumber}`)}
+          onMyPlaceChange={(checked) => toggle(`day-${dayNumber}`, checked)}
+        />
       ))}
+      <div className="sticky bottom-0 -mx-1 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-4 shadow-xl shadow-[#4d5f52]/10">
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-bold text-[#385245]">
+          {placeDay ? (
+            <>
+              <span>🔖 Your place is on Day {placeDay} of {DEVOTIONAL_DAY_NUMBERS.length}</span>
+              <button type="button" onClick={() => document.getElementById(`devotional-day-${placeDay}`)?.scrollIntoView({ behavior: "smooth", block: "start" })} className="font-extrabold text-[#946332] underline hover:text-[#a85e32]">Jump to my place</button>
+            </>
+          ) : (
+            <span>🔖 No place marked yet</span>
+          )}
+          <span className="font-normal text-[#607066]">(a private reminder, saved in this browser only)</span>
+        </p>
+      </div>
     </div>
   );
 }

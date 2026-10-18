@@ -1,0 +1,149 @@
+# THE PRAYER WHITEBOARD - 7-DAY DEVOTIONAL IMPORT TEMPLATE
+#
+# HOW TO USE THIS FILE
+#   1. Save a copy as yyyymmdd_en_devotional.txt (plain text, UTF-8). For Español: yyyymmdd_es_devotional.txt.
+#   2. Replace everything that says REPLACE with your own wording. Keep every label exactly as written.
+#   3. Upload it at Admin > Devotionals > Create New Devotional: choose the language, then the file.
+#   Lines that start with # (like these) are notes for you. They are never imported, so you can leave them or delete them.
+#   Nothing in the file is checked against the teaching. The importer only checks the layout, so read it before you publish.
+#
+# THE ORDER OF THE FILE
+#   Line 1 ............................ the devotional title, with no label
+#   The next lines .................... the introduction: 1-2 short paragraphs, with no label
+#   Day 1 through Day 7 ............... in order, each one starting with its heading
+#   Last line (optional) .............. "Website Description:" and one sentence. The site has no place for it, so it is read and dropped.
+#
+# LABELS
+#   Each label goes on its own line, spelled exactly as shown, with its text on the lines under it.
+#   Days 1-6 use: Anchor Scriptures / Devotional Reading / Today's Confession / 5-Minute Journal Prompt / Prayer Activation Exercise
+#   Day 7 uses:   Anchor Scriptures / The Rest Reflection / Today's Confession of Rest / Reverent Self-Examination & Blessing /
+#                 The Bread Reflection / The Cup Reflection / Series Closing Prayer
+#
+# DAY HEADINGS
+#   Days 1-6 start with "Day 1:" through "Day 6:".  Day 7 starts with "DAY 7 - COMMUNION AND REST:" (a long dash is fine).
+#
+# DAY 7 IS THE COMMUNION AND REST DAY
+#   It has no journal prompt and no prayer activation. Do not write a "Table of Remembrance" section: the site adds that sentence
+#   itself. A Day 7 written the old way (journal prompt and prayer activation) is refused with a message that says so.
+#   End the Bread Reflection and the Cup Reflection with a line that begins "Partaking Declaration:".
+#
+# ANCHOR SCRIPTURES
+#   One passage per line, in exactly this form:   Reference (VER) - "full verse text"
+#   A space, a dash, a space, then the quoted verse. The dash is what lets the site show the reference in bold with the verse under it.
+#   Quote the whole passage word for word, with no verse numbers inside it, ending on a complete sentence.
+#
+# FORMATTING INSIDE A FIELD
+#   **bold**   *italic*   [link text](https://address)   and a line that starts with "- " becomes a bullet.
+#
+# LIMITS (characters)
+#   Title 180. Introduction 8,000. Each day title 180. Each anchor Scripture line 1,000, up to 20 per day.
+#   Devotional Reading / Rest Reflection 12,000. Confession 3,000. Journal prompt 3,000. Prayer activation 3,000.
+#   Day 7: Self-Examination 6,000, Bread Reflection 6,000, Cup Reflection 6,000, Series Closing Prayer 3,000.
+#
+# ESPAÑOL (El Salvador, voseo)
+#   Write the day headings as "Día 1:" through "Día 6:" and "DÍA 7 — COMUNIÓN Y DESCANSO:". The English labels still work, or use these:
+#   Days 1-6: Pasajes bíblicos clave: / La dinámica espiritual: / Confesión de hoy: / Pregunta para tu diario de 5 minutos: /
+#             Ejercicio de activación en oración:
+#   Day 7:    La reflexión del descanso: / Confesión de descanso de hoy: / Autoexamen reverente y bendición: /
+#             La reflexión del pan: / La reflexión de la copa: / Oración de cierre de la serie:
+#   Then choose Español on the upload screen. The language you choose must match the language of the headings.
+#
+# ------------------------------- START OF THE DEVOTIONAL: replace from here down -------------------------------
+
+REPLACE with the devotional title
+
+REPLACE with the introduction, first paragraph: one or two sentences that welcome the reader and name where the week is going.
+
+REPLACE with the introduction, second paragraph (optional): how the seven days build toward Communion and rest on Day 7.
+
+Day 1: REPLACE with the Day 1 title
+Anchor Scriptures
+Book 1:1 (KJV) - "REPLACE with the full verse text, word for word."
+Devotional Reading
+REPLACE with 1-3 short paragraphs that explain the day's truth personally and practically.
+Today's Confession
+REPLACE with a first-person prayer or confession the reader can speak aloud.
+5-Minute Journal Prompt
+REPLACE with one focused question or exercise, written to the reader ("you").
+Prayer Activation Exercise
+REPLACE with one practical prayer action for the day.
+
+Day 2: REPLACE with the Day 2 title
+Anchor Scriptures
+Book 1:1 (KJV) - "REPLACE with the full verse text, word for word."
+Devotional Reading
+REPLACE with 1-3 short paragraphs that explain the day's truth personally and practically.
+Today's Confession
+REPLACE with a first-person prayer or confession the reader can speak aloud.
+5-Minute Journal Prompt
+REPLACE with one focused question or exercise, written to the reader ("you").
+Prayer Activation Exercise
+REPLACE with one practical prayer action for the day.
+
+Day 3: REPLACE with the Day 3 title
+Anchor Scriptures
+Book 1:1 (KJV) - "REPLACE with the full verse text, word for word."
+Devotional Reading
+REPLACE with 1-3 short paragraphs that explain the day's truth personally and practically.
+Today's Confession
+REPLACE with a first-person prayer or confession the reader can speak aloud.
+5-Minute Journal Prompt
+REPLACE with one focused question or exercise, written to the reader ("you").
+Prayer Activation Exercise
+REPLACE with one practical prayer action for the day.
+
+Day 4: REPLACE with the Day 4 title
+Anchor Scriptures
+Book 1:1 (KJV) - "REPLACE with the full verse text, word for word."
+Devotional Reading
+REPLACE with 1-3 short paragraphs that explain the day's truth personally and practically.
+Today's Confession
+REPLACE with a first-person prayer or confession the reader can speak aloud.
+5-Minute Journal Prompt
+REPLACE with one focused question or exercise, written to the reader ("you").
+Prayer Activation Exercise
+REPLACE with one practical prayer action for the day.
+
+Day 5: REPLACE with the Day 5 title
+Anchor Scriptures
+Book 1:1 (KJV) - "REPLACE with the full verse text, word for word."
+Devotional Reading
+REPLACE with 1-3 short paragraphs that explain the day's truth personally and practically.
+Today's Confession
+REPLACE with a first-person prayer or confession the reader can speak aloud.
+5-Minute Journal Prompt
+REPLACE with one focused question or exercise, written to the reader ("you").
+Prayer Activation Exercise
+REPLACE with one practical prayer action for the day.
+
+Day 6: REPLACE with the Day 6 title
+Anchor Scriptures
+Book 1:1 (KJV) - "REPLACE with the full verse text, word for word."
+Devotional Reading
+REPLACE with 1-3 short paragraphs that explain the day's truth personally and practically.
+Today's Confession
+REPLACE with a first-person prayer or confession the reader can speak aloud.
+5-Minute Journal Prompt
+REPLACE with one focused question or exercise, written to the reader ("you").
+Prayer Activation Exercise
+REPLACE with one practical prayer action for the day.
+
+DAY 7 - COMMUNION AND REST: REPLACE with the week's theme connection
+Anchor Scriptures
+Book 1:1 (KJV) - "REPLACE with a full verse about rest, Christ's finished work, the covenant, or Communion that the teaching cites."
+The Rest Reflection
+REPLACE with 1-2 paragraphs showing how the week's lesson ends in ceasing from human work and resting in the finished work of Jesus.
+Today's Confession of Rest
+REPLACE with a first-person decree of thankfulness for what Christ has already accomplished.
+Reverent Self-Examination & Blessing
+REPLACE with one paragraph, written as preparation before partaking, on the guardrails of 1 Corinthians 11:27-29 as a response to grace, then a short blessing.
+The Bread Reflection
+REPLACE with text linking the week's theme to the broken body of Christ.
+Partaking Declaration: "REPLACE with the words spoken over the bread."
+The Cup Reflection
+REPLACE with text linking the week's theme to the shed blood of the New Covenant.
+Partaking Declaration: "REPLACE with the words spoken over the cup."
+Series Closing Prayer
+REPLACE with a prayer that closes the whole 7-day series. End with: In Jesus' name, amen.
+
+Website Description: REPLACE with one sentence for the website (optional; the site does not use it).

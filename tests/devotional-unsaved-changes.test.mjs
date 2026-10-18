@@ -42,3 +42,13 @@ test("the browser warns before the page is closed or reloaded with unsaved chang
   assert.match(source, /removeEventListener\("beforeunload", warn\)/);
   assert.match(source, /\}, \[hasUnsavedChanges\]\);/);
 });
+
+test("one button saves every day with changes, and a click on a link inside the site asks first", () => {
+  assert.match(source, /Save all days with changes/);
+  assert.match(source, /requestSubmit\(\)/);
+  assert.match(source, /id=\{`devotional-day-form-\$\{dayNumber\}`\}/);
+  assert.match(source, /Leave anyway\?/);
+  assert.match(source, /addEventListener\("click", askBeforeLeavingBySiteLink, true\)/);
+  // One shared listener, so several unsaved forms still ask only once.
+  assert.match(source, /unsavedFormCount/);
+});

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useCallback, useEffect, useState } from "react";
 import { FormattedTextarea } from "@/app/admin/formatted-textarea";
 import { useProofed } from "@/app/admin/use-my-place";
 import { COMMUNION_DAY_NUMBER, DEVOTIONAL_DAY_NUMBERS, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines, scripturesToTextareaValue, usesLegacyDayLayout, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
@@ -46,6 +46,24 @@ function dayToValues(day: DevotionalDay | undefined): DayValues {
 // instead of leaving a stale "Saved". The saved copy starts as what the page loaded, becomes what was
 // submitted once the server confirms a save, and is left alone when a save fails. While there are
 // unsaved changes the browser also asks before the page is closed or reloaded.
+// Leaving the page by closing the tab or typing an address is caught by the browser (beforeunload). A click on a link
+// inside the site is not, so while any form on the page has unsaved changes one listener asks first. It is shared:
+// however many forms are unsaved, the Administrator is asked once.
+let unsavedFormCount = 0;
+
+function askBeforeLeavingBySiteLink(event: MouseEvent) {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const link = (event.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+  if (!link || (link.target && link.target !== "_self") || link.hasAttribute("download")) return;
+  const destination = new URL(link.href, window.location.href);
+  if (destination.origin !== window.location.origin) return;
+  if (destination.pathname === window.location.pathname && destination.search === window.location.search) return;
+  if (!window.confirm("You have unsaved changes on this page. Leave anyway?")) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+}
+
 function useUnsavedChanges<T extends Record<string, string>>(values: T, initial: T, state: { saved?: boolean }) {
   const [saved, setSaved] = useState(initial);
   const [submitted, setSubmitted] = useState<T | null>(null);
@@ -65,7 +83,13 @@ function useUnsavedChanges<T extends Record<string, string>>(values: T, initial:
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    if (unsavedFormCount === 0) document.addEventListener("click", askBeforeLeavingBySiteLink, true);
+    unsavedFormCount += 1;
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      unsavedFormCount -= 1;
+      if (unsavedFormCount === 0) document.removeEventListener("click", askBeforeLeavingBySiteLink, true);
+    };
   }, [hasUnsavedChanges]);
 
   return { hasUnsavedChanges, markSubmitted: () => setSubmitted(values) };
@@ -114,11 +138,12 @@ export function DevotionalSeriesForm({ devotional, action }: { devotional: Teach
   );
 }
 
-function DevotionalDayForm({ dayNumber, day, action, hasMyPlace, onMyPlaceChange }: { dayNumber: number; day?: DevotionalDay; action: Action; hasMyPlace: boolean; onMyPlaceChange: (checked: boolean) => void }) {
+function DevotionalDayForm({ dayNumber, day, action, hasMyPlace, onMyPlaceChange, onUnsavedChange }: { dayNumber: number; day?: DevotionalDay; action: Action; hasMyPlace: boolean; onMyPlaceChange: (checked: boolean) => void; onUnsavedChange: (dayNumber: number, unsaved: boolean) => void }) {
   const [values, setValues] = useState(dayToValues(day));
   const [state, formAction, isPending] = useActionState(action, {});
   const [clientError, setClientError] = useState<string | null>(null);
   const { hasUnsavedChanges, markSubmitted } = useUnsavedChanges(values, dayToValues(day), state);
+  useEffect(() => onUnsavedChange(dayNumber, hasUnsavedChanges), [dayNumber, hasUnsavedChanges, onUnsavedChange]);
   // "Saved" means this day exists in the database and nothing has been typed since.
   const isSaved = Boolean(day) || Boolean(state.saved);
   // Day 7 is the Communion and rest day. Its labels come from the same list the public page uses.
@@ -146,6 +171,7 @@ function DevotionalDayForm({ dayNumber, day, action, hasMyPlace, onMyPlaceChange
         </label>
       </div>
       <form
+        id={`devotional-day-form-${dayNumber}`}
         action={formAction}
         onSubmit={(event) => {
           const anchorScriptures = normalizeScriptureLines(values.anchorScriptures);
@@ -216,6 +242,14 @@ export function DevotionalDayForms({ days, actions }: { days: DevotionalDay[]; a
   // "My Place": the last day marked is where to pick up next time. A private reminder kept in this browser only.
   const pathname = usePathname();
   const { proofed, toggle } = useProofed(`admin-place:${pathname}`);
+  // Which days have text typed since they were last saved, so one button can save them all.
+  const [unsavedDays, setUnsavedDays] = useState<number[]>([]);
+  const onUnsavedChange = useCallback((dayNumber: number, unsaved: boolean) => {
+    setUnsavedDays((current) => (current.includes(dayNumber) === unsaved ? current : unsaved ? [...current, dayNumber] : current.filter((day) => day !== dayNumber)));
+  }, []);
+  const saveAllDays = () => {
+    for (const dayNumber of unsavedDays) (document.getElementById(`devotional-day-form-${dayNumber}`) as HTMLFormElement | null)?.requestSubmit();
+  };
   const placeDay = DEVOTIONAL_DAY_NUMBERS.reduce((last, dayNumber) => (proofed.has(`day-${dayNumber}`) ? dayNumber : last), 0);
 
   return (
@@ -228,6 +262,7 @@ export function DevotionalDayForms({ days, actions }: { days: DevotionalDay[]; a
           action={actions[dayNumber]}
           hasMyPlace={proofed.has(`day-${dayNumber}`)}
           onMyPlaceChange={(checked) => toggle(`day-${dayNumber}`, checked)}
+          onUnsavedChange={onUnsavedChange}
         />
       ))}
       <div className="sticky bottom-0 -mx-1 rounded-2xl border border-[#a85e32]/20 bg-[#fff8f1] p-4 shadow-xl shadow-[#4d5f52]/10">
@@ -242,6 +277,14 @@ export function DevotionalDayForms({ days, actions }: { days: DevotionalDay[]; a
           )}
           <span className="font-normal text-[#607066]">(a private reminder, saved in this browser only)</span>
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[#a85e32]/20 pt-3">
+          <button type="button" onClick={saveAllDays} disabled={unsavedDays.length === 0} className="admin-primary-button disabled:cursor-not-allowed disabled:opacity-40">
+            {unsavedDays.length ? `Save all days with changes (${unsavedDays.length})` : "Save all days with changes"}
+          </button>
+          <span className="text-sm font-bold text-[#385245]">
+            {unsavedDays.length ? `Unsaved: ${[...unsavedDays].sort((a, b) => a - b).map((day) => `Day ${day}`).join(", ")}` : "Every day is saved."}
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { parseDevotionalText } from "../lib/devotional-import.ts";
 
-const template = await readFile("docs/devotional-import-template.txt", "utf8");
+const template = await readFile("docs/devotional_import_template.txt", "utf8");
 const importer = await readFile("lib/devotional-import.ts", "utf8");
 
 test("the template imports exactly as it is, so its layout can never drift from the importer", () => {

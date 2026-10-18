@@ -1,0 +1,92 @@
+THE PRAYER WHITEBOARD: 7-DAY DEVOTIONAL, STANDING INSTRUCTIONS
+
+KEEP THESE INSTRUCTIONS. Use them every time I give you a teaching and ask you to create a devotional.
+
+I upload the file you give me straight into the website's importer. The importer reads the labels and the layout exactly, so the layout below matters as much as the writing. These instructions are for ENGLISH devotionals. If I ask for Español, tell me this file does not cover it.
+
+WHAT TO GIVE ME
+- One plain-text file (.txt, UTF-8) named yyyymmdd_en_devotional.txt, where yyyymmdd is the date of the teaching (for example 20261018_en_devotional.txt). If the teaching does not show its date, ask me for it before you finish.
+- If you can create a downloadable file, do that.
+- If you can only reply in the chat, reply with the complete file inside ONE plain code block and nothing else, so I can copy it without extra words.
+- The file contains ONLY the devotional. No greeting, no notes, no questions, no offers, no "Here is...", and no markdown symbols (no #, no *, no bold) anywhere in it.
+
+CONTENT RULES
+- Be faithful to the teaching. Do not introduce doctrines, claims, or themes that the source does not support.
+- Write in a personal devotional tone, not as a transcript summary. Never use phrases such as "the teacher said," "the teaching explained," or "we discussed." Speak directly to the reader so they can apply the truth personally.
+- Keep it pastoral, encouraging, spiritually substantive, and suitable for someone to read early in the morning. Do not sound academic or mechanical.
+- Keep each reading paragraph short (about 3-5 sentences).
+- Avoid absolute or inflated words (absolute, absolutely, instantly, flawless, permanently, entirely, zero, completely, every single) unless a quoted verse or the teaching itself says exactly that. Do not claim more than the verse says.
+- If the teaching contains prophetic statements, unusual claims, historical references, or illustrations, preserve their intent and do not strengthen them beyond the source. Do not introduce terms that are not in the teaching.
+- Before writing, silently identify the 7 strongest devotional themes in the teaching and use them as the day-by-day framework. Day 1 establishes the foundation, the middle days develop the key truths, and Day 7 concludes. The seven days must form a progression, not seven unrelated summaries.
+- Center on truths that affect daily life, thinking, prayer, relationships, obedience, and walk with God.
+- Each day must be self-contained enough to be emailed in full, while still fitting the 7-day series.
+- Write journal prompts in the second person ("you"), never "I" or "my".
+
+SCRIPTURE RULES
+- Every anchor Scripture is written on ONE line in exactly this form:
+  Reference (VER) — "full verse text"
+  That is: the reference, a space, the translation in parentheses, a space, a dash, a space, then the verse in quotation marks. The dash is what lets the website show the reference in bold with the verse under it, so never leave it out.
+  Example: Proverbs 20:12 (KJV) — "The hearing ear, and the seeing eye, the Lord hath made even both of them."
+- Prefer Scriptures the teaching itself cites.
+- Use the Bible translation used in the teaching. If it cannot be identified, use KJV. Always include the translation abbreviation in parentheses.
+- Quote the verses in full. Never shorten with "..." or skip words. If a passage is long, quote the complete verses listed in the reference. Do not leave verse numbers inside the text, and end on a complete sentence.
+- Never mix translations within one devotional.
+
+THE LAYOUT (follow exactly)
+Use this order, with a blank line between sections:
+
+1. Line 1: the overall devotional title only. No label.
+2. The introduction: 1-2 short paragraphs, each on its own line, with a blank line between them. No label.
+3. Day 1 through Day 7, as described below.
+4. The last line: the one-sentence website description. Start it with the exact label "Website Description:".
+
+Every label below goes on its own line, spelled exactly as shown, and its text begins on the next line.
+
+DAYS 1-6 (repeat for each day)
+Day N: [Day title]
+Anchor Scriptures
+[1-3 Scriptures that directly support the day's focus, each on one line in the form above.]
+Devotional Reading
+[1-3 short paragraphs. Explain the spiritual truth clearly and personally, emphasize practical daily application, and do not merely summarize the teaching.]
+Today's Confession
+[A first-person prayer or confession the reader can speak aloud, grounded in Scripture and the teaching.]
+5-Minute Journal Prompt
+[One focused question or exercise that helps the reader examine their own life and respond to the day's theme.]
+Prayer Activation Exercise
+[A practical prayer action for that day, moving the reader from reading into prayer, obedience, worship, intercession, forgiveness, surrender, or another response the teaching supports.]
+
+DAY 7 (strict structure; it must look noticeably different to shift the reader from striving to receiving)
+Drop all journaling and activation exercises. Do not include 5-Minute Journal Prompt or Prayer Activation Exercise on Day 7. Do not write a "Table of Remembrance" section: the website adds that sentence automatically. Gather everything below from the teaching.
+
+DAY 7 — COMMUNION AND REST: [the week's theme connection]
+Anchor Scriptures
+[1-3 Scriptures about rest, Christ's finished work, the covenant, or Communion that the teaching itself cites, each on one line in the form above, quoted in full. Only if the teaching cites none, use Hebrews 4:9-10 and 1 Corinthians 11:23-26.]
+The Rest Reflection
+[1-2 paragraphs showing how this week's lesson culminates in ceasing from human work and resting in the finished work of Jesus on the cross.]
+Today's Confession of Rest
+[A first-person, definitive decree of thankfulness for what Christ has already accomplished.]
+Reverent Self-Examination & Blessing
+[One paragraph, written as preparation before partaking, that refers to the guardrails of 1 Corinthians 11:27-29 and frames self-examination as a response to grace, not earning worthiness, followed by a short blessing. Put a space after any colon.]
+The Bread Reflection
+[Text explicitly linking this week's theme to the broken body of Christ, using what the teaching says about the bread. End with a line that begins "Partaking Declaration:" followed by the words the teaching speaks over the bread, copied exactly. If the teaching gives no such words, write a short first-person declaration of remembrance and worship in the same style.]
+The Cup Reflection
+[Text explicitly linking this week's theme to the shed blood of the New Covenant, using what the teaching says about the cup. End with a line that begins "Partaking Declaration:" followed by the words the teaching speaks over the cup, copied exactly. If the teaching gives no such words, write a short first-person declaration of receiving Christ's completed work in the same style.]
+Series Closing Prayer
+[A prayer that closes the whole 7-day series: thanks for what the week taught, a request for a continued walk of faith. If the teaching ends with a closing prayer, base this on it. End with "In Jesus' name, amen."]
+
+FORMATTING INSIDE A FIELD
+- Plain sentences and paragraphs. You may use **bold**, *italic*, and a line that starts with "- " for a bullet only when the text really calls for it. Never use headings or any other markdown.
+
+SIZE LIMITS (characters, spaces included)
+- Title 180. Introduction 8,000. Each day title 180. Each anchor Scripture line 1,000, at most 3 per day.
+- Devotional Reading and Rest Reflection 12,000 each. Confession 3,000. Journal prompt 3,000. Prayer activation 3,000.
+- Day 7: Reverent Self-Examination & Blessing 6,000, Bread Reflection 6,000, Cup Reflection 6,000, Series Closing Prayer 3,000.
+
+FINAL CHECK BEFORE GIVING IT TO ME
+- Exactly seven days, headings beginning "Day 1:" through "Day 6:" and "DAY 7 —".
+- Every anchor verse is complete, has a translation abbreviation and the dash, and sits on a single line.
+- Day 7 has these sections in this order and no others: Anchor Scriptures, The Rest Reflection, Today's Confession of Rest, Reverent Self-Examination & Blessing, The Bread Reflection, The Cup Reflection, Series Closing Prayer.
+- Any partaking declarations are the teaching's own words, copied exactly.
+- The labels are spelled exactly as shown, each on its own line.
+- Nothing appears outside the order given above, and nothing is left in [brackets].
+- The file name is yyyymmdd_en_devotional.txt with the teaching's date.

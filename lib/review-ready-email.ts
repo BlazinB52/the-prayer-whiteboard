@@ -20,7 +20,7 @@ export function cleanReviewNote(value: unknown) {
 
 export function buildReviewReadyEmail(input: { kind: ReviewKind; title: string; reviewUrl: string; recipientName?: string | null; senderName?: string | null; note?: string | null }) {
   const note = cleanReviewNote(input.note);
-  const noteFrom = input.senderName?.trim() ? `A note from ${input.senderName.trim()}` : "A note from the Administrator";
+  const noteFrom = "A note from Brent";
   const label = REVIEW_SUBJECTS[input.kind].emailNoun;
   const title = input.title.trim() || `Untitled ${label}`;
   const greeting = input.recipientName?.trim() ? `Hello ${input.recipientName.trim()},` : "Hello,";

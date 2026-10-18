@@ -84,9 +84,10 @@ test("the migration hides unsent drafts from Content Managers in the database, a
 test("an optional note appears in the review email, escaped, and is left out when empty", () => {
   const base = { kind: "teaching", title: "T", reviewUrl: "https://x", senderName: "Pat" };
   const withNote = buildReviewReadyEmail({ ...base, note: "Look at <point> 2.\nThanks" });
-  assert.match(withNote.html, /A note from Pat/);
+  assert.match(withNote.html, /A note from Brent/);
+  assert.doesNotMatch(withNote.html, /A note from Pat|A note from the Administrator/, "the note is always from Brent, whatever the sender name is");
   assert.match(withNote.html, /Look at &lt;point&gt; 2\.<br>Thanks/);
-  assert.match(withNote.text, /A note from Pat:\nLook at <point> 2\.\nThanks/);
+  assert.match(withNote.text, /A note from Brent:\nLook at <point> 2\.\nThanks/);
   assert.doesNotMatch(buildReviewReadyEmail({ ...base, note: "   " }).html, /A note from/);
   assert.equal(buildReviewReadyEmail(base).html, buildReviewReadyEmail({ ...base, note: "" }).html);
 });

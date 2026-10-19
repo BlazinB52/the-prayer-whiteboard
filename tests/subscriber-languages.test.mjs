@@ -175,8 +175,7 @@ test("saving preferences stores the languages and then rebuilds the Sender group
   assert.match(save, /languages,\n\s+pending_language: null,\n\s+pending_languages: null,/);
   assert.match(save, /await syncConfirmedSubscriber\(\{ subscriberId: tokenResult\.subscriberId \}\)/);
   assert.ok(save.indexOf("replacePreferences") < save.indexOf("syncConfirmedSubscriber"), "groups are rebuilt after the choices are stored");
-  const sync = source.match(/async function syncConfirmedSubscriber[\s\S]*?\n}\n/)?.[0] ?? "";
-  assert.match(sync, /const groupIds = confirmed \?/, "only a confirmed subscriber can be in any group");
+  assert.match(source, /const groupIds = confirmed \?/, "only a confirmed subscriber can be in any group");
 });
 
 test("both signup forms and both preferences pages let the subscriber choose their language(s)", async () => {

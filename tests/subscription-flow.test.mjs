@@ -121,7 +121,9 @@ test("every selected category is synced to Sender and sync failures are recorded
   const source = await readFile("lib/email-subscriptions.ts", "utf8");
   const sync = source.match(/async function syncConfirmedSubscriber[\s\S]*?\n}/)?.[0] ?? "";
 
-  assert.match(sync, /getSenderGroupIdsForSubscription\(languages, categories, input\.devotionalSlug\)/);
+  // The groups come from senderGroupPlan, which the admin preview shares with the real sync.
+  assert.match(source, /getSenderGroupIdsForSubscription\(languages, categories, devotionalSlug\)/);
+  assert.match(sync, /senderGroupPlan\(input\.subscriberId, input\.devotionalSlug\)/);
   assert.match(sync, /if \(!groupIds\.length && !subscriber\.sender_contact_id\) return;/);
   assert.match(sync, /message_type: "preference_sync"/);
   assert.match(sync, /status: "failed"/);

@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { EMAIL_CATEGORIES, offeredEmailCategories, type EmailCategory, type PreferenceView } from "@/lib/email-categories";
 import { toLanguage, type Language } from "@/lib/i18n";
 import { languagesFromCheckboxes, languagesFromScope, normalizeLanguages, sameLanguages } from "@/lib/subscriber-languages";
-import { getManagedSenderGroupIds, getSenderGroupIdsForSubscription } from "@/lib/devotional-sender-groups";
+import { describeSenderGroup, getManagedSenderGroupIds, getSenderGroupIdsForSubscription } from "@/lib/devotional-sender-groups";
 import { getPublishedDevotionalSeriesBySlug } from "@/lib/public-devotionals";
 import { buildConfirmationEmail, buildPreferenceManagementEmail } from "@/lib/subscription-email-content";
 import { hasConfirmedSubscriptionState, type ConfirmationEvidence, type SubscriberStatus } from "@/lib/subscription-status";
@@ -193,27 +193,50 @@ function devotionalContextFromMetadata(metadata: unknown): DevotionalContext | n
 // language(s) and active categories), so a group is added when a choice is added and removed when it
 // is dropped or they unsubscribe. A confirmed subscriber is the only one ever added: an unconfirmed
 // address is never created in Sender.
-async function syncConfirmedSubscriber(input: { subscriberId: string; email?: string; firstName?: string; categories?: EmailCategory[]; devotionalSlug?: string | null; language?: Language }) {
+async function senderGroupPlan(subscriberId: string, devotionalSlug?: string | null) {
   const supabase = getClient();
   const { data: subscriber } = await supabase
     .from("email_subscribers")
     .select("email, first_name, status, languages, sender_contact_id")
-    .eq("id", input.subscriberId)
+    .eq("id", subscriberId)
     .maybeSingle();
-  if (!subscriber) return;
+  if (!subscriber) return null;
 
   const confirmed = subscriber.status === "confirmed";
   const { data: activeRows } = confirmed
-    ? await supabase.from("email_subscription_preferences").select("category").eq("subscriber_id", input.subscriberId).eq("status", "active")
+    ? await supabase.from("email_subscription_preferences").select("category").eq("subscriber_id", subscriberId).eq("status", "active")
     : { data: [] as { category: string }[] };
   const categories = (activeRows ?? []).map((row) => row.category as EmailCategory).filter((category) => EMAIL_CATEGORIES.includes(category));
   const languages = normalizeLanguages(subscriber.languages);
-
-  const groupIds = confirmed ? getSenderGroupIdsForSubscription(languages, categories, input.devotionalSlug) : [];
+  const groupIds = confirmed ? getSenderGroupIdsForSubscription(languages, categories, devotionalSlug) : [];
   const managed = getManagedSenderGroupIds();
   // Series groups are joined through a series signup, so they only come off when English devotionals do.
   const wantsEnglishDevotionals = confirmed && languages.includes("en") && categories.includes("devotionals");
   const managedGroupIds = [...managed.fixed, ...(wantsEnglishDevotionals ? [] : managed.series)];
+  return { subscriber, categories, languages, groupIds, managedGroupIds };
+}
+
+// Admin: shows what a sync would add to and remove from Sender for one subscriber, changing nothing.
+async function previewSenderSync(subscriberId: string) {
+  const plan = await senderGroupPlan(subscriberId);
+  if (!plan) return { error: "Subscriber not found." } as const;
+  if (!plan.groupIds.length && !plan.subscriber.sender_contact_id) return { added: [] as string[], removed: [] as string[] } as const;
+  const result = await reconcileSubscriberSenderGroups({
+    email: plan.subscriber.email,
+    firstName: plan.subscriber.first_name,
+    desiredGroupIds: plan.groupIds,
+    managedGroupIds: plan.managedGroupIds,
+    dryRun: true,
+  });
+  if (!result.ok) return { error: result.error } as const;
+  return { added: result.added.map(describeSenderGroup), removed: result.removed.map(describeSenderGroup) } as const;
+}
+
+async function syncConfirmedSubscriber(input: { subscriberId: string; email?: string; firstName?: string; categories?: EmailCategory[]; devotionalSlug?: string | null; language?: Language }) {
+  const supabase = getClient();
+  const plan = await senderGroupPlan(input.subscriberId, input.devotionalSlug);
+  if (!plan) return;
+  const { subscriber, categories, languages, groupIds, managedGroupIds } = plan;
 
   // Someone who was never added to Sender and has nothing to join is left alone.
   if (!groupIds.length && !subscriber.sender_contact_id) return;
@@ -637,8 +660,17 @@ export async function confirmSubscriptionToken(token: string) {
 }
 
 // Admin: re-runs the Sender group sync for one subscriber from what is stored now, then reports how it ended.
-export async function retrySubscriberSenderSync(subscriberId: string) {
+// Takes a subscriber out of a Sender group only after the admin has seen it and confirmed.
+export async function retrySubscriberSenderSync(subscriberId: string, confirmRemovals: boolean) {
   const supabase = getClient();
+  const preview = await previewSenderSync(subscriberId);
+  if ("error" in preview) return { error: preview.error };
+  if (preview.removed.length && !confirmRemovals) {
+    return {
+      needsConfirm: true,
+      message: `Would add: ${preview.added.join(", ") || "nothing"}. Would REMOVE: ${preview.removed.join(", ")}.`,
+    };
+  }
   await syncConfirmedSubscriber({ subscriberId });
   const { data } = await supabase.from("email_subscribers").select("sender_sync_status, sender_sync_error").eq("id", subscriberId).maybeSingle();
   if (!data) return { error: "Subscriber not found." };

@@ -93,6 +93,8 @@ export type SenderGroupReconcileInput = {
   desiredGroupIds: string[];
   /** Every group the app manages. A subscriber is only ever removed from a group in this list. */
   managedGroupIds: string[];
+  /** Work out what would be added and removed without changing anything in Sender. */
+  dryRun?: boolean;
   timeoutMs?: number;
   fetcher?: typeof fetch;
 };
@@ -133,6 +135,7 @@ export async function reconcileSenderSubscriberGroups(input: SenderGroupReconcil
     if (lookup.status === 404) {
       // Not in Sender at all: nothing to remove, and nothing to create unless there are groups to join.
       if (!desired.length) return { ok: true, subscriberId: null, added: [], removed: [] };
+      if (input.dryRun) return { ok: true, subscriberId: null, added: desired, removed: [] };
       const created = await request(SENDER_SUBSCRIBERS_ENDPOINT, {
         method: "POST",
         body: JSON.stringify({ email, firstname: firstName, groups: desired, trigger_automation: true }),
@@ -151,6 +154,7 @@ export async function reconcileSenderSubscriberGroups(input: SenderGroupReconcil
 
     const toAdd = desired.filter((groupId) => !current.has(groupId));
     const toRemove = [...current].filter((groupId) => managed.has(groupId) && !desired.includes(groupId));
+    if (input.dryRun) return { ok: true, subscriberId, added: toAdd, removed: toRemove };
 
     for (const groupId of toAdd) {
       const added = await request(`${SENDER_SUBSCRIBERS_ENDPOINT}/groups/${encodeURIComponent(groupId)}`, {

@@ -62,6 +62,21 @@ export function getSenderGroupIdsForSubscription(languages: readonly string[], c
   return [...groupIds];
 }
 
+/** Readable names for the groups the app manages, for showing what a sync would change. */
+export function describeSenderGroup(groupId: string) {
+  const labels: [string | undefined, string][] = [
+    ["SENDER_WEEKLY_UPDATES_GROUP_ID", "Weekly Updates (English)"],
+    ["SENDER_TEACHINGS_GROUP_ID", "New Teachings (English)"],
+    ["SENDER_DEVOTIONAL_MASTER_GROUP_ID", "Devotional Subscribers (English)"],
+    ["SENDER_ES_WEEKLY_UPDATES_GROUP_ID", "Español weekly updates"],
+    ["SENDER_ES_TEACHINGS_GROUP_ID", "Español teachings"],
+    ["SENDER_ES_DEVOTIONALS_GROUP_ID", "Español devotionals"],
+  ];
+  for (const [envVar, label] of labels) if (configuredId(envVar) === groupId) return label;
+  if (Object.values(parseGroupMap(process.env.SENDER_DEVOTIONAL_SERIES_GROUP_IDS)).includes(groupId)) return "English devotional series";
+  return "another group";
+}
+
 /**
  * Every group the app manages. `fixed` are the per-category and master groups; `series` are the
  * per-devotional-series groups, which are only joined through a series signup and so are only

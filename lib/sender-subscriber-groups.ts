@@ -9,7 +9,7 @@ export function syncSubscriberToSenderGroups(input: { email: string; firstName: 
   });
 }
 
-export function reconcileSubscriberSenderGroups(input: { email: string; firstName: string; desiredGroupIds: string[]; managedGroupIds: string[] }) {
+export function reconcileSubscriberSenderGroups(input: { email: string; firstName: string; desiredGroupIds: string[]; managedGroupIds: string[]; dryRun?: boolean }) {
   return reconcileSenderSubscriberGroups({
     ...input,
     apiKey: process.env.SENDER_API_KEY ?? "",

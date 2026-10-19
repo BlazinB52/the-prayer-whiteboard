@@ -123,7 +123,7 @@ test("a Saturday starts the oldest queued series and the other days continue it"
   // standalone is eligible without a teaching having to be newest.
   assert.match(source, /\.from\("teaching_devotionals"\)[\s\S]*?\.eq\("status", "published"\)[\s\S]*?\.order\("published_at", \{ ascending: true \}\)/);
   assert.match(source, /devotionalDayForWeekday\(\{/);
-  assert.match(source, /dayNumber === 1\s*\? await nextQueuedDevotional\(spanishIds\)\s*: await activeCycleDevotional\(dayNumber, now, spanishIds\)/);
+  assert.match(source, /dayNumber === 1\s*\? await nextQueuedDevotional\(spanishIds, language\)\s*: await activeCycleDevotional\(dayNumber, now, spanishIds, language\)/);
   assert.match(source, /isBeforeDevotionalQueueStart\(now, timeZone\)/);
 
   // The teaching is resolved from the assignment table afterwards (shared with the test send
@@ -202,7 +202,7 @@ test("the devotional day link has a public route to land on", async () => {
 test("the whole confirmed devotional list receives the day, throttled", async () => {
   const source = await readFile("lib/devotional-send.ts", "utf8");
 
-  assert.match(source, /loadConfirmedRecipients\("devotionals"\)/);
+  assert.match(source, /loadConfirmedRecipients\("devotionals", language\)/);
   assert.match(source, /throttleMs: THROTTLE_MS/);
   // error is not-null in production (schema drift from the migration file), so
   // a clean run must still write a non-null value or the update silently fails

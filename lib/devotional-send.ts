@@ -8,7 +8,7 @@ import { COMMUNION_DAY_NUMBER, COMMUNION_HEADS_UP_DAY_NUMBER, hasCommunionDay } 
 import { devotionalDayForWeekday, devotionalTimeZone, isBeforeDevotionalQueueStart, pickNextQueuedSeries } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { deliverToRecipients, sendDeliveriesStore } from "@/lib/send-deliveries";
-import { getSpanishDevotionalIds } from "@/lib/spanish-devotionals";
+import { getSpanishDevotionalIds, isSpanishDevotional } from "@/lib/spanish-devotionals";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const THROTTLE_MS = 150;
@@ -84,20 +84,25 @@ async function communionIsTomorrow(devotionalId: string, dayNumber: number) {
 
 type SeriesRow = { id: string; slug: string; title: string; status: string; published_at: string | null };
 
+// English and Español each have their own queue and their own Saturday-to-Friday cycle. A series belongs to
+// the queue of its own language (see getSpanishDevotionalIds), and only subscribers who chose that language
+// are mailed, so the two never take each other's place.
+type Language = "en" | "es";
+const inQueue = (spanishIds: Set<string>, language: Language, devotionalId: string) => spanishIds.has(devotionalId) === (language === "es");
+
 // A cycle starts on a Saturday with the oldest queued series. Series are queued by publishing them:
 // a series published mid-cycle simply waits, and starts the Saturday after the current one ends.
-// Español series are never mailed: the subscriber list is English, so they are skipped here.
-async function nextQueuedDevotional(spanishIds: Set<string>): Promise<SeriesRow | null> {
+async function nextQueuedDevotional(spanishIds: Set<string>, language: Language): Promise<SeriesRow | null> {
   const supabase = getClient();
 
-  // What has already been mailed, and which of those was published most recently.
+  // What has already been mailed in this language, and which of those was published most recently.
   const { data: mailedRows, error: mailedError } = await supabase
     .from("email_devotional_broadcast_ledger")
     .select("devotional_id")
     .not("devotional_id", "is", null)
     .limit(2000);
   if (mailedError) throw new Error(`Devotional ledger lookup failed: ${mailedError.message}`);
-  const mailedIds = new Set((mailedRows ?? []).map((row) => row.devotional_id as string));
+  const mailedIds = new Set((mailedRows ?? []).map((row) => row.devotional_id as string).filter((id) => inQueue(spanishIds, language, id)));
 
   let lastMailedPublishedAt: string | null = null;
   if (mailedIds.size) {
@@ -119,24 +124,24 @@ async function nextQueuedDevotional(spanishIds: Set<string>): Promise<SeriesRow 
     .limit(100);
   if (error) throw new Error(`Devotional lookup failed: ${error.message}`);
 
-  return pickNextQueuedSeries(((candidates ?? []) as SeriesRow[]).filter((candidate) => !spanishIds.has(candidate.id)), mailedIds, lastMailedPublishedAt);
+  return pickNextQueuedSeries(((candidates ?? []) as SeriesRow[]).filter((candidate) => inQueue(spanishIds, language, candidate.id)), mailedIds, lastMailedPublishedAt);
 }
 
 // Sunday through Friday continue the series that started on Saturday: the series of the latest ledger
-// row, as long as that row is from this cycle (within the last six and a half days) and not ahead of today.
-async function activeCycleDevotional(dayNumber: number, now: Date, spanishIds: Set<string>): Promise<SeriesRow | null> {
+// row of this language, as long as that row is from this cycle (within the last six and a half days) and not ahead of today.
+async function activeCycleDevotional(dayNumber: number, now: Date, spanishIds: Set<string>, language: Language): Promise<SeriesRow | null> {
   const supabase = getClient();
-  const { data: latest, error } = await supabase
+  const { data: recent, error } = await supabase
     .from("email_devotional_broadcast_ledger")
     .select("devotional_id, day_number, created_at")
     .not("devotional_id", "is", null)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(20);
   if (error) throw new Error(`Devotional ledger lookup failed: ${error.message}`);
+  // Both languages share the ledger, so skip past the other language's rows.
+  const latest = (recent ?? []).find((row) => inQueue(spanishIds, language, row.devotional_id as string));
   if (!latest || !latest.devotional_id || (latest.day_number as number) > dayNumber) return null;
   if (now.getTime() - new Date(latest.created_at as string).getTime() > 6.5 * 24 * 60 * 60 * 1000) return null;
-  if (spanishIds.has(latest.devotional_id as string)) return null;
 
   const { data: devotional } = await supabase
     .from("teaching_devotionals")
@@ -147,7 +152,7 @@ async function activeCycleDevotional(dayNumber: number, now: Date, spanishIds: S
   return (devotional as SeriesRow | null) ?? null;
 }
 
-export async function processDevotionalQueue(now = new Date()): Promise<DevotionalRunResult> {
+export async function processDevotionalQueue(now = new Date(), language: Language = "en"): Promise<DevotionalRunResult> {
   const supabase = getClient();
   const timeZone = devotionalTimeZone();
 
@@ -160,8 +165,8 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
 
   const spanishIds = await getSpanishDevotionalIds(supabase);
   const devotional = dayNumber === 1
-    ? await nextQueuedDevotional(spanishIds)
-    : await activeCycleDevotional(dayNumber, now, spanishIds);
+    ? await nextQueuedDevotional(spanishIds, language)
+    : await activeCycleDevotional(dayNumber, now, spanishIds, language);
   if (!devotional) return { status: "no_devotional" };
 
   const { count: totalDays } = await supabase
@@ -184,7 +189,7 @@ export async function processDevotionalQueue(now = new Date()): Promise<Devotion
   const ledgerId = await claimDay(devotional.id, dayNumber, teaching?.id ?? null);
   if (!ledgerId) return { status: "duplicate", dayNumber };
 
-  return deliverDay({ ledgerId, devotional, day: day as DayContent, dayNumber, totalDays, teaching });
+  return deliverDay({ ledgerId, devotional, day: day as DayContent, dayNumber, totalDays, teaching, language });
 }
 
 // Mails every confirmed recipient who has no 'sent' delivery for this day yet, stopping when the time
@@ -196,19 +201,21 @@ async function deliverDay(input: {
   dayNumber: number;
   totalDays: number;
   teaching: { slug: string } | null;
+  language: Language;
 }): Promise<DevotionalRunResult> {
   const supabase = getClient();
-  const { ledgerId, devotional, day, dayNumber, totalDays, teaching } = input;
+  const { ledgerId, devotional, day, dayNumber, totalDays, teaching, language } = input;
 
-  const recipients = await loadConfirmedRecipients("devotionals");
-  // Devotional emails are English only; refuse to send if anyone on the list did not choose English.
-  assertRecipientsChoseLanguage(recipients, "en");
+  // The series' language picks who is mailed (only subscribers who chose it), the wording, the footer and the
+  // preferences page. Refuse to send if anyone on the list did not choose that language.
+  const recipients = await loadConfirmedRecipients("devotionals", language);
+  assertRecipientsChoseLanguage(recipients, language);
 
   const base = siteUrl();
   // The button reads through to the published teaching; with none, the email has no button.
   const readUrl = teaching ? teachingUrl(base, teaching.slug) : null;
-  const preferencesUrl = `${base}/email-preferences`;
-  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
+  const preferencesUrl = language === "es" ? `${base}/espanol/preferencias` : `${base}/email-preferences`;
+  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base, language);
   const communionTomorrow = await communionIsTomorrow(devotional.id, dayNumber);
 
   const run = await deliverToRecipients({
@@ -233,6 +240,7 @@ async function deliverDay(input: {
       readUrl,
       preferencesUrl,
       copyrightDisclaimer,
+      language,
     }),
   });
 
@@ -291,5 +299,7 @@ export async function resumeDevotionalBroadcast(ledgerId: string): Promise<Devot
   if (!day) return { status: "no_day_content", dayNumber };
 
   const teaching = await resolveAssignedTeaching(devotional.id);
-  return deliverDay({ ledgerId, devotional, day: day as DayContent, dayNumber, totalDays, teaching });
+  // The send's language is the series' own, so a resume mails the same list the first run did.
+  const language: Language = (await isSpanishDevotional(supabase, devotional.id)) ? "es" : "en";
+  return deliverDay({ ledgerId, devotional, day: day as DayContent, dayNumber, totalDays, teaching, language });
 }

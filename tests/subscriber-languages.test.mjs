@@ -13,10 +13,10 @@ test("every send reads only subscribers who chose that language, English by defa
   assert.match(source, /normalizeLanguages\(subscriber\?\.languages\)/);
   assert.match(source, /chosen\.includes\(language\)/);
   assert.match(source, /export function assertRecipientsChoseLanguage/);
-  // Devotionals are English-only for now: they ask for a category only and must never mail Español subscribers.
+  // A devotional series is mailed in its own language: English by default, Español from its own queue and cron run.
   const devotional = await readFile("lib/devotional-send.ts", "utf8");
-  assert.match(devotional, /loadConfirmedRecipients\("devotionals"\)/, "devotionals must keep mailing English subscribers only");
-  assert.doesNotMatch(devotional, /loadConfirmedRecipients\([^)]*"es"/, "devotionals must not mail Español subscribers yet");
+  assert.match(devotional, /loadConfirmedRecipients\("devotionals", language\)/, "the devotional send takes its language from the series");
+  assert.doesNotMatch(devotional, /loadConfirmedRecipients\([^)]*"(?:en|es)"/, "the language must never be hard-coded");
   // A weekly update is mailed in its own language, taken from the update row and never hard-coded.
   const weekly = await readFile("lib/weekly-update-broadcast.ts", "utf8");
   assert.match(weekly, /const language = update\.language;/);

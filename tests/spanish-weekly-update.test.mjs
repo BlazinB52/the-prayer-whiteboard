@@ -61,7 +61,7 @@ test("the recipient guard refuses to send when anyone did not choose the languag
     assert.match(code, /assertRecipientsChoseLanguage\(recipients, /, `${file} must run the language guard`);
   }
   const devotional = await readFile("lib/devotional-send.ts", "utf8");
-  assert.match(devotional, /assertRecipientsChoseLanguage\(recipients, "en"\)/);
+  assert.match(devotional, /assertRecipientsChoseLanguage\(recipients, language\)/);
 });
 
 test("a weekly update's language decides recipients, wording, links, and footer", async () => {

@@ -75,8 +75,9 @@ test("the devotional preview is built by the production email builder, includes 
   const { code } = await readRoute();
 
   assert.match(code, /buildDevotionalDayEmail\(\{/);
-  assert.match(code, /subject: `\[TEST\] \$\{email\.subject\}`/);
-  assert.match(code, /getEmailCopyrightDisclaimer\(base\)/);
+  assert.match(code, /\[PRUEBA\]/);
+  assert.match(code, /\[TEST\]/);
+  assert.match(code, /getEmailCopyrightDisclaimer\(base, language\)/);
   assert.match(code, /copyrightDisclaimer,/);
 });
 

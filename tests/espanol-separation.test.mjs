@@ -9,10 +9,10 @@ test("Español teachings are never emailed to the English subscriber list", asyn
   assert.ok(languageGuard < source.indexOf("claimBroadcast(teachingId)"), "the language check must run before the broadcast is claimed");
 });
 
-test("the daily devotional email skips Español series", async () => {
+test("the daily devotional queue keeps each language to its own series", async () => {
   const source = await readFile("lib/devotional-send.ts", "utf8");
   assert.match(source, /getSpanishDevotionalIds\(supabase\)/);
-  assert.match(source, /!spanishIds\.has\(candidate\.id\)/);
+  assert.match(source, /inQueue\(spanishIds, language, candidate\.id\)/);
 });
 
 test("English public pages only list English content", async () => {

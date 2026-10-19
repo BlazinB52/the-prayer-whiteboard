@@ -5,6 +5,7 @@ import { buildDevotionalDayEmail } from "@/lib/devotional-email-content";
 import { loadPublishedTeachingForDevotional, teachingUrl } from "@/lib/devotional-teaching";
 import { COMMUNION_DAY_NUMBER, COMMUNION_HEADS_UP_DAY_NUMBER, hasCommunionDay } from "@/lib/devotionals";
 import { siteUrl } from "@/lib/email-subscriptions";
+import { isSpanishDevotional } from "@/lib/spanish-devotionals";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
 import { getAuthorizedUser } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -89,7 +90,9 @@ export async function POST(request: Request) {
   const base = siteUrl();
   // The same teaching the real send links to; none means the test email has no button either.
   const teaching = await loadPublishedTeachingForDevotional(supabase, devotional.id);
-  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base);
+  // The series' own language picks the wording, the footer and the preferences page, like the real send.
+  const language = (await isSpanishDevotional(supabase, devotional.id)) ? "es" : "en";
+  const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base, language);
   const email = buildDevotionalDayEmail({
     dayNumber: day.day_number,
     totalDays: totalDays ?? 7,
@@ -106,14 +109,15 @@ export async function POST(request: Request) {
     seriesClosingPrayer: day.series_closing_prayer,
     communionTomorrow: hasCommunionDay(day7),
     readUrl: teaching ? teachingUrl(base, teaching.slug) : null,
-    preferencesUrl: `${base}/email-preferences`,
+    preferencesUrl: language === "es" ? `${base}/espanol/preferencias` : `${base}/email-preferences`,
     copyrightDisclaimer,
+    language,
   });
 
   const result = await sendSenderTransactionalEmail({
     toEmail: testEmail,
     toName: firstName,
-    subject: `[TEST] ${email.subject}`,
+    subject: `${language === "es" ? "[PRUEBA]" : "[TEST]"} ${email.subject}`,
     html: email.html,
     text: email.text,
   });

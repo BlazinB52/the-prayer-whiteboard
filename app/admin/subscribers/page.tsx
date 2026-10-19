@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { EMAIL_CATEGORY_LABELS, type EmailCategory } from "@/lib/email-categories";
 import { maskEmail } from "@/lib/email-subscriptions";
+import { resendConfirmationAction, retrySyncAction } from "./actions";
+import { SubscriberActionButton } from "./subscriber-action-button";
 
 export const metadata: Metadata = {
   title: "Email Subscribers",
@@ -133,7 +135,15 @@ export default async function AdminSubscribersPage({ searchParams }: { searchPar
                     <p className="text-[#607066]">{categories.length ? categories.map((category) => EMAIL_CATEGORY_LABELS[category]).join(", ") : "None"}</p>
                     <p className="text-[#607066]">{formatDate(subscriber.confirmed_at)}</p>
                     <p className="text-[#607066]">{formatDate(lastPreferenceUpdateBySubscriber.get(subscriber.id) ?? subscriber.updated_at)}</p>
-                    <p className="text-[#607066]">{subscriber.sender_sync_status}{subscriber.sender_sync_error ? `: ${subscriber.sender_sync_error}` : ""}</p>
+                    <div className="text-[#607066]">
+                      <p>{subscriber.sender_sync_status}{subscriber.sender_sync_error ? `: ${subscriber.sender_sync_error}` : ""}</p>
+                      {subscriber.sender_sync_status === "failed" || (subscriber.status === "confirmed" && subscriber.sender_sync_status !== "synced") ? (
+                        <SubscriberActionButton action={retrySyncAction} subscriberId={subscriber.id} label="Retry sync" pendingLabel="Syncing…" />
+                      ) : null}
+                      {subscriber.status === "pending" ? (
+                        <SubscriberActionButton action={resendConfirmationAction} subscriberId={subscriber.id} label="Resend confirmation" pendingLabel="Sending…" />
+                      ) : null}
+                    </div>
                   </article>
                 );
               }) : <p className="px-5 py-6 text-sm text-[#607066]">No subscribers found.</p>}

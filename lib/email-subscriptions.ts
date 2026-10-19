@@ -636,6 +636,41 @@ export async function confirmSubscriptionToken(token: string) {
   return { status: "confirmed" as const, categories, language: nextLanguage };
 }
 
+// Admin: re-runs the Sender group sync for one subscriber from what is stored now, then reports how it ended.
+export async function retrySubscriberSenderSync(subscriberId: string) {
+  const supabase = getClient();
+  await syncConfirmedSubscriber({ subscriberId });
+  const { data } = await supabase.from("email_subscribers").select("sender_sync_status, sender_sync_error").eq("id", subscriberId).maybeSingle();
+  if (!data) return { error: "Subscriber not found." };
+  if (data.sender_sync_status === "failed") return { error: data.sender_sync_error ?? "Sender sync failed." };
+  return { message: data.sender_sync_status === "synced" ? "Synced to Sender." : `Nothing to sync (status: ${data.sender_sync_status}).` };
+}
+
+// Admin: sends a fresh confirmation email (new link, old one replaced) to someone still Pending.
+export async function resendConfirmationEmail(subscriberId: string) {
+  const supabase = getClient();
+  const { data: subscriber } = await supabase.from("email_subscribers").select("id, first_name, email, status, language").eq("id", subscriberId).maybeSingle();
+  if (!subscriber) return { error: "Subscriber not found." };
+  if (subscriber.status !== "pending") return { error: "Only Pending subscribers can be sent a confirmation." };
+  const { data: pendingRows } = await supabase.from("email_subscription_preferences").select("category").eq("subscriber_id", subscriberId).eq("status", "pending");
+  const categories = (pendingRows ?? []).map((row) => row.category as EmailCategory).filter((category) => EMAIL_CATEGORIES.includes(category));
+  if (!categories.length) return { error: "This subscriber has no pending categories to confirm." };
+
+  const access = await createAccessToken(subscriberId, "confirmation");
+  const delivery = await deliverConfirmationEmail({
+    subscriberId,
+    firstName: subscriber.first_name,
+    email: subscriber.email,
+    categories,
+    token: access.token,
+    expiresAt: access.expiresAt,
+    language: toLanguage(subscriber.language),
+  });
+  if (isSuppressionRejection(delivery)) return { error: "Sender has this address suppressed, so the email was not sent." };
+  if (!delivery.ok) return { error: `Confirmation email could not be sent: ${delivery.reason}` };
+  return { message: "Confirmation email sent." };
+}
+
 export async function requestManagementLink(formData: FormData, language: Language = "en") {
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   const website = String(formData.get("website") ?? "").trim();

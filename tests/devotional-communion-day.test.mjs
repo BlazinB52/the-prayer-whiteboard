@@ -171,10 +171,12 @@ test("Days 1-6 email exactly as before", () => {
 
 test("a Day 7 import replaces an older Day 7 and never leaves journal or prayer text behind", async () => {
   const actions = await readFile("app/admin/devotionals/actions.ts", "utf8");
-  assert.match(actions, /journal_prompt: day\.journal_prompt \|\| null/);
-  assert.match(actions, /bread_reflection: day\.bread_reflection \|\| null/);
-  // The definition plus the two ways in: import into an existing devotional, and create a new devotional from a file.
-  assert.equal((actions.match(/importedDayRow\(/g) ?? []).length, 3, "every import path uses the same row builder");
+  // The row builder lives in lib/devotional-create.ts, shared with "Translate to Español".
+  const create = await readFile("lib/devotional-create.ts", "utf8");
+  assert.match(create, /journal_prompt: day\.journal_prompt \|\| null/);
+  assert.match(create, /bread_reflection: day\.bread_reflection \|\| null/);
+  // The two ways in: import into an existing devotional, and create a new devotional from a file.
+  assert.equal((actions.match(/importedDayRow\(/g) ?? []).length, 2, "every import path uses the same row builder");
 });
 
 test("saving a Day 7 never erases old journal or prayer text unless Communion text is being saved", async () => {

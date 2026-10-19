@@ -9,6 +9,7 @@ import { importStandaloneDevotionalText, publishStandaloneDevotional, unpublishS
 import { PublishDevotionalButton, UnpublishDevotionalButton } from "@/app/admin/devotionals/devotional-buttons";
 import { DevotionalExportForTranslationSection } from "@/app/admin/devotionals/export-for-translation-section";
 import { DevotionalPrintPreviewSection } from "@/app/admin/devotionals/print-preview-section";
+import { TranslateDevotionalButton } from "@/app/admin/devotionals/translate-devotional-button";
 import { DEVOTIONAL_DAY_NUMBERS, type DevotionalDay, type TeachingDevotional } from "@/lib/devotionals";
 import { TeachingDateLabel } from "@/app/teaching-date-label";
 import { devotionalDate } from "@/lib/devotional-date";
@@ -88,6 +89,14 @@ export default async function AdminStandaloneDevotionalPage({ params, searchPara
         </header>
 
         <DevotionalPrintPreviewSection devotionalId={devotional.id} />
+
+        {devotional.language !== "es" && !translation.currentId ? (
+          <section id="translate-to-espanol" className="mt-8 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6">
+            <h2 className="text-2xl font-extrabold text-[#243d31]">Translate to Español</h2>
+            <div className="mt-3"><TranslateDevotionalButton devotionalId={devotional.id} /></div>
+            <p className="mt-4 border-t border-[#284a3b]/10 pt-4 text-sm leading-6 text-[#607066]">Prefer to have it translated another way? Use <a href="#export-for-translation" className="font-extrabold text-[#9d5a2f] underline underline-offset-2">Export for translation</a> below, then create the devotional from the translated file.</p>
+          </section>
+        ) : null}
 
         <DevotionalExportForTranslationSection devotionalId={devotional.id} />
 

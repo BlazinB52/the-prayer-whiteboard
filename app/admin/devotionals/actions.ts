@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { importedDayRow, insertStandaloneDraft } from "@/lib/devotional-create";
 import { parseDevotionalText } from "@/lib/devotional-import";
 import { COMMUNION_DAY_NUMBER, DEVOTIONAL_DAY_COLUMNS, findDevotionalPublishBlocker, formatAnchorScriptureLengthLimit, MAX_ANCHOR_SCRIPTURE_LENGTH, normalizeScriptureLines } from "@/lib/devotionals";
 import { validateOptionalGatheringDate } from "@/lib/teaching-date";
@@ -89,25 +90,6 @@ function readDayFields(formData: FormData, dayNumber: number) {
       journal_prompt: journalPrompt.value || null,
       prayer_activation: prayerActivation.value || null,
     },
-  };
-}
-
-// What an import writes for one day. Days 1-6 clear the Communion columns and Day 7 clears the
-// journal and prayer columns, so a replaced draft never keeps text from the other format.
-function importedDayRow(devotionalId: string, day: ReturnType<typeof parseDevotionalText>["days"][number]) {
-  return {
-    devotional_id: devotionalId,
-    day_number: day.day_number,
-    title: day.title,
-    anchor_scriptures: day.anchor_scriptures,
-    devotional_reading: day.devotional_reading,
-    confession: day.confession,
-    journal_prompt: day.journal_prompt || null,
-    prayer_activation: day.prayer_activation || null,
-    bread_reflection: day.bread_reflection || null,
-    cup_reflection: day.cup_reflection || null,
-    self_examination: day.self_examination || null,
-    series_closing_prayer: day.series_closing_prayer || null,
   };
 }
 
@@ -280,40 +262,6 @@ export async function createStandaloneDevotional(previousState: DevotionalFormSt
 
   revalidateStandaloneDevotionalPaths(created.id, created.slug);
   redirect(`/admin/devotionals/${created.id}?created=1`);
-}
-
-// Inserts a draft devotional that belongs to no teaching. The slug is provisional only: it is derived
-// from the title now and can be replaced before publishing; the partial unique index ignores blank
-// slugs but still rejects duplicate real ones, so retry on 23505 the way createTeaching does.
-async function insertStandaloneDraft(
-  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
-  input: { title: string; introduction: string | null; language: "en" | "es"; translationOf?: string | null; gatheringDate?: string | null },
-): Promise<{ id: string; slug: string } | { error: string }> {
-  const baseSlug = slugifyDevotionalTitle(input.title);
-
-  for (let suffix = 0; suffix < PROVISIONAL_SLUG_ATTEMPTS; suffix += 1) {
-    const slug = suffix === 0 ? baseSlug : `${baseSlug}-${suffix + 1}`;
-    const { data, error } = await supabase
-      .from("teaching_devotionals")
-      .insert({
-        teaching_id: null,
-        slug,
-        language: input.language,
-        translation_of: input.translationOf ?? null,
-        gathering_date: input.gatheringDate ?? null,
-        title: input.title,
-        introduction: input.introduction,
-        status: "draft",
-        published_at: null,
-      })
-      .select("id, slug")
-      .single();
-
-    if (!error && data) return { id: data.id as string, slug: data.slug as string };
-    if (error?.code !== "23505") return { error: "This devotional could not be created." };
-  }
-
-  return { error: "This devotional title is already in use. Please choose another title." };
 }
 
 // The usual way to start a devotional: choose the language and the prepared text file. The title and

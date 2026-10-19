@@ -53,8 +53,10 @@ test("an empty draft is not left behind when the days cannot be saved", () => {
   assert.match(action, /if \(daysError\) \{[\s\S]*\.from\("teaching_devotionals"\)\.delete\(\)\.eq\("id", created\.id\)/);
 });
 
-test("both ways of creating a devotional share one slug routine", () => {
-  const helper = actions.slice(actions.indexOf("async function insertStandaloneDraft"));
+test("both ways of creating a devotional share one slug routine", async () => {
+  // The routine lives in lib/devotional-create.ts so "Translate to Español" saves a devotional the same way.
+  const helper = await readFile("lib/devotional-create.ts", "utf8");
+  assert.equal((actions.match(/insertStandaloneDraft\(/g) ?? []).length, 2, "both ways of creating a devotional call it");
   assert.match(helper, /error\?\.code !== "23505"/, "a duplicate title retries with a numbered slug");
   assert.match(helper, /teaching_id: null/, "it belongs to no teaching");
   assert.match(helper, /status: "draft"/);

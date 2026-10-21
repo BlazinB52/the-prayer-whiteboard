@@ -100,7 +100,8 @@ test("the prompt follows the Spanish Translation Rules", () => {
   for (const rule of [/Español de El Salvador/, /natural, warm and professional/, /que querás, que confirmés/, /ustedes/, /keep exactly whom the English addresses/,
     /keep that gender in Spanish/, /do not add one/, /Never guess a gender|Never guess a gender from a name/, /En la enseñanza se explicó/, /los participantes, never la congregación/, /un impulso or una dirección/, /Avoid "inquietud"/,
     /la Santa Cena/, /comunión con Dios/, /degree of certainty/, /do not embellish prophetic words/, /Never present your own translation/, /Él, Su, Sus, Tu, Tus, Tú, Te, Lo, Le, Vos/,
-    /Mantené tus ojos en Jesús/, /sentence case/, /un ama de casa/, /Never shorten, summarize, condense or cut/]) assert.match(prompt, rule);
+    /Mantené tus ojos en Jesús/, /sentence case/, /Pronouns attached to a verb \(alabarlo, seguirle\) stay lowercase/, /alabar a Dios/,
+    /"deliverance" as liberación/, /"salvation" as salvación/, /tomar una palabra de Dios/, /never "tomar la palabra"/, /un ama de casa/, /Never shorten, summarize, condense or cut/]) assert.match(prompt, rule);
   assert.doesNotMatch(prompt, /shorten it|"shortened"/);
   assert.doesNotMatch(prompt, /una inquietud del Espíritu Santo/);
 });
@@ -143,7 +144,9 @@ test("every exported file carries the Spanish Translation Rules for whoever tran
   const { SPANISH_TRANSLATION_RULES } = await import("../lib/spanish-translation-rules.ts");
   for (const [name, text] of [["teaching", TRANSLATOR_INSTRUCTIONS], ["devotional", DEVOTIONAL_TRANSLATOR_INSTRUCTIONS.join("\n")], ["weekly update", WEEKLY_UPDATE_TRANSLATOR_INSTRUCTIONS]]) {
     for (const rule of SPANISH_TRANSLATION_RULES) assert.equal(text.includes(rule), true, `${name} export carries: ${rule.slice(0, 40)}`);
-    for (const pattern of [/En la enseñanza se explicó/, /la Santa Cena/, /impulso or dirección/, /Never translate the English verse yourself/, /do not shorten/]) assert.match(text, pattern, name);
+    for (const pattern of [/En la enseñanza se explicó/, /la Santa Cena/, /impulso or dirección/, /Never translate the English verse yourself/, /do not shorten/,
+      /sentence case/, /Rey de reyes/, /alabarlo, seguirle/, /deliverance as liberación/, /tomar una palabra de Dios/]) assert.match(text, pattern, name);
+    assert.doesNotMatch(text, /Headings use title case/, name);
   }
   assert.doesNotMatch(TRANSLATOR_INSTRUCTIONS, /Translate the book name and the verse/, "verses are replaced with a published Bible text, not translated");
 });

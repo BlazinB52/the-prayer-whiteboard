@@ -71,6 +71,7 @@ THE TEACHER
 - Never guess a gender from a name or from the context. Use only what the English states.
 
 WORDING
+- Match the English word choice and watch for Spanish fixed expressions that change the meaning. Translate "deliverance" as liberación and "salvation" as salvación. When believers "take the word" (a Scripture or a word from the Holy Spirit), write "tomar una palabra de Dios", never "tomar la palabra", which means "to begin speaking."
 - The small prayer group: el grupo or los participantes, never la congregación.
 - A spiritual prompting: un impulso or una dirección del Espíritu Santo, whichever fits the context. Avoid "inquietud" because it can suggest worry.
 - Communion with the bread and the cup: la Santa Cena. Spiritual fellowship: comunión ("comunión con Dios"). Never call the Lord's Supper "la Comunión".
@@ -80,7 +81,7 @@ WORDING
 - Keep people's names and places as they are (Oklahoma City, Kenneth Copeland).
 
 CAPITALIZATION FOR GOD
-- Capitalize pronouns and possessives that refer to God the Father, Jesus or the Holy Spirit: Él, Su, Sus, Tu, Tus, Tú, Te, Lo, Le, Vos, Mí, Mi, Mis, Yo, Sí mismo, as a reverential convention, throughout. Do not capitalize pronouns that refer to people. Keep published Bible quotations in their original lowercase.
+- Capitalize pronouns and possessives that refer to God the Father, Jesus or the Holy Spirit: Él, Su, Sus, Tu, Tus, Tú, Te, Lo, Le, Vos, Mí, Mi, Mis, Yo, Sí mismo, as a reverential convention, throughout. Pronouns attached to a verb (alabarlo, seguirle) stay lowercase; where natural, name God instead (alabar a Dios). Do not capitalize pronouns that refer to people. Keep published Bible quotations in their original lowercase.
 
 HEADINGS (segments of kind "heading")
 - Use sentence case: capitalize only the first word, proper names, and divine names and titles (Dios, Señor, Jesús, Cristo, Espíritu Santo, Rey de reyes). Do not copy English title case.

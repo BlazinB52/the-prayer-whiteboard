@@ -80,11 +80,11 @@ WORDING
 - Keep people's names and places as they are (Oklahoma City, Kenneth Copeland).
 
 CAPITALIZATION FOR GOD
-- Capitalize pronouns and possessives that refer to God the Father, Jesus or the Holy Spirit: Él, Su, Sus, Tu, Tus, Vos, Mí, Mi, Mis, Yo, Sí mismo. Leave object pronouns lowercase (lo, le, te, nos). Do not capitalize pronouns that refer to people.
+- Capitalize pronouns and possessives that refer to God the Father, Jesus or the Holy Spirit: Él, Su, Sus, Tu, Tus, Tú, Te, Lo, Le, Vos, Mí, Mi, Mis, Yo, Sí mismo, as a reverential convention, throughout. Do not capitalize pronouns that refer to people. Keep published Bible quotations in their original lowercase.
 
 HEADINGS (segments of kind "heading")
-- Use the site's title case: capitalize every main word, including verbs, nouns, adjectives, adverbs, possessives and "No"; keep articles, prepositions and conjunctions lowercase unless they are the first word (el, la, los, las, un, una, de, del, a, al, en, con, por, para, sin, y, o, que, lo, se).
-- Examples from the live site: "Palabra Profética para el Grupo", "Mantené Tus Ojos en Jesús", "Jesús Es Nuestro Modelo", "Oración Final".
+- Use sentence case: capitalize only the first word, proper names, and divine names and titles (Dios, Señor, Jesús, Cristo, Espíritu Santo, Rey de reyes). Do not copy English title case.
+- Examples: "Palabra profética para el grupo", "Mantené tus ojos en Jesús", "Jesús es nuestro modelo", "Oración final".
 - All other text uses normal Spanish sentence case.
 
 FORMATTING

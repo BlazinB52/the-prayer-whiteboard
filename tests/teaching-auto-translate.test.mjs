@@ -99,8 +99,8 @@ test("the prompt follows the Spanish Translation Rules", () => {
   const prompt = translationSystemPrompt();
   for (const rule of [/Español de El Salvador/, /natural, warm and professional/, /que querás, que confirmés/, /ustedes/, /keep exactly whom the English addresses/,
     /keep that gender in Spanish/, /do not add one/, /Never guess a gender|Never guess a gender from a name/, /En la enseñanza se explicó/, /los participantes, never la congregación/, /un impulso or una dirección/, /Avoid "inquietud"/,
-    /la Santa Cena/, /comunión con Dios/, /degree of certainty/, /do not embellish prophetic words/, /Never present your own translation/, /Él, Su, Sus, Tu, Tus, Vos/,
-    /Mantené Tus Ojos en Jesús/, /un ama de casa/, /Never shorten, summarize, condense or cut/]) assert.match(prompt, rule);
+    /la Santa Cena/, /comunión con Dios/, /degree of certainty/, /do not embellish prophetic words/, /Never present your own translation/, /Él, Su, Sus, Tu, Tus, Tú, Te, Lo, Le, Vos/,
+    /Mantené tus ojos en Jesús/, /sentence case/, /un ama de casa/, /Never shorten, summarize, condense or cut/]) assert.match(prompt, rule);
   assert.doesNotMatch(prompt, /shorten it|"shortened"/);
   assert.doesNotMatch(prompt, /una inquietud del Espíritu Santo/);
 });

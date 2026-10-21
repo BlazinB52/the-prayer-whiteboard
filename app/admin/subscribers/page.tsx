@@ -5,6 +5,7 @@ import { EMAIL_CATEGORY_LABELS, type EmailCategory } from "@/lib/email-categorie
 import { maskEmail } from "@/lib/email-subscriptions";
 import { resendConfirmationAction, retrySyncAction } from "./actions";
 import { SubscriberActionButton } from "./subscriber-action-button";
+import { SendReport } from "./send-report";
 
 export const metadata: Metadata = {
   title: "Email Subscribers",
@@ -104,6 +105,7 @@ export default async function AdminSubscribersPage({ searchParams }: { searchPar
           </div>
           <Link href="/subscribe" className="admin-secondary-button inline-flex items-center justify-center">Public signup</Link>
         </header>
+        <SendReport />
         <form className="mt-8 flex flex-col gap-3 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-4 shadow-lg shadow-[#4d5f52]/8 sm:flex-row sm:items-end">
           <label className="flex-1 text-sm font-bold text-[#385245]">
             Search subscribers

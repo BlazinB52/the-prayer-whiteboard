@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { resendConfirmationEmail, retrySubscriberSenderSync } from "@/lib/email-subscriptions";
+import { buildSendReport, type SendReportRow } from "@/lib/send-report";
 
 export type SubscriberActionState = { error?: string; message?: string; needsConfirm?: boolean };
 
@@ -29,4 +30,15 @@ export async function retrySyncAction(_previous: SubscriberActionState, formData
 
 export async function resendConfirmationAction(_previous: SubscriberActionState, formData: FormData) {
   return run(formData, resendConfirmationEmail);
+}
+
+export type SendReportState = { error?: string; rows?: SendReportRow[] };
+
+export async function sendReportAction(): Promise<SendReportState> {
+  await requireAdmin();
+  try {
+    return { rows: await buildSendReport() };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "The report could not be built." };
+  }
 }

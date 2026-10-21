@@ -115,19 +115,20 @@ export async function buildSendReport(now = new Date()): Promise<SendReportRow[]
     report.push({ kind: ledger.kind, title: ledger.title, language: ledger.language, sentAt: ledger.sentAt, status: ledger.status, expected: recipients.length, delivered, missed });
   }
   // Teaching emails are started by hand from the teaching's page, so a published English teaching can
-  // simply never get one. (Español teachings are not emailed yet, so they are not flagged.)
+  // simply never get one. English and Español teachings are both emailed.
   const mailedTeachingIds = new Set((teaching.data ?? []).map((row) => row.teaching_id as string));
-  const { data: published, error: publishedError } = await supabase.from("teachings").select("id, title, published_at").eq("status", "published").eq("language", "en").gte("published_at", since);
+  const { data: published, error: publishedError } = await supabase.from("teachings").select("id, title, language, published_at").eq("status", "published").in("language", ["en", "es"]).gte("published_at", since);
   if (publishedError) throw new Error(`Teaching lookup failed: ${publishedError.message}`);
   const unmailed = (published ?? []).filter((row) => !mailedTeachingIds.has(row.id as string));
   if (unmailed.length) {
     // Anything older than the 7 day window may have been mailed before it, so ask the ledger directly.
     const { data: ever } = await supabase.from("email_teaching_broadcast_events").select("teaching_id").in("teaching_id", unmailed.map((row) => row.id as string));
     const everMailed = new Set((ever ?? []).map((row) => row.teaching_id as string));
-    const expected = (await recipientsFor("teachings", "en")).length;
-    for (const row of unmailed) {
+        for (const row of unmailed) {
       if (everMailed.has(row.id as string)) continue;
-      report.push({ kind: "Teaching", title: row.title as string, language: "en", sentAt: row.published_at as string, status: "email never sent", expected, delivered: 0, missed: [], notSent: true });
+      const language = row.language === "es" ? "es" : "en";
+      const expected = (await recipientsFor("teachings", language)).length;
+      report.push({ kind: "Teaching", title: row.title as string, language, sentAt: row.published_at as string, status: "email never sent", expected, delivered: 0, missed: [], notSent: true });
     }
   }
   return report.sort((a, b) => b.sentAt.localeCompare(a.sentAt));

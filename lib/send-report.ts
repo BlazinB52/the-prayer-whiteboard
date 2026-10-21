@@ -52,9 +52,9 @@ export async function buildSendReport(now = new Date()): Promise<SendReportRow[]
   const since = new Date(now.getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   const [weekly, teaching, devotional, spanishIds] = await Promise.all([
-    supabase.from("email_broadcast_events").select("weekly_update_id, status, created_at").gte("created_at", since),
-    supabase.from("email_teaching_broadcast_events").select("id, teaching_id, status, created_at").gte("created_at", since),
-    supabase.from("email_devotional_broadcast_ledger").select("id, day_number, status, created_at, devotional_id").gte("created_at", since),
+    supabase.from("email_broadcast_events").select("weekly_update_id, status, created_at, recipient_count").gte("created_at", since),
+    supabase.from("email_teaching_broadcast_events").select("id, teaching_id, status, created_at, recipient_count").gte("created_at", since),
+    supabase.from("email_devotional_broadcast_ledger").select("id, day_number, status, created_at, devotional_id, recipient_count").gte("created_at", since),
     getSpanishDevotionalIds(supabase),
   ]);
   for (const result of [weekly, teaching, devotional]) if (result.error) throw new Error(`Send history lookup failed: ${result.error.message}`);
@@ -73,14 +73,16 @@ export async function buildSendReport(now = new Date()): Promise<SendReportRow[]
   const teachingTitles = await titlesOf("teachings", (teaching.data ?? []).map((row) => row.teaching_id as string), "id, title, language");
   const devotionalTitles = await titlesOf("teaching_devotionals", (devotional.data ?? []).map((row) => row.devotional_id as string).filter(Boolean), "id, title");
 
+  // A ledger row with no recipients mailed nobody (for example a series marked as already sent), so nobody is owed it.
+  const mailed = <T extends { recipient_count: number }>(rows: T[] | null) => (rows ?? []).filter((row) => row.recipient_count > 0);
   const ledgers: Ledger[] = [];
-  for (const row of (weekly.data ?? []) as unknown as { weekly_update_id: string; status: string; created_at: string}[]) {
+  for (const row of mailed(weekly.data as { recipient_count: number }[] | null) as unknown as { weekly_update_id: string; status: string; created_at: string}[]) {
     ledgers.push({ kind: "Weekly update", category: "weekly_updates", title: weeklyTitles.get(row.weekly_update_id)?.title ?? "Weekly update", language: weeklyTitles.get(row.weekly_update_id)?.language === "es" ? "es" : "en", sentAt: row.created_at, status: row.status, deliveries: await deliveriesFor("email_broadcast_deliveries", { weekly_update_id: row.weekly_update_id }) });
   }
-  for (const row of (teaching.data ?? []) as unknown as { id: string; status: string; created_at: string; teaching_id: string }[]) {
+  for (const row of mailed(teaching.data as { recipient_count: number }[] | null) as unknown as { id: string; status: string; created_at: string; teaching_id: string }[]) {
     ledgers.push({ kind: "Teaching", category: "teachings", title: teachingTitles.get(row.teaching_id)?.title ?? "Teaching", language: teachingTitles.get(row.teaching_id)?.language === "es" ? "es" : "en", sentAt: row.created_at, status: row.status, deliveries: await deliveriesFor("email_send_deliveries", { kind: "teaching", ledger_id: row.id }) });
   }
-  for (const row of (devotional.data ?? []) as unknown as { id: string; day_number: number; status: string; created_at: string; devotional_id: string | null}[]) {
+  for (const row of mailed(devotional.data as { recipient_count: number }[] | null) as unknown as { id: string; day_number: number; status: string; created_at: string; devotional_id: string | null}[]) {
     ledgers.push({ kind: "Devotional", category: "devotionals", title: `${(row.devotional_id ? devotionalTitles.get(row.devotional_id)?.title : undefined) ?? "Devotional"} (day ${row.day_number})`, language: row.devotional_id && spanishIds.has(row.devotional_id) ? "es" : "en", sentAt: row.created_at, status: row.status, deliveries: await deliveriesFor("email_send_deliveries", { kind: "devotional", ledger_id: row.id }) });
   }
 

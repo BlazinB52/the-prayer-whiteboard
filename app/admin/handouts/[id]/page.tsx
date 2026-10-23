@@ -9,7 +9,7 @@ import { requireAdmin } from "@/lib/supabase/admin";
 import { validateHandoutId } from "@/lib/teaching-handouts";
 import { loadTeachingChoices } from "../../teaching-choice";
 import { HandoutContent } from "../handout-content";
-import { BuildHandoutSection, DeleteHandoutButton, DraftUpload, FooterForm, HandoutDetailsForm, PublishSection, TranslateToEspanolButton, UnpublishButton } from "../handout-tools";
+import { BuildHandoutSection, DeleteHandoutButton, DraftUpload, FooterForm, HandoutDetailsForm, PublishSection, TranslateToEspanolButton, PublishedNamesForm, UnpublishButton } from "../handout-tools";
 
 export const metadata: Metadata = {
   title: "Handout",
@@ -122,7 +122,7 @@ export default async function AdminHandoutPage({
             <p className="mt-2 text-sm leading-6 text-[#385245]">
               {handout.published_at ? `Published ${longDate.format(new Date(handout.published_at))}. ` : ""}
               The final PDF is in the public PDF library{pdfHref ? <> — <a href={pdfHref} target="_blank" rel="noopener noreferrer" className="font-extrabold text-[#946332] underline underline-offset-2">open the PDF</a></> : null}. You can also manage it under <Link href="/admin/printable-pdfs" className="font-extrabold text-[#946332] underline underline-offset-2">Printable PDF Links</Link>.
-              To change the title, date or draft, unpublish it first.
+              You can change the title and version name below. To change the date or draft, unpublish it first.
             </p>
             <div className="mt-4"><UnpublishButton id={idResult.value} /></div>
           </section>
@@ -130,7 +130,7 @@ export default async function AdminHandoutPage({
 
         {!isPublished ? (
           <HandoutDetailsForm key={`${handout.title}|${handout.gathering_date}|${handout.teaching_id}`} id={idResult.value} title={handout.title} date={handout.gathering_date} teachingId={handout.teaching_id} teachings={teachings} untitled={untitled} versionLabel={handout.version_label ?? null} />
-        ) : null}
+        ) : <PublishedNamesForm key={`${handout.title}|${handout.version_label ?? ""}`} id={idResult.value} title={handout.title} versionLabel={handout.version_label ?? null} />}
 
         <DraftUpload id={idResult.value} hasDraft={hasDraft} sourceFileName={handout.source_file_name} locked={draftLocked} />
 

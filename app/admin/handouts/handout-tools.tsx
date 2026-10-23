@@ -7,7 +7,7 @@ import { PRINTABLE_PDF_BUCKET } from "@/lib/printable-pdf-links";
 import { cleanupPrintablePdfUpload, createPrintablePdfUploadTarget } from "../printable-pdfs/actions";
 import { TeachingChoiceOptions, type TeachingChoice } from "../teaching-choice";
 import Link from "next/link";
-import { deleteHandout, publishHandout, saveHandoutDetails, setHandoutFooter, unpublishHandout, uploadHandoutDraft, type HandoutDraftState } from "./actions";
+import { deleteHandout, publishHandout, saveHandoutDetails, saveHandoutNames, setHandoutFooter, unpublishHandout, uploadHandoutDraft, type HandoutDraftState } from "./actions";
 
 type Message = { ok: boolean; text: string } | null;
 
@@ -88,9 +88,9 @@ export function HandoutDetailsForm({
           <span className="mt-1 block text-xs font-normal text-[#607066]">Also the name it will have in the public PDF library.</span>
         </label>
         <label className="block text-sm font-bold text-[#385245] sm:col-span-2">
-          Version <span className="font-normal text-[#607066]">(optional)</span>
+          Version name <span className="font-normal text-[#607066]">(optional)</span>
           <input value={versionValue} onChange={(event) => setVersionValue(event.target.value)} maxLength={60} disabled={pending} className="admin-input" placeholder="For example: Honduras" />
-          <span className="mt-1 block text-xs font-normal text-[#607066]">Only when the same handout is published in more than one version. It becomes part of the Word file name.</span>
+          <span className="mt-1 block text-xs font-normal text-[#607066]">Only when the same handout is published in more than one version. Just the audience, like &ldquo;Honduras&rdquo; or &ldquo;US&rdquo;, not the full title. It becomes part of the Word file name.</span>
         </label>
         <label className="block text-sm font-bold text-[#385245]">
           Teaching date
@@ -104,6 +104,48 @@ export function HandoutDetailsForm({
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <button type="submit" disabled={pending || !changed} className="admin-primary-button"><span>{pending ? "Saving..." : "Save details"}</span></button>
+        <MessageLine message={message} />
+      </div>
+    </form>
+  );
+}
+
+/** The title and version name, for a published handout whose date and draft are locked. */
+export function PublishedNamesForm({ id, title, versionLabel }: { id: string; title: string; versionLabel: string | null }) {
+  const router = useRouter();
+  const [titleValue, setTitleValue] = useState(title);
+  const [value, setValue] = useState(versionLabel ?? "");
+  const [message, setMessage] = useState<Message>(null);
+  const [pending, startTransition] = useTransition();
+
+  return (
+    <form
+      className="mt-6 space-y-4 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setMessage(null);
+        startTransition(async () => {
+          const result = await saveHandoutNames(id, titleValue, value);
+          if (result.error) setMessage({ ok: false, text: result.error });
+          else {
+            setMessage({ ok: true, text: "Saved." });
+            router.refresh();
+          }
+        });
+      }}
+    >
+      <label className="block text-sm font-bold text-[#385245]">
+        Title
+        <input value={titleValue} onChange={(event) => setTitleValue(event.target.value)} required maxLength={200} disabled={pending} className="admin-input" />
+        <span className="mt-1 block text-xs font-normal text-[#607066]">Also its name in the public PDF library, which updates when you save. The PDF file itself is not changed.</span>
+      </label>
+      <label className="block text-sm font-bold text-[#385245]">
+        Version name <span className="font-normal text-[#607066]">(optional)</span>
+        <input value={value} onChange={(event) => setValue(event.target.value)} maxLength={60} disabled={pending} className="admin-input" placeholder="For example: Honduras" />
+        <span className="mt-1 block text-xs font-normal text-[#607066]">Just the audience, like &ldquo;Honduras&rdquo; or &ldquo;US&rdquo;, not the full title.</span>
+      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending || (value === (versionLabel ?? "") && titleValue === title)} className="admin-primary-button"><span>{pending ? "Saving..." : "Save"}</span></button>
         <MessageLine message={message} />
       </div>
     </form>

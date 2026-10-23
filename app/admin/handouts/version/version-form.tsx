@@ -43,6 +43,7 @@ export function VersionForm({ bases, teachings, initialFromId }: { bases: Versio
       <label className="block text-sm font-bold text-[#385245]">
         Version name
         <input name="versionLabel" value={versionLabel} onChange={(event) => setVersionLabel(event.target.value)} required maxLength={60} className="admin-input" placeholder="For example: Honduras" />
+        <span className="mt-1 block text-xs font-normal text-[#607066]">Just the audience, like &ldquo;Honduras&rdquo; or &ldquo;US&rdquo;, not the full title.</span>
       </label>
       <label className="block text-sm font-bold text-[#385245]">
         Title

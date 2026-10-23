@@ -79,18 +79,38 @@ async function hasOpenProposals(supabase: AdminSupabase, id: string) {
 }
 
 /**
- * "Create new handout": makes a blank draft and opens its page, where the title, teaching date and teaching
- * are entered and the Word draft is uploaded. Nothing is visible to Content Managers until it is sent.
+ * Saves the form on the "Create new handout" page: only now is a draft made, with the publication (English or Español),
+ * title, teaching date, teaching and optional version name entered there. It then opens the handout's page, where the
+ * Word draft is uploaded. Nothing is visible to Content Managers until it is sent.
  */
 export async function createHandout(formData: FormData) {
   const { supabase } = await requireAdmin();
+  const fail = (code: string) => redirect(`/admin/handouts/new?error=${code}`);
   const language = formData.get("language") === "es" ? "es" : "en";
+  const title = validateHandoutTitle(formData.get("title"));
+  if (title.error || !title.value) return fail("title");
+  const date = validateHandoutDate(formData.get("gatheringDate"));
+  if (date.error || !date.value) return fail("date");
+  const teaching = validateOptionalOutlineId(formData.get("teachingId"));
+  if (teaching.error) return fail("teaching");
+  const version = validateVersionLabel(formData.get("versionLabel"));
+  if (version.error) return fail("version");
+
   const { data, error } = await supabase
     .from("teaching_handouts")
-    .insert({ title: UNTITLED, language, status: "draft", content: [], original_content: [] })
+    .insert({
+      title: title.value,
+      gathering_date: date.value,
+      teaching_id: teaching.value ?? (await teachingForDate(supabase, date.value)),
+      language,
+      status: "draft",
+      version_label: version.value,
+      content: [],
+      original_content: [],
+    })
     .select("id")
     .single();
-  if (error || !data) redirect("/admin/handouts?error=create");
+  if (error || !data) return fail("create");
   revalidateHandoutPaths();
   redirect(`/admin/handouts/${data.id}?created=1`);
 }
@@ -216,6 +236,39 @@ export async function saveHandoutDetails(id: string, title: string, gatheringDat
     return { error: error.code === "23514" ? "The teaching date cannot be removed while the handout is with the Content Managers or published." : "The details could not be saved." };
   }
   if (!data?.length) return { error: "That handout could not be found." };
+
+  revalidateHandoutPaths(idResult.value);
+  return { ok: true };
+}
+
+/**
+ * Changes only the title and the version name. Allowed on a published handout too, so a typo does not need an unpublish
+ * (which removes the PDF from the library). The library entry's title follows; the date, the text and the PDF file itself
+ * are never touched.
+ */
+export async function saveHandoutNames(id: string, title: string, versionLabel: string): Promise<HandoutActionState> {
+  const { supabase } = await requireAdmin();
+  const idResult = validateHandoutId(id);
+  if (idResult.error || !idResult.value) return { error: idResult.error };
+  const titleResult = validateHandoutTitle(title);
+  if (titleResult.error || !titleResult.value) return { error: titleResult.error };
+  const version = validateVersionLabel(versionLabel);
+  if (version.error) return { error: version.error };
+
+  const { data, error } = await supabase
+    .from("teaching_handouts")
+    .update({ title: titleResult.value, version_label: version.value })
+    .eq("id", idResult.value)
+    .select("id, printable_pdf_id");
+  if (error) return { error: "The title and version name could not be saved." };
+  if (!data?.length) return { error: "That handout could not be found." };
+
+  const pdfId = data[0].printable_pdf_id as string | null;
+  if (pdfId) {
+    const { error: linkError } = await supabase.from("printable_pdf_links").update({ title: titleResult.value }).eq("id", pdfId);
+    if (linkError) return { error: "The handout was saved, but its title in the PDF library could not be updated. Try again." };
+    revalidatePublicPdfPaths();
+  }
 
   revalidateHandoutPaths(idResult.value);
   return { ok: true };

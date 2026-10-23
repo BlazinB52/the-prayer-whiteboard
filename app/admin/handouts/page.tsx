@@ -3,7 +3,6 @@ import Link from "next/link";
 import { TeachingDateLabel } from "@/app/teaching-date-label";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { loadTeachingChoices, teachingChoiceLabel } from "../teaching-choice";
-import { createHandout } from "./actions";
 
 export const metadata: Metadata = {
   title: "Handouts",
@@ -88,14 +87,8 @@ export default async function AdminHandoutsPage({ searchParams }: { searchParams
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-          <Link href="/admin/handouts/version" className="admin-secondary-button inline-flex items-center justify-center">Add another version</Link>
-          <form action={createHandout} className="flex flex-wrap items-center gap-3">
-            <select name="language" defaultValue="en" aria-label="Language" className="admin-input !w-auto">
-              <option value="en">English</option>
-              <option value="es">Español</option>
-            </select>
-            <button type="submit" className="admin-primary-button"><span>Create new handout</span></button>
-          </form>
+          <Link href="/admin/handouts/version" className="admin-primary-button inline-flex items-center justify-center"><span>Add another version</span></Link>
+          <Link href="/admin/handouts/new" className="admin-primary-button inline-flex items-center justify-center"><span>Create new handout</span></Link>
           </div>
         </header>
 

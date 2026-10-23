@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { WhiteboardActionState } from "./actions";
+import { createClient } from "@/lib/supabase/client";
+import { cleanupWhiteboardUpload, createWhiteboardReplaceTarget, finalizeWhiteboardReplace, type WhiteboardActionState } from "./actions";
 
 type Action = (state: WhiteboardActionState, formData: FormData) => Promise<WhiteboardActionState>;
 
@@ -43,6 +44,40 @@ export function WhiteboardCard({ asset, updateAction, deleteAction }: { asset: A
     }
     return result;
   }, {});
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const [replaceMessage, setReplaceMessage] = useState<WhiteboardActionState>({});
+  const [replacePending, startReplace] = useTransition();
+
+  const replacePicture = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const file = new FormData(event.currentTarget).get("image");
+    if (!(file instanceof File) || !file.size) {
+      setReplaceMessage({ error: "Choose a portrait JPEG, PNG, or WebP image." });
+      return;
+    }
+    setReplaceMessage({});
+    startReplace(async () => {
+      const target = await createWhiteboardReplaceTarget(asset.id, file.name);
+      if (target.error || !target.path || !target.token || !target.assetGroupId) {
+        setReplaceMessage({ error: target.error ?? "The secure upload destination could not be created." });
+        return;
+      }
+      const { error: uploadError } = await createClient().storage.from("chalkboards").uploadToSignedUrl(target.path, target.token, file);
+      if (uploadError) {
+        await cleanupWhiteboardUpload(target.assetGroupId, target.path);
+        setReplaceMessage({ error: "The image could not be uploaded. Please try again." });
+        return;
+      }
+      const result = await finalizeWhiteboardReplace(asset.id, target.assetGroupId, target.path);
+      if (result.error) {
+        setReplaceMessage({ error: result.error });
+        return;
+      }
+      if (replaceInputRef.current) replaceInputRef.current.value = "";
+      setReplaceMessage({ saved: true });
+      router.refresh();
+    });
+  };
   const [deleteState, deleteFormAction, deletePending] = useActionState(async (previousState: WhiteboardActionState, formData: FormData) => {
     const result = await deleteAction(previousState, formData);
     if (result.deleted) {
@@ -94,6 +129,16 @@ export function WhiteboardCard({ asset, updateAction, deleteAction }: { asset: A
               {updateState.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{updateState.error}</p> : null}
               {updateState.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Details saved.</p> : null}
               <button type="submit" disabled={updatePending} className="admin-primary-button"><span>{updatePending ? "Saving..." : "Save details"}</span></button>
+            </form>
+          </details>
+          <details className="mt-5">
+            <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">Replace picture</summary>
+            <form onSubmit={replacePicture} className="mt-4 space-y-4">
+              <p className="text-sm leading-6 text-[#607066]">Swaps the image on this whiteboard. The title, date, caption, settings and teaching assignments stay as they are.</p>
+              <label className="block text-sm font-bold text-[#385245]">New image file<input ref={replaceInputRef} name="image" type="file" accept="image/jpeg,image/png,image/webp" required className="admin-input py-2" /><span className="mt-1 block text-xs font-normal text-[#607066]">Portrait 3:4 image, at least 1080 x 1440, maximum 15 MiB.</span></label>
+              {replaceMessage.error ? <p role="alert" className="text-sm font-bold text-[#a2472c]">{replaceMessage.error}</p> : null}
+              {replaceMessage.saved ? <p role="status" className="text-sm font-bold text-[#326048]">Picture replaced.</p> : null}
+              <button type="submit" disabled={replacePending} className="admin-primary-button"><span>{replacePending ? "Uploading and processing..." : "Replace picture"}</span></button>
             </form>
           </details>
           <details ref={deleteRef} className="mt-5 rounded-xl border border-[#a2472c]/20 bg-[#fff3ed] p-4">

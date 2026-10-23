@@ -194,6 +194,97 @@ export async function finalizeWhiteboardUpload(input: FinalizeInput): Promise<Up
   return { saved: true };
 }
 
+// Replace the picture on an existing whiteboard: the title, date, caption, settings and teaching assignments stay as they are.
+// The new files go to fresh paths (so no browser keeps showing the old picture), and the old files are removed once the record points at the new ones.
+async function loadReplaceableAsset(assetId: string) {
+  if (!validId(assetId)) return null;
+  const { supabase } = await requireAdmin();
+  const { data: asset } = await supabase
+    .from("chalkboard_assets")
+    .select("id, title, chalkboard_date, storage_path, website_storage_path, download_storage_path")
+    .eq("id", assetId)
+    .eq("is_current_version", true)
+    .eq("status", "active")
+    .maybeSingle();
+  const names = asset?.chalkboard_date ? buildNames(String(asset.chalkboard_date).slice(0, 10), asset.title) : null;
+  return asset && names ? { supabase, asset, names } : null;
+}
+
+export async function createWhiteboardReplaceTarget(assetId: string, fileName: string): Promise<UploadActionState> {
+  const extension = extensionForWhiteboardFile(fileName);
+  if (!extension) return { error: "Choose a JPEG, PNG, or WebP image." };
+  const found = await loadReplaceableAsset(assetId);
+  if (!found) return { error: "This whiteboard could not be found." };
+  const assetGroupId = crypto.randomUUID();
+  const path = `${whiteboardStoragePaths(found.names.storageSlug, assetGroupId).incoming}.${extension}`;
+  const { data, error } = await found.supabase.storage.from(BUCKET).createSignedUploadUrl(path);
+  if (error || !data) return { error: "The secure upload destination could not be created." };
+  return { path, token: data.token, assetGroupId };
+}
+
+export async function finalizeWhiteboardReplace(assetId: string, assetGroupId: string, incomingPath: string): Promise<WhiteboardActionState> {
+  const found = await loadReplaceableAsset(assetId);
+  if (!found || !validId(assetGroupId)) return { error: "This whiteboard could not be found." };
+  const { supabase, asset, names } = found;
+  const parsedPath = parseIncomingWhiteboardPath(incomingPath);
+  if (!parsedPath || parsedPath.storageSlug !== names.storageSlug || parsedPath.assetGroupId.toLowerCase() !== assetGroupId.toLowerCase()) {
+    return { error: "The secure upload path is invalid." };
+  }
+
+  const { data: source, error: downloadError } = await supabase.storage.from(BUCKET).download(incomingPath);
+  if (downloadError || !source) return { error: "The uploaded image could not be read from private storage." };
+  const sourceBuffer = Buffer.from(await source.arrayBuffer());
+  if (sourceBuffer.byteLength > MAX_SOURCE_BYTES) {
+    await removeObjects(supabase, [incomingPath]);
+    return { error: "The source image exceeds the 15 MiB limit." };
+  }
+
+  let image: Sharp;
+  let metadata: Metadata;
+  try {
+    const sharp = await loadSharp();
+    image = sharp(sourceBuffer).rotate();
+    metadata = await image.metadata();
+  } catch {
+    await removeObjects(supabase, [incomingPath]);
+    return { error: "The uploaded file is not a readable image." };
+  }
+  const width = metadata.width ?? 0;
+  const height = metadata.height ?? 0;
+  const ratio = height ? width / height : 0;
+  if (!metadata.format || !["jpeg", "png", "webp"].includes(metadata.format) || width < MIN_WIDTH || height < MIN_HEIGHT || Math.abs(ratio - 0.75) > 0.001) {
+    await removeObjects(supabase, [incomingPath]);
+    return { error: `Use a portrait 3:4 image at least 1080 x 1440. This file is ${width || "unknown"} x ${height || "unknown"} (${metadata.format ?? "unknown format"}).` };
+  }
+
+  const paths = whiteboardStoragePaths(names.storageSlug, assetGroupId);
+  try {
+    const website = await image.clone().resize(WEBSITE_WIDTH, WEBSITE_HEIGHT, { fit: "fill" }).webp({ quality: 84 }).toBuffer();
+    const download = await image.clone().resize(DOWNLOAD_WIDTH, DOWNLOAD_HEIGHT, { fit: "fill" }).png({ compressionLevel: 9 }).toBuffer();
+    const websiteUpload = await supabase.storage.from(BUCKET).upload(paths.website, website, { contentType: "image/webp", upsert: false });
+    if (websiteUpload.error) throw new Error("website");
+    const downloadUpload = await supabase.storage.from(BUCKET).upload(paths.download, download, { contentType: "image/png", upsert: false });
+    if (downloadUpload.error) throw new Error("download");
+    const { data, error } = await supabase
+      .from("chalkboard_assets")
+      .update({ storage_path: incomingPath, website_storage_path: paths.website, download_storage_path: paths.download, width: DOWNLOAD_WIDTH, height: DOWNLOAD_HEIGHT })
+      .eq("id", asset.id)
+      .select("id")
+      .maybeSingle();
+    if (error || !data) throw new Error("metadata");
+  } catch {
+    await removeObjects(supabase, [incomingPath, paths.website, paths.download]);
+    return { error: "The picture could not be replaced. The existing picture was not changed." };
+  }
+
+  await removeObjects(supabase, [incomingPath, asset.storage_path, asset.website_storage_path, asset.download_storage_path].filter((path): path is string => Boolean(path)));
+  revalidatePath("/admin/whiteboards");
+  revalidatePath(`/admin/whiteboards/${asset.id}`);
+  revalidatePath("/admin/teachings");
+  revalidatePath("/");
+  return { saved: true };
+}
+
 export async function getWhiteboardPreviewUrl(path: string) {
   const { supabase } = await requireAdmin();
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 300);

@@ -36,7 +36,7 @@ export async function GET(request: Request) {
   if (categoryError || sectionError) return NextResponse.json({ error: "The teaching's content could not be read." }, { status: 500 });
 
   const file = buildTeachingTranslationDocx(teaching as ExportTeaching, (categories ?? []) as ExportCategory[], (sections ?? []) as ExportSection[]);
-  const fileName = exportFileName(teaching.gathering_date as string | null);
+  const fileName = exportFileName(teaching.gathering_date as string | null, teaching.language as string | null);
 
   return new NextResponse(new Uint8Array(file), {
     status: 200,

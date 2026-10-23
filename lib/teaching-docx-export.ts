@@ -39,9 +39,9 @@ export const TRANSLATOR_INSTRUCTIONS = [
   "Accept all tracked changes and delete comments before saving. Save as .docx, and name the file yyyymmdd_es_teaching (for example 20261010_es_teaching).",
 ].join("\n");
 
-/** 20261010_es_teaching.docx: the teaching date, the language, and the word teaching. */
-export function exportFileName(gatheringDate: string | null, today: Date = new Date()) {
-  return publicationFileName(gatheringDate, "es", "teaching", "docx", today);
+/** 20261010_en_teaching.docx: the teaching date, the language of the teaching being exported, and the word teaching. */
+export function exportFileName(gatheringDate: string | null, language: string | null = null, today: Date = new Date()) {
+  return publicationFileName(gatheringDate, language?.toLowerCase().startsWith("es") ? "es" : "en", "teaching", "docx", today);
 }
 
 type Links = { id: string; url: string }[];

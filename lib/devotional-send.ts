@@ -236,6 +236,15 @@ export async function upcomingDevotionalSend(language: Language, now = new Date(
     }
     if (!series) continue;
 
+    // The morning run claims a (series, day) ledger row first and does nothing when it already exists,
+    // so a day with a row, even one that mailed nobody, will not go out.
+    const { count: claimed } = await supabase
+      .from("email_devotional_broadcast_ledger")
+      .select("id", { count: "exact", head: true })
+      .eq("devotional_id", series.id)
+      .eq("day_number", dayNumber);
+    if (claimed) continue;
+
     const { count: totalDays } = await supabase.from("teaching_devotional_days").select("id", { count: "exact", head: true }).eq("devotional_id", series.id);
     if (!totalDays || dayNumber > totalDays) continue;
     const { data: dayRow } = await supabase.from("teaching_devotional_days").select("id").eq("devotional_id", series.id).eq("day_number", dayNumber).maybeSingle();

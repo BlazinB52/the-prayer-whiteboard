@@ -1,8 +1,12 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { TeachingChoiceOptions, loadTeachingChoices } from "../../teaching-choice";
 import { createHandout } from "../actions";
+import { ReadmeButton } from "./readme-button";
+import { GuideMarkdown } from "./readme-markdown";
 
 export const metadata: Metadata = {
   title: "Create new handout",
@@ -24,6 +28,7 @@ export default async function NewHandoutPage({ searchParams }: { searchParams: P
   const flags = await searchParams;
   const { supabase } = await requireAdmin();
   const teachings = await loadTeachingChoices(supabase);
+  const guide = await readFile(path.join(process.cwd(), "docs", "handout-readme.md"), "utf8");
 
   return (
     <main className="admin-shell">
@@ -31,6 +36,9 @@ export default async function NewHandoutPage({ searchParams }: { searchParams: P
         <Link href="/admin/handouts" className="text-sm font-extrabold text-[#946332] hover:text-[#a85e32]">Back to handouts</Link>
         <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-[#243d31]">Create new handout</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-[#607066]">Enter the details and save. The handout is created when you save; you then upload the Word draft on its page.</p>
+        <div className="mt-4">
+          <ReadmeButton><GuideMarkdown source={guide} /></ReadmeButton>
+        </div>
         {flags.error ? <p role="alert" className="mt-6 text-sm font-bold text-[#a2472c]">{ERRORS[flags.error] ?? ERRORS.create}</p> : null}
         <form action={createHandout} className="mt-6 space-y-4 rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-5">
           <label className="block text-sm font-bold text-[#385245]">

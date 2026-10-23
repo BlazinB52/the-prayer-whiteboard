@@ -5,6 +5,8 @@ import { TeachingDateLabel } from "@/app/teaching-date-label";
 import { buildReviewList, type MyRevision, type ReviewSource } from "@/lib/cm-review-list";
 import { REVIEW_SUBJECT_KINDS, type ReviewSubjectKind } from "@/lib/review-subjects";
 import { requireContentManager } from "@/lib/supabase/admin";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { BackupNow } from "./backup-now";
 
 export const metadata: Metadata = {
   title: "Content Management",
@@ -40,6 +42,20 @@ const adminOnlyTools = [
 function formatSent(value: string | null) {
   if (!value) return "";
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "America/Chicago" }).format(new Date(value));
+}
+
+type BackupRequest = { status: "pending" | "running" | "done" | "failed"; requested_at: string; finished_at: string | null; message: string | null };
+
+function formatWhen(value: string) {
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Chicago" }).format(new Date(value));
+}
+
+function backupStatusText(request: BackupRequest | null) {
+  if (!request) return "No backup has been requested from this page yet. The automatic backup runs every day at 12:30 PM.";
+  if (request.status === "pending") return `Requested ${formatWhen(request.requested_at)}. Waiting for your computer to start it (it must be on and signed in).`;
+  if (request.status === "running") return `Requested ${formatWhen(request.requested_at)}. Running on your computer now.`;
+  if (request.status === "done") return `Last backup finished ${formatWhen(request.finished_at ?? request.requested_at)}.`;
+  return `The backup requested ${formatWhen(request.requested_at)} did not finish${request.message ? `: ${request.message}` : "."} Check backup-log.txt on your computer.`;
 }
 
 const SUBJECT_ID_COLUMN: Record<ReviewSubjectKind, string> = {
@@ -104,6 +120,14 @@ export default async function ContentManagementPage() {
     reviewedNoChanges: new Map(((reviewOks.data as { subject_type: string; subject_id: string; ok_at: string }[] | null) ?? []).map((row) => [`${row.subject_type}:${row.subject_id}`, row.ok_at])),
     submittedWeeklyUpdates: new Set([...myProofings.entries()].filter(([, row]) => row.submitted_at).map(([id]) => id)),
   });
+
+  let backupRequest: BackupRequest | null = null;
+  if (role === "admin") {
+    // Read with the service role: the table is closed to signed-in users. Missing table (migration not applied yet) reads as no request.
+    const { data } = (await createServiceRoleClient()?.from("backup_requests").select("status, requested_at, finished_at, message").order("requested_at", { ascending: false }).limit(1)) ?? { data: null };
+    backupRequest = (data?.[0] as BackupRequest | undefined) ?? null;
+  }
+  const backupActive = backupRequest?.status === "pending" || backupRequest?.status === "running";
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] px-5 py-8 text-[#243126] sm:px-8 sm:py-12">
@@ -183,6 +207,19 @@ export default async function ContentManagementPage() {
             ))}
           </div>
         </section>
+
+        {role === "admin" ? (
+          <section className="border-t border-[#284a3b]/10 pb-10 pt-8">
+            <h2 className="text-2xl font-extrabold text-[#243d31]">Backup</h2>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-[#607066]">
+              Runs the same backup as the daily 12:30 PM one (the database, login accounts, stored files and project files), right away. Use it after making several changes.
+            </p>
+            <p className="mt-3 text-sm font-bold text-[#243d31]" aria-live="polite">{backupStatusText(backupRequest)}</p>
+            <div className="mt-4">
+              <BackupNow active={backupActive} />
+            </div>
+          </section>
+        ) : null}
 
         {history.length ? (
           <section className="border-t border-[#284a3b]/10 pb-10 pt-8">

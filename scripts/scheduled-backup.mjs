@@ -16,7 +16,7 @@
 // Usage: node scripts/scheduled-backup.mjs
 
 import { spawnSync } from "node:child_process";
-import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +31,10 @@ const KEEP_FLASH = 10;
 const SUPABASE_LOCAL = path.join(os.homedir(), "SupabaseBackups");
 const FILES_LOCAL = path.join(os.homedir(), "FileBackups");
 const LOG_FILE = path.join(SUPABASE_LOCAL, "backup-log.txt");
+// The 12:30 PM task and the "Back up now" button (scripts/backup-request-poller.mjs) both start this script, so only one may run at a time.
+const LOCK_FILE = path.join(SUPABASE_LOCAL, "backup.lock");
+const LOCK_STALE_MS = 2 * 60 * 60 * 1000;
+const BUSY_EXIT_CODE = 2;
 
 // A backup is finished only once its marker file exists: the Supabase script writes manifest.json as its last step, and the
 // .bat writes BACKUP_COMPLETE.txt after a successful copy. A manifest also tells two same-named Supabase backups apart.
@@ -127,6 +131,14 @@ function pruneLocal(kind, justMade) {
 
 mkdirSync(SUPABASE_LOCAL, { recursive: true });
 mkdirSync(FILES_LOCAL, { recursive: true });
+if (existsSync(LOCK_FILE) && Date.now() - statSync(LOCK_FILE).mtimeMs > LOCK_STALE_MS) rmSync(LOCK_FILE, { force: true });
+try {
+  writeFileSync(LOCK_FILE, String(process.pid), { flag: "wx" });
+} catch {
+  log("Another backup is already running, so this one did not start.");
+  process.exit(BUSY_EXIT_CODE);
+}
+process.on("exit", () => rmSync(LOCK_FILE, { force: true }));
 const supabase = runSupabaseBackup();
 const files = runFileBackup();
 let allWorked = supabase.ok && files.ok;

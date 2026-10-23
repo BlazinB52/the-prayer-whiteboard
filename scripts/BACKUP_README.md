@@ -161,3 +161,16 @@ from the PrayerWhiteboard folder (it replaces the task). To turn it off:
 
 If the Supabase CLI login ever expires, the backup log will say the backup failed. Sign in
 again (`npx supabase login` in the PrayerWhiteboard folder) and the next run works.
+
+## The "Back up now" button
+
+`/admin/cm` shows the Administrator a **Back up now** button that runs the same backup as the 12:30 PM one, right away. The
+backup needs this computer (Supabase login, disk, flash drive), so the button only leaves a request in the `backup_requests`
+table. A second Task Scheduler task, `PrayerWhiteboardBackupRequests`, runs `scripts/backup-request-poller.mjs` every minute;
+when it finds a request it runs `scripts/scheduled-backup.mjs` and records on the request whether it finished or failed, which
+the page shows. So the computer must be on and signed in, and a request made while it is off runs when it is back. A
+`backup.lock` file keeps it and the 12:30 PM run from overlapping (the later one waits a minute and tries again).
+
+One-time setup, from the PrayerWhiteboard folder: apply the migration (`npx supabase db push`), then
+`powershell -ExecutionPolicy Bypass -File scripts\install-backup-request-task.ps1`. Remove with
+`Unregister-ScheduledTask -TaskName PrayerWhiteboardBackupRequests -Confirm:$false`.

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { devotionalDate, sortByDateThenTitle } from "@/lib/devotional-date";
+import { devotionalTimeZone } from "@/lib/devotional-schedule";
+import { upcomingDevotionalSend, type UpcomingDevotionalSend } from "@/lib/devotional-send";
 import { requireAdmin } from "@/lib/supabase/admin";
 import { formatTeachingDateShort } from "@/lib/teaching-date";
 
@@ -23,6 +25,33 @@ type DevotionalRow = {
 function gatheringDate(own: string | null, teachings: AssociatedTeaching[]) {
   const date = devotionalDate(own, teachings.map((teaching) => teaching.gathering_date));
   return date ? formatTeachingDateShort(date) : "No gathering date";
+}
+
+// "Saturday, Oct 24, 2026 (tomorrow)". The date is a plain calendar date in the ministry's time zone.
+function sendDateLabel(date: string) {
+  const label = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
+  const todayLocal = new Intl.DateTimeFormat("en-CA", { timeZone: devotionalTimeZone(), year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const days = Math.round((Date.parse(`${date}T12:00:00Z`) - Date.parse(`${todayLocal}T12:00:00Z`)) / 86_400_000);
+  const when = days === 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
+  return `${label} (${when})`;
+}
+
+function NextSendLine({ label, next }: { label: string; next: UpcomingDevotionalSend | null }) {
+  return (
+    <p className="text-sm text-[#243d31]">
+      <span className="font-black">{label}:</span>{" "}
+      {next === null ? (
+        <span className="font-bold text-[#a2472c]">Could not be checked.</span>
+      ) : next.found ? (
+        <>
+          <span className="font-extrabold">{next.title}</span>, Day {next.dayNumber} of {next.totalDays}, goes out <span className="font-extrabold">{sendDateLabel(next.date)}</span>
+          {next.missingDay ? <span className="font-bold text-[#a2472c]"> (Day {next.dayNumber} has no content yet)</span> : null}
+        </>
+      ) : (
+        <span className="text-[#607066]">Nothing queued. Publish a devotional to add it to the queue.</span>
+      )}
+    </p>
+  );
 }
 
 function DevotionalGroup({ heading, id, devotionals, emptyText }: { heading: string; id: string; devotionals: DevotionalRow[]; emptyText: string }) {
@@ -112,6 +141,11 @@ export default async function AdminDevotionalsPage() {
     } satisfies DevotionalRow,
   }));
 
+  const [nextEnglish, nextSpanish] = await Promise.all([
+    upcomingDevotionalSend("en").catch(() => null),
+    upcomingDevotionalSend("es").catch(() => null),
+  ]);
+
   return (
     <main className="admin-shell">
       <div className="mx-auto max-w-6xl">
@@ -123,6 +157,11 @@ export default async function AdminDevotionalsPage() {
           </div>
           <Link href="/admin/devotionals/new" className="admin-primary-button inline-flex items-center justify-center"><span>Create New Devotional</span></Link>
         </header>
+
+        <section aria-label="Next devotional sends" className="space-y-2 border-b border-[#284a3b]/10 py-5">
+          <NextSendLine label="Next English" next={nextEnglish} />
+          <NextSendLine label="Next Español" next={nextSpanish} />
+        </section>
 
         {rows.length ? (
           <div className="space-y-10 py-10">

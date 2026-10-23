@@ -5,7 +5,7 @@ import { assertRecipientsChoseLanguage, loadConfirmedRecipients } from "@/lib/br
 import { buildDevotionalDayEmail } from "@/lib/devotional-email-content";
 import { loadPublishedTeachingForDevotional, teachingUrl } from "@/lib/devotional-teaching";
 import { COMMUNION_DAY_NUMBER, COMMUNION_HEADS_UP_DAY_NUMBER, hasCommunionDay } from "@/lib/devotionals";
-import { devotionalDayForWeekday, devotionalTimeZone, isBeforeDevotionalQueueStart, pickNextQueuedSeries } from "@/lib/devotional-schedule";
+import { devotionalDayForWeekday, devotionalLocalDate, devotionalQueueStartDate, devotionalTimeZone, isBeforeDevotionalQueueStart, pickNextQueuedSeries } from "@/lib/devotional-schedule";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { deliverToRecipients, sendDeliveriesStore } from "@/lib/send-deliveries";
 import { getSpanishDevotionalIds, isSpanishDevotional } from "@/lib/spanish-devotionals";
@@ -190,6 +190,58 @@ export async function processDevotionalQueue(now = new Date(), language: Languag
   if (!ledgerId) return { status: "duplicate", dayNumber };
 
   return deliverDay({ ledgerId, devotional, day: day as DayContent, dayNumber, totalDays, teaching, language });
+}
+
+export type UpcomingDevotionalSend =
+  | { found: true; date: string; dayNumber: number; totalDays: number; title: string; missingDay: boolean }
+  | { found: false };
+
+// Read-only preview for the admin page: the next send in one language, found by walking forward day by day
+// with the same rules the morning run uses (Saturday starts the oldest queued series, Sunday through Friday
+// continue it). Nothing is claimed or mailed.
+export async function upcomingDevotionalSend(language: Language, now = new Date()): Promise<UpcomingDevotionalSend> {
+  const supabase = getClient();
+  const timeZone = devotionalTimeZone();
+  const today = devotionalLocalDate(now, timeZone);
+  const startDate = devotionalQueueStartDate();
+  const spanishIds = await getSpanishDevotionalIds(supabase);
+
+  // Whether this language's run for today has already gone out.
+  const { data: recent, error } = await supabase
+    .from("email_devotional_broadcast_ledger")
+    .select("devotional_id, created_at")
+    .not("devotional_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(20);
+  if (error) throw new Error(`Devotional ledger lookup failed: ${error.message}`);
+  const latest = (recent ?? []).find((row) => inQueue(spanishIds, language, row.devotional_id as string));
+  const sentToday = Boolean(latest) && devotionalLocalDate(new Date(latest!.created_at as string), timeZone) === today;
+
+  let queued: SeriesRow | null | undefined;
+  for (let offset = sentToday ? 1 : 0; offset <= 14; offset++) {
+    const day = new Date(`${today}T12:00:00Z`);
+    day.setUTCDate(day.getUTCDate() + offset);
+    const date = day.toISOString().slice(0, 10);
+    if (date < startDate) continue;
+
+    const dayNumber = devotionalDayForWeekday({ now: day, timeZone: "UTC" });
+    if (!dayNumber) continue;
+
+    let series: SeriesRow | null;
+    if (dayNumber === 1) {
+      queued ??= await nextQueuedDevotional(spanishIds, language);
+      series = queued;
+    } else {
+      series = await activeCycleDevotional(dayNumber, new Date(`${date}T17:00:00Z`), spanishIds, language);
+    }
+    if (!series) continue;
+
+    const { count: totalDays } = await supabase.from("teaching_devotional_days").select("id", { count: "exact", head: true }).eq("devotional_id", series.id);
+    if (!totalDays || dayNumber > totalDays) continue;
+    const { data: dayRow } = await supabase.from("teaching_devotional_days").select("id").eq("devotional_id", series.id).eq("day_number", dayNumber).maybeSingle();
+    return { found: true, date, dayNumber, totalDays, title: series.title, missingDay: !dayRow };
+  }
+  return { found: false };
 }
 
 // Mails every confirmed recipient who has no 'sent' delivery for this day yet, stopping when the time

@@ -193,6 +193,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                       <p className="mt-1 text-sm text-[#607066]">Source document: <span className="font-bold text-[#385245]">{update.source_document_file_name ?? "Not retained"}</span></p>
                       <p className="mt-1 text-sm text-[#607066]">Weekly Update whiteboards: <span className="font-bold text-[#385245]">{(whiteboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])).map((id) => whiteboardLabels.get(id)).filter(Boolean).join(", ") || "None selected"}</span></p>
                       <p className="mt-1 text-sm text-[#607066]">Teaching: {update.teaching_id ? <span className="font-bold text-[#385245]">{teachingChoices.find((teaching) => teaching.id === update.teaching_id)?.title ?? "Linked"}</span> : <span className="font-bold text-[#a2472c]">Needs a teaching</span>}</p>
+                      {!update.teaching_id || !(whiteboardIdsByUpdate.get(update.id)?.length || update.chalkboard_asset_id) ? <p className="mt-1 text-sm font-bold text-[#9d5a2f]">To {[!update.teaching_id ? "link a teaching" : "", !(whiteboardIdsByUpdate.get(update.id)?.length || update.chalkboard_asset_id) ? "choose the whiteboard shown on the home page" : ""].filter(Boolean).join(" and ")}, open &ldquo;Edit details&rdquo; below, make your choice, and click Save Weekly Update.</p> : null}
                       <p className="mt-1 text-sm text-[#607066]">Footer:<span className="font-bold text-[#385245]">{footerLabels.get(footerIdByUpdate.get(update.id) ?? "") ?? "None selected"}</span></p>
                     </div>
                     <div className="flex flex-wrap gap-3">
@@ -288,7 +289,7 @@ export default async function AdminWeeklyUpdatesPage({ searchParams }: { searchP
                   ) : null}
                   {(
                     <details className="mt-5">
-                      <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">{update.status === "archived" ? "Edit details (title, date, teaching, whiteboards, footer)" : "Edit title or replace document"}</summary>
+                      <summary className="cursor-pointer text-sm font-extrabold text-[#9d5a2f]">{update.status === "archived" ? "Edit details (title, date, teaching, whiteboards, footer)" : "Edit details (title, date, teaching, whiteboards, footer, document)"}</summary>
                       <div className="mt-4"><WeeklyUpdateEditor hideDocument={update.status === "archived"} action={updateWeeklyUpdate} weeklyUpdateId={update.id} initialLanguage={update.language === "es" ? "es" : "en"} languageLocked initialTitle={update.title} initialWhiteboardAssetIds={whiteboardIdsByUpdate.get(update.id) ?? (update.chalkboard_asset_id ? [update.chalkboard_asset_id] : [])} initialFooterId={footerIdByUpdate.get(update.id) ?? ""} teachings={teachingChoices} initialTeachingId={update.teaching_id} initialGatheringDate={update.gathering_date} whiteboards={whiteboardOptions} footers={footerOptions} /></div>
                     </details>
                   )}

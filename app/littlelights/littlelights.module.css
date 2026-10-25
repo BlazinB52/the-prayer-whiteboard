@@ -162,6 +162,57 @@
   font-weight: 700;
 }
 
+.lessonPage {
+  padding-bottom: 1.5rem;
+  text-align: center;
+}
+
+.lessonArtwork {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.songPlayer {
+  display: flex;
+  justify-content: center;
+  padding: .75rem 0;
+}
+
+.songButton {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .7rem 1.3rem;
+  border: 0;
+  border-radius: 999px;
+  background: #183765;
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.songButtonAttention {
+  background: #f08a24;
+  animation: songPulse 1.4s ease-in-out infinite;
+}
+
+.songButton:focus-visible {
+  outline: 3px solid #183765;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px #fff;
+}
+
+@keyframes songPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .songButtonAttention { animation: none; }
+}
+
 .discoveryPrintables {
   position: relative;
   z-index: 2;

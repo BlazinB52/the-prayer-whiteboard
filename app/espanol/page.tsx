@@ -8,6 +8,8 @@ import { PublicHeader } from "@/app/public-header";
 import { ReturnToTop } from "@/app/return-to-top";
 import { formatInlineText } from "@/app/formatted-text";
 import { JsonLd } from "@/app/json-ld";
+import { loadWhiteboardCardColors } from "@/lib/whiteboard-card-colors-server";
+import { whiteboardCardStyles } from "@/lib/whiteboard-card-colors";
 import { getEspanolHomepageData } from "@/lib/espanol-home-data";
 import { LOGO_PATH, SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
 
@@ -41,7 +43,7 @@ function formatDate(value: string | null) {
 }
 
 export default async function EspanolHomePage() {
-  const data = await getEspanolHomepageData();
+  const [data, cardColors] = await Promise.all([getEspanolHomepageData(), loadWhiteboardCardColors()]);
   const { featured } = data;
 
   return (
@@ -67,8 +69,8 @@ export default async function EspanolHomePage() {
           <div className="relative mx-auto w-full max-w-[510px]">
             {data.whiteboard ? (
               <>
-                <div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" />
-                <div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4">
+                <div className="absolute -inset-3 rotate-2 rounded-[2rem] bg-[#bb7a3c]/18" style={whiteboardCardStyles(cardColors).back} />
+                <div className="relative -rotate-1 rounded-[1.75rem] border border-[#284a3b]/10 bg-white p-3 shadow-2xl shadow-[#2d4639]/20 sm:p-4" style={whiteboardCardStyles(cardColors).front}>
                   <a href={data.whiteboard.url} target="_blank" rel="noreferrer" aria-label="Ver la pizarra más grande">
                     <img src={data.whiteboard.url} alt={data.whiteboard.altText} className="h-auto w-full rounded-2xl object-contain" />
                   </a>

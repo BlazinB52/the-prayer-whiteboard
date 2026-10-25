@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { signOut } from "./actions";
 import { requireAdmin } from "@/lib/supabase/admin";
+import { loadWhiteboardCardColors } from "@/lib/whiteboard-card-colors-server";
+import { DEFAULT_BACK_CARD_PICKER_COLOR, DEFAULT_FRONT_CARD_COLOR } from "@/lib/whiteboard-card-colors";
+import { WhiteboardColorsForm } from "./whiteboard-colors-form";
 
 export const metadata: Metadata = {
   title: "Prayer Whiteboard Editor",
@@ -91,6 +94,7 @@ export default async function AdminDashboardPage() {
     .from("content_revisions")
     .select("id", { count: "exact", head: true })
     .eq("status", "submitted");
+  const cardColors = await loadWhiteboardCardColors();
 
   return (
     <main className="min-h-screen bg-[#f7f2e8] px-5 py-8 text-[#243126] sm:px-8 sm:py-12">
@@ -145,6 +149,12 @@ export default async function AdminDashboardPage() {
               );
             })}
           </div>
+        </section>
+
+        <section aria-labelledby="whiteboard-colors" className="rounded-2xl border border-[#284a3b]/10 bg-[#fffdf8] p-6 shadow-lg shadow-[#4d5f52]/8">
+          <h2 id="whiteboard-colors" className="text-2xl font-extrabold text-[#243d31]">Homepage whiteboard colors</h2>
+          <p className="mb-6 mt-2 max-w-2xl leading-7 text-[#607066]">Choose the colors of the two cards behind the whiteboard on the homepage. The change applies to every whiteboard, including future weekly uploads.</p>
+          <WhiteboardColorsForm front={cardColors.front ?? DEFAULT_FRONT_CARD_COLOR} back={cardColors.back ?? DEFAULT_BACK_CARD_PICKER_COLOR} isCustom={Boolean(cardColors.front || cardColors.back)} />
         </section>
       </div>
     </main>

@@ -15,10 +15,12 @@ test("the admin save is admin-only, validates both colors and refreshes both hom
   assert.match(action, /revalidatePath\("\/"\)[\s\S]*revalidatePath\("\/espanol"\)/);
 });
 
-test("the settings table is closed to signed-in users", async () => {
-  const sql = await readFile("supabase/migrations/20261025000000_site_settings.sql", "utf8");
-  assert.match(sql, /enable row level security/);
-  assert.match(sql, /revoke all on public\.site_settings from anon, authenticated/);
+test("the save targets the existing site_settings table by its key column and its original grants are restored", async () => {
+  const action = await readFile("app/admin/whiteboard-colors-action.ts", "utf8");
+  assert.match(action, /onConflict: "key"/);
+  const sql = await readFile("supabase/migrations/20261025010000_restore_site_settings_grants.sql", "utf8");
+  assert.match(sql, /grant select on public\.site_settings to anon, authenticated/);
+  assert.match(sql, /grant select, insert, update, delete on public\.site_settings to authenticated/);
 });
 
 test("both homepages apply the saved colors and keep the original look when none is saved", async () => {

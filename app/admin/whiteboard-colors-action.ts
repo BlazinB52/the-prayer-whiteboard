@@ -28,7 +28,7 @@ export async function saveWhiteboardCardColors(_: FormState, formData: FormData)
   const { error } = await client.from("site_settings").upsert([
     { key: WHITEBOARD_CARD_FRONT_KEY, value: front, updated_at: new Date().toISOString() },
     { key: WHITEBOARD_CARD_BACK_KEY, value: back, updated_at: new Date().toISOString() },
-  ]);
+  ], { onConflict: "key" });
   if (error) return { error: "Colors could not be saved." };
   revalidatePath("/");
   revalidatePath("/espanol");

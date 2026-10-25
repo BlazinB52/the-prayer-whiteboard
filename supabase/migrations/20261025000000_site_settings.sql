@@ -1,3 +1,6 @@
+-- NOTE: public.site_settings already existed, so the create below did nothing; only the revoke took effect and was
+-- undone by 20261025010000_restore_site_settings_grants.sql. Do not copy the grants below.
+
 -- Small key/value store for site-wide look-and-feel choices the administrator makes from /admin.
 -- First use: the colors of the two cards behind the homepage whiteboard (keys whiteboard_card_front_color and
 -- whiteboard_card_back_color, each a #rrggbb value). A missing key means "use the built-in default".

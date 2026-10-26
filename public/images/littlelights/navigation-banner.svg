@@ -25,10 +25,10 @@
 <text x="161" y="213" font-family="DejaVu Sans, sans-serif" font-size="35" font-weight="bold" fill="#ffffff">Home</text>
 <!-- yellow active underline -->
 <path d="M130 241 Q228 249 329 241" fill="none" stroke="#f8c444" stroke-width="7" stroke-linecap="round"/>
-<!-- adventure -->
+<!-- songs -->
 <path d="M452 182 Q479 173 507 187 V219 Q478 207 452 215Z M507 187 Q534 173 561 182 V215 Q534 207 507 219Z" fill="none" stroke="#193967" stroke-width="6" stroke-linejoin="round"/>
 <path d="M507 188 V219" stroke="#193967" stroke-width="5"/>
-<text x="585" y="212" fill="#132f5c" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="bold">Adventures</text>
+<text x="585" y="212" fill="#132f5c" font-family="DejaVu Sans, sans-serif" font-size="38" font-weight="bold">Songs</text>
 <!-- activities pencil -->
 <g transform="translate(902 179) rotate(39)"><rect x="0" y="0" width="21" height="42" rx="4" fill="#63aaff" stroke="#193967" stroke-width="5"/><path d="M0 42 L10.5 57 L21 42Z" fill="#ffe2a0" stroke="#193967" stroke-width="5" stroke-linejoin="round"/><path d="M0 11 H21" stroke="#193967" stroke-width="4"/></g>
 <text x="949" y="212" fill="#132f5c" font-family="DejaVu Sans, sans-serif" font-size="31" font-weight="bold">Activities</text>

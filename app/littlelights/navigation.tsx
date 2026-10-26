@@ -7,7 +7,7 @@ import styles from "./littlelights.module.css";
 
 const links = [
   { href: "/littlelights", label: "Home" },
-  { href: "/littlelights/adventures", label: "Adventures" },
+  { href: "/littlelights/scripture-songs", label: "Songs" },
   { href: "/littlelights/activities", label: "Activities" },
 ];
 

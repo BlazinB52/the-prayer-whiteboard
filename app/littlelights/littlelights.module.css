@@ -173,6 +173,38 @@
   height: auto;
 }
 
+.videoWrap {
+  position: relative;
+  background: #000;
+}
+
+.lessonVideo {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 80svh;
+}
+
+.videoPlayButton {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: max-content;
+  height: max-content;
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  padding: 1rem 1.8rem;
+  border: 0;
+  border-radius: 999px;
+  background: #f08a24;
+  color: white;
+  font-weight: 700;
+  font-size: 1.2rem;
+  cursor: pointer;
+  animation: songPulse 1.4s ease-in-out infinite;
+}
+
 .songPlayer {
   display: flex;
   justify-content: center;

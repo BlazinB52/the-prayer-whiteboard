@@ -21,7 +21,7 @@ export default function LittleLightsPage() {
           className={styles.welcomeArtwork}
         />
         <Link
-          href="/littlelights/coming-soon"
+          href="/littlelights/scripture-songs"
           prefetch={false}
           aria-label="Start Exploring"
           className={styles.startExploring}
@@ -37,9 +37,9 @@ export default function LittleLightsPage() {
           className={styles.discoveryArtwork}
         />
         <Link
-          href="/littlelights/coming-soon"
+          href="/littlelights/scripture-songs"
           prefetch={false}
-          aria-label="Faith Adventures"
+          aria-label="Scripture Memory Songs"
           className={`${styles.cardLink} ${styles.faithAdventures}`}
         />
         <Link

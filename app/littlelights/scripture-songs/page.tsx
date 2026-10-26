@@ -1,0 +1,40 @@
+import Link from "next/link";
+import { BookOpen, House, LockKeyhole, Music2, PlayCircle, Star } from "lucide-react";
+import styles from "./songs.module.css";
+
+export const metadata = {
+  title: "Scripture Memory Songs | Little Lights",
+  description: "Sing it! Learn it! Live it! Explore Bible memory songs with Zack.",
+};
+
+export default function ScriptureSongsPage() {
+  return (
+    <section className={styles.page} aria-labelledby="songs-heading">
+      <div className={styles.heading}>
+        <Music2 aria-hidden="true" size={30} />
+        <h1 id="songs-heading">Scripture Memory Songs</h1>
+        <p>Sing it! Learn it! Live it!</p>
+      </div>
+      <div className={styles.welcome}>
+        <span className={styles.lantern} aria-hidden="true">🏮</span>
+        <p><strong>Hey! I’m Zack!</strong><br />Ready to learn God’s Word with music? Pick a song and sing along!</p>
+      </div>
+      <Link href="/littlelights/mat_724" className={styles.songCard}>
+        <span className={styles.picture} aria-hidden="true"><House size={55} strokeWidth={2.2} /><span className={styles.rock}>🪨</span></span>
+        <span className={styles.cardText}><strong>The Wise Builder</strong><span>Matthew 7:24</span><span className={styles.play}><PlayCircle size={22} /> Watch &amp; Sing</span></span>
+      </Link>
+      <div className={styles.futureCard}>
+        <span className={styles.futureIcon}><Music2 size={39} /></span>
+        <span className={styles.cardText}><strong>Our Next Adventure</strong><span>A new Scripture song is coming!</span></span>
+        <LockKeyhole size={21} aria-label="Coming soon" />
+      </div>
+      <div className={styles.futureCardPurple}>
+        <span className={styles.futureIcon}><Star size={39} /></span>
+        <span className={styles.cardText}><strong>More Songs Ahead!</strong><span>Keep exploring God’s Word.</span></span>
+        <LockKeyhole size={21} aria-label="Coming soon" />
+      </div>
+      <p className={styles.note}><BookOpen size={18} aria-hidden="true" /> Hide God’s Word in your heart, one song at a time!</p>
+      <Link href="/littlelights" className={styles.home}>Back to Little Lights</Link>
+    </section>
+  );
+}

@@ -8,7 +8,7 @@ const YOUTUBE_VIDEO_ID = "P9f6JIY6dpM";
 export default function LittleLights003Page() {
   return (
     <section className={styles.lessonPage} aria-label="Little Lights 003 video">
-      <YouTubePlayer videoId={YOUTUBE_VIDEO_ID} title="Little Lights 003 video" />
+      <YouTubePlayer videoId={YOUTUBE_VIDEO_ID} title="Little Lights 003 video" portrait />
       <Link href="/littlelights" className={styles.backToLittleLights}>
         Back to Little Lights
       </Link>

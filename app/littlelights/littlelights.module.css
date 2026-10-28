@@ -185,6 +185,13 @@
   background: #000;
 }
 
+/* Tall phone-shaped frame; kept short enough that the whole video fits on screen. */
+.youtubePortrait {
+  aspect-ratio: 9 / 16;
+  width: min(100%, calc(85svh * 9 / 16));
+  margin-inline: auto;
+}
+
 .youtubeFrame {
   position: absolute;
   inset: 0;

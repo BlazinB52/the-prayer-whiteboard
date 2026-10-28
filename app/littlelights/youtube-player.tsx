@@ -3,6 +3,8 @@ import styles from "./littlelights.module.css";
 type YouTubePlayerProps = {
   videoId: string;
   title: string;
+  /** Tall 9:16 frame for videos made for phones (like YouTube Shorts). */
+  portrait?: boolean;
 };
 
 /**
@@ -11,7 +13,7 @@ type YouTubePlayerProps = {
  * until the visitor taps (iPhones especially) show YouTube's own play button.
  * Uses YouTube's privacy-enhanced (no-cookie) player.
  */
-export function YouTubePlayer({ videoId, title }: YouTubePlayerProps) {
+export function YouTubePlayer({ videoId, title, portrait = false }: YouTubePlayerProps) {
   const params = new URLSearchParams({
     autoplay: "1",
     playsinline: "1",
@@ -19,7 +21,7 @@ export function YouTubePlayer({ videoId, title }: YouTubePlayerProps) {
   });
 
   return (
-    <div className={styles.youtubeWrap}>
+    <div className={`${styles.youtubeWrap} ${portrait ? styles.youtubePortrait : ""}`}>
       <iframe
         className={styles.youtubeFrame}
         src={`https://www.youtube-nocookie.com/embed/${videoId}?${params}`}

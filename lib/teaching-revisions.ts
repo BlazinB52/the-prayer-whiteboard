@@ -85,7 +85,7 @@ export function buildEditableFields(teaching: TeachingRow, categories: CategoryR
     fields.push({ id: fieldId("teaching", null, fieldKey), targetKind: "teaching", targetId: null, fieldKey, label, context: "Teaching details", current: current ?? "", maxLength, multiline, rows, formatted });
   };
   teachingField("title", "Title", teaching.title, 160, false, 1, false);
-  teachingField("central_theme", "Central theme", teaching.central_theme, 400, false, 1, false);
+  teachingField("central_theme", "Central theme", teaching.central_theme, 600, false, 1, false);
   teachingField("introduction", "Introduction", teaching.introduction, 5000, true, 6, true);
   teachingField("summary", "Short summary", teaching.summary, 800, true, 4, true);
   teachingField("teaser_1_heading", "Homepage teaser 1 heading", teaching.teaser_1_heading, 100, false, 1, false);

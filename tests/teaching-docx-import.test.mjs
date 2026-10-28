@@ -195,7 +195,7 @@ test("a repeated metadata label after the categories begin is an error", () => {
 test("field limits are enforced", () => {
   assertError(parse(withReplaced((row) => row[1] === "A short summary.", [null, "x".repeat(801)])), /Short Summary is 801 characters/);
   assert.equal(parse(withReplaced((row) => row[1] === "A short summary.", [null, "x".repeat(800)])).teaching.summary.length, 800);
-  assertError(parse(withReplaced((row) => row[1] === "God places eternal treasure in ordinary vessels.", [null, "x".repeat(401)])), /Central Theme is 401 characters/);
+  assertError(parse(withReplaced((row) => row[1] === "God places eternal treasure in ordinary vessels.", [null, "x".repeat(601)])), /Central Theme is 601 characters/);
   assertError(parse(withReplaced((row) => row[1] === "First introduction paragraph.", [null, "x".repeat(5000)])), /Introduction is/);
   assertError(parse(withReplaced((row) => row[0] === "Title", ["Title", "x".repeat(161)])), /title is 161 characters/);
   assertError(parse(withReplaced((row) => row[1] === "Text after the scripture.", [null, "x".repeat(12001)])), /12,000/);

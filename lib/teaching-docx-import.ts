@@ -23,7 +23,7 @@ export const TEACHING_IMPORT_LIMITS = {
   title: 160,
   categoryTitle: 160,
   sectionTitle: 160,
-  centralTheme: 400,
+  centralTheme: 600,
   introduction: 5000,
   summary: 800,
   sectionText: 12000,

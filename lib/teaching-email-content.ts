@@ -1,7 +1,7 @@
 import { button, escapeHtml, greeting, shell, textGreeting } from "./subscription-email-content.ts";
 import type { EmailCopyrightDisclaimer } from "./copyright-disclaimer-format.ts";
 
-// summary is nullable on public.teachings, so it is omitted rather than rendered empty.
+// Teaser fields are nullable, so a missing one is omitted rather than rendered empty.
 function paragraphs(value: string) {
   return value.replace(/\r\n?/g, "\n").split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
 }
@@ -39,10 +39,20 @@ const COPY = {
   },
 } as const;
 
+// The email carries Teaser 1 (heading and text) instead of the teaching itself. Teachings published before
+// teasers existed fall back to the short summary.
+export function teachingEmailTeaser(teaching: { teaser_1_heading?: string | null; teaser_1_text?: string | null; summary?: string | null }) {
+  const text = teaching.teaser_1_text?.trim() || teaching.summary?.trim() || null;
+  const heading = teaching.teaser_1_text?.trim() ? teaching.teaser_1_heading?.trim() || null : null;
+  return { teaserHeading: heading, teaserText: text };
+}
+
 export function buildTeachingEmail(input: {
   firstName: string;
   title: string;
-  summary: string | null;
+  teaserHeading: string | null;
+  teaserText: string | null;
+  // The button's destination: a signed per-subscriber link that records the click, then opens the teaching.
   teachingUrl: string;
   logoUrl?: string;
   preferencesUrl: string;
@@ -51,8 +61,11 @@ export function buildTeachingEmail(input: {
 }) {
   const language = input.language ?? "en";
   const copy = COPY[language];
-  const summaryHtml = sectionHtml(input.summary, "margin:0 0 16px;line-height:1.7;font-size:17px;color:#385245;");
-  const summaryText = sectionText(input.summary);
+  const teaserHeadingHtml = input.teaserHeading?.trim()
+    ? `<h2 style="margin:0 0 10px;color:#243d31;font-size:21px;line-height:1.25;">${escapeHtml(input.teaserHeading.trim())}</h2>`
+    : "";
+  const teaserHtml = teaserHeadingHtml + sectionHtml(input.teaserText, "margin:0 0 16px;line-height:1.7;font-size:17px;color:#385245;");
+  const teaserText = [input.teaserHeading?.trim(), sectionText(input.teaserText)].filter(Boolean).join("\n\n");
 
   // Centered letterhead logo with roughly four lines of space before the greeting.
   const letterhead = input.logoUrl
@@ -65,7 +78,7 @@ export function buildTeachingEmail(input: {
   const html = shell("", `
     <p style="margin:0 0 16px;line-height:1.65;">${greeting(greetingName, language)}</p>
     <p style="margin:0 0 20px;line-height:1.65;">${copy.announce(`<strong><em>${escapeHtml(input.title)}</em></strong>`)}</p>
-    ${summaryHtml}
+    ${teaserHtml}
     <p style="margin:28px 0 0;">${button(copy.button, input.teachingUrl)}</p>
     <hr style="border:0;border-top:1px solid rgba(40,74,59,0.15);margin:28px 0 16px;" />
     <p style="margin:0;line-height:1.65;color:#607066;font-size:13px;">${copy.reason} <a href="${escapeHtml(input.preferencesUrl)}" style="color:#244a3a;">${copy.manage}</a>.</p>
@@ -76,7 +89,7 @@ export function buildTeachingEmail(input: {
     textGreeting(greetingName, language),
     "",
     copy.announce(input.title),
-    summaryText ? `\n${summaryText}` : "",
+    teaserText ? `\n${teaserText}` : "",
     "",
     copy.textLink,
     input.teachingUrl,

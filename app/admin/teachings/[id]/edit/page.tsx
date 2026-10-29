@@ -27,6 +27,7 @@ import { publishEmailNotice } from "@/lib/publish-email-notice";
 import { teachingEmailSendNotice } from "@/lib/teaching-email-send-notice";
 import { getTeachingEmailState } from "@/lib/teaching-email-state";
 import { SendTeachingEmailButton } from "../../send-email-box";
+import { TeachingEmailReaders } from "../../email-readers";
 import { sendForReview, takeBackFromReview } from "@/app/admin/review-gate-actions";
 import { ReviewGateMessage, ReviewGateSection } from "@/app/admin/review-gate-section";
 
@@ -270,6 +271,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
           </p>
           {emailSend.canSend ? <SendTeachingEmailButton teachingId={id} label={emailSend.buttonLabel} confirmMessage={emailSend.confirm} /> : null}
         </section>
+        {teaching.status === "published" ? <TeachingEmailReaders supabase={supabase} teachingId={id} deliveredCount={emailSend.deliveredCount} /> : null}
         {teaching.status === "published" ? (
           <section className="mt-8 rounded-2xl border border-[#a2472c]/20 bg-[#fff8f1] p-5">
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Unpublish</p>

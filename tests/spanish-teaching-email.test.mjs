@@ -16,7 +16,8 @@ const englishDisclaimer = buildEmailCopyrightDisclaimer(FALLBACK_EMAIL_COPYRIGHT
 const input = {
   firstName: "Brent",
   title: "Caminar en la Luz y Recordar el Pacto",
-  summary: "Dios ha hecho a los creyentes santos en luz.",
+  teaserHeading: null,
+  teaserText: "Dios ha hecho a los creyentes santos en luz.",
   teachingUrl: `${BASE}/teachings/caminar-en-la-luz-y-recordar-el-pacto`,
   preferencesUrl: `${BASE}/espanol/preferencias`,
 };
@@ -60,7 +61,7 @@ test("the Spanish email footer lists only RVR1960 and NVI, links aquí to the Es
 });
 
 test("the English teaching email is unchanged by the Spanish support", () => {
-  const email = buildTeachingEmail({ ...input, title: "Shuttering the Past", summary: null, preferencesUrl: `${BASE}/email-preferences`, copyrightDisclaimer: englishDisclaimer });
+  const email = buildTeachingEmail({ ...input, title: "Shuttering the Past", teaserText: null, preferencesUrl: `${BASE}/email-preferences`, copyrightDisclaimer: englishDisclaimer });
 
   assert.equal(email.subject, "New teaching: Shuttering the Past");
   assert.match(email.html, /Hi Brent,/);

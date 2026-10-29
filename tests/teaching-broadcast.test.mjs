@@ -6,21 +6,22 @@ import { buildTeachingEmail } from "../lib/teaching-email-content.ts";
 const baseInput = {
   firstName: "Max",
   title: "Aliyah, Israel, and the Harvest",
-  summary: "A study of return and ingathering.",
+  teaserHeading: "Return and ingathering",
+  teaserText: "A study of return and ingathering.",
   introduction: "We begin in Jeremiah.\n\nThen we turn to Isaiah.",
   teachingUrl: "https://theprayerwhiteboard.com/teachings/aliyah-israel-harvest-prayer",
   preferencesUrl: "https://theprayerwhiteboard.com/email-preferences",
 };
 
-test("a teaching email renders the announcement line with title, then the summary on its own paragraph", () => {
+test("a teaching email renders the announcement line with title, then the teaser on its own paragraph", () => {
   const email = buildTeachingEmail(baseInput);
 
   assert.equal(email.subject, "New teaching: Aliyah, Israel, and the Harvest");
   assert.match(email.html, /Hi Max,/);
   assert.ok(email.text.startsWith("Hi Max,"));
   assert.match(email.html, /A study of return and ingathering\./);
-  assert.match(email.html, /published on The Prayer Whiteboard — <strong><em>Aliyah, Israel, and the Harvest<\/em><\/strong>\.<\/p>\s*<p[^>]*>A study of return/);
-  assert.match(email.text, /Prayer Whiteboard — Aliyah, Israel, and the Harvest\.\n\nA study of return and ingathering\./);
+  assert.match(email.html, /published on The Prayer Whiteboard — <strong><em>Aliyah, Israel, and the Harvest<\/em><\/strong>\.<\/p>\s*<h2[^>]*>Return and ingathering<\/h2><p[^>]*>A study of return/);
+  assert.match(email.text, /Prayer Whiteboard — Aliyah, Israel, and the Harvest\.\n\nReturn and ingathering\n\nA study of return and ingathering\./);
   assert.equal(email.html.includes("<h1"), false);
   assert.match(email.html, /Read the Full Teaching/);
   assert.match(email.text, /Read the full teaching:/);
@@ -34,8 +35,8 @@ test("a teaching email opens with the centered letterhead logo when a logo URL i
   assert.equal(email.html.includes("letter-spacing:0.12em"), false);
 });
 
-test("nullable summary is omitted rather than rendered empty", () => {
-  const email = buildTeachingEmail({ ...baseInput, summary: null });
+test("missing teaser is omitted rather than rendered empty", () => {
+  const email = buildTeachingEmail({ ...baseInput, teaserHeading: null, teaserText: null });
 
   assert.equal(email.html.includes("<p style=\"margin:0 0 16px;line-height:1.7;\"></p>"), false);
   assert.match(email.html, /Read the Full Teaching/);
@@ -43,7 +44,7 @@ test("nullable summary is omitted rather than rendered empty", () => {
 });
 
 test("teaching content is escaped and carries an unsubscribe link", () => {
-  const email = buildTeachingEmail({ ...baseInput, summary: "<script>alert(1)</script>" });
+  const email = buildTeachingEmail({ ...baseInput, teaserText: "<script>alert(1)</script>" });
 
   assert.equal(email.html.includes("<script>"), false);
   assert.match(email.html, /&lt;script&gt;/);

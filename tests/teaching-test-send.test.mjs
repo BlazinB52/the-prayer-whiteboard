@@ -81,7 +81,7 @@ test("the teaching preview is built by the production email builder, includes th
 test("an Español teaching previews as a Spanish email with the Español preferences page", async () => {
   const { code } = await readRoute();
 
-  assert.match(code, /\.select\("id, slug, title, summary, language"\)/);
+  assert.match(code, /\.select\("id, slug, title, summary, teaser_1_heading, teaser_1_text, language"\)/);
   assert.match(code, /const language = teaching\.language === "es" \? "es" : "en"/);
   assert.match(code, /language === "es" \? `\$\{base\}\/espanol\/preferencias` : `\$\{base\}\/email-preferences`/);
   assert.match(code, /\r?\n\s+language,\r?\n\s+\}\);/);

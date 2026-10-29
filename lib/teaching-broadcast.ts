@@ -4,7 +4,8 @@ import { assertRecipientsChoseLanguage, loadConfirmedRecipients } from "@/lib/br
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { deliverToRecipients, sendDeliveriesStore } from "@/lib/send-deliveries";
-import { buildTeachingEmail } from "@/lib/teaching-email-content";
+import { signTeachingClickUrl, teachingClickSecret } from "@/lib/teaching-click-link";
+import { buildTeachingEmail, teachingEmailTeaser } from "@/lib/teaching-email-content";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 const THROTTLE_MS = 120;
@@ -17,7 +18,7 @@ export type TeachingBroadcastOutcome =
   | { status: "already_complete" }
   | { status: "sent" | "failed" | "incomplete"; recipientCount: number; sentCount: number; failedCount: number; remainingCount: number };
 
-type TeachingRow = { id: string; slug: string; title: string; summary: string | null; language: "en" | "es" };
+type TeachingRow = { id: string; slug: string; title: string; summary: string | null; teaser_1_heading: string | null; teaser_1_text: string | null; language: "en" | "es" };
 
 function getClient() {
   const supabase = createServiceRoleClient();
@@ -47,7 +48,7 @@ async function loadPublishableTeaching(teachingId: string) {
   const supabase = getClient();
   const { data: teaching, error } = await supabase
     .from("teachings")
-    .select("id, slug, title, summary, status, language")
+    .select("id, slug, title, summary, teaser_1_heading, teaser_1_text, status, language")
     .eq("id", teachingId)
     .maybeSingle();
   if (error) throw new Error(`Teaching lookup failed: ${error.message}`);
@@ -69,7 +70,11 @@ async function deliver(teaching: TeachingRow, broadcastId: string): Promise<Teac
   assertRecipientsChoseLanguage(recipients, language);
 
   const base = siteUrl();
-  const teachingUrl = `${base}/teachings/${teaching.slug}`;
+  // Each recipient's button is their own signed link, so a click is attributed to them and an email program
+  // opening the message records nothing. Checked before anyone is mailed: a send must never go out untracked.
+  const clickSecret = teachingClickSecret();
+  if (!clickSecret) throw new Error("Click tracking is not configured: set TEACHING_CLICK_SECRET. Nothing was sent.");
+  const teaser = teachingEmailTeaser(teaching);
   const preferencesUrl = language === "es" ? `${base}/espanol/preferencias` : `${base}/email-preferences`;
   const copyrightDisclaimer = await getEmailCopyrightDisclaimer(base, language);
 
@@ -80,8 +85,8 @@ async function deliver(teaching: TeachingRow, broadcastId: string): Promise<Teac
     buildEmail: (recipient) => buildTeachingEmail({
       firstName: recipient.firstName,
       title: teaching.title,
-      summary: teaching.summary,
-      teachingUrl,
+      ...teaser,
+      teachingUrl: signTeachingClickUrl({ baseUrl: base, secret: clickSecret, teachingId: teaching.id, subscriberId: recipient.id }),
       logoUrl: `${base}/images/whiteboard-sword-logo-with-tagline.png`,
       preferencesUrl,
       copyrightDisclaimer,

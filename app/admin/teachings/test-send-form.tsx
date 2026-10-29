@@ -37,7 +37,7 @@ export function TeachingTestSendForm({ teachingId }: { teachingId: string }) {
   return (
     <form action={sendTest} className="space-y-3">
       <p className="text-sm text-[#607066]">
-        Sends this teaching to one address only. Subscribers are not contacted and the broadcast record is untouched.
+        Sends the teaser email (Teaser 1 and the Read the Full Teaching button) to one address only. Subscribers are not contacted, the broadcast record is untouched, and clicking the button in a test is not counted as a reader.
       </p>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="flex-1 text-sm font-bold text-[#385245]">

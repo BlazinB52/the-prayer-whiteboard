@@ -3,7 +3,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getEmailCopyrightDisclaimer } from "@/lib/copyright-disclaimers";
 import { siteUrl } from "@/lib/email-subscriptions";
 import { sendSenderTransactionalEmail } from "@/lib/sender-transactional";
-import { buildTeachingEmail } from "@/lib/teaching-email-content";
+import { signTeachingClickUrl, teachingClickSecret, TEST_CLICK_SUBSCRIBER } from "@/lib/teaching-click-link";
+import { buildTeachingEmail, teachingEmailTeaser } from "@/lib/teaching-email-content";
 import { getAuthorizedUser } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: teaching, error } = await supabase
     .from("teachings")
-    .select("id, slug, title, summary, language")
+    .select("id, slug, title, summary, teaser_1_heading, teaser_1_text, language")
     .eq("id", teachingId)
     .maybeSingle();
   if (error) return NextResponse.json({ error: "Teaching could not be read." }, { status: 500 });
@@ -65,8 +66,12 @@ export async function POST(request: Request) {
   const email = buildTeachingEmail({
     firstName,
     title: teaching.title,
-    summary: teaching.summary,
-    teachingUrl: `${base}/teachings/${teaching.slug}`,
+    ...teachingEmailTeaser(teaching),
+    // Same signed link a subscriber gets, so the test proves the button works; the "test" subscriber
+    // redirects to the teaching but records no click.
+    teachingUrl: teachingClickSecret()
+      ? signTeachingClickUrl({ baseUrl: base, secret: teachingClickSecret(), teachingId: teaching.id, subscriberId: TEST_CLICK_SUBSCRIBER })
+      : `${base}/teachings/${teaching.slug}`,
     logoUrl: `${base}/images/whiteboard-sword-logo-with-tagline.png`,
     preferencesUrl: language === "es" ? `${base}/espanol/preferencias` : `${base}/email-preferences`,
     copyrightDisclaimer,

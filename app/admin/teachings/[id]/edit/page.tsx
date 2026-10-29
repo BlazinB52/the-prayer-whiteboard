@@ -98,7 +98,8 @@ export default async function EditTeachingPage({ params, searchParams }: { param
     : { count: 0 };
   // Publishing never emails anyone; the email is sent separately, on purpose, from the Email subscribers box.
   const publishNotice = publishEmailNotice({ language: teaching.language === "es" ? "es" : "en" });
-  const emailSend = teachingEmailSendNotice(await getTeachingEmailState(supabase, id, teaching.status, teaching.language === "es" ? "es" : "en"));
+  const emailState = await getTeachingEmailState(supabase, id, teaching.status, teaching.language === "es" ? "es" : "en");
+  const emailSend = teachingEmailSendNotice(emailState);
   const translation = await loadTranslationOptions(supabase, "teachings", id, teaching.language === "es" ? "es" : "en");
   const footerOptions = (footers ?? []).map((footer) => ({ id: footer.id, label: footer.internal_title, language: (footer.language === "es" ? "es" : "en") as "en" | "es" }));
 
@@ -271,7 +272,7 @@ export default async function EditTeachingPage({ params, searchParams }: { param
           </p>
           {emailSend.canSend ? <SendTeachingEmailButton teachingId={id} label={emailSend.buttonLabel} confirmMessage={emailSend.confirm} /> : null}
         </section>
-        {teaching.status === "published" ? <TeachingEmailReaders supabase={supabase} teachingId={id} deliveredCount={emailSend.deliveredCount} /> : null}
+        {teaching.status === "published" ? <TeachingEmailReaders supabase={supabase} teachingId={id} deliveredCount={emailState.deliveredCount} /> : null}
         {teaching.status === "published" ? (
           <section className="mt-8 rounded-2xl border border-[#a2472c]/20 bg-[#fff8f1] p-5">
             <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#946332]">Unpublish</p>

@@ -16,7 +16,7 @@ export function readRecipientIds(formData: FormData | undefined): string[] {
   return [...new Set(ids)];
 }
 
-/** Every active Content Manager, by name (falling back to their email address). */
+/** Every active Content Manager who has accepted their invitation, by name (falling back to their email address). */
 export async function listActiveContentManagers(): Promise<ContentManagerOption[]> {
   const supabase = createServiceRoleClient();
   if (!supabase) return [];
@@ -25,7 +25,8 @@ export async function listActiveContentManagers(): Promise<ContentManagerOption[
     .select("user_id, email, display_name")
     .eq("role", "content_manager")
     .eq("is_active", true)
-    .is("revoked_at", null);
+    .is("revoked_at", null)
+    .not("activated_at", "is", null);
 
   const people: ContentManagerOption[] = [];
   for (const row of data ?? []) {
